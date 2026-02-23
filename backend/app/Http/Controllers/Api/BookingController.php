@@ -35,9 +35,7 @@ class BookingController extends Controller
     {
         $validated = $request->validate([
             'event_id' => ['required', 'exists:events,id'],
-            'user_id' => ['nullable', 'exists:users,id'],
             'quantity' => ['required', 'integer', 'min:1'],
-            'status' => ['sometimes', Rule::in(['pending', 'confirmed', 'cancelled'])],
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
         ]);
@@ -53,6 +51,8 @@ class BookingController extends Controller
 
         $booking = Booking::create([
             ...$validated,
+            'user_id' => $request->user()?->id,
+            'status' => 'pending',
             'total_amount' => $this->calculateTotal($event->price, $validated['quantity']),
         ]);
 
