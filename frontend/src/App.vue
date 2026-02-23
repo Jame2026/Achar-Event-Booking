@@ -1,47 +1,35 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+<script setup lang="ts">
+import { ref } from 'vue'
+import Register from './components/RegisterForm.vue'
+import Login from './components/LoginForm.vue'
+import HomePage from './components/HomePage.vue'
+
+const currentView = ref<'register' | 'login'>('login')
+const loggedInUser = ref<{
+  id: number
+  name: string
+  email: string
+  role: string
+} | null>(null)
+
+const toggleView = () => {
+  currentView.value = currentView.value === 'register' ? 'login' : 'register'
+}
+
+const onLoginSuccess = (user: { id: number; name: string; email: string; role: string }) => {
+  loggedInUser.value = user
+}
+
+const logout = () => {
+  loggedInUser.value = null
+  currentView.value = 'login'
+}
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <div class="auth-root">
+    <HomePage v-if="loggedInUser" :user="loggedInUser" @logout="logout" />
+    <Register v-else-if="currentView === 'register'" @switch="toggleView" />
+    <Login v-else @switch="toggleView" @success="onLoginSuccess" />
+  </div>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
