@@ -11,10 +11,41 @@ use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
+    public function publicIndex(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'event_type' => ['nullable', 'string', 'max:60'],
+            'status' => ['nullable', Rule::in(['pending', 'confirmed', 'cancelled'])],
+        ]);
+
+        $bookings = Booking::query()
+            ->with(['event:id,title,event_type,starts_at,location', 'user:id,name,email'])
+            ->when(
+                $validated['customer_email'] ?? null,
+                fn ($query, $email) => $query->where('customer_email', $email)
+            )
+            ->when(
+                $validated['status'] ?? null,
+                fn ($query, $status) => $query->where('status', $status)
+            )
+            ->when(
+                $validated['event_type'] ?? null,
+                fn ($query, $eventType) => $query->whereHas(
+                    'event',
+                    fn ($eventQuery) => $eventQuery->where('event_type', $eventType)
+                )
+            )
+            ->latest()
+            ->paginate(20);
+
+        return response()->json($bookings);
+    }
+
     public function index(): JsonResponse
     {
         $bookings = Booking::query()
-            ->with(['event:id,title,starts_at,location', 'user:id,name,email'])
+            ->with(['event:id,title,event_type,starts_at,location', 'user:id,name,email'])
             ->latest()
             ->paginate(15);
 
@@ -29,6 +60,36 @@ class BookingController extends Controller
             ->paginate(15);
 
         return response()->json($bookings);
+    }
+
+    public function availability(Event $event): JsonResponse
+    {
+        $reserved = Booking::query()
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->sum('quantity');
+
+        $remainingCapacity = $event->capacity === 0
+            ? null
+            : max(0, $event->capacity - $reserved);
+
+        $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event);
+
+        $serviceAvailable = $event->is_active
+            && ($event->capacity === 0 || $remainingCapacity > 0);
+
+        return response()->json([
+            'event_id' => $event->id,
+            'service_available' => $serviceAvailable,
+            'vendor_available' => ! $hasOtherVendorBooking,
+            'is_busy' => ! $serviceAvailable || $hasOtherVendorBooking,
+            'has_another_booked' => $hasOtherVendorBooking,
+            'is_active' => (bool) $event->is_active,
+            'capacity' => $event->capacity,
+            'reserved' => (int) $reserved,
+            'remaining_capacity' => $remainingCapacity,
+            'message' => $this->availabilityMessage($event, $serviceAvailable, $hasOtherVendorBooking, $remainingCapacity),
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -51,12 +112,12 @@ class BookingController extends Controller
 
         $booking = Booking::create([
             ...$validated,
-            'user_id' => $request->user()?->id,
+            'user_id' => $request->user() ? $request->user()->id : null,
             'status' => 'pending',
             'total_amount' => $this->calculateTotal($event->price, $validated['quantity']),
         ]);
 
-        return response()->json($booking->load('event:id,title,starts_at,location'), 201);
+        return response()->json($booking->load('event:id,title,event_type,starts_at,location'), 201);
     }
 
     public function show(Booking $booking): JsonResponse
@@ -87,7 +148,7 @@ class BookingController extends Controller
                 : $booking->total_amount,
         ]);
 
-        return response()->json($booking->fresh()->load('event:id,title,starts_at,location'));
+        return response()->json($booking->fresh()->load('event:id,title,event_type,starts_at,location'));
     }
 
     public function destroy(Booking $booking): JsonResponse
@@ -112,8 +173,56 @@ class BookingController extends Controller
         return ($reserved + $requestedQuantity) <= $event->capacity;
     }
 
-    private function calculateTotal(string|float|int $price, int $quantity): float
+    private function calculateTotal($price, int $quantity): float
     {
         return round(((float) $price) * $quantity, 2);
+    }
+
+    private function vendorHasAnotherBookedEvent(Event $event): bool
+    {
+        if (! $event->vendor_id || ! $event->starts_at) {
+            return false;
+        }
+
+        $eventStart = $event->starts_at->toDateTimeString();
+        $eventEnd = ($event->ends_at ?? $event->starts_at)->toDateTimeString();
+
+        return Event::query()
+            ->where('vendor_id', $event->vendor_id)
+            ->where('id', '!=', $event->id)
+            ->whereHas(
+                'bookings',
+                fn ($query) => $query->whereIn('status', ['pending', 'confirmed'])
+            )
+            ->whereRaw(
+                'starts_at <= ? AND COALESCE(ends_at, starts_at) >= ?',
+                [$eventEnd, $eventStart]
+            )
+            ->exists();
+    }
+
+    private function availabilityMessage(
+        Event $event,
+        bool $serviceAvailable,
+        bool $hasOtherVendorBooking,
+        ?int $remainingCapacity
+    ): string {
+        if (! $event->is_active) {
+            return 'Service is not active right now.';
+        }
+
+        if ($event->capacity > 0 && $remainingCapacity === 0) {
+            return 'Service is fully booked.';
+        }
+
+        if ($hasOtherVendorBooking) {
+            return 'Vendor is busy at this time with another booked service.';
+        }
+
+        if ($event->capacity > 0 && $remainingCapacity !== null) {
+            return "Service is available. {$remainingCapacity} spot(s) left.";
+        }
+
+        return 'Service and vendor are available.';
     }
 }
