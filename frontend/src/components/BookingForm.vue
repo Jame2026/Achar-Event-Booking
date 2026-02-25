@@ -2,6 +2,14 @@
 <!-- AddServiceForm.vue -->
 <template>
   <div class="add-service-container">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="#">Dashboard</a>
+      <span aria-hidden="true">›</span>
+      <a href="#">Services</a>
+      <span aria-hidden="true">›</span>
+      <span class="current">Add New Service</span>
+    </nav>
+
     <div class="header">
       <h1>Add New Service</h1>
       <p class="subtitle">Configure your service details, pricing, and scalability options below.</p>
@@ -10,7 +18,7 @@
     <form @submit.prevent="handleSubmit" class="service-form">
       <!-- Section 1: Basic Information -->
       <section class="form-section">
-        <h2>Basic Information</h2>
+        <h2><span class="section-icon">🗂️</span>Basic Information</h2>
 
         <div class="form-grid">
           <!-- Service Name -->
@@ -81,7 +89,7 @@
 
       <!-- Section 2: Scalability & Capacity -->
       <section class="form-section">
-        <h2>Scalability & Capacity</h2>
+        <h2><span class="section-icon">📈</span>Scalability & Capacity</h2>
 
         <div class="form-grid two-columns">
           <div class="form-group">
@@ -108,13 +116,14 @@
         </div>
 
         <div class="hint-box">
-          <p>Setting a good count range helps automate availability for client bookings. Large bookings can trigger custom pricing or staffing adjustments.</p>
+          <div class="hint-icon">ℹ</div>
+          <p>Setting a guest count range helps automate availability for client bookings. Large bookings can trigger custom pricing or staffing adjustments.</p>
         </div>
       </section>
 
       <!-- Section 3: Availability -->
       <section class="form-section">
-        <h2>Availability</h2>
+        <h2><span class="section-icon">📅</span>Availability</h2>
 
         <div class="form-grid two-columns">
           <div class="form-group">
@@ -144,7 +153,7 @@
 
       <!-- Section 4: Automation Settings -->
       <section class="form-section">
-        <h2>Automation Settings</h2>
+        <h2><span class="section-icon">⚙️</span>Automation Settings</h2>
 
         <div class="toggle-group">
           <label class="toggle-label">
@@ -176,15 +185,30 @@
       <div v-if="submitError" class="error-message">{{ submitError }}</div>
     </form>
 
-    <div class="dashboard-hint">
-      <p>Manage services, pricing & Track income trends • Scalable solutions adjusted based on guest and client requirements</p>
+    <!-- <div class="dashboard-hint">
+      <p>Manage services, pricing, and track income trends - scalable solutions that adapt to every guest and client requirement.</p>
+    </div> -->
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Manage & Insert</h4>
+        <p>Easily update your services and pricing through this unified management dashboard.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Track Income</h4>
+        <p>View analytics, revenue trends, and booking history across months and years.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Scalable Solutions</h4>
+        <p>Our system automatically adjusts based on guest count and client requirements.</p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import '@/assets/css/BookingForm.css'
+import '@/assets/BookingForm.css'
 
 const form = ref({
   name: '',
