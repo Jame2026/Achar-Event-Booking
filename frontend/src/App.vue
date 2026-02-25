@@ -5,6 +5,7 @@ import Home from './components/Home.vue'
 
 <template>
   <Home />
+<<<<<<< HEAD
 </template>
 =======
 <!-- App.vue -->
@@ -18,3 +19,6 @@ import Home from './components/Home.vue'
 import BookingForm from './components/BookingForm.vue'
 </script>
 >>>>>>> Feature/Booking-Form
+=======
+</template>
+>>>>>>> Feature/HomeBooking

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @import './base.css'; 
 
 /* /* #app {
@@ -33,3 +34,20 @@
     padding: 0 2rem;
   }
 } */
+=======
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import './base.css';
+
+#app {
+  max-width: none;
+  padding: 0 12px 32px;
+}
+
+body {
+  display: block;
+}
+
+a {
+  text-decoration: none;
+}
+>>>>>>> Feature/HomeBooking
