@@ -18,6 +18,8 @@ class Booking extends Model
         'status',
         'customer_name',
         'customer_email',
+        'service_name',
+        'requested_event_type',
     ];
 
     protected function casts(): array

@@ -99,6 +99,8 @@ class BookingController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
+            'service_name' => ['nullable', 'string', 'max:255'],
+            'requested_event_type' => ['nullable', 'string', 'max:60'],
         ]);
 
         $event = Event::findOrFail($validated['event_id']);
@@ -132,6 +134,8 @@ class BookingController extends Controller
             'status' => ['sometimes', Rule::in(['pending', 'confirmed', 'cancelled'])],
             'customer_name' => ['sometimes', 'string', 'max:255'],
             'customer_email' => ['sometimes', 'email', 'max:255'],
+            'service_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'requested_event_type' => ['sometimes', 'nullable', 'string', 'max:60'],
         ]);
 
         $event = $booking->event;

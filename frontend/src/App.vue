@@ -83,6 +83,73 @@ const reviews = [
   },
 ]
 
+const serviceFeeRate = 0.1
+const customizationSearch = ref('')
+const customizationEventType = ref('all')
+const selectedCustomizationPackageId = ref(null)
+const customizationQuantity = ref(1)
+const selectedServiceIds = ref([])
+const matchingServicesCatalog = [
+  { id: 'mc-host', name: 'Achar MC', description: 'Traditional ceremony host and flow management.', price: 250, eventTypes: ['wedding', 'engagement', 'anniversary'] },
+  { id: 'monk-set', name: 'Monk Ceremony Set', description: 'Complete ritual setup for monk blessing.', price: 320, eventTypes: ['monk_ceremony', 'house_blessing'] },
+  { id: 'sound-light', name: 'Sound & Lighting', description: 'PA system, DJ support, and stage lighting.', price: 450, eventTypes: ['company_party', 'birthday', 'school_event', 'festival', 'graduation'] },
+  { id: 'photo-video', name: 'Photo & Video', description: 'Event photography and highlight video coverage.', price: 850, eventTypes: ['wedding', 'engagement', 'birthday', 'company_party', 'school_event', 'graduation', 'anniversary'] },
+  { id: 'premium-catering', name: 'Premium Catering', description: 'Buffet and service crew package.', price: 1500, eventTypes: ['wedding', 'company_party', 'birthday', 'festival', 'anniversary'] },
+  { id: 'decor-pack', name: 'Decoration Package', description: 'Theme design, floral setup, and backdrops.', price: 1200, eventTypes: ['wedding', 'engagement', 'baby_shower', 'birthday', 'school_event'] },
+  { id: 'cake-dessert', name: 'Cake & Dessert Bar', description: 'Customized cake and dessert station.', price: 380, eventTypes: ['birthday', 'anniversary', 'baby_shower', 'graduation'] },
+  { id: 'cultural-band', name: 'Khmer Cultural Band', description: 'Live traditional music performance.', price: 600, eventTypes: ['wedding', 'festival', 'engagement', 'other'] },
+]
+const packageCatalogByEventType = {
+  wedding: [
+    { id: 'wed-royal', title: 'Royal Wedding Signature', description: 'Elegant ceremony + reception package.', basePrice: 2800 },
+    { id: 'wed-classic', title: 'Classic Wedding Essentials', description: 'Balanced package for medium-size weddings.', basePrice: 1900 },
+  ],
+  monk_ceremony: [
+    { id: 'monk-blessing', title: 'Monk Blessing Complete', description: 'Full monk ceremony setup and coordination.', basePrice: 1250 },
+    { id: 'monk-traditional', title: 'Traditional Blessing Basic', description: 'Core ritual set with support team.', basePrice: 900 },
+  ],
+  house_blessing: [
+    { id: 'house-premium', title: 'House Blessing Premium', description: 'Blessing flow, altar setup, and host support.', basePrice: 1100 },
+    { id: 'house-basic', title: 'House Blessing Basic', description: 'Essential ceremonial package for new homes.', basePrice: 780 },
+  ],
+  company_party: [
+    { id: 'corp-gala', title: 'Corporate Gala Package', description: 'Production-ready package for company celebrations.', basePrice: 3200 },
+    { id: 'corp-social', title: 'Corporate Social Night', description: 'Smart setup for networking and social events.', basePrice: 2100 },
+  ],
+  birthday: [
+    { id: 'bday-deluxe', title: 'Birthday Deluxe Party', description: 'Fun and vibrant premium birthday setup.', basePrice: 1500 },
+    { id: 'bday-family', title: 'Birthday Family Package', description: 'Budget-friendly birthday arrangement.', basePrice: 980 },
+  ],
+  school_event: [
+    { id: 'school-annual', title: 'School Annual Event', description: 'Stage, sound, and logistics for school functions.', basePrice: 2600 },
+    { id: 'school-ceremony', title: 'School Ceremony Package', description: 'Graduation or ceremony focused setup.', basePrice: 1800 },
+  ],
+  engagement: [
+    { id: 'eng-gold', title: 'Engagement Gold Package', description: 'Elegant engagement decor and hosting support.', basePrice: 1700 },
+    { id: 'eng-intimate', title: 'Engagement Intimate Package', description: 'Compact setup for close-family events.', basePrice: 1200 },
+  ],
+  anniversary: [
+    { id: 'anni-romance', title: 'Anniversary Romance Package', description: 'Decor and ambiance tailored for anniversaries.', basePrice: 1400 },
+    { id: 'anni-family', title: 'Anniversary Family Package', description: 'Warm and simple anniversary celebration setup.', basePrice: 1050 },
+  ],
+  baby_shower: [
+    { id: 'baby-soft', title: 'Baby Shower Soft Theme', description: 'Themed decor and coordinated setup.', basePrice: 1300 },
+    { id: 'baby-classic', title: 'Baby Shower Classic', description: 'Essential baby shower arrangement package.', basePrice: 920 },
+  ],
+  graduation: [
+    { id: 'grad-stage', title: 'Graduation Stage Package', description: 'Photo zone, stage setup, and sound support.', basePrice: 2100 },
+    { id: 'grad-party', title: 'Graduation Party Package', description: 'Post-ceremony celebration package.', basePrice: 1450 },
+  ],
+  festival: [
+    { id: 'fest-premium', title: 'Festival Premium Package', description: 'Large-scale festival production support.', basePrice: 4200 },
+    { id: 'fest-community', title: 'Community Festival Package', description: 'Reliable setup for community events.', basePrice: 2600 },
+  ],
+  other: [
+    { id: 'other-custom', title: 'Custom Event Package', description: 'Flexible package for unique requirements.', basePrice: 1600 },
+    { id: 'other-essentials', title: 'Event Essentials', description: 'Core setup for miscellaneous events.', basePrice: 1100 },
+  ],
+}
+
 const conversations = ref([
   {
     id: 'luxe-bloom',
@@ -141,12 +208,20 @@ const navSearchPlaceholder = computed(() =>
   currentPage.value === 'bookings' ? 'Search bookings...' : 'Search services...',
 )
 const userAvatarInitial = computed(() => (customerName.value.trim().charAt(0) || 'P').toUpperCase())
+const fallbackVendorLocation = '88 Flower District, New York, NY 10001'
 const userLocationMapUrl = computed(() => {
   if (userLatitude.value === null || userLongitude.value === null) return ''
   const lat = userLatitude.value.toFixed(6)
   const lng = userLongitude.value.toFixed(6)
   return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=13&size=700x320&markers=${lat},${lng},orange-pushpin`
 })
+const vendorLocationText = computed(() => {
+  const firstWithLocation = vendorEvents.value.find((item) => item.location && item.location.trim())
+  return firstWithLocation?.location || fallbackVendorLocation
+})
+const vendorMapEmbedUrl = computed(
+  () => `https://www.google.com/maps?q=${encodeURIComponent(vendorLocationText.value)}&output=embed`,
+)
 
 const filteredPackages = computed(() => {
   const q = globalSearch.value.trim().toLowerCase()
@@ -191,6 +266,83 @@ const dashboardStats = computed(() => {
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 const recentConversations = computed(() => conversations.value.slice(0, 3))
+const fallbackBookingEvent = computed(() => vendorEvents.value[0] || null)
+const catalogPackages = computed(() => {
+  const types = customizationEventType.value === 'all'
+    ? eventTypeOptions.map((opt) => opt.value).filter((value) => value !== 'all')
+    : [customizationEventType.value]
+
+  const packages = []
+  types.forEach((type) => {
+    const entries = packageCatalogByEventType[type] || []
+    entries.forEach((entry) => {
+      const exactEvent = vendorEvents.value.find((event) => event.eventType === type)
+      const fallbackEvent = fallbackBookingEvent.value
+      const backing = exactEvent || fallbackEvent
+      packages.push({
+        id: `${type}-${entry.id}`,
+        title: entry.title,
+        description: entry.description,
+        price: entry.basePrice,
+        eventType: type,
+        eventTypeLabel: eventTypeMap[type] || 'Other',
+        location: backing?.location || fallbackVendorLocation,
+        date: backing?.date || 'Date TBD',
+        backingEventId: backing?.id || null,
+      })
+    })
+  })
+  return packages
+})
+
+const filteredCustomizationPackages = computed(() => {
+  const q = customizationSearch.value.trim().toLowerCase()
+  return catalogPackages.value.filter((item) => {
+    const matchesSearch =
+      !q ||
+      item.title.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      item.location.toLowerCase().includes(q)
+    return matchesSearch
+  })
+})
+const selectedCustomizationPackage = computed(
+  () => catalogPackages.value.find((item) => item.id === selectedCustomizationPackageId.value) || null,
+)
+const effectiveCustomizationEventType = computed(() => {
+  if (customizationEventType.value !== 'all') return customizationEventType.value
+  return selectedCustomizationPackage.value?.eventType || 'all'
+})
+const filteredMatchingServices = computed(() => {
+  const q = customizationSearch.value.trim().toLowerCase()
+  return matchingServicesCatalog.filter((service) => {
+    const matchesEvent =
+      effectiveCustomizationEventType.value === 'all' ||
+      service.eventTypes.includes(effectiveCustomizationEventType.value) ||
+      service.eventTypes.includes('other')
+    const matchesSearch =
+      !q || service.name.toLowerCase().includes(q) || service.description.toLowerCase().includes(q)
+    return matchesEvent && matchesSearch
+  })
+})
+const selectedMatchingServices = computed(() =>
+  matchingServicesCatalog.filter((service) => selectedServiceIds.value.includes(service.id)),
+)
+const selectedServicesSubtotal = computed(() =>
+  selectedMatchingServices.value.reduce((sum, service) => sum + service.price, 0),
+)
+const customizationPackageSubtotal = computed(() => {
+  if (!selectedCustomizationPackage.value) return 0
+  const unitPrice = Number(selectedCustomizationPackage.value.price || 0)
+  return Number.isFinite(unitPrice) ? unitPrice * customizationQuantity.value : 0
+})
+const serviceFeeAmount = computed(() =>
+  Number(((customizationPackageSubtotal.value + selectedServicesSubtotal.value) * serviceFeeRate).toFixed(2)),
+)
+const customizationTotal = computed(() =>
+  customizationPackageSubtotal.value + selectedServicesSubtotal.value + serviceFeeAmount.value,
+)
+const selectedServicesCount = computed(() => selectedMatchingServices.value.length)
 
 function formatDateTime(dateString) {
   if (!dateString) return 'Date TBD'
@@ -223,10 +375,10 @@ function mapBooking(apiBooking) {
   return {
     id: apiBooking.id,
     vendor: vendorProfile.name,
-    service: event.title || 'Service Booking',
+    service: apiBooking.service_name || event.title || 'Service Booking',
     date: formatDateTime(event.starts_at),
     metaLabel: 'Event Type',
-    metaValue: eventTypeMap[event.event_type] || 'Other',
+    metaValue: eventTypeMap[apiBooking.requested_event_type || event.event_type] || 'Other',
     placeLabel: 'Total',
     placeValue: `$${Number(apiBooking.total_amount || 0).toLocaleString()}`,
     status: statusText,
@@ -243,6 +395,7 @@ function mapBooking(apiBooking) {
 }
 
 function mapEvent(apiEvent) {
+  const price = Number(apiEvent.price || 0)
   return {
     id: apiEvent.id,
     title: apiEvent.title,
@@ -251,7 +404,8 @@ function mapEvent(apiEvent) {
     description: apiEvent.description || 'Professional service package for your event.',
     location: apiEvent.location,
     date: formatDateTime(apiEvent.starts_at),
-    priceLabel: `From $${Number(apiEvent.price || 0).toLocaleString()}`,
+    price,
+    priceLabel: `From $${price.toLocaleString()}`,
     image:
       'https://images.unsplash.com/photo-1477511801984-4ad318ed9846?auto=format&fit=crop&w=760&q=80',
   }
@@ -371,6 +525,15 @@ function goToVendor(tab = 'about') {
   activeVendorTab.value = tab
 }
 
+function goToPackageCustomization() {
+  currentPage.value = 'customization'
+  customizationEventType.value = 'all'
+  customizationSearch.value = ''
+  selectedCustomizationPackageId.value = null
+  customizationQuantity.value = 1
+  selectedServiceIds.value = []
+}
+
 function goToProfile() {
   currentPage.value = 'profile'
   userProfileNotice.value = ''
@@ -416,6 +579,7 @@ function detectCurrentLocation() {
       const lng = Number(position.coords.longitude.toFixed(6))
       userLatitude.value = lat
       userLongitude.value = lng
+      userLocation.value = `${lat}, ${lng}`
       userProfileDraft.value.location = `${lat}, ${lng}`
       userProfileNotice.value = 'Current location captured.'
       notice.value = 'Real location updated.'
@@ -523,6 +687,83 @@ function bookingSecondaryAction(item) {
   item.note = 'Reschedule request sent. Waiting for confirmation.'
 }
 
+function selectCustomizationPackage(id) {
+  selectedCustomizationPackageId.value = id
+}
+
+function isServiceSelected(id) {
+  return selectedServiceIds.value.includes(id)
+}
+
+function toggleMatchingService(id) {
+  if (isServiceSelected(id)) {
+    selectedServiceIds.value = selectedServiceIds.value.filter((serviceId) => serviceId !== id)
+    return
+  }
+  selectedServiceIds.value = [...selectedServiceIds.value, id]
+}
+
+async function confirmCustomization() {
+  const name = customerName.value.trim()
+  const email = customerEmail.value.trim()
+
+  if (!name || !email) {
+    notice.value = 'Please enter your name and email before confirming package.'
+    return
+  }
+
+  if (!selectedCustomizationPackage.value) {
+    notice.value = 'Please select a package first.'
+    return
+  }
+  if (!selectedCustomizationPackage.value.backingEventId) {
+    notice.value = 'No vendor event is available for booking right now.'
+    return
+  }
+
+  const qty = Number(customizationQuantity.value || 1)
+  if (!Number.isFinite(qty) || qty < 1) {
+    notice.value = 'Please select a valid quantity.'
+    return
+  }
+
+  const backingEvent = vendorEvents.value.find(
+    (event) => event.id === selectedCustomizationPackage.value.backingEventId,
+  )
+  if (!backingEvent) {
+    notice.value = 'Could not find a valid vendor event for this package.'
+    return
+  }
+
+  const availability = getAvailability(backingEvent) || (await checkEventAvailability(backingEvent))
+
+  if (!availability || !availability.service_available || !availability.vendor_available) {
+    notice.value = availability?.message || 'This package is not available right now.'
+    return
+  }
+
+  bookingSubmittingEventId.value = backingEvent.id
+  try {
+    await apiPost('bookings', {
+      event_id: backingEvent.id,
+      quantity: qty,
+      customer_name: name,
+      customer_email: email,
+      service_name: selectedCustomizationPackage.value.title,
+      requested_event_type: selectedCustomizationPackage.value.eventType,
+    })
+
+    notice.value = `Package booked successfully. Total estimate: $${customizationTotal.value.toLocaleString()}.`
+    await loadBookings()
+    bookingFilter.value = 'Upcoming'
+    goToBookings()
+  } catch (error) {
+    notice.value = error.message || 'Could not confirm this package.'
+  } finally {
+    bookingSubmittingEventId.value = null
+  }
+}
+
 watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userLongitude], () => {
   localStorage.setItem('achar_customer_name', customerName.value)
   localStorage.setItem('achar_customer_email', customerEmail.value)
@@ -536,6 +777,21 @@ watch(customerEmail, () => {
   if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
     loadBookings()
   }
+})
+
+watch([customizationEventType, customizationSearch, vendorEvents], () => {
+  if (!selectedCustomizationPackageId.value) return
+  const existsInFiltered = filteredCustomizationPackages.value.some(
+    (item) => item.id === selectedCustomizationPackageId.value,
+  )
+  if (!existsInFiltered) {
+    selectedCustomizationPackageId.value = null
+  }
+})
+
+watch([customizationEventType, selectedCustomizationPackageId], () => {
+  const allowedIds = new Set(filteredMatchingServices.value.map((service) => service.id))
+  selectedServiceIds.value = selectedServiceIds.value.filter((id) => allowedIds.has(id))
 })
 
 onMounted(async () => {
@@ -555,7 +811,7 @@ onMounted(async () => {
 
         <nav class="top-links">
           <a href="#" :class="{ active: currentPage === 'dashboard' }" @click.prevent="goToDashboard">Dashboard</a>
-          <a href="#" :class="{ active: currentPage === 'vendor' }" @click.prevent="goToVendor">Find Vendors</a>
+          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' }" @click.prevent="goToVendor">Find Vendors</a>
           <a href="#" :class="{ active: currentPage === 'bookings' }" @click.prevent="goToBookings">My Bookings</a>
           <a href="#" :class="{ active: currentPage === 'messages' }" @click.prevent="goToMessages()">Messages</a>
         </nav>
@@ -666,7 +922,7 @@ onMounted(async () => {
               <strong>Browse Vendors</strong>
               <span>Explore categories and compare providers</span>
             </button>
-            <button type="button" @click="goToVendor('services')">
+            <button type="button" @click="goToPackageCustomization()">
               <strong>Book Event Package</strong>
               <span>Reserve a service in a few steps</span>
             </button>
@@ -709,7 +965,7 @@ onMounted(async () => {
 
       <nav class="section-tabs">
         <a href="#" :class="{ active: activeVendorTab === 'about' }" @click.prevent="activeVendorTab = 'about'">About</a>
-        <a href="#" :class="{ active: activeVendorTab === 'services' }" @click.prevent="activeVendorTab = 'services'">Packages & Services</a>
+        <a href="#" :class="{ active: activeVendorTab === 'services' }" @click.prevent="goToPackageCustomization()">Packages & Services</a>
         <a href="#" :class="{ active: activeVendorTab === 'reviews' }" @click.prevent="activeVendorTab = 'reviews'">Reviews</a>
       </nav>
 
@@ -822,12 +1078,8 @@ onMounted(async () => {
 
           <article class="card sidebar-card">
             <h3>Location</h3>
-            <p>88 Flower District, New York, NY 10001</p>
-            <img
-              class="map"
-              src="https://staticmap.openstreetmap.de/staticmap.php?center=40.7419,-73.9893&zoom=12&size=700x380&markers=40.7419,-73.9893,orange-pushpin"
-              alt="Location map"
-            />
+            <p>{{ vendorLocationText }}</p>
+            <iframe class="map-frame" :src="vendorMapEmbedUrl" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </article>
 
           <article class="card sidebar-card">
@@ -840,6 +1092,167 @@ onMounted(async () => {
               <p>{{ review.text }}</p>
             </div>
           </article>
+        </aside>
+      </section>
+    </main>
+
+    <main v-else-if="currentPage === 'customization'" class="shell customization-page">
+      <div class="breadcrumbs">Home > Vendor Details > Service Package Customization</div>
+
+      <section class="customization-head card">
+        <div class="customization-head-main">
+          <h1>Service Package Customization</h1>
+          <p>Select your event type first, then choose a matching package and confirm booking.</p>
+          <div class="customization-filters">
+            <select v-model="customizationEventType" class="event-type-select">
+              <option v-for="option in eventTypeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <input
+              v-model="customizationSearch"
+              class="customization-search"
+              type="search"
+              placeholder="Search package or location..."
+            />
+          </div>
+        </div>
+        <div class="customization-metrics">
+          <div>
+            <small>Packages</small>
+            <strong>{{ filteredCustomizationPackages.length }}</strong>
+          </div>
+          <div>
+            <small>Services</small>
+            <strong>{{ selectedServicesCount }}</strong>
+          </div>
+          <div>
+            <small>Estimate</small>
+            <strong>${{ customizationTotal.toLocaleString() }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="customization-layout">
+        <div class="customization-list">
+          <article class="customization-section">
+            <div class="customization-section-head">
+              <span>📦</span>
+              <h2>Matching Packages</h2>
+            </div>
+
+            <div v-if="filteredCustomizationPackages.length === 0" class="card empty-state">
+              No packages match this event type and search.
+            </div>
+
+            <div class="addon-grid">
+              <button
+                v-for="item in filteredCustomizationPackages"
+                :key="item.id"
+                type="button"
+                class="addon-card"
+                :class="{ selected: selectedCustomizationPackageId === item.id }"
+                @click="selectCustomizationPackage(item.id)"
+              >
+                <div class="addon-card-row">
+                  <strong>{{ item.title }}</strong>
+                  <span>${{ Number(item.price || 0).toLocaleString() }}</span>
+                </div>
+                <p>{{ item.description }}</p>
+                <small>{{ item.eventTypeLabel }} | {{ item.location }} | {{ item.date }}</small>
+                <small v-if="!item.backingEventId">Preview package (no live vendor slot yet)</small>
+                <em class="choice-indicator">
+                  {{ selectedCustomizationPackageId === item.id ? 'Selected' : 'Select Package' }}
+                </em>
+              </button>
+            </div>
+          </article>
+
+          <article class="customization-section">
+            <div class="customization-section-head">
+              <span>🧩</span>
+              <h2>Matching Services For {{ eventTypeMap[effectiveCustomizationEventType] || 'Selected Event' }}</h2>
+            </div>
+
+            <div v-if="filteredMatchingServices.length === 0" class="card empty-state">
+              No matching services for this event type.
+            </div>
+
+            <div class="addon-grid">
+              <button
+                v-for="service in filteredMatchingServices"
+                :key="service.id"
+                type="button"
+                class="addon-card"
+                :class="{ selected: isServiceSelected(service.id) }"
+                @click="toggleMatchingService(service.id)"
+              >
+                <div class="addon-card-row">
+                  <strong>{{ service.name }}</strong>
+                  <span>${{ service.price.toLocaleString() }}</span>
+                </div>
+                <p>{{ service.description }}</p>
+                <em class="choice-indicator">
+                  {{ isServiceSelected(service.id) ? 'Selected' : 'Add Service' }}
+                </em>
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <aside class="card customization-summary">
+          <h2>Booking Summary</h2>
+          <div class="summary-items">
+            <h3>Selected Package</h3>
+            <p v-if="!selectedCustomizationPackage">Choose one package from the list.</p>
+            <div v-else class="summary-package">
+              <strong>{{ selectedCustomizationPackage.title }}</strong>
+              <p>{{ selectedCustomizationPackage.eventTypeLabel }} | {{ selectedCustomizationPackage.location }}</p>
+            </div>
+          </div>
+
+          <div class="summary-row">
+            <span>Quantity</span>
+            <input v-model.number="customizationQuantity" type="number" min="1" max="20" />
+          </div>
+          <div class="summary-row">
+            <span>Package Price</span>
+            <strong>${{ customizationPackageSubtotal.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-items">
+            <h3>Selected Services</h3>
+            <p v-if="selectedMatchingServices.length === 0">No additional services selected.</p>
+            <div v-for="service in selectedMatchingServices" :key="service.id" class="summary-row">
+              <span>{{ service.name }}</span>
+              <strong>+${{ service.price.toLocaleString() }}</strong>
+            </div>
+          </div>
+          <div class="summary-row">
+            <span>Services Subtotal</span>
+            <strong>${{ selectedServicesSubtotal.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-row muted">
+            <span>Service Fee (10%)</span>
+            <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+          </div>
+
+          <div class="summary-total">
+            <span>Total Price</span>
+            <strong>${{ customizationTotal.toLocaleString() }}</strong>
+          </div>
+
+          <button
+            type="button"
+            class="confirm-selection"
+            :disabled="!selectedCustomizationPackage || bookingSubmittingEventId === (selectedCustomizationPackage && selectedCustomizationPackage.backingEventId)"
+            @click="confirmCustomization"
+          >
+            {{
+              bookingSubmittingEventId === (selectedCustomizationPackage && selectedCustomizationPackage.backingEventId)
+                ? 'Confirming...'
+                : 'Confirm Selection'
+            }}
+          </button>
         </aside>
       </section>
     </main>
