@@ -12,6 +12,50 @@
     </div>
 
 
+    <!-- Add Service Modal -->
+    <div v-if="showAddForm" class="modal-overlay" @click="closeAddForm">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>Add New Service</h2>
+          <button class="close-btn" @click="closeAddForm">×</button>
+        </div>
+        <form @submit.prevent="addService" class="edit-form">
+          <div class="form-group">
+            <label for="add-name">Service Name *</label>
+            <input
+              id="add-name"
+              v-model.trim="addForm.name"
+              type="text"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="add-price">Price per Guest (USD) *</label>
+            <input
+              id="add-price"
+              v-model.number="addForm.price"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="add-description">Description</label>
+            <textarea
+              id="add-description"
+              v-model="addForm.description"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" @click="closeAddForm">Cancel</button>
+            <button type="submit" class="btn-save">Add Service</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Edit Form Modal booking and Delete booking-->
 
     <div v-if="editingService" class="modal-overlay" @click="closeEditForm">
@@ -73,7 +117,7 @@
       </div>
 
       <div class="actions">
-        <router-link to="/" class="btn-primary">Add New Service</router-link>
+        <button class="btn-primary" @click="openAddForm">Add New Service</button>
         <router-link to="/dashboard" class="btn-secondary">Back to Dashboard</router-link>
       </div>
     </div>
@@ -104,12 +148,62 @@ const services = ref([
   }
 ])
 
+const showAddForm = ref(false)
 const editingService = ref(null)
+const addForm = ref({
+  name: '',
+  description: '',
+  price: null
+})
 const editForm = ref({
   name: '',
   description: '',
   price: null
 })
+
+function openAddForm() {
+  showAddForm.value = true
+}
+
+function closeAddForm() {
+  showAddForm.value = false
+  addForm.value = {
+    name: '',
+    description: '',
+    price: null
+  }
+}
+
+function addService() {
+  console.log('addService called', addForm.value)
+  
+  if (!addForm.value.name || !addForm.value.name.trim()) {
+    alert('Please enter a service name')
+    return
+  }
+
+  if (!addForm.value.price || addForm.value.price <= 0) {
+    alert('Please enter a valid price')
+    return
+  }
+
+  try {
+    const newService = {
+      id: Date.now(), // Simple unique ID
+      name: addForm.value.name.trim(),
+      description: addForm.value.description ? addForm.value.description.trim() : '',
+      price: Number(addForm.value.price)
+    }
+
+    console.log('Adding service:', newService)
+    services.value.push(newService)
+    closeAddForm()
+    alert('Service added successfully!')
+  } catch (error) {
+    console.error('Error adding service:', error)
+    alert('Failed to add service. Please try again.')
+  }
+}
 
 function editService(service) {
   editingService.value = service
@@ -220,6 +314,8 @@ function deleteService(serviceId) {
   border-radius: 6px;
   text-decoration: none;
   font-weight: 500;
+  border: none;
+  cursor: pointer;
 }
 
 .btn-primary {
