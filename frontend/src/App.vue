@@ -1,5 +1,7 @@
 ﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import PackageCard from './components/customization/PackageCard.vue'
+import ServiceCard from './components/customization/ServiceCard.vue'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/$/, '')
 
@@ -89,6 +91,8 @@ const customizationEventType = ref('all')
 const selectedCustomizationPackageId = ref(null)
 const customizationQuantity = ref(1)
 const selectedServiceIds = ref([])
+const expandedPackageIds = ref([])
+const expandedServiceIds = ref([])
 const matchingServicesCatalog = [
   { id: 'mc-host', name: 'Achar MC', description: 'Traditional ceremony host and flow management.', price: 250, eventTypes: ['wedding', 'engagement', 'anniversary'] },
   { id: 'monk-set', name: 'Monk Ceremony Set', description: 'Complete ritual setup for monk blessing.', price: 320, eventTypes: ['monk_ceremony', 'house_blessing'] },
@@ -148,6 +152,107 @@ const packageCatalogByEventType = {
     { id: 'other-custom', title: 'Custom Event Package', description: 'Flexible package for unique requirements.', basePrice: 1600 },
     { id: 'other-essentials', title: 'Event Essentials', description: 'Core setup for miscellaneous events.', basePrice: 1100 },
   ],
+}
+const packageImageByEventType = {
+  wedding:
+    'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',
+  monk_ceremony:
+    'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=900&q=80',
+  house_blessing:
+    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=80',
+  company_party:
+    'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80',
+  birthday:
+    'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=900&q=80',
+  school_event:
+    'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80',
+  engagement:
+    'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80',
+  anniversary:
+    'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=900&q=80',
+  baby_shower:
+    'https://images.unsplash.com/photo-1478144592103-25e218a04891?auto=format&fit=crop&w=900&q=80',
+  graduation:
+    'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=900&q=80',
+  festival:
+    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80',
+  other:
+    'https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=80',
+}
+const packageServiceTemplatesByEventType = {
+  wedding: [
+    { name: 'Ceremony Styling', detail: 'Aisle decor, floral focal points, and coordinated welcome area setup.' },
+    { name: 'Reception Decor', detail: 'Head table styling, centerpiece arrangement, and backdrop dressing.' },
+    { name: 'Guest Flow Support', detail: 'Timeline guidance for seating, grand entry, and reception transitions.' },
+  ],
+  monk_ceremony: [
+    { name: 'Ritual Setup', detail: 'Prepared altar area, monk seating, and ceremonial layout support.' },
+    { name: 'Offerings Coordination', detail: 'Arrangement guidance for offerings and family participation sequence.' },
+    { name: 'Ceremony Timing', detail: 'On-site support to keep the blessing flow smooth and respectful.' },
+  ],
+  house_blessing: [
+    { name: 'Home Altar Arrangement', detail: 'Main blessing corner styled with practical ceremonial essentials.' },
+    { name: 'Family Guidance', detail: 'Clear run-of-show for host family and invited relatives.' },
+    { name: 'Cleanup & Reset', detail: 'Light post-ceremony reset to restore the space quickly.' },
+  ],
+  company_party: [
+    { name: 'Stage & Layout Plan', detail: 'Event floor mapping for seating, stage, and circulation paths.' },
+    { name: 'Audio Visual Support', detail: 'Mic, speaker, and show-flow coordination with your event team.' },
+    { name: 'Brand Styling', detail: 'Visual elements aligned to your company event identity.' },
+  ],
+  birthday: [
+    { name: 'Theme Decor', detail: 'Color-matched backdrop, table styling, and photo corner setup.' },
+    { name: 'Program Support', detail: 'Birthday agenda support for cake moment and activity timing.' },
+    { name: 'Guest Comfort Setup', detail: 'Seating, flow, and presentation arranged for all age groups.' },
+  ],
+  school_event: [
+    { name: 'Event Logistics', detail: 'Structured area zoning for students, staff, and guest movement.' },
+    { name: 'Stage Management', detail: 'Cue support for speeches, performances, and recognition segments.' },
+    { name: 'Safety-first Layout', detail: 'Clear traffic setup to maintain order during peak attendance.' },
+  ],
+  engagement: [
+    { name: 'Ceremony Scene Design', detail: 'Elegant setup for ring exchange and family photo moments.' },
+    { name: 'Guest Welcome Styling', detail: 'Entrance decor and hospitality table arrangement support.' },
+    { name: 'Timeline Coordination', detail: 'Assistance for smooth transition between rituals and reception.' },
+  ],
+  anniversary: [
+    { name: 'Memory-focused Decor', detail: 'Romantic setup with personalized visual storytelling elements.' },
+    { name: 'Dinner Ambience', detail: 'Table styling and lighting mood planning for evening comfort.' },
+    { name: 'Celebration Flow', detail: 'Support for speeches, toast moments, and media presentation.' },
+  ],
+  baby_shower: [
+    { name: 'Soft Theme Styling', detail: 'Pastel-forward decor with coordinated photo-friendly corners.' },
+    { name: 'Gift & Activity Station', detail: 'Practical arrangement for gifts, games, and family interactions.' },
+    { name: 'Guest Seating Plan', detail: 'Comfortable layout optimized for relatives and close friends.' },
+  ],
+  graduation: [
+    { name: 'Recognition Stage Setup', detail: 'Background, podium area, and graduate photo capture zone.' },
+    { name: 'Program Sequence Support', detail: 'Agenda coordination for speeches and certificate segments.' },
+    { name: 'Photo Session Planning', detail: 'Quick-flow arrangement to reduce waiting during photo rounds.' },
+  ],
+  festival: [
+    { name: 'Large Area Zoning', detail: 'Segmented setup for booths, stage, and visitor circulation.' },
+    { name: 'Performance Support', detail: 'Production-ready coordination for performers and technical teams.' },
+    { name: 'Crowd Flow Management', detail: 'Entry/exit route planning and hotspot balancing guidance.' },
+  ],
+  other: [
+    { name: 'Consultation & Scoping', detail: 'Requirements review and adaptable plan based on your event goal.' },
+    { name: 'Core Setup Package', detail: 'Essential decor, layout, and sequence support for custom events.' },
+    { name: 'On-site Coordination', detail: 'Operational support to keep key moments on schedule.' },
+  ],
+}
+
+function buildPackageServiceDescriptions(eventType, title) {
+  const baseServices = packageServiceTemplatesByEventType[eventType] || packageServiceTemplatesByEventType.other
+  const normalizedTitle = title.toLowerCase()
+  const premiumTier = /(royal|signature|premium|gold|deluxe|gala|annual|romance|stage|custom)/.test(normalizedTitle)
+  const essentialTier = /(classic|basic|family|intimate|community|essentials)/.test(normalizedTitle)
+
+  let levelDetail = 'Balanced service coverage for standard event requirements.'
+  if (premiumTier) levelDetail = 'Premium-level coordination with extended setup depth and enhanced finishing touches.'
+  if (essentialTier) levelDetail = 'Essential-focused coverage optimized for practical budgets and compact timelines.'
+
+  return [...baseServices, { name: 'Coordination Level', detail: levelDetail }]
 }
 
 const conversations = ref([
@@ -223,9 +328,33 @@ const vendorMapEmbedUrl = computed(
   () => `https://www.google.com/maps?q=${encodeURIComponent(vendorLocationText.value)}&output=embed`,
 )
 
+const vendorFallbackPackages = computed(() => {
+  const packages = []
+  Object.entries(packageCatalogByEventType).forEach(([type, entries]) => {
+    entries.forEach((entry) => {
+      const price = Number(entry.basePrice || 0)
+      packages.push({
+        id: `preview-${type}-${entry.id}`,
+        title: entry.title,
+        eventType: type,
+        eventTypeLabel: eventTypeMap[type] || 'Other',
+        description: entry.description,
+        location: fallbackVendorLocation,
+        date: 'Date TBD',
+        price,
+        priceLabel: `From $${price.toLocaleString()}`,
+        image: packageImageByEventType[type] || packageImageByEventType.other,
+        isPreview: true,
+      })
+    })
+  })
+  return packages
+})
+
 const filteredPackages = computed(() => {
   const q = globalSearch.value.trim().toLowerCase()
-  return vendorEvents.value.filter((item) => {
+  const sourcePackages = vendorEvents.value.length ? vendorEvents.value : vendorFallbackPackages.value
+  return sourcePackages.filter((item) => {
     const matchesType = selectedEventType.value === 'all' || item.eventType === selectedEventType.value
     const matchesSearch = !q || item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     return matchesType && matchesSearch
@@ -284,6 +413,8 @@ const catalogPackages = computed(() => {
         title: entry.title,
         description: entry.description,
         price: entry.basePrice,
+        image: packageImageByEventType[type] || packageImageByEventType.other,
+        services: buildPackageServiceDescriptions(type, entry.title),
         eventType: type,
         eventTypeLabel: eventTypeMap[type] || 'Other',
         location: backing?.location || fallbackVendorLocation,
@@ -343,6 +474,30 @@ const customizationTotal = computed(() =>
   customizationPackageSubtotal.value + selectedServicesSubtotal.value + serviceFeeAmount.value,
 )
 const selectedServicesCount = computed(() => selectedMatchingServices.value.length)
+
+function isPackageExpanded(id) {
+  return expandedPackageIds.value.includes(id)
+}
+
+function togglePackageDetails(id) {
+  if (isPackageExpanded(id)) {
+    expandedPackageIds.value = expandedPackageIds.value.filter((itemId) => itemId !== id)
+    return
+  }
+  expandedPackageIds.value = [...expandedPackageIds.value, id]
+}
+
+function isServiceExpanded(id) {
+  return expandedServiceIds.value.includes(id)
+}
+
+function toggleServiceDetails(id) {
+  if (isServiceExpanded(id)) {
+    expandedServiceIds.value = expandedServiceIds.value.filter((itemId) => itemId !== id)
+    return
+  }
+  expandedServiceIds.value = [...expandedServiceIds.value, id]
+}
 
 function formatDateTime(dateString) {
   if (!dateString) return 'Date TBD'
@@ -525,13 +680,27 @@ function goToVendor(tab = 'about') {
   activeVendorTab.value = tab
 }
 
-function goToPackageCustomization() {
+function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '') {
   currentPage.value = 'customization'
-  customizationEventType.value = 'all'
+  customizationEventType.value = preferredEventType || 'all'
   customizationSearch.value = ''
-  selectedCustomizationPackageId.value = null
   customizationQuantity.value = 1
   selectedServiceIds.value = []
+
+  const normalizedTitle = preferredTitle.trim().toLowerCase()
+  const typeScopedPackages = catalogPackages.value.filter((pkg) =>
+    customizationEventType.value === 'all' ? true : pkg.eventType === customizationEventType.value,
+  )
+
+  if (normalizedTitle) {
+    const matchedByTitle = typeScopedPackages.find((pkg) => pkg.title.toLowerCase().includes(normalizedTitle))
+    if (matchedByTitle) {
+      selectedCustomizationPackageId.value = matchedByTitle.id
+      return
+    }
+  }
+
+  selectedCustomizationPackageId.value = typeScopedPackages[0]?.id || null
 }
 
 function goToProfile() {
@@ -789,6 +958,16 @@ watch([customizationEventType, customizationSearch, vendorEvents], () => {
   }
 })
 
+watch(filteredCustomizationPackages, (packages) => {
+  const validIds = new Set(packages.map((item) => item.id))
+  expandedPackageIds.value = expandedPackageIds.value.filter((id) => validIds.has(id))
+})
+
+watch(filteredMatchingServices, (services) => {
+  const validIds = new Set(services.map((item) => item.id))
+  expandedServiceIds.value = expandedServiceIds.value.filter((id) => validIds.has(id))
+})
+
 watch([customizationEventType, selectedCustomizationPackageId], () => {
   const allowedIds = new Set(filteredMatchingServices.value.map((service) => service.id))
   selectedServiceIds.value = selectedServiceIds.value.filter((id) => allowedIds.has(id))
@@ -811,7 +990,7 @@ onMounted(async () => {
 
         <nav class="top-links">
           <a href="#" :class="{ active: currentPage === 'dashboard' }" @click.prevent="goToDashboard">Dashboard</a>
-          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' }" @click.prevent="goToVendor">Find Vendors</a>
+          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' }" @click.prevent="goToVendor">View Vendors</a>
           <a href="#" :class="{ active: currentPage === 'bookings' }" @click.prevent="goToBookings">My Bookings</a>
           <a href="#" :class="{ active: currentPage === 'messages' }" @click.prevent="goToMessages()">Messages</a>
         </nav>
@@ -1025,7 +1204,15 @@ onMounted(async () => {
                 <div class="service-footer">
                   <strong>{{ item.priceLabel }}</strong>
                   <div class="service-book-actions">
+                    <button
+                      type="button"
+                      class="ghost"
+                      @click="goToPackageCustomization(item.eventType, item.title)"
+                    >
+                      Select Package
+                    </button>
                     <input
+                      v-if="!item.isPreview"
                       v-model.number="selectedQuantities[item.id]"
                       type="number"
                       min="1"
@@ -1033,12 +1220,19 @@ onMounted(async () => {
                     />
                     <button
                       type="button"
-                      :disabled="bookingSubmittingEventId === item.id"
-                      @click="bookPackage(item)"
+                      :disabled="!item.isPreview && bookingSubmittingEventId === item.id"
+                      @click="item.isPreview ? goToMessages(vendorProfile.name) : bookPackage(item)"
                     >
-                      {{ bookingSubmittingEventId === item.id ? 'Booking...' : 'Book Now' }}
+                      {{
+                        item.isPreview
+                          ? 'Message Vendor'
+                          : bookingSubmittingEventId === item.id
+                            ? 'Booking...'
+                            : 'Book Now'
+                      }}
                     </button>
                     <button
+                      v-if="!item.isPreview"
                       type="button"
                       class="ghost"
                       :disabled="checkingAvailabilityEventId === item.id"
@@ -1048,7 +1242,7 @@ onMounted(async () => {
                     </button>
                   </div>
                 </div>
-                <div class="availability-row">
+                <div v-if="!item.isPreview" class="availability-row">
                   <span class="availability-pill" :class="getAvailabilityTone(item)">
                     {{ getAvailabilityLabel(item) }}
                   </span>
@@ -1146,25 +1340,16 @@ onMounted(async () => {
             </div>
 
             <div class="addon-grid">
-              <button
+              <PackageCard
                 v-for="item in filteredCustomizationPackages"
                 :key="item.id"
-                type="button"
-                class="addon-card"
-                :class="{ selected: selectedCustomizationPackageId === item.id }"
-                @click="selectCustomizationPackage(item.id)"
-              >
-                <div class="addon-card-row">
-                  <strong>{{ item.title }}</strong>
-                  <span>${{ Number(item.price || 0).toLocaleString() }}</span>
-                </div>
-                <p>{{ item.description }}</p>
-                <small>{{ item.eventTypeLabel }} | {{ item.location }} | {{ item.date }}</small>
-                <small v-if="!item.backingEventId">Preview package (no live vendor slot yet)</small>
-                <em class="choice-indicator">
-                  {{ selectedCustomizationPackageId === item.id ? 'Selected' : 'Select Package' }}
-                </em>
-              </button>
+                :item="item"
+                :is-selected="selectedCustomizationPackageId === item.id"
+                :is-expanded="isPackageExpanded(item.id)"
+                @select="selectCustomizationPackage"
+                @toggle-details="togglePackageDetails"
+                @message="goToMessages(vendorProfile.name)"
+              />
             </div>
           </article>
 
@@ -1179,23 +1364,18 @@ onMounted(async () => {
             </div>
 
             <div class="addon-grid">
-              <button
+              <ServiceCard
                 v-for="service in filteredMatchingServices"
                 :key="service.id"
-                type="button"
-                class="addon-card"
-                :class="{ selected: isServiceSelected(service.id) }"
-                @click="toggleMatchingService(service.id)"
-              >
-                <div class="addon-card-row">
-                  <strong>{{ service.name }}</strong>
-                  <span>${{ service.price.toLocaleString() }}</span>
-                </div>
-                <p>{{ service.description }}</p>
-                <em class="choice-indicator">
-                  {{ isServiceSelected(service.id) ? 'Selected' : 'Add Service' }}
-                </em>
-              </button>
+                :service="service"
+                :is-selected="isServiceSelected(service.id)"
+                :is-expanded="isServiceExpanded(service.id)"
+                :event-type-map="eventTypeMap"
+                :service-fee-rate="serviceFeeRate"
+                @toggle-service="toggleMatchingService"
+                @toggle-details="toggleServiceDetails"
+                @message="goToMessages(vendorProfile.name)"
+              />
             </div>
           </article>
         </div>
