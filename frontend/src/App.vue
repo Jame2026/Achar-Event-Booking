@@ -1,24 +1,9 @@
-<<<<<<< HEAD
-<script setup>
-import Home from './components/Home.vue'
-</script>
-
-<template>
-  <Home />
-<<<<<<< HEAD
-</template>
-=======
 <!-- App.vue -->
 <template>
   <div>
-    <BookingForm />
+    <router-view />
   </div>
 </template>
 
 <script setup>
-import BookingForm from './components/BookingForm.vue'
 </script>
->>>>>>> Feature/Booking-Form
-=======
-</template>
->>>>>>> Feature/HomeBooking
