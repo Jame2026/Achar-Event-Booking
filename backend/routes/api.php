@@ -18,6 +18,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
 Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']);
+Route::get('events/{event}/availability', [BookingController::class, 'availability']);
+Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
