@@ -59,7 +59,7 @@ function formatCurrency(value) {
 
     <p>{{ service.description }}</p>
 
-    <div class="addon-card-actions">
+    <div class="addon-card-actions service-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('toggle-service', service.id)">
         {{ isSelected ? 'Selected' : 'Add Service' }}
       </button>

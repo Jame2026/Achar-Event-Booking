@@ -14,7 +14,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select', 'toggle-details', 'message'])
+const emit = defineEmits(['select', 'toggle-details', 'check-availability', 'message'])
 
 function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`
@@ -39,12 +39,15 @@ function formatCurrency(value) {
 
     <p>{{ item.description }}</p>
 
-    <div class="addon-card-actions">
+    <div class="addon-card-actions package-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('select', item.id)">
         {{ isSelected ? 'Selected' : 'Select Package' }}
       </button>
       <button type="button" class="read-more-btn" @click.stop="emit('toggle-details', item.id)">
         {{ isExpanded ? 'Read less' : 'Read more' }}
+      </button>
+      <button type="button" class="check-availability-btn" @click.stop="emit('check-availability', item)">
+        Check Availability
       </button>
       <button type="button" class="message-vendor-btn" @click.stop="emit('message')">
         Message Vendor
