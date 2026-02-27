@@ -7,6 +7,7 @@ use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
@@ -36,6 +37,7 @@ class VendorController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'event_type' => ['required', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
             'location' => ['required', 'string', 'max:255'],
             'starts_at' => ['required', 'date'],
@@ -58,6 +60,7 @@ class VendorController extends Controller
 
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
+            'event_type' => ['sometimes', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
             'location' => ['sometimes', 'string', 'max:255'],
             'starts_at' => ['sometimes', 'date'],
@@ -97,5 +100,23 @@ class VendorController extends Controller
         $user = $request->user();
 
         return $user->isAdmin() || $event->vendor_id === $user->id;
+    }
+
+    private function allowedEventTypes(): array
+    {
+        return [
+            'wedding',
+            'monk_ceremony',
+            'house_blessing',
+            'company_party',
+            'birthday',
+            'school_event',
+            'engagement',
+            'anniversary',
+            'baby_shower',
+            'graduation',
+            'festival',
+            'other',
+        ];
     }
 }
