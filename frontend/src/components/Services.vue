@@ -125,28 +125,49 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const services = ref([
-  {
-    id: 1,
-    name: 'Premium Buffet Catering',
-    description: 'Full-service buffet with premium menu options',
-    price: 45
-  },
-  {
-    id: 2,
-    name: 'Wedding Photography',
-    description: 'Professional photography for wedding events',
-    price: 250
-  },
-  {
-    id: 3,
-    name: 'Event Decoration',
-    description: 'Complete event decoration and setup',
-    price: 75
+const STORAGE_KEY = 'achar_services'
+
+// Load services from localStorage or use default data
+function loadServices() {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch (e) {
+      console.error('Error parsing stored services:', e)
+    }
   }
-])
+  // Default services if no stored data
+  return [
+    {
+      id: 1,
+      name: 'Premium Buffet Catering',
+      description: 'Full-service buffet with premium menu options',
+      price: 45
+    },
+    {
+      id: 2,
+      name: 'Wedding Photography',
+      description: 'Professional photography for wedding events',
+      price: 250
+    },
+    {
+      id: 3,
+      name: 'Event Decoration',
+      description: 'Complete event decoration and setup',
+      price: 75
+    }
+  ]
+}
+
+// Save services to localStorage
+function saveServices(servicesData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(servicesData))
+}
+
+const services = ref(loadServices())
 
 const showAddForm = ref(false)
 const editingService = ref(null)
@@ -197,6 +218,10 @@ function addService() {
 
     console.log('Adding service:', newService)
     services.value.push(newService)
+    
+    // Save to localStorage
+    saveServices(services.value)
+    
     closeAddForm()
     alert('Service added successfully!')
   } catch (error) {
@@ -232,6 +257,9 @@ function updateService() {
       ...services.value[serviceIndex],
       ...editForm.value
     }
+    
+    // Save to localStorage
+    saveServices(services.value)
   }
   
   closeEditForm()
@@ -240,6 +268,9 @@ function updateService() {
 function deleteService(serviceId) {
   if (confirm('Are you sure you want to delete this service?')) {
     services.value = services.value.filter(s => s.id !== serviceId)
+    
+    // Save to localStorage
+    saveServices(services.value)
   }
 }
 </script>

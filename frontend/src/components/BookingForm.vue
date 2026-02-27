@@ -212,6 +212,7 @@ import { useRouter } from 'vue-router'
 import '@/assets/BookingForm.css'
 
 const router = useRouter()
+const STORAGE_KEY = 'achar_services'
 
 const form = ref({
   name: '',
@@ -247,6 +248,24 @@ function validateForm() {
   return Object.keys(errors.value).length === 0
 }
 
+// Load existing services from localStorage
+function loadServices() {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch (e) {
+      console.error('Error parsing stored services:', e)
+    }
+  }
+  return []
+}
+
+// Save services to localStorage
+function saveServices(servicesData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(servicesData))
+}
+
 async function handleSubmit() {
   if (!validateForm()) return
 
@@ -255,19 +274,36 @@ async function handleSubmit() {
   submitError.value = ''
 
   try {
-    // Real API example – replace with your endpoint
-    const response = await fetch('/api/services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
-    })
+    // Create new service object
+    const newService = {
+      id: Date.now(),
+      name: form.value.name.trim(),
+      description: form.value.description ? form.value.description.trim() : '',
+      price: Number(form.value.price),
+      category: form.value.category,
+      minGuests: form.value.minGuests,
+      maxGuests: form.value.maxGuests,
+      startDate: form.value.startDate,
+      endDate: form.value.endDate,
+      autoConfirm: form.value.autoConfirm,
+      notifyChatbot: form.value.notifyChatbot
+    }
 
-    if (!response.ok) throw new Error('Failed to save service')
+    // Load existing services, add new one, and save to localStorage
+    const existingServices = loadServices()
+    existingServices.push(newService)
+    saveServices(existingServices)
 
     successMessage.value = `Service "${form.value.name}" added successfully!`
     
-    // Optional: reset form or redirect
-    // resetForm()
+    // Reset form after successful submission
+    resetForm()
+    
+    // Optionally redirect to services page after a delay
+    setTimeout(() => {
+      router.push('/services')
+    }, 1500)
+    
   } catch (err) {
     submitError.value = 'Failed to add service. Please try again or contact support.'
     console.error(err)
@@ -275,6 +311,22 @@ async function handleSubmit() {
     isSubmitting.value = false
   }
 }
+
+function resetForm() {
+  form.value = {
+    name: '',
+    price: null,
+    category: '',
+    description: '',
+    minGuests: 10,
+    maxGuests: 500,
+    startDate: '',
+    endDate: '',
+    autoConfirm: true,
+    notifyChatbot: false
+  }
+}
+
 // set up cancel button booking
 
 function cancel() {
