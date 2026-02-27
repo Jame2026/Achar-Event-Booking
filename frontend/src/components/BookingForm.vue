@@ -2,10 +2,20 @@
 <!-- AddServiceForm.vue -->
 <template>
   <div class="add-service-container">
+    <nav class="feature-nav" aria-label="Feature Navigation">
+      <router-link to="/">Home</router-link>
+      <router-link to="/booking" class="active">Booking Form</router-link>
+      <router-link to="/dashboard">Dashboard</router-link>
+      <router-link to="/services">Services</router-link>
+      <router-link to="/customization">Customization</router-link>
+    </nav>
+
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="#">Dashboard</a>
+      <router-link to="/">Home</router-link>
       <span aria-hidden="true">›</span>
-      <a href="#">Services</a>
+      <router-link to="/dashboard">Dashboard</router-link>
+      <span aria-hidden="true">›</span>
+      <router-link to="/services">Services</router-link>
       <span aria-hidden="true">›</span>
       <span class="current">Add New Service</span>
     </nav>
@@ -208,7 +218,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import '@/assets/BookingForm.css'
+
+const router = useRouter()
 
 const form = ref({
   name: '',
@@ -272,16 +285,37 @@ async function handleSubmit() {
     isSubmitting.value = false
   }
 }
-// set up
+// set up cancel button booking
 
 function cancel() {
-  // Reset or navigate away (e.g. router.push('/services'))
-  if (confirm('Discard changes?')) {
-    Object.assign(form.value, {
-      name: '', price: null, category: '', description: '',
-      minGuests: 10, maxGuests: 500, startDate: '', endDate: '',
-      autoConfirm: true, notifyChatbot: false
-    })
+  if (confirm('Discard changes and return to Services?')) {
+    router.push('/services')
   }
 }
 </script>
+
+<style scoped>
+.feature-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.feature-nav a {
+  text-decoration: none;
+  border: 1px solid #d9e0ea;
+  background: #fff;
+  color: #1f2937;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.feature-nav a.active {
+  border-color: #ff6b00;
+  color: #ff6b00;
+  background: #fff4ec;
+}
+</style>
+
