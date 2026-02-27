@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../components/Home.vue'
 import LegacyAppShell from '../LegacyAppShell.vue'
 import GuestPreview from '../components/GuestPreview.vue'
+import AboutPage from '../components/AboutPage.vue'
+import ContactPage from '../components/ContactPage.vue'
 
 const routes = [
   {
@@ -12,6 +14,16 @@ const routes = [
   {
     path: '/home',
     redirect: '/'
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: AboutPage
+  },
+  {
+    path: '/contact',
+    name: 'Contact',
+    component: ContactPage
   },
   {
     path: '/booking',
@@ -29,7 +41,19 @@ const routes = [
     path: '/services',
     name: 'Services',
     component: GuestPreview,
-    props: { section: 'services' }
+    props: { section: 'services-packages' }
+  },
+  {
+    path: '/services/packages',
+    name: 'ServicePackages',
+    component: GuestPreview,
+    props: { section: 'services-packages' }
+  },
+  {
+    path: '/services/overall',
+    name: 'ServiceOverall',
+    component: GuestPreview,
+    props: { section: 'services-overall' }
   },
   {
     path: '/legacy-app',
@@ -45,6 +69,12 @@ const routes = [
     name: 'Customization',
     component: GuestPreview,
     props: { section: 'customization' }
+  },
+  {
+    path: '/favorite',
+    name: 'Favorite',
+    component: GuestPreview,
+    props: { section: 'favorite' }
   },
   {
     path: '/availability',

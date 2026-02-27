@@ -29,6 +29,10 @@ const props = defineProps([
   'toggleMatchingService',
   'toggleServiceDetails',
   'confirmCustomization',
+  'isPackageFavorite',
+  'isServiceFavorite',
+  'toggleFavoritePackage',
+  'toggleFavoriteService',
 ])
 </script>
 
@@ -94,10 +98,12 @@ const props = defineProps([
               :item="item"
               :is-selected="props.bindings.selectedCustomizationPackageId.value === item.id"
               :is-expanded="props.isPackageExpanded(item.id)"
+              :is-favorite="props.isPackageFavorite ? props.isPackageFavorite(item.id) : false"
               @select="props.selectCustomizationPackage"
               @toggle-details="props.togglePackageDetails"
               @check-availability="props.goToAvailability"
               @message="props.goToMessages(props.vendorProfile.name)"
+              @toggle-favorite="props.toggleFavoritePackage ? props.toggleFavoritePackage(item.id) : null"
             />
           </div>
         </article>
@@ -119,11 +125,13 @@ const props = defineProps([
               :service="service"
               :is-selected="props.isServiceSelected(service.id)"
               :is-expanded="props.isServiceExpanded(service.id)"
+              :is-favorite="props.isServiceFavorite ? props.isServiceFavorite(service.id) : false"
               :event-type-map="props.eventTypeMap"
               :service-fee-rate="props.serviceFeeRate"
               @toggle-service="props.toggleMatchingService"
               @toggle-details="props.toggleServiceDetails"
               @message="props.goToMessages(props.vendorProfile.name)"
+              @toggle-favorite="props.toggleFavoriteService ? props.toggleFavoriteService(service.id) : null"
             />
           </div>
         </article>

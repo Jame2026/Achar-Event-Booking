@@ -7,6 +7,7 @@ const emit = defineEmits<{
 }>()
 
 const showPassword = ref(false)
+const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const form = reactive({
   email: '',
   password: '',
@@ -15,6 +16,10 @@ const form = reactive({
 
 const submitting = ref(false)
 const errorMessage = ref('')
+
+function onAuthLogoError() {
+  authLogoSrc.value = '/favicon.ico'
+}
 
 const submitLogin = async () => {
   if (submitting.value) return
@@ -64,9 +69,8 @@ const submitLogin = async () => {
     </aside>
 
     <main class="auth-panel">
-      <div class="brand-row">
-        <span class="brand-dot"></span>
-        <span class="brand-name">Achar Booking</span>
+      <div class="brand-row auth-logo-only">
+        <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
       </div>
 
       <div class="form-head">

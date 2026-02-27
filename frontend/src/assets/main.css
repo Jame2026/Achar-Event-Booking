@@ -1129,25 +1129,26 @@ a {
 }
 
 .addon-card {
-  border: 1px solid #dce5f2;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fff, #fbfdff);
-  padding: 0.85rem 0.9rem;
+  border: 1px solid #d8e2ef;
+  border-radius: 16px;
+  background: #fff;
+  padding: 1rem;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
 .addon-card:hover {
-  transform: translateY(-1px);
-  border-color: #c7d5e8;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  transform: translateY(-3px);
+  border-color: #c9d6e9;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.11);
 }
 
 .addon-card.selected {
-  border-color: #ffbc8a;
-  background: linear-gradient(180deg, #fff8f2, #fff1e7);
-  box-shadow: 0 8px 20px rgba(255, 106, 0, 0.12);
+  border-color: #ffb987;
+  background: linear-gradient(180deg, #fffaf5, #fff2e8);
+  box-shadow: 0 16px 34px rgba(255, 106, 0, 0.16);
 }
 
 .addon-card-row {
@@ -1158,34 +1159,69 @@ a {
 }
 
 .addon-card-row strong {
-  font-size: 1.05rem;
+  font-size: 1.12rem;
+  line-height: 1.3;
 }
 
 .addon-card-row span {
   color: var(--accent-dark);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 0.98rem;
+  white-space: nowrap;
+}
+
+.addon-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ffd5b5;
+  border-radius: 999px;
+  background: #fff7f1;
+  color: #b45309;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.favorite-btn:hover {
+  background: #ffefe4;
+  border-color: #ffbf98;
+}
+
+.favorite-btn.active {
+  background: #ffe3d0;
+  border-color: #ff9a5c;
+  color: #9a3412;
 }
 
 .addon-card p {
-  margin: 0.35rem 0 0;
-  color: #64748b;
+  margin: 0.42rem 0 0;
+  color: #5d6f89;
   line-height: 1.45;
 }
 
 .addon-card-image {
   width: 100%;
-  height: 138px;
-  border-radius: 10px;
+  height: 156px;
+  border-radius: 12px;
   object-fit: cover;
-  margin-bottom: 0.62rem;
-  border: 1px solid #e2e8f3;
+  margin-bottom: 0.72rem;
+  border: 1px solid #dde6f2;
 }
 
 .addon-card-actions {
-  margin-top: 0.55rem;
+  margin-top: 0.72rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .addon-card-actions .choice-indicator {
@@ -1196,15 +1232,15 @@ a {
 .choice-indicator,
 .read-more-btn {
   width: 100%;
-  min-height: 33px;
-  border: 1px solid #d9e3f0;
-  border-radius: 9px;
+  min-height: 36px;
+  border: 1px solid #d4dfef;
+  border-radius: 10px;
   background: #fff;
-  color: #4a5a71;
+  color: #42536d;
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.3rem 0.5rem;
+  padding: 0.36rem 0.56rem;
   line-height: 1.1;
   text-align: center;
   cursor: pointer;
@@ -1212,21 +1248,21 @@ a {
 
 .choice-indicator:hover,
 .read-more-btn:hover {
-  background: #f7faff;
-  border-color: #c4d3e8;
+  background: #f6f9ff;
+  border-color: #bccce5;
 }
 
 .check-availability-btn {
   width: 100%;
-  min-height: 33px;
-  border: 1px solid #ced9ea;
-  border-radius: 9px;
-  background: #f8fbff;
+  min-height: 36px;
+  border: 1px solid #c7d6ea;
+  border-radius: 10px;
+  background: #f3f8ff;
   color: #3f5779;
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.3rem 0.5rem;
+  padding: 0.36rem 0.56rem;
   cursor: pointer;
 }
 
@@ -1237,15 +1273,15 @@ a {
 
 .message-vendor-btn {
   width: 100%;
-  min-height: 33px;
-  border: 1px solid #ffd0b1;
-  border-radius: 9px;
+  min-height: 36px;
+  border: 1px solid #ffcaa7;
+  border-radius: 10px;
   background: #fff7f1;
   color: #9a3b12;
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.3rem 0.5rem;
+  padding: 0.36rem 0.56rem;
   cursor: pointer;
 }
 
@@ -1259,52 +1295,58 @@ a {
 }
 
 .package-detail {
-  margin-top: 0.65rem;
-  border-top: 1px dashed #d6e0ee;
-  padding-top: 0.6rem;
+  margin-top: 0.8rem;
+  border-top: 1px solid #e3e9f2;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 0.75rem;
 }
 
 .package-detail small {
   display: block;
-  margin-top: 0.35rem;
-  color: #6b7f99;
+  margin-top: 0.42rem;
+  color: #5f7390;
+  font-size: 0.82rem;
 }
 
 .package-service-list {
-  margin-top: 0.55rem;
+  margin-top: 0.65rem;
 }
 
 .package-service-list p {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: #475569;
+  color: #334155;
   text-transform: uppercase;
 }
 
 .package-service-list ul {
-  margin: 0.45rem 0 0;
+  margin: 0.52rem 0 0;
   padding-left: 1rem;
   display: grid;
-  gap: 0.38rem;
+  gap: 0.42rem;
 }
 
 .package-service-list li {
-  color: #5f6f86;
-  font-size: 0.9rem;
+  color: #556882;
+  font-size: 0.88rem;
   line-height: 1.45;
 }
 
 .service-detail {
-  margin-top: 0.65rem;
-  border-top: 1px dashed #d6e0ee;
-  padding-top: 0.6rem;
+  margin-top: 0.8rem;
+  border-top: 1px solid #e3e9f2;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 0.75rem;
 }
 
 .service-detail small {
   display: block;
-  margin-top: 0.35rem;
-  color: #6b7f99;
+  margin-top: 0.42rem;
+  color: #5f7390;
+  font-size: 0.82rem;
 }
 
 .addon-card small {
@@ -2679,24 +2721,42 @@ a {
 }
 
 .auth-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
-  padding: 34px 6vw;
+  padding: 28px 6vw 34px;
 }
 
 .brand-row {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.brand-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ff5d2e;
+.auth-brand-logo {
+  width: 44px;
+  height: 44px;
+  padding: 0.2rem;
+  border-radius: 12px;
+  border: 1px solid #ffd6b6;
+  background: #fff;
+  object-fit: contain;
+  box-shadow: 0 8px 20px rgba(255, 106, 0, 0.2);
+}
+
+.auth-logo-only {
+  width: min(100%, 460px);
+  justify-content: center;
+  margin: 0 auto 4px;
+}
+
+.auth-brand-logo-lg {
+  width: 72px;
+  height: 72px;
+  padding: 0.3rem;
+  border-radius: 16px;
 }
 
 .brand-name {

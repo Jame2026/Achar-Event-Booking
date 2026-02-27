@@ -16,6 +16,11 @@ const form = reactive({
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+
+function onAuthLogoError() {
+  authLogoSrc.value = '/favicon.ico'
+}
 
 const submitRegister = async () => {
   if (submitting.value) return
@@ -80,9 +85,8 @@ const submitRegister = async () => {
     </aside>
 
     <main class="auth-panel">
-      <div class="brand-row">
-        <span class="brand-dot"></span>
-        <span class="brand-name">Achar Booking</span>
+      <div class="brand-row auth-logo-only">
+        <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
       </div>
 
       <div class="form-head">

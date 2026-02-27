@@ -140,10 +140,17 @@ function submitBooking() {
       </div>
       <nav class="nav-links">
         <router-link class="active" to="/">Home</router-link>
+        <router-link to="/about">About</router-link>
+        <div class="service-menu">
+          <button type="button" class="service-menu-trigger">Service</button>
+          <div class="service-menu-dropdown">
+            <router-link to="/services/packages">Packages</router-link>
+            <router-link to="/services/overall">Overall Service</router-link>
+          </div>
+        </div>
         <router-link to="/booking">My Booking</router-link>
-        <router-link to="/services">Services</router-link>
-        <router-link to="/dashboard">Dashboard</router-link>
-        <router-link to="/customization">Customization</router-link>
+        <router-link to="/favorite">Favorite</router-link>
+        <router-link to="/contact">Contact</router-link>
       </nav>
       <div class="nav-actions">
         <router-link class="primary-btn" to="/booking">Start Booking</router-link>
@@ -194,7 +201,7 @@ function submitBooking() {
       </div>
     </section>
 
-    <section class="section">
+    <section id="services" class="section">
       <div class="section__header">
         <div>
           <p class="eyebrow">Browse by Event Type</p>
@@ -306,7 +313,7 @@ function submitBooking() {
       </div>
     </section>
 
-    <section class="section tips">
+    <section id="favorite" class="section tips">
       <div class="section__header">
         <div>
           <p class="eyebrow">Latest Planning Tips</p>
@@ -338,7 +345,7 @@ function submitBooking() {
       </div>
     </section>
 
-    <footer class="footer">
+    <footer id="contact" class="footer">
       <div class="footer__grid">
         <div>
           <div class="brand">
