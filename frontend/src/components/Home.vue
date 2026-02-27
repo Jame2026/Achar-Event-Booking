@@ -126,7 +126,6 @@ const tips = [
       <div class="hero__bg-shape"></div>
       <div class="hero__grid">
         <div class="hero__text">
-          <div class="badge">Popular</div>
           <h1>
             Your Perfect Event,
             <span class="highlight">Orchestrated</span>
@@ -136,16 +135,16 @@ const tips = [
             Discover and book the finest venues, caterers, and specialists to master your traditional and modern ceremonies.
           </p>
 
-          <div class="search-bar">
+          <!-- <div class="search-bar">
             <div class="field">
-              <!-- <label>Event type or venue</label> -->
+              <label>Event type or venue</label>
               <div class="field-control">
                 <span class="field-icon" aria-hidden="true">🔍</span>
                 <input type="text" placeholder='Try "garden wedding"' />
               </div>
             </div>
             <div class="field">
-              <!-- <label>Service type</label> -->
+              <label>Service type</label>
               <div class="field-control">
                 <span class="field-icon" aria-hidden="true">🛠️</span>
                 <select>
@@ -157,13 +156,13 @@ const tips = [
               </div>
             </div>
             <div class="field">
-              <!-- <label>Event date</label> -->
+              <label>Event date</label>
               <div class="field-control">
                 <span class="field-icon" aria-hidden="true">📅</span>
                 <input type="date" />
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </section>
