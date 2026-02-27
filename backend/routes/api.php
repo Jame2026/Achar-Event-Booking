@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\UserController;
@@ -10,6 +11,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
 });
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
