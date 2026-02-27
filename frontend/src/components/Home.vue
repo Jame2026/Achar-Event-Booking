@@ -95,7 +95,7 @@ const tips = [
   <div class="home-page">
     <header class="navbar">
       <div class="brand">
-        <div class="brand-mark">A</div>
+        <div class="brand-logo" role="img" aria-label="Achar logo"></div>
         <span class="brand-name">Achar.</span>
       </div>
       <nav class="nav-links">
