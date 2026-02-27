@@ -1,47 +1,59 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import Register from './components/RegisterForm.vue'
+import Login from './components/LoginForm.vue'
+import HomePage from './components/HomePage.vue'
+
+type AuthUser = {
+  id: number
+  name: string
+  email: string
+  role: string
+}
+
+const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+
+const currentView = ref<'register' | 'login'>('login')
+const loggedInUser = ref<AuthUser | null>(null)
+
+const getStoredUser = (): AuthUser | null => {
+  const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY)
+  if (!stored) return null
+
+  try {
+    return JSON.parse(stored) as AuthUser
+  } catch {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY)
+    return null
+  }
+}
+
+loggedInUser.value = getStoredUser()
+
+const toggleView = () => {
+  currentView.value = currentView.value === 'register' ? 'login' : 'register'
+}
+
+const onLoginSuccess = (user: AuthUser) => {
+  loggedInUser.value = user
+}
+
+const logout = () => {
+  loggedInUser.value = null
+  currentView.value = 'login'
+  localStorage.removeItem(AUTH_USER_STORAGE_KEY)
+}
+
+watch(loggedInUser, (user) => {
+  if (!user) return
+  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <div class="auth-root">
+    <HomePage v-if="loggedInUser" :user="loggedInUser" @logout="logout" />
+    <Register v-else-if="currentView === 'register'" @switch="toggleView" />
+    <Login v-else @switch="toggleView" @success="onLoginSuccess" />
+  </div>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
