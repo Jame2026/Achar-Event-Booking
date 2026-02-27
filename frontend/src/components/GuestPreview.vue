@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import DashboardPage from './pages/DashboardPage.vue'
 import CustomizationPage from './pages/CustomizationPage.vue'
 import BookingsPage from './pages/BookingsPage.vue'
+import PublicNavbar from './PublicNavbar.vue'
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -208,34 +209,7 @@ function noop() {}
 
 <template>
   <div class="guest-page">
-    <header class="topbar">
-      <div class="shell topbar-inner">
-        <router-link class="brand" to="/">
-          <img class="brand-logo" src="/achar-logo.png" alt="Achar logo" />
-          <span class="brand-text">Achar</span>
-        </router-link>
-
-        <nav class="top-links">
-          <router-link to="/">Home</router-link>
-          <router-link to="/about">About</router-link>
-          <div class="service-menu">
-            <button type="button" class="service-menu-trigger" :class="{ active: section === 'services-packages' || section === 'services-overall' }">Service</button>
-            <div class="service-menu-dropdown">
-              <router-link to="/services/packages" :class="{ active: section === 'services-packages' }">Packages</router-link>
-              <router-link to="/services/overall" :class="{ active: section === 'services-overall' }">Overall Service</router-link>
-            </div>
-          </div>
-          <router-link to="/booking" :class="{ active: section === 'bookings' }">My Booking</router-link>
-          <router-link to="/favorite" :class="{ active: section === 'favorite' }">Favorite</router-link>
-          <router-link to="/contact">Contact</router-link>
-        </nav>
-
-        <div class="top-actions">
-          <input type="search" placeholder="Search services..." disabled />
-          <router-link class="top-logout top-signin" to="/legacy-app">Sign in</router-link>
-        </div>
-      </div>
-    </header>
+    <PublicNavbar />
 
     <main class="shell guest-content">
       <section class="guest-panel">
@@ -698,63 +672,6 @@ function noop() {}
   background: #f8fafc;
 }
 
-.top-signin {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-
-.service-menu {
-  position: relative;
-}
-
-.service-menu-trigger {
-  border: 0;
-  background: transparent;
-  color: #334155;
-  border-radius: 999px;
-  padding: 0.52rem 0.9rem;
-  font: inherit;
-  cursor: pointer;
-}
-
-.service-menu-trigger.active,
-.service-menu:hover .service-menu-trigger,
-.service-menu:focus-within .service-menu-trigger {
-  background: #fff1e7;
-  color: #e45800;
-  border: 1px solid #ffd8bc;
-}
-
-.service-menu-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 190px;
-  border: 1px solid #dde3ee;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(10, 28, 34, 0.1);
-  padding: 6px;
-  display: none;
-  z-index: 50;
-}
-
-.service-menu:hover .service-menu-dropdown,
-.service-menu:focus-within .service-menu-dropdown {
-  display: grid;
-}
-
-.service-menu-dropdown a {
-  padding: 0.52rem 0.7rem;
-  border-radius: 9px;
-}
-
-.service-menu-dropdown a.active,
-.service-menu-dropdown a:hover {
-  background: #f8fafc;
-}
-
 @media (max-width: 720px) {
   .favorite-layout {
     grid-template-columns: 1fr;
@@ -768,8 +685,5 @@ function noop() {}
     height: 200px;
   }
 
-  .top-signin {
-    justify-content: center;
-  }
 }
 </style>

@@ -60,61 +60,59 @@ const submitLogin = async () => {
 </script>
 
 <template>
-  <section class="auth-shell">
-    <aside class="auth-visual auth-visual-login">
-      <div class="visual-overlay">
-        <h1>Welcome Back</h1>
-        <p>Run your events, bookings, and vendor workflow from one place.</p>
-      </div>
-    </aside>
+  <section class="auth-shell auth-shell-form-only">
 
     <main class="auth-panel">
-      <div class="brand-row auth-logo-only">
-        <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
-      </div>
+      <section class="auth-card">
+        <router-link class="auth-back-home" to="/">← Back to Home</router-link>
 
-      <div class="form-head">
-        <h2>Sign in to your account</h2>
-        <p>Use your email and password to continue.</p>
-      </div>
+        <div class="brand-row auth-logo-only">
+          <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
+        </div>
 
-      <form class="auth-form" @submit.prevent="submitLogin">
-        <label class="field">
-          <span>Email</span>
-          <input v-model="form.email" type="email" placeholder="you@example.com" required />
-        </label>
+        <div class="form-head">
+          <h2>Sign in to your account</h2>
+          <p>Use your email and password to continue.</p>
+        </div>
 
-        <label class="field">
-          <span>Password</span>
-          <div class="password-wrap">
-            <input
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Enter your password"
-              required
-            />
-            <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
-              {{ showPassword ? 'Hide' : 'Show' }}
-            </button>
-          </div>
-        </label>
+        <form class="auth-form" @submit.prevent="submitLogin">
+          <label class="field">
+            <span>Email</span>
+            <input v-model="form.email" type="email" placeholder="you@example.com" required />
+          </label>
 
-        <label class="check-row">
-          <input v-model="form.remember" type="checkbox" />
-          <span>Remember this device</span>
-        </label>
+          <label class="field">
+            <span>Password</span>
+            <div class="password-wrap">
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Enter your password"
+                required
+              />
+              <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
+                {{ showPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </label>
 
-        <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
+          <label class="check-row">
+            <input v-model="form.remember" type="checkbox" />
+            <span>Remember this device</span>
+          </label>
 
-        <button class="submit-btn" type="submit" :disabled="submitting">
-          {{ submitting ? 'Signing in...' : 'Login' }}
-        </button>
-      </form>
+          <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
-      <p class="switch-row">
-        No account yet?
-        <button type="button" class="link-btn" @click="emit('switch')">Register now</button>
-      </p>
+          <button class="submit-btn" type="submit" :disabled="submitting">
+            {{ submitting ? 'Signing in...' : 'Login' }}
+          </button>
+        </form>
+
+        <p class="switch-row">
+          No account yet?
+          <button type="button" class="link-btn" @click="emit('switch')">Register now</button>
+        </p>
+      </section>
     </main>
   </section>
 </template>

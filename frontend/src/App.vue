@@ -1,13 +1,3 @@
-<!-- App.vue -->
 <template>
-  <div>
-    <router-view />
-  </div>
+  <router-view />
 </template>
-
-<script setup>
-</script>
-
-<style>
-/* Global styles can go here */
-</style>

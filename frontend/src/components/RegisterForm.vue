@@ -73,89 +73,84 @@ const submitRegister = async () => {
 </script>
 
 <template>
-  <section class="auth-shell">
-    <aside class="auth-visual auth-visual-register">
-      <div class="visual-overlay">
-        <h1>Build Better Events</h1>
-        <p>
-          Join as a customer or vendor and manage your booking experience with a professional
-          dashboard.
-        </p>
-      </div>
-    </aside>
+  <section class="auth-shell auth-shell-form-only">
 
     <main class="auth-panel">
-      <div class="brand-row auth-logo-only">
-        <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
-      </div>
+      <section class="auth-card">
+        <router-link class="auth-back-home" to="/">← Back to Home</router-link>
 
-      <div class="form-head">
-        <h2>Create your account</h2>
-        <p>Set up your profile and choose your account profession.</p>
-      </div>
+        <div class="brand-row auth-logo-only">
+          <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
+        </div>
 
-      <form class="auth-form" @submit.prevent="submitRegister">
-        <label class="field">
-          <span>Full Name</span>
-          <input v-model="form.name" type="text" placeholder="Your full name" required />
-        </label>
+        <div class="form-head">
+          <h2>Create your account</h2>
+          <p>Set up your profile and choose your account profession.</p>
+        </div>
 
-        <label class="field">
-          <span>Email</span>
-          <input v-model="form.email" type="email" placeholder="you@example.com" required />
-        </label>
+        <form class="auth-form" @submit.prevent="submitRegister">
+          <label class="field">
+            <span>Full Name</span>
+            <input v-model="form.name" type="text" placeholder="Your full name" required />
+          </label>
 
-        <label class="field">
-          <span>Profession</span>
-          <div class="role-grid">
-            <label class="role-card" :class="{ active: form.role === 'user' }">
-              <input v-model="form.role" type="radio" value="user" name="role" />
-              <span class="role-icon">&#x1F4C5;</span>
-              <span class="role-name">Planner</span>
-            </label>
+          <label class="field">
+            <span>Email</span>
+            <input v-model="form.email" type="email" placeholder="you@example.com" required />
+          </label>
 
-            <label class="role-card" :class="{ active: form.role === 'vendor' }">
-              <input v-model="form.role" type="radio" value="vendor" name="role" />
-              <span class="role-icon">&#x1F3EA;</span>
-              <span class="role-name">Vendor</span>
-            </label>
-          </div>
-        </label>
+          <label class="field">
+            <span>Profession</span>
+            <div class="role-grid">
+              <label class="role-card" :class="{ active: form.role === 'user' }">
+                <input v-model="form.role" type="radio" value="user" name="role" />
+                <span class="role-icon">&#x1F4C5;</span>
+                <span class="role-name">Planner</span>
+              </label>
 
-        <label class="field">
-          <span>Password</span>
-          <input
-            v-model="form.password"
-            type="password"
-            placeholder="At least 8 characters"
-            minlength="8"
-            required
-          />
-        </label>
+              <label class="role-card" :class="{ active: form.role === 'vendor' }">
+                <input v-model="form.role" type="radio" value="vendor" name="role" />
+                <span class="role-icon">&#x1F3EA;</span>
+                <span class="role-name">Vendor</span>
+              </label>
+            </div>
+          </label>
 
-        <label class="field">
-          <span>Confirm Password</span>
-          <input
-            v-model="form.password_confirmation"
-            type="password"
-            placeholder="Repeat password"
-            minlength="8"
-            required
-          />
-        </label>
+          <label class="field">
+            <span>Password</span>
+            <input
+              v-model="form.password"
+              type="password"
+              placeholder="At least 8 characters"
+              minlength="8"
+              required
+            />
+          </label>
 
-        <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
-        <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
+          <label class="field">
+            <span>Confirm Password</span>
+            <input
+              v-model="form.password_confirmation"
+              type="password"
+              placeholder="Repeat password"
+              minlength="8"
+              required
+            />
+          </label>
 
-        <button class="submit-btn" type="submit" :disabled="submitting">
-          {{ submitting ? 'Creating...' : 'Create Account' }}
-        </button>
-      </form>
+          <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
+          <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
-      <p class="switch-row">
-        Already registered?
-        <button type="button" class="link-btn" @click="emit('switch')">Sign in</button>
-      </p>
+          <button class="submit-btn" type="submit" :disabled="submitting">
+            {{ submitting ? 'Creating...' : 'Create Account' }}
+          </button>
+        </form>
+
+        <p class="switch-row">
+          Already registered?
+          <button type="button" class="link-btn" @click="emit('switch')">Sign in</button>
+        </p>
+      </section>
     </main>
   </section>
 </template>

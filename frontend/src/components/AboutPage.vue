@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import PublicNavbar from './PublicNavbar.vue'
 
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 
@@ -32,33 +33,7 @@ const highlights = [
 
 <template>
   <div class="about-page-root">
-    <header class="topbar">
-      <div class="shell topbar-inner">
-        <router-link class="brand" to="/">
-          <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
-          <span class="brand-text">Achar</span>
-        </router-link>
-
-        <nav class="top-links">
-          <router-link to="/">Home</router-link>
-          <router-link to="/about" class="active">About</router-link>
-          <div class="service-menu">
-            <button type="button" class="service-menu-trigger">Service</button>
-            <div class="service-menu-dropdown">
-              <router-link to="/services/packages">Packages</router-link>
-              <router-link to="/services/overall">Overall Service</router-link>
-            </div>
-          </div>
-          <router-link to="/booking">My Booking</router-link>
-          <router-link to="/favorite">Favorite</router-link>
-          <router-link to="/contact">Contact</router-link>
-        </nav>
-
-        <div class="top-actions">
-          <router-link class="top-logout top-signin" to="/legacy-app">Sign in</router-link>
-        </div>
-      </div>
-    </header>
+    <PublicNavbar />
 
     <main class="shell about-content">
       <section class="about-hero card">
@@ -141,63 +116,8 @@ const highlights = [
   min-height: 100vh;
 }
 
-.top-signin {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-
 .about-content {
   padding: 1.2rem 0 2.2rem;
-}
-
-.service-menu {
-  position: relative;
-}
-
-.service-menu-trigger {
-  border: 0;
-  background: transparent;
-  color: #334155;
-  border-radius: 999px;
-  padding: 0.52rem 0.9rem;
-  font: inherit;
-  cursor: pointer;
-}
-
-.service-menu:hover .service-menu-trigger,
-.service-menu:focus-within .service-menu-trigger {
-  background: #fff1e7;
-  color: #e45800;
-  border: 1px solid #ffd8bc;
-}
-
-.service-menu-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 190px;
-  border: 1px solid #dde3ee;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(10, 28, 34, 0.1);
-  padding: 6px;
-  display: none;
-  z-index: 50;
-}
-
-.service-menu:hover .service-menu-dropdown,
-.service-menu:focus-within .service-menu-dropdown {
-  display: grid;
-}
-
-.service-menu-dropdown a {
-  padding: 0.52rem 0.7rem;
-  border-radius: 9px;
-}
-
-.service-menu-dropdown a:hover {
-  background: #f8fafc;
 }
 
 .about-hero {

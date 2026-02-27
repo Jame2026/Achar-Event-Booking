@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
+import PublicNavbar from './PublicNavbar.vue'
 
-const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const successMessage = ref('')
 
 const form = reactive({
@@ -10,10 +10,6 @@ const form = reactive({
   topic: 'General inquiry',
   message: '',
 })
-
-function onLogoError() {
-  appLogoSrc.value = '/favicon.ico'
-}
 
 function submitContactForm() {
   successMessage.value = 'Thank you. Your message has been received and our team will contact you soon.'
@@ -26,28 +22,7 @@ function submitContactForm() {
 
 <template>
   <div class="contact-page-root">
-    <header class="topbar">
-      <div class="shell topbar-inner">
-        <router-link class="brand" to="/">
-          <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
-          <span class="brand-text">Achar</span>
-        </router-link>
-
-        <nav class="top-links">
-          <router-link to="/">Home</router-link>
-          <router-link to="/about">About</router-link>
-          <router-link to="/services/packages">Packages</router-link>
-          <router-link to="/services/overall">Overall Service</router-link>
-          <router-link to="/booking">My Booking</router-link>
-          <router-link to="/favorite">Favorite</router-link>
-          <router-link to="/contact" class="active">Contact</router-link>
-        </nav>
-
-        <div class="top-actions">
-          <router-link class="top-logout top-signin" to="/legacy-app">Sign in</router-link>
-        </div>
-      </div>
-    </header>
+    <PublicNavbar />
 
     <main class="shell contact-content">
       <section class="card contact-hero">
@@ -123,12 +98,6 @@ function submitContactForm() {
 <style scoped>
 .contact-page-root {
   min-height: 100vh;
-}
-
-.top-signin {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
 }
 
 .contact-content {

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import PublicNavbar from './PublicNavbar.vue'
 
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 
@@ -8,14 +9,18 @@ function onLogoError() {
 }
 
 const eventTypes = [
-  { name: 'Wedding', note: 'Event Planning', icon: '💍' },
-  { name: 'Baby Shower', note: 'Event Planning', icon: '🍼' },
-  { name: 'House Blessing', note: 'Event Planning', icon: '🕯️' },
-  { name: 'Company Party', note: 'Event Planning', icon: '🏢' },
-  { name: 'Engagement', note: 'Event Planning', icon: '💞' },
-  { name: 'Birthday', note: 'Event Planning', icon: '🎂' },
-  { name: 'Anniversary', note: 'Event Planning', icon: '🎉' },
+  { name: 'Wedding', note: 'Event Planning', image: '/event-cards/wedding-stage.jpg', fallback: '/W1.png' },
+  { name: 'Baby Shower', note: 'Event Planning', image: '/event-cards/orange-flowers.jpg', fallback: '/W2.png' },
+  { name: 'House Blessing', note: 'Event Planning', image: '/event-cards/house-blessing-offering.jpg', fallback: '/W3.png' },
+  { name: 'Company Party', note: 'Event Planning', image: '/event-cards/ceremony-hall.jpg', fallback: '/p1.png' },
+  { name: 'Engagement', note: 'Event Planning', image: '/event-cards/engagement-attire.jpg', fallback: '/p2.png' },
+  { name: 'Birthday', note: 'Event Planning', image: '/W5.png', fallback: '/W5.png' },
+  { name: 'Anniversary', note: 'Event Planning', image: '/event-cards/anniversary-arch.jpg', fallback: '/w4.png' },
 ];
+
+function onEventCardImageError(event, fallback) {
+  event.target.src = fallback
+}
 
 const vendors = [
   {
@@ -28,7 +33,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'Book',
     image:
-      'https://images.unsplash.com/photo-1525253013412-55c1a69a5738?auto=format&fit=crop&w=800&q=80',
+      'public/W2.png',
   },
   {
     tag: 'Top rated',
@@ -40,7 +45,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'Book',
     image:
-      'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80',
+      'public/W5.png',
   },
   {
     tag: 'Top rated',
@@ -52,7 +57,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'Book',
     image:
-      'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+      'public/w4.png',
   },
 ];
 
@@ -80,21 +85,21 @@ const tips = [
     title: '5 Secrets to a Stress-Free Wedding Ceremony',
     meta: 'By Claire Muller • 6 min read',
     image:
-      'https://images.unsplash.com/photo-1529634893741-b3b35a1c5207?auto=format&fit=crop&w=600&q=80',
+      'public/W1.png',
   },
   {
     category: 'Corporate',
     title: 'Choosing the Right Venue for Corporate Galas',
     meta: 'By Team Achar • 4 min read',
     image:
-      'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80',
+      'public/p1.png',
   },
   {
     category: 'Decor & Styling',
     title: 'Minimalist Tablescapes That Still Feel Luxe',
     meta: 'By In-house Stylists • 5 min read',
     image:
-      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80',
+      'public/p2.png',
   },
 ];
 
@@ -133,36 +138,12 @@ function submitBooking() {
 
 <template>
   <div class="home-page">
-    <header class="navbar">
-      <div class="brand">
-        <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
-        <span class="brand-name">Achar.</span>
-      </div>
-      <nav class="nav-links">
-        <router-link class="active" to="/">Home</router-link>
-        <router-link to="/about">About</router-link>
-        <div class="service-menu">
-          <button type="button" class="service-menu-trigger">Service</button>
-          <div class="service-menu-dropdown">
-            <router-link to="/services/packages">Packages</router-link>
-            <router-link to="/services/overall">Overall Service</router-link>
-          </div>
-        </div>
-        <router-link to="/booking">My Booking</router-link>
-        <router-link to="/favorite">Favorite</router-link>
-        <router-link to="/contact">Contact</router-link>
-      </nav>
-      <div class="nav-actions">
-        <router-link class="primary-btn" to="/booking">Start Booking</router-link>
-        <router-link class="ghost-btn sign-in-btn" to="/legacy-app">Sign in</router-link>
-      </div>
-    </header>
+    <PublicNavbar />
 
     <section class="hero">
       <div class="hero__bg-shape"></div>
       <div class="hero__grid">
         <div class="hero__text">
-          <div class="badge">Popular</div>
           <h1>
             Your Perfect Event,
             <span class="highlight">Orchestrated</span>
@@ -172,31 +153,10 @@ function submitBooking() {
             Discover and book the finest venues, caterers, and specialists to master your traditional and modern ceremonies.
           </p>
 
-          <div class="search-bar">
-            <div class="field">
-              <label>Event type or venue</label>
-              <input type="text" placeholder='Try "garden wedding", "banquet hall"' />
-            </div>
-            <div class="field">
-              <label>Service type</label>
-              <select>
-                <option>Photography</option>
-                <option>Catering</option>
-                <option>Event Planning</option>
-                <option>Decor & Styling</option>
-              </select>
-            </div>
-            <router-link class="search-btn" to="/services">Search</router-link>
-          </div>
-        </div>
-        <div class="hero__visual">
-          <div class="hero-card">
-            <p class="stat-label">Trending vendor</p>
-            <h3>Orchestral Events Co.</h3>
-            <p class="stat-value">4.9 ★★★★★</p>
-            <p class="stat-note">Wedding planning - Cinematography</p>
-          </div>
-          <div class="floating-tag">Curated picks daily</div>
+          <router-link class="search-btn hero-explore-btn" to="/services/packages">
+            <span>Explore Services & Packages</span>
+            <span class="hero-explore-icon" aria-hidden="true">→</span>
+          </router-link>
         </div>
       </div>
     </section>
@@ -211,7 +171,9 @@ function submitBooking() {
       </div>
       <div class="event-grid">
         <div class="event-card" v-for="event in eventTypes" :key="event.name">
-          <div class="icon-circle">{{ event.icon }}</div>
+          <div class="icon-circle">
+            <img :src="event.image" :alt="event.name" @error="onEventCardImageError($event, event.fallback)" />
+          </div>
           <div>
             <p class="event-title">{{ event.name }}</p>
             <p class="event-note">{{ event.note }}</p>
@@ -395,4 +357,7 @@ function submitBooking() {
 </template>
 
 <style scoped src="../assets/Home.css"></style>
+
+
+
 
