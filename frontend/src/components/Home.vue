@@ -20,7 +20,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'View Details',
     image:
-      'https://images.unsplash.com/photo-1525253013412-55c1a69a5738?auto=format&fit=crop&w=800&q=80',
+      'public/W2.png',
   },
   {
     tag: 'Top rated',
@@ -32,7 +32,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'View Details',
     image:
-      'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80',
+      'public/W5.png',
   },
   {
     tag: 'Top rated',
@@ -44,7 +44,7 @@ const vendors = [
     priceCaption: 'Begins at',
     cta: 'View Details',
     image:
-      'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+      'public/w4.png',
   },
 ];
 
@@ -72,21 +72,21 @@ const tips = [
     title: '5 Secrets to a Stress-Free Wedding Ceremony',
     meta: 'By Claire Muller • 6 min read',
     image:
-      'https://images.unsplash.com/photo-1529634893741-b3b35a1c5207?auto=format&fit=crop&w=600&q=80',
+      'public/W1.png',
   },
   {
     category: 'Corporate',
     title: 'Choosing the Right Venue for Corporate Galas',
     meta: 'By Team Achar • 4 min read',
     image:
-      'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80',
+      'public/p1.png',
   },
   {
     category: 'Decor & Styling',
     title: 'Minimalist Tablescapes That Still Feel Luxe',
     meta: 'By In-house Stylists • 5 min read',
     image:
-      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80',
+      'public/p2.png',
   },
 ];
 </script>
@@ -100,10 +100,21 @@ const tips = [
       </div>
       <nav class="nav-links">
         <a class="active" href="#">Home</a>
+        <a href="#">About Us</a>
+        <div class="nav-dropdown">
+          <button class="nav-drop-trigger" type="button">
+            Services
+            <span class="chevron">▾</span>
+          </button>
+          <div class="nav-drop-menu">
+            <a href="#">Packages</a>
+            <a href="#">Server</a>
+           
+          </div>
+        </div>
         <a href="#">My Booking</a>
-        <a href="#">Services</a>
         <a href="#">Favorites</a>
-        <a href="#">Message</a>
+        <a href="#">Contact</a>
       </nav>
       <div class="nav-actions">
         <button class="ghost-btn">Sign in</button>
@@ -127,29 +138,32 @@ const tips = [
 
           <div class="search-bar">
             <div class="field">
-              <label>Event type or venue</label>
-              <input type="text" placeholder='Try "garden wedding", "banquet hall"' />
+              <!-- <label>Event type or venue</label> -->
+              <div class="field-control">
+                <span class="field-icon" aria-hidden="true">🔍</span>
+                <input type="text" placeholder='Try "garden wedding"' />
+              </div>
             </div>
             <div class="field">
-              <label>Service type</label>
-              <select>
-                <option>Photography</option>
-                <option>Catering</option>
-                <option>Event Planning</option>
-                <option>Decor & Styling</option>
-              </select>
+              <!-- <label>Service type</label> -->
+              <div class="field-control">
+                <span class="field-icon" aria-hidden="true">🛠️</span>
+                <select>
+                  <option>Photography</option>
+                  <option>Catering</option>
+                  <option>Event Planning</option>
+                  <option>Decor & Styling</option>
+                </select>
+              </div>
             </div>
-            <button class="search-btn">Search</button>
+            <div class="field">
+              <!-- <label>Event date</label> -->
+              <div class="field-control">
+                <span class="field-icon" aria-hidden="true">📅</span>
+                <input type="date" />
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="hero__visual">
-          <div class="hero-card">
-            <p class="stat-label">Trending vendor</p>
-            <h3>Orchestral Events Co.</h3>
-            <p class="stat-value">4.9 ★★★★★</p>
-            <p class="stat-note">Wedding planning - Cinematography</p>
-          </div>
-          <div class="floating-tag">Curated picks daily</div>
         </div>
       </div>
     </section>
