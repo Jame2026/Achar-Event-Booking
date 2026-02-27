@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-=======
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
->>>>>>> develop
 @import './base.css';
 
 :root {
@@ -1776,8 +1772,6 @@ a {
   border-color: #ffd4b4;
   font-weight: 700;
 }
-<<<<<<< HEAD
-=======
 
 .bookings-sidebar a.danger {
   color: #dc2626;
@@ -2912,4 +2906,3 @@ a {
     min-height: 260px;
   }
 }
->>>>>>> develop

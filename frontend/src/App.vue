@@ -1,19 +1,5 @@
-<<<<<<< HEAD
 <!-- App.vue -->
-<template>
-  <div>
-    <router-view />
-  </div>
-</template>
-
 <script setup>
-</script>
-
-<style>
-/* Global styles can go here */
-</style>
-=======
-﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import Login from './components/LoginForm.vue'
 import Register from './components/RegisterForm.vue'
@@ -466,6 +452,7 @@ onMounted(async () => {
 </script>
 
 <template>
+
   <div class="auth-root">
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
@@ -670,4 +657,3 @@ onMounted(async () => {
 </template>
 
 
->>>>>>> develop
