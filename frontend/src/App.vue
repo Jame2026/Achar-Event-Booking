@@ -8,6 +8,6 @@
 </template>
 
 <script setup>
-import BookingForm from './components/BookingForm.vue'
+// import BookingForm from './components/BookingForm.vue'
 import Home from './components/Home.vue'
 </script>
