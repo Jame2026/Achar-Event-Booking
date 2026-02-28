@@ -452,7 +452,6 @@ onMounted(async () => {
 </script>
 
 <template>
-<<<<<<< HEAD
 
   <div class="auth-root">
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
@@ -615,7 +614,10 @@ onMounted(async () => {
       :save-document="saveDocument"
       :delete-message="deleteMessage"
     />
-<footer v-if="currentPage !== 'messages'" class="footer">
+
+    </div>
+
+    <footer v-if="currentPage !== 'messages'" class="footer">
       <div class="shell footer-grid">
         <div class="footer-brand-col">
           <div class="brand">
@@ -654,21 +656,4 @@ onMounted(async () => {
       </div>
     </footer>
   </div>
-=======
-  <div class="app-container">
-    <router-view />
->>>>>>> user-booking-detail
-  </div>
 </template>
-
-
-<<<<<<< HEAD
-=======
-<style>
-.app-container {
-  min-height: 100vh;
-  position: relative;
-  z-index: 1;
-}
-</style>
->>>>>>> user-booking-detail

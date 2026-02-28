@@ -274,7 +274,6 @@ async function handleSubmit() {
   submitError.value = ''
 
   try {
-<<<<<<< HEAD
     // Create new service object
     const newService = {
       id: Date.now(),
@@ -294,7 +293,6 @@ async function handleSubmit() {
     const existingServices = loadServices()
     existingServices.push(newService)
     saveServices(existingServices)
-=======
     // Try to save to API first
     try {
       const response = await fetch('/api/services', {
@@ -318,16 +316,15 @@ async function handleSubmit() {
     } catch (apiError) {
       console.log('API not available, using localStorage fallback')
     }
->>>>>>> user-booking-detail
 
     // Fallback: save to localStorage if API fails
     const services = getStoredServices()
-    const newService = {
+    const localService = {
       ...form.value,
       id: Date.now(),
       created_at: new Date().toISOString()
     }
-    services.push(newService)
+    services.push(localService)
     localStorage.setItem('achar_services', JSON.stringify(services))
     
     successMessage.value = `Service "${form.value.name}" added successfully!`
@@ -338,7 +335,6 @@ async function handleSubmit() {
       router.push('/services')
     }, 1500)
     
-<<<<<<< HEAD
     // Reset form after successful submission
     resetForm()
     
@@ -347,8 +343,6 @@ async function handleSubmit() {
       router.push('/services')
     }, 1500)
     
-=======
->>>>>>> user-booking-detail
   } catch (err) {
     submitError.value = 'Failed to add service. Please try again or contact support.'
     console.error(err)
@@ -357,8 +351,6 @@ async function handleSubmit() {
   }
 }
 
-<<<<<<< HEAD
-=======
 // Helper functions for localStorage
 function getStoredServices() {
   const stored = localStorage.getItem('achar_services')
@@ -376,7 +368,6 @@ function saveToLocalStorage(service) {
   localStorage.setItem('achar_services', JSON.stringify(services))
 }
 
->>>>>>> user-booking-detail
 function resetForm() {
   form.value = {
     name: '',
@@ -391,10 +382,7 @@ function resetForm() {
     notifyChatbot: false
   }
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> user-booking-detail
 // set up cancel button booking
 
 function cancel() {
