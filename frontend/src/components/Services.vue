@@ -125,21 +125,37 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref, onMounted } from 'vue'
 
 const STORAGE_KEY = 'achar_services'
 
 // Load services from localStorage or use default data
+=======
+import { ref, onMounted, watch } from 'vue'
+
+const STORAGE_KEY = 'achar_services'
+
+// Load from localStorage or use defaults
+>>>>>>> user-booking-detail
 function loadServices() {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored) {
     try {
       return JSON.parse(stored)
+<<<<<<< HEAD
     } catch (e) {
       console.error('Error parsing stored services:', e)
     }
   }
   // Default services if no stored data
+=======
+    } catch {
+      // Return defaults if parse fails
+    }
+  }
+  // Default services
+>>>>>>> user-booking-detail
   return [
     {
       id: 1,
@@ -162,12 +178,21 @@ function loadServices() {
   ]
 }
 
+<<<<<<< HEAD
 // Save services to localStorage
 function saveServices(servicesData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(servicesData))
 }
 
 const services = ref(loadServices())
+=======
+const services = ref(loadServices())
+
+// Save to localStorage whenever services change
+watch(services, (newServices) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newServices))
+}, { deep: true })
+>>>>>>> user-booking-detail
 
 const showAddForm = ref(false)
 const editingService = ref(null)
@@ -370,7 +395,7 @@ function deleteService(serviceId) {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .modal-content {
@@ -381,6 +406,8 @@ function deleteService(serviceId) {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  position: relative;
+  z-index: 10000;
 }
 
 .modal-header {
@@ -459,6 +486,9 @@ function deleteService(serviceId) {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10001;
 }
 
 .btn-save {
@@ -468,6 +498,9 @@ function deleteService(serviceId) {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10001;
 }
 
 .btn-cancel:hover {

@@ -174,8 +174,8 @@
 
       <!-- Actions -->
       <div class="form-actions">
-        <button type="button" class="btn-cancel" @click="cancel">Cancel</button>
-        <button type="submit" class="btn-save" :disabled="isSubmitting">
+        <button type="button" class="btn-cancel" @click="handleCancel">Cancel</button>
+        <button type="button" class="btn-save" :disabled="isSubmitting" @click="handleAddClick">
           {{ isSubmitting ? 'Saving...' : 'Add Service' }}
         </button>
       </div>
@@ -274,6 +274,7 @@ async function handleSubmit() {
   submitError.value = ''
 
   try {
+<<<<<<< HEAD
     // Create new service object
     const newService = {
       id: Date.now(),
@@ -293,9 +294,51 @@ async function handleSubmit() {
     const existingServices = loadServices()
     existingServices.push(newService)
     saveServices(existingServices)
+=======
+    // Try to save to API first
+    try {
+      const response = await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form.value)
+      })
 
-    successMessage.value = `Service "${form.value.name}" added successfully!`
+      if (response.ok) {
+        const savedService = await response.json()
+        // Also save to localStorage as backup
+        saveToLocalStorage(savedService)
+        successMessage.value = `Service "${form.value.name}" added successfully!`
+        resetForm()
+        // Redirect to Services page after successful add
+        setTimeout(() => {
+          router.push('/services')
+        }, 1500)
+        return
+      }
+    } catch (apiError) {
+      console.log('API not available, using localStorage fallback')
+    }
+>>>>>>> user-booking-detail
+
+    // Fallback: save to localStorage if API fails
+    const services = getStoredServices()
+    const newService = {
+      ...form.value,
+      id: Date.now(),
+      created_at: new Date().toISOString()
+    }
+    services.push(newService)
+    localStorage.setItem('achar_services', JSON.stringify(services))
     
+    successMessage.value = `Service "${form.value.name}" added successfully!`
+    resetForm()
+    
+    // Redirect to Services page after successful add
+    setTimeout(() => {
+      router.push('/services')
+    }, 1500)
+    
+<<<<<<< HEAD
     // Reset form after successful submission
     resetForm()
     
@@ -304,6 +347,8 @@ async function handleSubmit() {
       router.push('/services')
     }, 1500)
     
+=======
+>>>>>>> user-booking-detail
   } catch (err) {
     submitError.value = 'Failed to add service. Please try again or contact support.'
     console.error(err)
@@ -312,6 +357,26 @@ async function handleSubmit() {
   }
 }
 
+<<<<<<< HEAD
+=======
+// Helper functions for localStorage
+function getStoredServices() {
+  const stored = localStorage.getItem('achar_services')
+  if (!stored) return []
+  try {
+    return JSON.parse(stored)
+  } catch {
+    return []
+  }
+}
+
+function saveToLocalStorage(service) {
+  const services = getStoredServices()
+  services.push({ ...service, id: service.id || Date.now() })
+  localStorage.setItem('achar_services', JSON.stringify(services))
+}
+
+>>>>>>> user-booking-detail
 function resetForm() {
   form.value = {
     name: '',
@@ -326,12 +391,27 @@ function resetForm() {
     notifyChatbot: false
   }
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> user-booking-detail
 // set up cancel button booking
 
 function cancel() {
   if (confirm('Discard changes and return to Services?')) {
     router.push('/services')
   }
+}
+
+function handleCancel() {
+  console.log('Cancel button clicked')
+  if (confirm('Discard changes and return to Services?')) {
+    router.push('/services')
+  }
+}
+
+function handleAddClick() {
+  console.log('Add Service button clicked')
+  handleSubmit()
 }
 </script>

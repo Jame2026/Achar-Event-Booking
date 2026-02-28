@@ -452,6 +452,7 @@ onMounted(async () => {
 </script>
 
 <template>
+<<<<<<< HEAD
 
   <div class="auth-root">
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
@@ -653,7 +654,21 @@ onMounted(async () => {
       </div>
     </footer>
   </div>
+=======
+  <div class="app-container">
+    <router-view />
+>>>>>>> user-booking-detail
   </div>
 </template>
 
 
+<<<<<<< HEAD
+=======
+<style>
+.app-container {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+</style>
+>>>>>>> user-booking-detail
