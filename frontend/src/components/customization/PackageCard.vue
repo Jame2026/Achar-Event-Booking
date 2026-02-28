@@ -12,9 +12,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isFavorite: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['select', 'toggle-details', 'message'])
+const emit = defineEmits(['select', 'toggle-details', 'check-availability', 'message', 'toggle-favorite'])
 
 function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`
@@ -27,24 +31,37 @@ function formatCurrency(value) {
     :class="{ selected: isSelected }"
     role="button"
     tabindex="0"
-    @click="emit('select', item.id)"
-    @keyup.enter="emit('select', item.id)"
+    @click="emit('toggle-details', item.id)"
+    @keyup.enter="emit('toggle-details', item.id)"
   >
     <img class="addon-card-image" :src="item.image" :alt="`${item.title} package`" loading="lazy" />
 
     <div class="addon-card-row">
       <strong>{{ item.title }}</strong>
-      <span>{{ formatCurrency(item.price) }}</span>
+      <div class="addon-card-meta">
+        <span>{{ formatCurrency(item.price) }}</span>
+        <button
+          type="button"
+          class="favorite-btn"
+          :class="{ active: isFavorite }"
+          @click.stop="emit('toggle-favorite', item.id)"
+        >
+          {{ isFavorite ? '♥' : '♡' }}
+        </button>
+      </div>
     </div>
 
     <p>{{ item.description }}</p>
 
-    <div class="addon-card-actions">
+    <div class="addon-card-actions package-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('select', item.id)">
         {{ isSelected ? 'Selected' : 'Select Package' }}
       </button>
       <button type="button" class="read-more-btn" @click.stop="emit('toggle-details', item.id)">
-        {{ isExpanded ? 'Read less' : 'Read more' }}
+        {{ isExpanded ? 'Hide Details' : 'View Details' }}
+      </button>
+      <button type="button" class="check-availability-btn" @click.stop="emit('check-availability', item)">
+        Check Availability
       </button>
       <button type="button" class="message-vendor-btn" @click.stop="emit('message')">
         Message Vendor

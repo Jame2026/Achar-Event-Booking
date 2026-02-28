@@ -1,21 +1,100 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import BookingForm from '../components/BookingForm.vue'
+import Home from '../components/Home.vue'
+import LegacyAppShell from '../LegacyAppShell.vue'
+import GuestPreview from '../components/GuestPreview.vue'
+import AboutPage from '../components/AboutPage.vue'
+import ContactPage from '../components/ContactPage.vue'
 
 const routes = [
   {
     path: '/',
+    name: 'Home',
+    component: Home
+  },
+  {
+    path: '/home',
+    redirect: '/'
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: AboutPage
+  },
+  {
+    path: '/contact',
+    name: 'Contact',
+    component: ContactPage
+  },
+  {
+    path: '/booking',
     name: 'BookingForm',
-    component: BookingForm
+    component: GuestPreview,
+    props: { section: 'bookings' }
   },
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('../components/Dashboard.vue')
+    component: GuestPreview,
+    props: { section: 'dashboard' }
   },
   {
     path: '/services',
     name: 'Services',
-    component: () => import('../components/Services.vue')
+    component: GuestPreview,
+    props: { section: 'services-packages' }
+  },
+  {
+    path: '/services/packages',
+    name: 'ServicePackages',
+    component: GuestPreview,
+    props: { section: 'services-packages' }
+  },
+  {
+    path: '/services/overall',
+    name: 'ServiceOverall',
+    component: GuestPreview,
+    props: { section: 'services-overall' }
+  },
+  {
+    path: '/legacy-app',
+    name: 'LegacyApp',
+    component: LegacyAppShell
+  },
+  {
+    path: '/vendor',
+    redirect: '/legacy-app?page=vendor'
+  },
+  {
+    path: '/customization',
+    name: 'Customization',
+    component: GuestPreview,
+    props: { section: 'customization' }
+  },
+  {
+    path: '/favorite',
+    name: 'Favorite',
+    component: GuestPreview,
+    props: { section: 'favorite' }
+  },
+  {
+    path: '/availability',
+    redirect: '/legacy-app?page=availability'
+  },
+  {
+    path: '/my-bookings',
+    redirect: '/legacy-app?page=bookings'
+  },
+  {
+    path: '/messages',
+    redirect: '/legacy-app?page=messages'
+  },
+  {
+    path: '/profile',
+    redirect: '/legacy-app?page=profile'
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 

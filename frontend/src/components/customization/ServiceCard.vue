@@ -14,6 +14,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isFavorite: {
+    type: Boolean,
+    default: false,
+  },
   eventTypeMap: {
     type: Object,
     required: true,
@@ -24,7 +28,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['toggle-service', 'toggle-details', 'message'])
+const emit = defineEmits(['toggle-service', 'toggle-details', 'message', 'toggle-favorite'])
 
 const serviceEventTypesLabel = computed(() =>
   props.service.eventTypes.map((type) => props.eventTypeMap[type] || 'Other').join(', '),
@@ -49,22 +53,32 @@ function formatCurrency(value) {
     :class="{ selected: isSelected }"
     role="button"
     tabindex="0"
-    @click="emit('toggle-service', service.id)"
-    @keyup.enter="emit('toggle-service', service.id)"
+    @click="emit('toggle-details', service.id)"
+    @keyup.enter="emit('toggle-details', service.id)"
   >
     <div class="addon-card-row">
       <strong>{{ service.name }}</strong>
-      <span>{{ formatCurrency(service.price) }}</span>
+      <div class="addon-card-meta">
+        <span>{{ formatCurrency(service.price) }}</span>
+        <button
+          type="button"
+          class="favorite-btn"
+          :class="{ active: isFavorite }"
+          @click.stop="emit('toggle-favorite', service.id)"
+        >
+          {{ isFavorite ? '♥' : '♡' }}
+        </button>
+      </div>
     </div>
 
     <p>{{ service.description }}</p>
 
-    <div class="addon-card-actions">
+    <div class="addon-card-actions service-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('toggle-service', service.id)">
         {{ isSelected ? 'Selected' : 'Add Service' }}
       </button>
       <button type="button" class="read-more-btn" @click.stop="emit('toggle-details', service.id)">
-        {{ isExpanded ? 'Read less' : 'Read more' }}
+        {{ isExpanded ? 'Hide Details' : 'View Details' }}
       </button>
       <button type="button" class="message-vendor-btn" @click.stop="emit('message')">
         Message Vendor
@@ -75,6 +89,7 @@ function formatCurrency(value) {
       <small><strong>Recommended for:</strong> {{ serviceEventTypesLabel }}</small>
       <small><strong>Service fee:</strong> {{ formatCurrency(serviceFeePrice) }} (10%)</small>
       <small><strong>Estimated total:</strong> {{ formatCurrency(serviceEstimatedTotal) }}</small>
+      <small><strong>Pre-booking:</strong> Available after selecting this service.</small>
     </div>
   </article>
 </template>
