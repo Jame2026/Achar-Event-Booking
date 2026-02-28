@@ -1,6 +1,6 @@
 <!-- App.vue -->
 <template>
-  <div>
+  <div class="app-container">
     <router-view />
   </div>
 </template>
@@ -9,5 +9,9 @@
 </script>
 
 <style>
-/* Global styles can go here */
+.app-container {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
 </style>

@@ -125,28 +125,49 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
-const services = ref([
-  {
-    id: 1,
-    name: 'Premium Buffet Catering',
-    description: 'Full-service buffet with premium menu options',
-    price: 45
-  },
-  {
-    id: 2,
-    name: 'Wedding Photography',
-    description: 'Professional photography for wedding events',
-    price: 250
-  },
-  {
-    id: 3,
-    name: 'Event Decoration',
-    description: 'Complete event decoration and setup',
-    price: 75
+const STORAGE_KEY = 'achar_services'
+
+// Load from localStorage or use defaults
+function loadServices() {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch {
+      // Return defaults if parse fails
+    }
   }
-])
+  // Default services
+  return [
+    {
+      id: 1,
+      name: 'Premium Buffet Catering',
+      description: 'Full-service buffet with premium menu options',
+      price: 45
+    },
+    {
+      id: 2,
+      name: 'Wedding Photography',
+      description: 'Professional photography for wedding events',
+      price: 250
+    },
+    {
+      id: 3,
+      name: 'Event Decoration',
+      description: 'Complete event decoration and setup',
+      price: 75
+    }
+  ]
+}
+
+const services = ref(loadServices())
+
+// Save to localStorage whenever services change
+watch(services, (newServices) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newServices))
+}, { deep: true })
 
 const showAddForm = ref(false)
 const editingService = ref(null)
@@ -339,7 +360,7 @@ function deleteService(serviceId) {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .modal-content {
@@ -350,6 +371,8 @@ function deleteService(serviceId) {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  position: relative;
+  z-index: 10000;
 }
 
 .modal-header {
@@ -428,6 +451,9 @@ function deleteService(serviceId) {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10001;
 }
 
 .btn-save {
@@ -437,6 +463,9 @@ function deleteService(serviceId) {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10001;
 }
 
 .btn-cancel:hover {

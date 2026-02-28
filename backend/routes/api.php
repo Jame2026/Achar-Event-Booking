@@ -13,6 +13,12 @@ Route::get('/health', function () {
 
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
+// Public services endpoint for frontend
+Route::get('/services', [VendorController::class, 'publicServices']);
+Route::post('/services', [VendorController::class, 'publicStoreService']);
+Route::put('/services/{id}', [VendorController::class, 'publicUpdateService']);
+Route::delete('/services/{id}', [VendorController::class, 'publicDestroyService']);
+
 Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']);
 Route::get('events/{event}/availability', [BookingController::class, 'availability']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
@@ -30,6 +36,12 @@ Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(functi
     Route::put('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::patch('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::delete('/events/{event}', [VendorController::class, 'destroyEvent']);
+    
+    // Services endpoint (maps to events in backend)
+    Route::get('/services', [VendorController::class, 'myServices']);
+    Route::post('/services', [VendorController::class, 'storeService']);
+    Route::put('/services/{id}', [VendorController::class, 'updateService']);
+    Route::delete('/services/{id}', [VendorController::class, 'destroyService']);
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
