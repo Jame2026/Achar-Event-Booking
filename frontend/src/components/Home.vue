@@ -114,7 +114,7 @@ const tips = [
         </div>
         <a href="#">My Booking</a>
         <a href="#">Favorites</a>
-        <a href="#">Contact</a>
+        <a href="/contact">Contact</a>
       </nav>
       <div class="nav-actions">
         <button class="ghost-btn">Sign in</button>
