@@ -1,9 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
-import DashboardPage from './pages/DashboardPage.vue'
-import CustomizationPage from './pages/CustomizationPage.vue'
-import BookingsPage from './pages/BookingsPage.vue'
-import PublicNavbar from './PublicNavbar.vue'
+import { computed, ref } from "vue";
+import { useRoute } from "vue-router";
+import DashboardPage from "./pages/DashboardPage.vue";
+import CustomizationPage from "./pages/CustomizationPage.vue";
+import ServiceCard from "./customization/ServiceCard.vue";
+import BookingsPage from "./pages/BookingsPage.vue";
+import PublicNavbar from "./PublicNavbar.vue";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -13,138 +15,341 @@ import {
   packageImageByEventType,
   serviceFeeRate,
   vendorProfile,
-} from '../features/appData'
-import { useRouter } from 'vue-router'
+} from "../features/appData";
+import { isDateLikelyBooked, isSlotLikelyBooked } from "../features/availabilityUtils";
+import { useRouter } from "vue-router";
 
 const props = defineProps({
   section: {
     type: String,
-    default: 'dashboard',
+    default: "dashboard",
   },
-})
-const section = computed(() => props.section)
-const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
+});
+const section = computed(() => props.section);
+const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
 
 const pageContent = computed(() => {
-  if (props.section === 'favorite') {
+  if (props.section === "favorite") {
     return {
-      title: 'Favorite',
-      subtitle: 'Your saved packages and services.',
-      text: 'Favorites are saved on this device. Sign in to sync across your account.',
-    }
+      title: "Favorite",
+      subtitle: "Your saved packages and services.",
+      text: "Favorites are saved on this device. Sign in to sync across your account.",
+    };
   }
 
-  if (props.section === 'bookings') {
+  if (props.section === "bookings") {
     return {
-      title: 'My Booking',
-      subtitle: 'No booking data yet.',
-      text: 'Sign in to view your booking history, upcoming events, and confirmations.',
-    }
+      title: "My Booking",
+      subtitle: "No booking data yet.",
+      text: "Sign in to view your booking history, upcoming events, and confirmations.",
+    };
   }
 
-  if (props.section === 'services-packages') {
+  if (props.section === "services-packages") {
     return {
-      title: 'Service Packages',
-      subtitle: 'Browse available packages by event type.',
-      text: 'Click any package card to see full details and included services.',
-    }
+      title: "Service Packages",
+      subtitle: "Browse available packages by event type.",
+      text: "Click any package card to see full details and included services.",
+    };
   }
 
-  if (props.section === 'services-overall') {
+  if (props.section === "services-overall") {
     return {
-      title: 'Overall Service',
-      subtitle: 'No overall service data yet.',
-      text: 'Sign in to select multiple services and packages for pre-booking.',
-    }
+      title: "Overall Service",
+      subtitle: "No overall service data yet.",
+      text: "Sign in to select multiple services and packages for pre-booking.",
+    };
   }
 
-  if (props.section === 'customization') {
+  if (props.section === "customization") {
     return {
-      title: 'Customization',
-      subtitle: 'No customization data yet.',
-      text: 'Sign in to customize your package and save your selected services.',
-    }
+      title: "Customization",
+      subtitle: "No customization data yet.",
+      text: "Sign in to customize your package and save your selected services.",
+    };
   }
 
   return {
-    title: 'Dashboard',
-    subtitle: 'No dashboard data yet.',
-    text: 'Sign in to view your dashboard, activity, and quick actions.',
-  }
-})
+    title: "Dashboard",
+    subtitle: "No dashboard data yet.",
+    text: "Sign in to view your dashboard, activity, and quick actions.",
+  };
+});
 
-const bookingFilter = ref('Upcoming')
-const bookingEventTypeFilter = ref('all')
-const customizationEventType = ref('all')
-const customizationSearch = ref('')
-const selectedCustomizationPackageId = ref(null)
-const customizationQuantity = ref(1)
+const bookingFilter = ref("Upcoming");
+const bookingEventTypeFilter = ref("all");
+const customizationEventType = ref("all");
+const customizationSearch = ref("");
+const selectedCustomizationPackageId = ref(null);
+const customizationQuantity = ref(1);
 
-const bookingBindings = { bookingFilter, bookingEventTypeFilter }
+// state for packages page selection
+const selectedPackageId = ref(null);
+const packageQuantity = ref(1);
+const selectedServiceIds = ref([]);
+const overallQuantity = ref(1);
+const overallAvailabilityDate = ref(
+  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
+);
+const overallAvailabilitySlot = ref("");
+const overallSlotOptions = ["08:00 AM", "09:30 AM", "11:00 AM", "01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM", "07:00 PM", "08:30 PM"];
+
+const lastQty = ref(1);
+
+const bookingBindings = { bookingFilter, bookingEventTypeFilter };
 const customizationBindings = {
   customizationEventType,
   customizationSearch,
   selectedCustomizationPackageId,
   customizationQuantity,
-}
-const router = useRouter()
+};
+const router = useRouter();
+const route = useRoute();
+
+// compute event filter key from query string
+const selectedEventFilter = computed(() => {
+  const val = route.query.event;
+  return typeof val === "string" ? val : "";
+});
+
+const guestPreviewPackagesFiltered = computed(() => {
+  const filter = selectedEventFilter.value;
+  if (!filter || filter === "all") return guestPreviewPackages.value;
+  return guestPreviewPackages.value.filter((pkg) => pkg.eventType === filter);
+});
 
 const emptyDashboardStats = {
   totalBookings: 0,
   upcomingBookings: 0,
   completedBookings: 0,
   unreadMessages: 0,
-}
+};
 const savedFavorites = (() => {
   try {
-    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY)
-    if (!raw) return { packageIds: [], serviceIds: [] }
-    const parsed = JSON.parse(raw)
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if (!raw) return { packageIds: [], serviceIds: [] };
+    const parsed = JSON.parse(raw);
     return {
       packageIds: Array.isArray(parsed.packageIds) ? parsed.packageIds : [],
       serviceIds: Array.isArray(parsed.serviceIds) ? parsed.serviceIds : [],
-    }
+    };
   } catch {
-    return { packageIds: [], serviceIds: [] }
+    return { packageIds: [], serviceIds: [] };
   }
-})()
-const favoritePackageIds = ref(savedFavorites.packageIds)
-const favoriteServiceIds = ref(savedFavorites.serviceIds)
+})();
+const favoritePackageIds = ref(savedFavorites.packageIds);
+const favoriteServiceIds = ref(savedFavorites.serviceIds);
 
 const guestPreviewPackages = computed(() => {
-  const rows = []
+  const rows = [];
   Object.entries(packageCatalogByEventType).forEach(([eventType, entries]) => {
     entries.forEach((entry) => {
-      const price = Number(entry.basePrice || 0)
+      const price = Number(entry.basePrice || 0);
       rows.push({
         id: `guest-${eventType}-${entry.id}`,
         title: entry.title,
         eventType,
-        eventTypeLabel: eventTypeMap[eventType] || 'Other',
+        eventTypeLabel: eventTypeMap[eventType] || "Other",
         description: entry.description,
-        location: 'Location available after sign in',
-        date: 'Date TBD',
+        location: "Location available after sign in",
+        date: "Date TBD",
         price,
         priceLabel: `From $${price.toLocaleString()}`,
-        image: packageImageByEventType[eventType] || packageImageByEventType.other,
+        image:
+          packageImageByEventType[eventType] || packageImageByEventType.other,
         services: buildPackageServiceDescriptions(eventType, entry.title),
         isPreview: true,
-      })
-    })
-  })
-  return rows
-})
-const activePackageId = ref(null)
+      });
+    });
+  });
+  return rows;
+});
+
+const selectedPackage = computed(
+  () =>
+    guestPreviewPackages.value.find((item) => item.id === selectedPackageId.value) ||
+    null,
+);
+
+const selectedServices = computed(() =>
+  matchingServicesCatalog.filter((service) => selectedServiceIds.value.includes(service.id)),
+);
+
+const packagePrice = computed(() => {
+  if (!selectedPackage.value) return 0;
+  return Number(selectedPackage.value.price || 0) * Number(packageQuantity.value || 1);
+});
+
+const servicesSubtotal = computed(() => {
+  const perUnit = selectedServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0);
+  return perUnit * Number(packageQuantity.value || 1);
+});
+
+const serviceFeeAmount = computed(() =>
+  Number(((packagePrice.value + servicesSubtotal.value) * serviceFeeRate).toFixed(2)),
+);
+
+const totalPrice = computed(() => packagePrice.value + servicesSubtotal.value + serviceFeeAmount.value);
+
+const activePackageId = ref(null);
+const showPrebookModal = ref(false);
+const prebookTargetTitle = ref("");
+const prebookForm = ref({
+  fullName: "",
+  email: "",
+  phone: "",
+  location: "",
+  eventDate: "",
+  guests: 50,
+  notes: "",
+});
+const prebookSuccess = ref("");
 const activePackage = computed(
-  () => guestPreviewPackages.value.find((item) => item.id === activePackageId.value) || null,
-)
+  () =>
+    guestPreviewPackages.value.find(
+      (item) => item.id === activePackageId.value,
+    ) || null,
+);
+
+const guestPreviewPackagesForCustomization = computed(() => {
+  const q = customizationSearch.value.trim().toLowerCase();
+  const filter = customizationEventType.value;
+  let pkgs = guestPreviewPackages.value;
+  if (filter && filter !== "all") {
+    pkgs = pkgs.filter((p) => p.eventType === filter);
+  }
+  if (q) {
+    pkgs = pkgs.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q),
+    );
+  }
+  return pkgs;
+});
+
+const matchingServicesFiltered = computed(() => {
+  const q = customizationSearch.value.trim().toLowerCase();
+  const filter = customizationEventType.value;
+  return matchingServicesCatalog.filter((s) => {
+    const matchesType =
+      !filter ||
+      filter === "all" ||
+      (Array.isArray(s.eventTypes) ? s.eventTypes.includes(filter) : false);
+    const matchesQ =
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      (s.description && s.description.toLowerCase().includes(q));
+    return matchesType && matchesQ;
+  });
+});
 
 function openPackageDetails(id) {
-  activePackageId.value = id
+  activePackageId.value = id;
 }
 
 function closePackageDetails() {
-  activePackageId.value = null
+  activePackageId.value = null;
+}
+
+function openPrebookForm() {
+  prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
+  prebookForm.value = {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    eventDate: "",
+    guests: 50,
+    notes: "",
+  };
+  prebookSuccess.value = "";
+  closePackageDetails();
+  showPrebookModal.value = true;
+}
+
+function closePrebookModal() {
+  showPrebookModal.value = false;
+}
+
+function submitPrebookForm() {
+  const usingOverallFlow = section.value === "services-overall";
+  const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
+  const checkoutItems = [];
+
+  if (!usingOverallFlow) {
+    const pkg = selectedPackage.value || activePackage.value;
+    if (pkg) {
+      checkoutItems.push({
+        type: "package",
+        name: pkg.title,
+        description: pkg.description || "",
+        qty: quantity,
+        unitPrice: Number(pkg.price || 0),
+        totalPrice: Number(pkg.price || 0) * quantity,
+      });
+    }
+  }
+
+  selectedServices.value.forEach((svc) => {
+    checkoutItems.push({
+      type: "service",
+      name: svc.name,
+      description: svc.description || "",
+      qty: quantity,
+      unitPrice: Number(svc.price || 0),
+      totalPrice: Number(svc.price || 0) * quantity,
+    });
+  });
+
+  const payload = {
+    vendorTitle: prebookTargetTitle.value || "Selected Vendor",
+    fullName: prebookForm.value.fullName,
+    email: prebookForm.value.email,
+    phone: prebookForm.value.phone,
+    location: prebookForm.value.location,
+    eventDate: prebookForm.value.eventDate,
+    guests: Number(prebookForm.value.guests || 1),
+    notes: prebookForm.value.notes,
+    items: checkoutItems,
+  };
+  sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
+  showPrebookModal.value = false;
+  router.push("/checkout");
+}
+
+function selectPackage(id) {
+  selectedPackageId.value = id;
+  packageQuantity.value = 1;
+}
+
+function toggleService(id) {
+  const idx = selectedServiceIds.value.indexOf(id);
+  if (idx === -1) {
+    selectedServiceIds.value.push(id);
+  } else {
+    selectedServiceIds.value.splice(idx, 1);
+  }
+}
+
+function packageQtyChanged(e) {
+  const val = Number(e.target.value);
+  if (Number.isFinite(val) && val >= 1) packageQuantity.value = val;
+}
+
+function overallQtyChanged(e) {
+  const val = Number(e.target.value);
+  if (Number.isFinite(val) && val >= 1) overallQuantity.value = val;
+}
+
+function overallDateChanged(e) {
+  overallAvailabilityDate.value = e.target.value;
+  overallAvailabilitySlot.value = "";
+}
+
+function selectOverallSlot(slot) {
+  if (isSlotLikelyBooked(overallAvailabilityDate.value, slot)) return;
+  overallAvailabilitySlot.value = slot;
 }
 
 function persistFavorites() {
@@ -154,54 +359,93 @@ function persistFavorites() {
       packageIds: favoritePackageIds.value,
       serviceIds: favoriteServiceIds.value,
     }),
-  )
+  );
 }
 
 function toggleFavoritePackage(id) {
   if (favoritePackageIds.value.includes(id)) {
-    favoritePackageIds.value = favoritePackageIds.value.filter((item) => item !== id)
+    favoritePackageIds.value = favoritePackageIds.value.filter(
+      (item) => item !== id,
+    );
   } else {
-    favoritePackageIds.value = [...favoritePackageIds.value, id]
+    favoritePackageIds.value = [...favoritePackageIds.value, id];
   }
-  persistFavorites()
+  persistFavorites();
 }
 
 function toggleFavoriteService(id) {
   if (favoriteServiceIds.value.includes(id)) {
-    favoriteServiceIds.value = favoriteServiceIds.value.filter((item) => item !== id)
+    favoriteServiceIds.value = favoriteServiceIds.value.filter(
+      (item) => item !== id,
+    );
   } else {
-    favoriteServiceIds.value = [...favoriteServiceIds.value, id]
+    favoriteServiceIds.value = [...favoriteServiceIds.value, id];
   }
-  persistFavorites()
+  persistFavorites();
 }
 
 function isPackageFavorite(id) {
-  return favoritePackageIds.value.includes(id)
+  return favoritePackageIds.value.includes(id);
 }
 
 function isServiceFavorite(id) {
-  return favoriteServiceIds.value.includes(id)
+  return favoriteServiceIds.value.includes(id);
 }
 
 const favoritePackages = computed(() =>
-  guestPreviewPackages.value.filter((item) => favoritePackageIds.value.includes(item.id)),
-)
+  guestPreviewPackages.value.filter((item) =>
+    favoritePackageIds.value.includes(item.id),
+  ),
+);
 
 const favoriteServices = computed(() =>
-  matchingServicesCatalog.filter((service) => favoriteServiceIds.value.includes(service.id)),
-)
+  matchingServicesCatalog.filter((service) =>
+    favoriteServiceIds.value.includes(service.id),
+  ),
+);
+
+const overallServicesSubtotal = computed(() => {
+  const perUnit = selectedServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0);
+  return perUnit * Number(overallQuantity.value || 1);
+});
+
+const overallServiceFeeAmount = computed(() =>
+  Number((overallServicesSubtotal.value * serviceFeeRate).toFixed(2)),
+);
+
+const overallTotalPrice = computed(() => overallServicesSubtotal.value + overallServiceFeeAmount.value);
+const overallDateBooked = computed(() => isDateLikelyBooked(overallAvailabilityDate.value));
+const overallSlotItems = computed(() =>
+  overallSlotOptions.map((value) => ({
+    value,
+    booked: overallDateBooked.value || isSlotLikelyBooked(overallAvailabilityDate.value, value),
+  })),
+);
+const overallAvailabilityState = computed(() => {
+  if (!overallAvailabilityDate.value) return { label: "Pick a date", tone: "neutral" };
+  if (overallDateBooked.value) return { label: "Booked on selected date", tone: "booked" };
+  if (!overallAvailabilitySlot.value) return { label: "Pick a time slot", tone: "neutral" };
+  const booked = isSlotLikelyBooked(overallAvailabilityDate.value, overallAvailabilitySlot.value);
+  return booked
+    ? { label: "Selected slot is booked", tone: "booked" }
+    : { label: "Selected slot is available", tone: "available" };
+});
 
 function goToSignIn() {
-  router.push('/legacy-app')
+  router.push("/legacy-app");
+}
+
+function goToVendor() {
+  router.push("/vendor");
 }
 
 function goToSection(nextSection) {
-  if (nextSection === 'bookings') router.push('/booking')
-  if (nextSection === 'services-packages') router.push('/services/packages')
-  if (nextSection === 'services-overall') router.push('/services/overall')
-  if (nextSection === 'dashboard') router.push('/dashboard')
-  if (nextSection === 'customization') router.push('/customization')
-  if (nextSection === 'favorite') router.push('/favorite')
+  if (nextSection === "bookings") router.push("/booking");
+  if (nextSection === "services-packages") router.push("/services/packages");
+  if (nextSection === "services-overall") router.push("/services/overall");
+  if (nextSection === "dashboard") router.push("/dashboard");
+  if (nextSection === "customization") router.push("/customization");
+  if (nextSection === "favorite") router.push("/favorite");
 }
 
 function noop() {}
@@ -212,7 +456,7 @@ function noop() {}
     <PublicNavbar />
 
     <main class="shell guest-content">
-      <section class="guest-panel">
+      <section v-if="section !== 'services-overall'" class="guest-panel">
         <h1>{{ pageContent.title }}</h1>
         <p class="guest-subtitle">{{ pageContent.subtitle }}</p>
         <p class="guest-text">{{ pageContent.text }}</p>
@@ -232,49 +476,170 @@ function noop() {}
         :open-upcoming-bookings="() => goToSection('bookings')"
       />
 
-      <section v-else-if="section === 'services-packages'" class="package-catalog">
-        <div class="package-grid">
-          <article
-            v-for="item in guestPreviewPackages"
-            :key="item.id"
-            class="package-product-card"
-            role="button"
-            tabindex="0"
-            @click="openPackageDetails(item.id)"
-            @keyup.enter="openPackageDetails(item.id)"
-          >
-            <img :src="item.image" :alt="item.title" />
-            <div class="package-product-body">
-              <p class="package-product-type">{{ item.eventTypeLabel }}</p>
-              <h3>{{ item.title }}</h3>
-              <p class="package-product-desc">{{ item.description }}</p>
-              <div class="package-product-footer">
-                <strong>{{ item.priceLabel }}</strong>
-                <div class="package-product-actions">
-                  <button
-                    type="button"
-                    class="favorite-btn"
-                    :class="{ active: isPackageFavorite(item.id) }"
-                    @click.stop="toggleFavoritePackage(item.id)"
-                  >
-                    {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
-                  </button>
-                  <span>View Details</span>
+      <section
+        v-else-if="section === 'services-packages'"
+        class="package-layout"
+      >
+        <div class="package-layout-main">
+          <div class="package-catalog">
+            <div class="package-grid">
+              <!-- show filter description if an event is selected -->
+              <p
+                v-if="selectedEventFilter && selectedEventFilter !== 'all'"
+                class="event-filter-note"
+              >
+                Showing packages for
+                {{ eventTypeMap[selectedEventFilter] || selectedEventFilter }}
+              </p>
+              <p
+                v-if="guestPreviewPackagesFiltered.length === 0"
+                class="guest-text"
+              >
+                No packages available for this event.
+              </p>
+              <article
+                v-for="item in guestPreviewPackagesFiltered"
+                :key="item.id"
+                class="package-product-card"
+                role="button"
+                tabindex="0"
+                @click="openPackageDetails(item.id)"
+                @keyup.enter="openPackageDetails(item.id)"
+              >
+                <img :src="item.image" :alt="item.title" />
+                <div class="package-product-body">
+                  <p class="package-product-type">{{ item.eventTypeLabel }}</p>
+                  <h3>{{ item.title }}</h3>
+                  <p class="package-product-desc">{{ item.description }}</p>
+                  <div class="package-product-footer">
+                    <strong>{{ item.priceLabel }}</strong>
+                    <div class="package-product-actions">
+                      <button
+                        type="button"
+                        class="favorite-btn"
+                        :class="{ active: isPackageFavorite(item.id) }"
+                        @click.stop="toggleFavoritePackage(item.id)"
+                      >
+                        {{ isPackageFavorite(item.id) ? "♥" : "♡" }}
+                      </button>
+                      <button
+                        type="button"
+                        class="choice-indicator"
+                        @click.stop="selectPackage(item.id)"
+                      >
+                        {{
+                          selectedPackageId === item.id
+                            ? "Selected"
+                            : "Select Package"
+                        }}
+                      </button>
+                      <span>View Details</span>
+                    </div>
+                  </div>
                 </div>
+              </article>
+            </div>
+            <!-- services below packages on the same page -->
+            <div class="service-section">
+              <h2>Matching Services</h2>
+              <div
+                v-if="matchingServicesFiltered.length === 0"
+                class="card empty-state"
+              >
+                No matching services for this event type.
+              </div>
+              <div class="addon-grid">
+                <ServiceCard
+                  v-for="service in matchingServicesFiltered"
+                  :key="service.id"
+                  :service="service"
+                  :is-selected="selectedServiceIds.includes(service.id)"
+                  :is-expanded="false"
+                  :is-favorite="isServiceFavorite(service.id)"
+                  :event-type-map="eventTypeMap"
+                  :service-fee-rate="serviceFeeRate"
+                  @toggle-service="toggleService(service.id)"
+                  @toggle-details="goToSignIn"
+                  @message="goToSignIn"
+                  @toggle-favorite="toggleFavoriteService"
+                />
               </div>
             </div>
-          </article>
+          </div>
         </div>
+
+        <aside class="card customization-summary package-summary">
+          <h2>Booking Summary</h2>
+          <div class="summary-items">
+            <h3>Selected Package</h3>
+            <p v-if="!selectedPackage">Choose one package from the list.</p>
+            <div v-else class="summary-package">
+              <strong>{{ selectedPackage.title }}</strong>
+              <p>
+                {{ selectedPackage.eventTypeLabel }} |
+                {{ selectedPackage.location }}
+              </p>
+            </div>
+          </div>
+
+          <div class="summary-row">
+            <span>Quantity</span>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              :value="packageQuantity"
+              @input="packageQtyChanged"
+            />
+          </div>
+          <div class="summary-row">
+            <span>Package Price</span>
+            <strong>${{ packagePrice.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-items">
+            <h3>Selected Services</h3>
+            <p v-if="selectedServices.length === 0">
+              No additional services selected.
+            </p>
+            <div v-else>
+              <div
+                v-for="svc in selectedServices"
+                :key="svc.id"
+                class="summary-row"
+              >
+                <span>{{ svc.name }}</span>
+                <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="summary-row">
+            <span>Services Subtotal</span>
+            <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-row muted">
+            <span>Service Fee (10%)</span>
+            <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+          </div>
+
+          <div class="summary-total">
+            <span>Total Price</span>
+            <strong>${{ totalPrice.toLocaleString() }}</strong>
+          </div>
+
+          <button type="button" class="confirm-selection" @click="openPrebookForm">
+            Pre-book Now
+          </button>
+        </aside>
       </section>
 
       <CustomizationPage
-        v-else-if="section === 'services-overall' || section === 'customization'"
+        v-else-if="section === 'customization'"
         :event-type-options="eventTypeOptions"
         :event-type-map="eventTypeMap"
         :service-fee-rate="serviceFeeRate"
         :vendor-profile="vendorProfile"
         :bindings="customizationBindings"
-        :filtered-customization-packages="guestPreviewPackages"
+        :filtered-customization-packages="guestPreviewPackagesForCustomization"
         :selected-services-count="0"
         :customization-total="0"
         :selected-customization-package="null"
@@ -284,7 +649,7 @@ function noop() {}
         :service-fee-amount="0"
         :booking-submitting-event-id="null"
         :effective-customization-event-type="'all'"
-        :filtered-matching-services="matchingServicesCatalog"
+        :filtered-matching-services="matchingServicesFiltered"
         :is-package-expanded="() => false"
         :toggle-package-details="noop"
         :go-to-availability="goToSignIn"
@@ -301,32 +666,232 @@ function noop() {}
         :toggle-favorite-service="toggleFavoriteService"
       />
 
-      <section v-else-if="section === 'favorite'" class="guest-panel guest-favorite-block">
+      <section
+        v-else-if="section === 'services-overall'"
+        class="overall-service-page"
+      >
+        <div class="overall-breadcrumbs">Home &gt; Services &gt; General Service</div>
+        <section class="overall-head card">
+          <div class="overall-head-main">
+            <h1>General Services</h1>
+            <p>
+              Browse all available add-on services. Filter by event type, then
+              save favorites before signing in.
+            </p>
+            <div class="overall-toolbar">
+              <label class="filter-field">
+                <span>Event type</span>
+                <select
+                  class="event-type-select"
+                  :value="customizationEventType.value"
+                  @change="customizationEventType.value = $event.target.value"
+                >
+                  <option
+                    v-for="option in eventTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Search</span>
+                <input
+                  class="customization-search"
+                  type="search"
+                  placeholder="Search services..."
+                  :value="customizationSearch.value"
+                  @input="customizationSearch.value = $event.target.value"
+                />
+              </label>
+              <div class="overall-count">
+                {{ matchingServicesFiltered.length }} service{{
+                  matchingServicesFiltered.length === 1 ? "" : "s"
+                }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="overall-layout">
+          <div class="overall-list">
+            <article class="customization-section">
+              <div class="customization-section-head">
+                <span>S</span>
+                <h2>Service Catalog</h2>
+              </div>
+
+              <div
+                v-if="matchingServicesFiltered.length === 0"
+                class="card empty-state"
+              >
+                No matching services for this filter.
+              </div>
+
+              <div class="addon-grid">
+                <ServiceCard
+                  v-for="service in matchingServicesFiltered"
+                  :key="service.id"
+                  :service="service"
+                  :is-selected="selectedServiceIds.includes(service.id)"
+                  :is-expanded="false"
+                  :is-favorite="isServiceFavorite(service.id)"
+                  :event-type-map="eventTypeMap"
+                  :service-fee-rate="serviceFeeRate"
+                  @toggle-service="toggleService(service.id)"
+                  @toggle-details="goToSignIn"
+                  @message="goToSignIn"
+                  @toggle-favorite="toggleFavoriteService"
+                />
+              </div>
+            </article>
+          </div>
+
+          <aside class="card customization-summary overall-summary">
+            <h2>Booking Summary</h2>
+            <div class="summary-items">
+              <h3>Selected Package</h3>
+              <p>Choose one package from the list.</p>
+            </div>
+            <div class="summary-row">
+              <span>Quantity</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                :value="overallQuantity"
+                @input="overallQtyChanged"
+              />
+            </div>
+            <div class="summary-row">
+              <span>Package Price</span>
+              <strong>$0</strong>
+            </div>
+            <div class="summary-items">
+              <h3>Selected Services</h3>
+              <p v-if="selectedServices.length === 0">
+                No additional services selected.
+              </p>
+              <div v-else>
+                <div
+                  v-for="svc in selectedServices"
+                  :key="svc.id"
+                  class="summary-row"
+                >
+                  <span>{{ svc.name }}</span>
+                  <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+                </div>
+              </div>
+            </div>
+            <div class="summary-row">
+              <span>Services Subtotal</span>
+              <strong>${{ overallServicesSubtotal.toLocaleString() }}</strong>
+            </div>
+            <div class="summary-row muted">
+              <span>Service Fee (10%)</span>
+              <strong>${{ overallServiceFeeAmount.toLocaleString() }}</strong>
+            </div>
+
+          <div class="summary-total">
+            <span>Total Price</span>
+            <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
+          </div>
+
+          <div class="overall-availability-check">
+            <h3>Check Availability</h3>
+            <label class="availability-date-field">
+              <span>Event date</span>
+              <input
+                type="date"
+                :value="overallAvailabilityDate"
+                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
+                @input="overallDateChanged"
+              />
+            </label>
+            <div class="availability-slot-grid">
+              <button
+                v-for="slot in overallSlotItems"
+                :key="slot.value"
+                type="button"
+                class="availability-slot-btn"
+                :class="{
+                  selected: overallAvailabilitySlot === slot.value && !slot.booked,
+                  booked: slot.booked,
+                }"
+                :disabled="slot.booked"
+                @click="selectOverallSlot(slot.value)"
+              >
+                {{ slot.booked ? "Booked" : slot.value }}
+              </button>
+            </div>
+            <div
+              class="availability-state"
+              :class="{
+                available: overallAvailabilityState.tone === 'available',
+                booked: overallAvailabilityState.tone === 'booked',
+              }"
+            >
+              {{ overallAvailabilityState.label }}
+            </div>
+          </div>
+
+          <button type="button" class="confirm-selection" @click="openPrebookForm">
+            Pre-book Now
+          </button>
+        </aside>
+        </section>
+      </section>
+
+      <section
+        v-else-if="section === 'favorite'"
+        class="guest-panel guest-favorite-block"
+      >
         <div class="favorite-layout">
           <article class="favorite-card">
             <h3>Favorite Packages</h3>
-            <p v-if="favoritePackages.length === 0" class="guest-text">No packages added yet.</p>
+            <p v-if="favoritePackages.length === 0" class="guest-text">
+              No packages added yet.
+            </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
                 <div>
                   <strong>{{ item.title }}</strong>
-                  <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
+                  <small
+                    >{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small
+                  >
                 </div>
-                <button type="button" class="favorite-remove" @click="toggleFavoritePackage(item.id)">Remove</button>
+                <button
+                  type="button"
+                  class="favorite-remove"
+                  @click="toggleFavoritePackage(item.id)"
+                >
+                  Remove
+                </button>
               </li>
             </ul>
           </article>
 
           <article class="favorite-card">
             <h3>Favorite Services</h3>
-            <p v-if="favoriteServices.length === 0" class="guest-text">No services added yet.</p>
+            <p v-if="favoriteServices.length === 0" class="guest-text">
+              No services added yet.
+            </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
                 <div>
                   <strong>{{ service.name }}</strong>
-                  <small>${{ Number(service.price || 0).toLocaleString() }}</small>
+                  <small
+                    >${{ Number(service.price || 0).toLocaleString() }}</small
+                  >
                 </div>
-                <button type="button" class="favorite-remove" @click="toggleFavoriteService(service.id)">Remove</button>
+                <button
+                  type="button"
+                  class="favorite-remove"
+                  @click="toggleFavoriteService(service.id)"
+                >
+                  Remove
+                </button>
               </li>
             </ul>
           </article>
@@ -334,7 +899,7 @@ function noop() {}
       </section>
 
       <BookingsPage
-      v-else
+        v-else
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
         :notice="'Sign in to load your bookings.'"
@@ -349,16 +914,32 @@ function noop() {}
       />
     </main>
 
-    <div v-if="activePackage" class="package-modal-overlay" @click="closePackageDetails">
+    <div
+      v-if="activePackage"
+      class="package-modal-overlay"
+      @click="closePackageDetails"
+    >
       <div class="package-modal" @click.stop>
         <div class="package-modal-head">
           <div>
-            <p class="package-product-type">{{ activePackage.eventTypeLabel }}</p>
+            <p class="package-product-type">
+              {{ activePackage.eventTypeLabel }}
+            </p>
             <h3>{{ activePackage.title }}</h3>
           </div>
-          <button type="button" class="package-modal-close" @click="closePackageDetails">×</button>
+          <button
+            type="button"
+            class="package-modal-close"
+            @click="closePackageDetails"
+          >
+            ×
+          </button>
         </div>
-        <img class="package-modal-image" :src="activePackage.image" :alt="activePackage.title" />
+        <img
+          class="package-modal-image"
+          :src="activePackage.image"
+          :alt="activePackage.title"
+        />
         <p class="package-modal-desc">{{ activePackage.description }}</p>
         <div class="package-modal-meta">
           <p><strong>Price:</strong> {{ activePackage.priceLabel }}</p>
@@ -368,7 +949,10 @@ function noop() {}
         <div class="package-modal-services">
           <h4>Included Services</h4>
           <ul>
-            <li v-for="service in activePackage.services" :key="`${activePackage.id}-${service.name}`">
+            <li
+              v-for="service in activePackage.services"
+              :key="`${activePackage.id}-${service.name}`"
+            >
               <strong>{{ service.name }}:</strong> {{ service.detail }}
             </li>
           </ul>
@@ -376,13 +960,104 @@ function noop() {}
         <div class="package-modal-actions">
           <button
             type="button"
-            class="choice-indicator"
+            class="modal-action-btn modal-action-secondary"
             @click="toggleFavoritePackage(activePackage.id)"
           >
-            {{ isPackageFavorite(activePackage.id) ? 'Remove Favorite' : 'Add to Favorite' }}
+            {{
+              isPackageFavorite(activePackage.id)
+                ? "Remove Favorite"
+                : "Add to Favorite"
+            }}
           </button>
-          <button type="button" class="top-logout" @click="goToSignIn">Sign in to Pre-book</button>
+          <button
+            type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="goToVendor"
+          >
+            Vendor
+          </button>
+          <button
+            type="button"
+            class="modal-action-btn modal-action-primary"
+            @click="openPrebookForm"
+          >
+            Pre-book Now
+          </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showPrebookModal"
+      class="prebook-overlay"
+      @click="closePrebookModal"
+    >
+      <div class="prebook-modal" @click.stop>
+        <div class="prebook-head">
+          <h3>Book {{ prebookTargetTitle }}</h3>
+          <button type="button" class="prebook-close" @click="closePrebookModal">
+            x
+          </button>
+        </div>
+
+        <form class="prebook-form" @submit.prevent="submitPrebookForm">
+          <label>
+            <span>Full name</span>
+            <input v-model.trim="prebookForm.fullName" type="text" required />
+          </label>
+
+          <label>
+            <span>Email</span>
+            <input v-model.trim="prebookForm.email" type="email" required />
+          </label>
+
+          <label>
+            <span>Phone number</span>
+            <input
+              v-model.trim="prebookForm.phone"
+              type="tel"
+              required
+              placeholder="+1 555 234 5678"
+            />
+          </label>
+
+          <label>
+            <span>Location</span>
+            <input
+              v-model.trim="prebookForm.location"
+              type="text"
+              required
+              placeholder="City / Venue address"
+            />
+          </label>
+
+          <label>
+            <span>Event date</span>
+            <input v-model="prebookForm.eventDate" type="date" required />
+          </label>
+
+          <label>
+            <span>Number of guests</span>
+            <input v-model.number="prebookForm.guests" type="number" min="1" required />
+          </label>
+
+          <label>
+            <span>Notes</span>
+            <textarea
+              v-model.trim="prebookForm.notes"
+              rows="3"
+              placeholder="Add preferences or requests"
+            ></textarea>
+          </label>
+
+          <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
+
+          <div class="prebook-actions">
+            <button type="submit" class="modal-action-btn modal-action-primary">
+              Confirm Booking
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -395,6 +1070,175 @@ function noop() {}
 
 .guest-content {
   padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.overall-service-page {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 8px;
+}
+
+.overall-breadcrumbs {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.overall-head {
+  border: 1px solid #dbe4f2;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 95% 12%, rgba(255, 106, 0, 0.12), transparent 35%),
+    linear-gradient(180deg, #ffffff, #fbfdff);
+  padding: 18px 20px;
+}
+
+.overall-head-main h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 2.5vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.overall-head-main p {
+  margin: 10px 0 0;
+  color: #64748b;
+  max-width: 760px;
+}
+
+.overall-toolbar {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.filter-field span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.overall-count {
+  border: 1px solid #d7e4f3;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 12px;
+  min-width: 130px;
+  text-align: center;
+}
+
+.overall-list .customization-section {
+  margin-top: 0;
+}
+
+.overall-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.overall-summary {
+  position: sticky;
+  top: 12px;
+  height: fit-content;
+}
+
+.overall-availability-check {
+  margin-top: 14px;
+  border-top: 1px solid #e3e9f2;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.overall-availability-check h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.availability-date-field {
+  display: grid;
+  gap: 6px;
+}
+
+.availability-date-field span {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.availability-date-field input {
+  width: 100%;
+  border: 1px solid #d7e4f3;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.availability-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.availability-slot-btn {
+  border: 1px solid #dbe4f1;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 6px;
+  cursor: pointer;
+}
+
+.availability-slot-btn.selected {
+  border-color: #ff9d63;
+  background: #fff3ea;
+  color: #c2410c;
+}
+
+.availability-slot-btn.booked {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.availability-state {
+  border-radius: 10px;
+  border: 1px solid #dbe4f1;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.availability-state.available {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.availability-state.booked {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .guest-panel {
@@ -435,6 +1279,12 @@ function noop() {}
   gap: 14px;
 }
 
+.event-filter-note {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
 .package-product-card {
   border: 1px solid #dbe4f1;
   border-radius: 16px;
@@ -442,7 +1292,10 @@ function noop() {}
   overflow: hidden;
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .package-product-card:hover {
@@ -518,6 +1371,100 @@ function noop() {}
   justify-content: center;
   padding: 20px;
   z-index: 90;
+}
+
+.prebook-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.prebook-modal {
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 28px);
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #dbe4f2;
+  box-shadow: 0 26px 56px rgba(15, 23, 42, 0.24);
+  overflow: hidden;
+}
+
+.prebook-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f3;
+}
+
+.prebook-head h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.prebook-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d7e1ee;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 18px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.prebook-form {
+  padding: 16px 18px 18px;
+  display: grid;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.prebook-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.prebook-form span {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.prebook-form input,
+.prebook-form textarea {
+  width: 100%;
+  border: 1px solid #d7e1ef;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.prebook-success {
+  margin: 0;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.prebook-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 8px;
+  background: #fff;
 }
 
 .package-modal {
@@ -607,9 +1554,56 @@ function noop() {}
 
 .package-modal-actions {
   margin-top: 14px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  justify-content: flex-end;
+}
+
+.modal-action-btn {
+  width: auto;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d8e2ef;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 10px 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.modal-action-secondary {
+  background: #fff;
+  border-color: #ffc7a3;
+  color: #c2410c;
+}
+
+.modal-action-secondary:hover {
+  background: #fff6f0;
+  border-color: #ffb081;
+}
+
+.modal-action-neutral {
+  background: #f8fafc;
+  border-color: #d7e1ee;
+  color: #334155;
+}
+
+.modal-action-neutral:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.modal-action-primary {
+  background: #f25c05;
+  border-color: #f25c05;
+  color: #fff;
+}
+
+.modal-action-primary:hover {
+  background: #e45800;
+  border-color: #e45800;
 }
 
 .favorite-layout {
@@ -673,6 +1667,55 @@ function noop() {}
 }
 
 @media (max-width: 720px) {
+  .prebook-overlay {
+    padding: 8px;
+  }
+
+  .prebook-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+
+  .prebook-head {
+    padding: 12px;
+  }
+
+  .prebook-head h3 {
+    font-size: 19px;
+  }
+
+  .prebook-form {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .prebook-form input,
+  .prebook-form textarea {
+    padding: 10px 11px;
+  }
+
+  .overall-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .overall-count {
+    justify-self: start;
+  }
+
+  .overall-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .overall-summary {
+    position: static;
+    margin-top: 14px;
+  }
+
+  .availability-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .favorite-layout {
     grid-template-columns: 1fr;
   }
@@ -685,5 +1728,39 @@ function noop() {}
     height: 200px;
   }
 
+  .package-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Packages page layout with right-hand booking summary */
+.package-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.package-layout-main {
+  min-width: 0;
+}
+
+.package-summary {
+  position: sticky;
+  top: 12px;
+  height: fit-content;
+}
+
+@media (max-width: 980px) {
+  .package-layout {
+    grid-template-columns: 1fr;
+  }
+  .package-summary {
+    position: static;
+    margin-top: 14px;
+  }
 }
 </style>
+
+
+
