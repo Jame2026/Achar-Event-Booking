@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 
 const emit = defineEmits<{
   switch: []
@@ -8,8 +8,10 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
 const form = reactive({
-  email: '',
+  login: '',
   password: '',
   remember: false,
 })
@@ -21,6 +23,18 @@ function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
 
+const startSocialAuth = (provider: 'google') => {
+  const frontendUrl = encodeURIComponent(window.location.origin)
+  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+}
+
+onMounted(() => {
+  const socialError = localStorage.getItem('achar_social_error')
+  if (!socialError) return
+  errorMessage.value = socialError
+  localStorage.removeItem('achar_social_error')
+})
+
 const submitLogin = async () => {
   if (submitting.value) return
 
@@ -29,7 +43,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'}/api/login`,
+      `${apiBaseUrl}/api/login`,
       {
         method: 'POST',
         headers: {
@@ -37,7 +51,7 @@ const submitLogin = async () => {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          email: form.email,
+          email: form.login,
           password: form.password,
         }),
       },
@@ -77,8 +91,8 @@ const submitLogin = async () => {
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-            <span>Email</span>
-            <input v-model="form.email" type="email" placeholder="you@example.com" required />
+            <span>Email or Phone</span>
+            <input v-model="form.login" type="text" placeholder="you@example.com or +85512345678" required />
           </label>
 
           <label class="field">
@@ -107,6 +121,17 @@ const submitLogin = async () => {
             {{ submitting ? 'Signing in...' : 'Login' }}
           </button>
         </form>
+
+        <div class="auth-divider">
+          <span>or continue with</span>
+        </div>
+
+        <div class="social-grid">
+          <button type="button" class="social-btn social-btn-google" @click="startSocialAuth('google')">
+            <span class="social-mark">G</span>
+            <span>Google</span>
+          </button>
+        </div>
 
         <p class="switch-row">
           No account yet?

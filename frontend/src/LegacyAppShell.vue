@@ -161,6 +161,51 @@ function syncRouteQueryFromState() {
   }
 }
 
+function clearSocialQueryFromRoute() {
+  const nextQuery = { ...route.query }
+  delete nextQuery.social
+  delete nextQuery.message
+  delete nextQuery.id
+  delete nextQuery.name
+  delete nextQuery.email
+  delete nextQuery.role
+  router.replace({ path: '/legacy-app', query: nextQuery }).catch(() => {})
+}
+
+function handleSocialQueryResult() {
+  const socialStatus = firstQueryValue(route.query.social)
+  if (!socialStatus) return
+
+  if (socialStatus === 'error') {
+    const message = firstQueryValue(route.query.message)
+    localStorage.setItem('achar_social_error', String(message || 'Social login failed.'))
+    currentView.value = 'login'
+    clearSocialQueryFromRoute()
+    return
+  }
+
+  if (socialStatus === 'success') {
+    const idValue = Number(firstQueryValue(route.query.id) || 0)
+    const name = String(firstQueryValue(route.query.name) || '').trim()
+    const email = String(firstQueryValue(route.query.email) || '').trim()
+    const role = String(firstQueryValue(route.query.role) || 'user').trim() || 'user'
+
+    if (name && email) {
+      onLoginSuccess({
+        id: Number.isFinite(idValue) && idValue > 0 ? idValue : Date.now(),
+        name,
+        email,
+        role,
+      })
+    } else {
+      localStorage.setItem('achar_social_error', 'Social login did not return valid user info.')
+    }
+
+    currentView.value = 'login'
+    clearSocialQueryFromRoute()
+  }
+}
+
 const globalSearch = ref('')
 
 const selectedEventType = ref('all')
@@ -553,6 +598,7 @@ watch([currentPage, activeVendorTab], () => {
 
 onMounted(async () => {
   applyRouteStateFromQuery(route.query)
+  handleSocialQueryResult()
   if (!loggedInUser.value) return
   await loadEvents()
   await loadBookings()
@@ -755,7 +801,11 @@ onMounted(async () => {
         </div>
       </div>
       <div class="shell footer-bottom">
+<<<<<<< HEAD
         <span>� {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
+=======
+        <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
+>>>>>>> 1ccdbeab25cfe617b1a831f324f597e3f1a21a36
         <div>
           <a href="#">Privacy Policy</a>
           <a href="#">Cookie Policy</a>
