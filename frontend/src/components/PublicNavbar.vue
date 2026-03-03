@@ -35,7 +35,7 @@ const isContactActive = computed(() => route.path === '/contact')
           </button>
           <div class="nav-drop-menu">
             <RouterLink to="/services/packages">Packages</RouterLink>
-            <RouterLink to="/services/overall">Overall Service</RouterLink>
+            <RouterLink to="/services/overall">General Service</RouterLink>
           </div>
         </div>
 
@@ -53,6 +53,9 @@ const isContactActive = computed(() => route.path === '/contact')
 
 <style scoped>
 .public-nav-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 60;
   background: #fff;
   border-top: 3px solid #2f333c;
   border-bottom: 1px solid #e3e7ef;
