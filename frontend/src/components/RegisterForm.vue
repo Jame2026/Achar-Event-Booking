@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 
 const emit = defineEmits<{
   switch: []
@@ -8,19 +8,35 @@ const emit = defineEmits<{
 const form = reactive({
   name: '',
   email: '',
+  phone: '',
   role: 'user',
   password: '',
   password_confirmation: '',
 })
+const registerMethod = ref<'email' | 'phone'>('email')
 
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
+
+const startSocialAuth = (provider: 'google') => {
+  const frontendUrl = encodeURIComponent(window.location.origin)
+  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+}
+
+onMounted(() => {
+  const socialError = localStorage.getItem('achar_social_error')
+  if (!socialError) return
+  errorMessage.value = socialError
+  localStorage.removeItem('achar_social_error')
+})
 
 const submitRegister = async () => {
   if (submitting.value) return
@@ -30,15 +46,24 @@ const submitRegister = async () => {
   errorMessage.value = ''
 
   try {
+    const payload = {
+      name: form.name,
+      role: form.role,
+      password: form.password,
+      password_confirmation: form.password_confirmation,
+      email: registerMethod.value === 'email' ? form.email : '',
+      phone: registerMethod.value === 'phone' ? form.phone : '',
+    }
+
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'}/api/register`,
+      `${apiBaseUrl}/api/register`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       },
     )
 
@@ -57,6 +82,7 @@ const submitRegister = async () => {
     successMessage.value = data?.message ?? 'Registration successful.'
     form.name = ''
     form.email = ''
+    form.phone = ''
     form.role = 'user'
     form.password = ''
     form.password_confirmation = ''
@@ -90,13 +116,42 @@ const submitRegister = async () => {
 
         <form class="auth-form" @submit.prevent="submitRegister">
           <label class="field">
+            <span>Register With</span>
+            <div class="role-grid">
+              <label class="role-card" :class="{ active: registerMethod === 'email' }">
+                <input v-model="registerMethod" type="radio" value="email" name="register_method" />
+                <span class="role-icon">&#x2709;&#xFE0F;</span>
+                <span class="role-name">Email</span>
+              </label>
+
+              <label class="role-card" :class="{ active: registerMethod === 'phone' }">
+                <input v-model="registerMethod" type="radio" value="phone" name="register_method" />
+                <span class="role-icon">&#x1F4F1;</span>
+                <span class="role-name">Phone</span>
+              </label>
+            </div>
+          </label>
+
+          <label class="field">
             <span>Full Name</span>
             <input v-model="form.name" type="text" placeholder="Your full name" required />
           </label>
 
-          <label class="field">
+          <label v-if="registerMethod === 'email'" class="field">
             <span>Email</span>
             <input v-model="form.email" type="email" placeholder="you@example.com" required />
+          </label>
+
+          <label v-else class="field">
+            <span>Phone Number</span>
+            <input
+              v-model="form.phone"
+              type="tel"
+              inputmode="tel"
+              placeholder="+85512345678"
+              pattern="^\+?[0-9]{8,15}$"
+              required
+            />
           </label>
 
           <label class="field">
@@ -145,6 +200,17 @@ const submitRegister = async () => {
             {{ submitting ? 'Creating...' : 'Create Account' }}
           </button>
         </form>
+
+        <div class="auth-divider">
+          <span>or sign up with</span>
+        </div>
+
+        <div class="social-grid">
+          <button type="button" class="social-btn social-btn-google" @click="startSocialAuth('google')">
+            <span class="social-mark">G</span>
+            <span>Google</span>
+          </button>
+        </div>
 
         <p class="switch-row">
           Already registered?
