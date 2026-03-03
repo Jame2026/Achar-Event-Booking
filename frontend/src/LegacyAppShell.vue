@@ -57,6 +57,14 @@ function onLoginSuccess(user) {
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
 }
 
+function requireLogin(message = 'Please sign in to continue booking.') {
+  if (loggedInUser.value) return true
+  notice.value = message
+  currentView.value = 'login'
+  router.replace({ path: '/legacy-app' }).catch(() => {})
+  return false
+}
+
 function logout() {
   loggedInUser.value = null
   currentView.value = 'login'
@@ -102,6 +110,51 @@ function syncRouteQueryFromState() {
 
   if (!samePage || !sameTab) {
     router.replace({ path: '/legacy-app', query: nextQuery }).catch(() => {})
+  }
+}
+
+function clearSocialQueryFromRoute() {
+  const nextQuery = { ...route.query }
+  delete nextQuery.social
+  delete nextQuery.message
+  delete nextQuery.id
+  delete nextQuery.name
+  delete nextQuery.email
+  delete nextQuery.role
+  router.replace({ path: '/legacy-app', query: nextQuery }).catch(() => {})
+}
+
+function handleSocialQueryResult() {
+  const socialStatus = firstQueryValue(route.query.social)
+  if (!socialStatus) return
+
+  if (socialStatus === 'error') {
+    const message = firstQueryValue(route.query.message)
+    localStorage.setItem('achar_social_error', String(message || 'Social login failed.'))
+    currentView.value = 'login'
+    clearSocialQueryFromRoute()
+    return
+  }
+
+  if (socialStatus === 'success') {
+    const idValue = Number(firstQueryValue(route.query.id) || 0)
+    const name = String(firstQueryValue(route.query.name) || '').trim()
+    const email = String(firstQueryValue(route.query.email) || '').trim()
+    const role = String(firstQueryValue(route.query.role) || 'user').trim() || 'user'
+
+    if (name && email) {
+      onLoginSuccess({
+        id: Number.isFinite(idValue) && idValue > 0 ? idValue : Date.now(),
+        name,
+        email,
+        role,
+      })
+    } else {
+      localStorage.setItem('achar_social_error', 'Social login did not return valid user info.')
+    }
+
+    currentView.value = 'login'
+    clearSocialQueryFromRoute()
   }
 }
 
@@ -175,7 +228,7 @@ const {
   previousAvailabilityMonth,
   nextAvailabilityMonth,
   selectAvailabilitySlot,
-  goToAvailability,
+  goToAvailability: openAvailabilityPage,
   confirmAvailabilityRequest,
 } = useAvailabilityFeature({
   currentPage,
@@ -341,6 +394,10 @@ async function loadEvents() {
 }
 
 async function checkEventAvailability(item) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return null
+  }
+
   checkingAvailabilityEventId.value = item.id
   try {
     const result = await apiGet(`events/${item.id}/availability`)
@@ -393,6 +450,13 @@ function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '
   openCustomizationPage(currentPage, preferredEventType, preferredTitle)
 }
 
+function goToAvailability(item = null) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return
+  }
+  openAvailabilityPage(item)
+}
+
 function goToProfile() {
   openProfilePage(currentPage)
 }
@@ -407,6 +471,10 @@ function openUpcomingBookings() {
 }
 
 async function bookPackage(item) {
+  if (!requireLogin('Please sign in before checking availability and booking.')) {
+    return
+  }
+
   const name = customerName.value.trim()
   const email = customerEmail.value.trim()
 
@@ -462,6 +530,9 @@ function bookingSecondaryAction(item) {
 }
 
 async function confirmCustomization() {
+  if (!requireLogin('Please sign in before confirming your package booking.')) {
+    return
+  }
   await submitCustomization(getAvailability)
 }
 
@@ -497,6 +568,7 @@ watch([currentPage, activeVendorTab], () => {
 
 onMounted(async () => {
   applyRouteStateFromQuery(route.query)
+  handleSocialQueryResult()
   if (!loggedInUser.value) return
   await loadEvents()
   await loadBookings()
@@ -695,7 +767,7 @@ onMounted(async () => {
         </div>
       </div>
       <div class="shell footer-bottom">
-        <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
+        <span>Â© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
         <div>
           <a href="#">Privacy Policy</a>
           <a href="#">Cookie Policy</a>

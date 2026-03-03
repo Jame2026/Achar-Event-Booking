@@ -12,14 +12,35 @@ class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
+        $email = is_string($request->input('email')) ? strtolower(trim((string) $request->input('email'))) : null;
+        $phone = is_string($request->input('phone')) ? $this->normalizePhone((string) $request->input('phone')) : null;
+        $request->merge([
+            'email' => $email,
+            'phone' => $phone,
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['nullable', 'string', 'email', 'max:255', 'required_without:phone', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'regex:/^\+?[0-9]{8,15}$/', 'required_without:email', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', 'in:user,vendor'],
         ]);
 
-        $user = User::create($validated);
+        $userEmail = (string) ($validated['email'] ?? '');
+        $userPhone = (string) ($validated['phone'] ?? '');
+
+        if ($userEmail === '' && $userPhone !== '') {
+            $userEmail = $this->phoneFallbackEmail($userPhone);
+        }
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $userEmail,
+            'phone' => $userPhone !== '' ? $userPhone : null,
+            'password' => $validated['password'],
+            'role' => $validated['role'],
+        ]);
 
         return response()->json([
             'message' => 'Registration successful.',
@@ -30,15 +51,26 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['nullable', 'string'],
+            'login' => ['nullable', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $identifier = trim((string) ($validated['login'] ?? $validated['email'] ?? ''));
+        if ($identifier === '') {
+            return response()->json([
+                'message' => 'Email or phone is required.',
+            ], 422);
+        }
+
+        $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+        $user = $isEmail
+            ? User::where('email', strtolower($identifier))->first()
+            : User::where('phone', $this->normalizePhone($identifier))->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'Invalid email or password.',
+                'message' => 'Invalid login credentials.',
             ], 401);
         }
 
@@ -46,5 +78,35 @@ class AuthController extends Controller
             'message' => 'Login successful.',
             'user' => $user,
         ]);
+    }
+
+    private function normalizePhone(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $hasPlus = str_starts_with($trimmed, '+');
+        $digits = preg_replace('/\D+/', '', $trimmed);
+        if (! is_string($digits)) {
+            return '';
+        }
+
+        if ($digits === '') {
+            return '';
+        }
+
+        return $hasPlus ? '+'.$digits : $digits;
+    }
+
+    private function phoneFallbackEmail(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+        if (! is_string($digits) || $digits === '') {
+            return '';
+        }
+
+        return 'phone_'.$digits.'@users.achar.local';
     }
 }

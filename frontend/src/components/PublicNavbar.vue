@@ -12,6 +12,8 @@ function onLogoError() {
 const isHomeActive = computed(() => route.path === '/' || route.path === '/home')
 const isAboutActive = computed(() => route.path === '/about')
 const isServiceActive = computed(() => route.path.startsWith('/services'))
+const isServicePackagesActive = computed(() => route.path === '/services/packages')
+const isServiceOverallActive = computed(() => route.path === '/services/overall')
 const isBookingActive = computed(() => route.path === '/booking')
 const isFavoriteActive = computed(() => route.path === '/favorite')
 const isContactActive = computed(() => route.path === '/contact')
@@ -30,12 +32,14 @@ const isContactActive = computed(() => route.path === '/contact')
         <RouterLink to="/about" :class="{ active: isAboutActive }">About</RouterLink>
 
         <div class="nav-dropdown">
-          <button class="nav-drop-trigger" type="button" :class="{ active: isServiceActive }">
+          <RouterLink class="nav-drop-trigger" to="/services/packages" :class="{ active: isServiceActive }">
             Service
-          </button>
+          </RouterLink>
           <div class="nav-drop-menu">
             <RouterLink to="/services/packages">Packages</RouterLink>
             <RouterLink to="/services/overall">General Service</RouterLink>
+            <RouterLink to="/services/packages" :class="{ active: isServicePackagesActive }">Packages</RouterLink>
+            <RouterLink to="/services/overall" :class="{ active: isServiceOverallActive }">Overall Service</RouterLink>
           </div>
         </div>
 
@@ -56,10 +60,12 @@ const isContactActive = computed(() => route.path === '/contact')
   position: sticky;
   top: 0;
   z-index: 60;
+  z-index: 80;
   background: #fff;
   border-top: 3px solid #2f333c;
   border-bottom: 1px solid #e3e7ef;
   padding: 0.82rem 0;
+  box-shadow: 0 8px 24px rgba(10, 28, 34, 0.08);
 }
 
 .nav-shell {
