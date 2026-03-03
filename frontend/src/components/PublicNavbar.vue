@@ -1,9 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const favoriteCount = ref(0)
+const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
 
 function onLogoError() {
   appLogoSrc.value = '/favicon.ico'
@@ -15,6 +17,34 @@ const isServiceActive = computed(() => route.path.startsWith('/services'))
 const isBookingActive = computed(() => route.path === '/booking')
 const isFavoriteActive = computed(() => route.path === '/favorite')
 const isContactActive = computed(() => route.path === '/contact')
+
+function refreshFavoriteCount() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY)
+    if (!raw) {
+      favoriteCount.value = 0
+      return
+    }
+
+    const parsed = JSON.parse(raw)
+    const packageIds = Array.isArray(parsed?.packageIds) ? parsed.packageIds : []
+    const serviceIds = Array.isArray(parsed?.serviceIds) ? parsed.serviceIds : []
+    favoriteCount.value = new Set([...packageIds, ...serviceIds]).size
+  } catch {
+    favoriteCount.value = 0
+  }
+}
+
+onMounted(() => {
+  refreshFavoriteCount()
+  window.addEventListener('storage', refreshFavoriteCount)
+  window.addEventListener('achar:favorites-updated', refreshFavoriteCount)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', refreshFavoriteCount)
+  window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
+})
 </script>
 
 <template>
@@ -40,7 +70,12 @@ const isContactActive = computed(() => route.path === '/contact')
         </div>
 
         <RouterLink to="/booking" :class="{ active: isBookingActive }">My Booking</RouterLink>
-        <RouterLink to="/favorite" :class="{ active: isFavoriteActive }">Favorite</RouterLink>
+        <RouterLink to="/favorite" :class="{ active: isFavoriteActive }" class="favorite-link">
+          <span>Favorite</span>
+          <span v-if="favoriteCount > 0" class="fav-badge">
+            {{ favoriteCount > 99 ? '99+' : favoriteCount }}
+          </span>
+        </RouterLink>
         <RouterLink to="/contact" :class="{ active: isContactActive }">Contact</RouterLink>
       </nav>
 
@@ -124,6 +159,27 @@ const isContactActive = computed(() => route.path === '/contact')
   border-color: #f3c29d;
   background: #fff3e8;
   color: #c25c13;
+}
+
+.favorite-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.fav-badge {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #e11d48;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.35rem;
 }
 
 .nav-dropdown {

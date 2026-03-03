@@ -28,9 +28,9 @@ const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
 const pageContent = computed(() => {
   if (props.section === 'favorite') {
     return {
-      title: 'Favorite',
+      title: 'Favorites',
       subtitle: 'Your saved packages and services.',
-      text: 'Favorites are saved on this device. Sign in to sync across your account.',
+      text: 'Review your saved items, remove what you no longer need, or sign in to sync all favorites.',
     }
   }
 
@@ -155,6 +155,7 @@ function persistFavorites() {
       serviceIds: favoriteServiceIds.value,
     }),
   )
+  window.dispatchEvent(new Event('achar:favorites-updated'))
 }
 
 function toggleFavoritePackage(id) {
@@ -190,6 +191,14 @@ const favoritePackages = computed(() =>
 const favoriteServices = computed(() =>
   matchingServicesCatalog.filter((service) => favoriteServiceIds.value.includes(service.id)),
 )
+const favoriteTotal = computed(() => favoritePackages.value.length + favoriteServices.value.length)
+const hasFavorites = computed(() => favoriteTotal.value > 0)
+
+function clearAllFavorites() {
+  favoritePackageIds.value = []
+  favoriteServiceIds.value = []
+  persistFavorites()
+}
 
 function goToSignIn() {
   router.push('/legacy-app')
@@ -257,7 +266,7 @@ function noop() {}
                     :class="{ active: isPackageFavorite(item.id) }"
                     @click.stop="toggleFavoritePackage(item.id)"
                   >
-                    {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
+                    {{ isPackageFavorite(item.id) ? '\u2665' : '\u2661' }}
                   </button>
                   <span>View Details</span>
                 </div>
@@ -302,10 +311,33 @@ function noop() {}
       />
 
       <section v-else-if="section === 'favorite'" class="guest-panel guest-favorite-block">
+        <div class="favorite-info" :class="{ empty: !hasFavorites }">
+          <div class="favorite-info-main">
+            <p class="favorite-kicker">Saved Favorites</p>
+            <h2>{{ favoriteTotal }} item{{ favoriteTotal === 1 ? '' : 's' }} ready for planning</h2>
+            <p>
+              Favorites are stored on this device. Sign in to sync and keep your packages and services across all devices.
+            </p>
+          </div>
+          <div class="favorite-metrics">
+            <div>
+              <strong>{{ favoritePackages.length }}</strong>
+              <small>Packages</small>
+            </div>
+            <div>
+              <strong>{{ favoriteServices.length }}</strong>
+              <small>Services</small>
+            </div>
+          </div>
+        </div>
+
         <div class="favorite-layout">
           <article class="favorite-card">
-            <h3>Favorite Packages</h3>
-            <p v-if="favoritePackages.length === 0" class="guest-text">No packages added yet.</p>
+            <div class="favorite-card-head">
+              <h3>Favorite Packages</h3>
+              <span>{{ favoritePackages.length }}</span>
+            </div>
+            <p v-if="favoritePackages.length === 0" class="favorite-empty">No packages added yet.</p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
                 <div>
@@ -318,8 +350,11 @@ function noop() {}
           </article>
 
           <article class="favorite-card">
-            <h3>Favorite Services</h3>
-            <p v-if="favoriteServices.length === 0" class="guest-text">No services added yet.</p>
+            <div class="favorite-card-head">
+              <h3>Favorite Services</h3>
+              <span>{{ favoriteServices.length }}</span>
+            </div>
+            <p v-if="favoriteServices.length === 0" class="favorite-empty">No services added yet.</p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
                 <div>
@@ -330,6 +365,18 @@ function noop() {}
               </li>
             </ul>
           </article>
+        </div>
+
+        <div class="favorite-bottom-actions">
+          <button type="button" class="fav-action fav-action-soft" @click="goToSection('services-packages')">
+            Browse Packages
+          </button>
+          <button type="button" class="fav-action fav-action-clear" :disabled="!hasFavorites" @click="clearAllFavorites">
+            Clear All
+          </button>
+          <button type="button" class="fav-action fav-action-primary" @click="goToSignIn">
+            Sign In to Sync
+          </button>
         </div>
       </section>
 
@@ -356,7 +403,7 @@ function noop() {}
             <p class="package-product-type">{{ activePackage.eventTypeLabel }}</p>
             <h3>{{ activePackage.title }}</h3>
           </div>
-          <button type="button" class="package-modal-close" @click="closePackageDetails">×</button>
+          <button type="button" class="package-modal-close" @click="closePackageDetails">&times;</button>
         </div>
         <img class="package-modal-image" :src="activePackage.image" :alt="activePackage.title" />
         <p class="package-modal-desc">{{ activePackage.description }}</p>
@@ -419,10 +466,6 @@ function noop() {}
 .guest-text {
   margin: 8px 0 0;
   color: #6b7280;
-}
-
-.guest-favorite-block {
-  margin-top: 0;
 }
 
 .package-catalog {
@@ -612,6 +655,83 @@ function noop() {}
   justify-content: flex-end;
 }
 
+.guest-favorite-block {
+  margin-top: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.favorite-info {
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(251, 146, 60, 0.18), transparent 42%),
+    linear-gradient(135deg, #fff7ed, #fff);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.favorite-info.empty {
+  border-color: #dbe4f1;
+  background:
+    radial-gradient(circle at 100% 0, rgba(148, 163, 184, 0.16), transparent 42%),
+    linear-gradient(135deg, #f8fafc, #fff);
+}
+
+.favorite-kicker {
+  margin: 0 0 0.35rem;
+  color: #c2410c;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.favorite-info-main h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  color: #1e293b;
+}
+
+.favorite-info-main p {
+  margin: 0.38rem 0 0;
+  color: #5b6679;
+  line-height: 1.45;
+}
+
+.favorite-metrics {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.favorite-metrics div {
+  border: 1px solid #fdba74;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+  padding: 8px 10px;
+}
+
+.favorite-info.empty .favorite-metrics div {
+  border-color: #d5dfec;
+}
+
+.favorite-metrics strong {
+  display: block;
+  color: #9a3412;
+  font-size: 1.1rem;
+}
+
+.favorite-metrics small {
+  color: #64748b;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
 .favorite-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -619,14 +739,44 @@ function noop() {}
 }
 
 .favorite-card {
-  border: 1px solid #e2e8f3;
+  border: 1px solid #dbe4f1;
   border-radius: 14px;
-  background: #fbfdff;
+  background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
   padding: 12px;
 }
 
-.favorite-card h3 {
+.favorite-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.favorite-card-head h3 {
   margin: 0;
+}
+
+.favorite-card-head span {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #c2410c;
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-empty {
+  margin: 10px 0 0;
+  border: 1px dashed #d8e2f0;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #64748b;
+  text-align: center;
+  padding: 0.72rem 0.8rem;
 }
 
 .favorite-list {
@@ -640,7 +790,7 @@ function noop() {}
 .favorite-list li {
   border: 1px solid #e2e8f3;
   border-radius: 10px;
-  padding: 9px 10px;
+  padding: 10px;
   background: #fff;
   display: flex;
   align-items: center;
@@ -658,10 +808,10 @@ function noop() {}
 }
 
 .favorite-remove {
-  border: 1px solid #d6e0ef;
+  border: 1px solid #fdba74;
   border-radius: 8px;
-  background: #fff;
-  color: #475569;
+  background: #fff7ed;
+  color: #9a3412;
   font-size: 12px;
   font-weight: 700;
   padding: 6px 8px;
@@ -669,12 +819,78 @@ function noop() {}
 }
 
 .favorite-remove:hover {
+  background: #ffedd5;
+}
+
+.favorite-bottom-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.fav-action {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.64rem 0.94rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fav-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fav-action-soft {
+  border: 1px solid #d5dfec;
+  background: #fff;
+  color: #334155;
+}
+
+.fav-action-soft:hover {
   background: #f8fafc;
 }
 
+.fav-action-clear {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.fav-action-clear:hover {
+  background: #fee2e2;
+}
+
+.fav-action-primary {
+  background: #ea580c;
+  color: #fff;
+}
+
+.fav-action-primary:hover {
+  background: #c2410c;
+}
+
 @media (max-width: 720px) {
+  .favorite-info {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .favorite-layout {
     grid-template-columns: 1fr;
+  }
+
+  .favorite-bottom-actions {
+    justify-content: stretch;
+  }
+
+  .favorite-bottom-actions .fav-action {
+    width: 100%;
   }
 
   .package-modal-meta {
@@ -687,3 +903,4 @@ function noop() {}
 
 }
 </style>
+
