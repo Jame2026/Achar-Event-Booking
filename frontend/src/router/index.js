@@ -4,6 +4,8 @@ import LegacyAppShell from '../LegacyAppShell.vue'
 import GuestPreview from '../components/GuestPreview.vue'
 import AboutPage from '../components/AboutPage.vue'
 import ContactPage from '../components/ContactPage.vue'
+import ForgotPasswordForm from '../components/ForgotPasswordForm.vue'
+import ResetPasswordForm from '../components/ResetPasswordForm.vue'
 
 const routes = [
   {
@@ -24,6 +26,16 @@ const routes = [
     path: '/contact',
     name: 'Contact',
     component: ContactPage
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPasswordForm
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPasswordForm
   },
   {
     path: '/booking',

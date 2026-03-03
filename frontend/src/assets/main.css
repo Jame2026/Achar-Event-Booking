@@ -2874,6 +2874,13 @@ a {
   font-size: 0.9rem;
 }
 
+.auth-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .submit-btn {
   border: none;
   border-radius: 12px;
