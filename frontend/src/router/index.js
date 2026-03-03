@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../components/Home.vue'
 import LegacyAppShell from '../LegacyAppShell.vue'
 import GuestPreview from '../components/GuestPreview.vue'
 import AboutPage from '../components/AboutPage.vue'
@@ -12,12 +11,11 @@ import CheckoutReceiptPage from '../components/CheckoutReceiptPage.vue'
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Home
+    redirect: '/legacy-app?page=dashboard'
   },
   {
     path: '/home',
-    redirect: '/'
+    redirect: '/legacy-app?page=dashboard'
   },
   {
     path: '/about',
