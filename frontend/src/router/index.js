@@ -6,6 +6,8 @@ import AboutPage from '../components/AboutPage.vue'
 import ContactPage from '../components/ContactPage.vue'
 import VendorDetail from '../components/VendorDetail.vue'
 import CheckoutPage from '../components/CheckoutPage.vue'
+import CheckoutConfirmedPage from '../components/CheckoutConfirmedPage.vue'
+import CheckoutReceiptPage from '../components/CheckoutReceiptPage.vue'
 
 const routes = [
   {
@@ -77,6 +79,16 @@ const routes = [
     component: CheckoutPage
   },
   {
+    path: '/checkout/confirmed',
+    name: 'CheckoutConfirmed',
+    component: CheckoutConfirmedPage
+  },
+  {
+    path: '/checkout/receipt',
+    name: 'CheckoutReceipt',
+    component: CheckoutReceiptPage
+  },
+  {
     path: '/customization',
     name: 'Customization',
     component: GuestPreview,
@@ -116,3 +128,4 @@ const router = createRouter({
 })
 
 export default router
+

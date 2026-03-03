@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 const fallback = {
   vendorTitle: "Selected Vendor",
@@ -59,6 +60,10 @@ function goBack() {
   router.back();
 }
 
+function onLogoError() {
+  appLogoSrc.value = "/favicon.ico";
+}
+
 function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -68,7 +73,18 @@ function handleConfirmAndPay() {
     router.push("/legacy-app");
     return;
   }
-  paymentNotice.value = "Payment flow will continue after account verification.";
+  const receiptPayload = {
+    booking,
+    items: bookingItems.value,
+    bookingTotal: bookingTotal.value,
+    processingFee: processingFee.value,
+    deposit: deposit.value,
+    remaining: remaining.value,
+    paidMethod: selectedMethod.value,
+    paidAt: new Date().toISOString(),
+  };
+  sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
+  router.push("/checkout/confirmed");
 }
 </script>
 
@@ -76,10 +92,9 @@ function handleConfirmAndPay() {
   <div class="checkout-page">
     <header class="checkout-header">
       <div class="checkout-brand">
-        <div class="checkout-logo">A</div>
+        <img class="checkout-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
         <div>
-          <strong>Achar</strong>
-          <p>Checkout</p>
+          <strong class="checkout-brand-name">Achar</strong>
         </div>
       </div>
       <div class="checkout-steps">
@@ -246,34 +261,36 @@ function handleConfirmAndPay() {
   z-index: 40;
   background: #fff;
   border-bottom: 1px solid #dbe2ee;
-  padding: 12px 20px;
+  padding: 10px 20px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .checkout-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .checkout-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #f59b23;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  border: 1px solid #f2d2bb;
+  background: #fff;
+  object-fit: contain;
+  padding: 6px;
+  box-shadow: 0 6px 14px rgba(198, 100, 14, 0.15);
 }
 
-.checkout-brand p {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
+.checkout-brand-name {
+  display: block;
+  font-size: clamp(26px, 3vw, 42px);
+  line-height: 1.1;
+  color: #c76316;
+  font-weight: 800;
 }
 
 .checkout-steps {
@@ -607,6 +624,23 @@ function handleConfirmAndPay() {
 }
 
 @media (max-width: 980px) {
+  .checkout-header {
+    grid-template-columns: auto;
+    justify-items: start;
+    gap: 8px;
+  }
+
+  .checkout-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .checkout-brand-name {
+    font-size: 28px;
+  }
+
   .checkout-shell {
     grid-template-columns: 1fr;
   }

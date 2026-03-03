@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 
 const emit = defineEmits<{
   switch: []
+  success: [user: { id: number; name: string; email: string; role: string }]
 }>()
 
 const form = reactive({
@@ -80,6 +81,17 @@ const submitRegister = async () => {
     }
 
     successMessage.value = data?.message ?? 'Registration successful.'
+
+    if (data?.user && data.user.name && data.user.email) {
+      emit('success', {
+        id: Number(data.user.id || Date.now()),
+        name: String(data.user.name),
+        email: String(data.user.email),
+        role: String(data.user.role || form.role || 'user'),
+      })
+      return
+    }
+
     form.name = ''
     form.email = ''
     form.phone = ''

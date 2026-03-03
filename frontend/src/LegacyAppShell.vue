@@ -29,6 +29,7 @@ import { useMessagesFeature } from './features/useMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -55,6 +56,14 @@ function onLoginSuccess(user) {
   loggedInUser.value = user
   if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  handlePostAuthRedirect()
+}
+
+function handlePostAuthRedirect() {
+  const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
+  if (!redirectPath) return
+  sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+  router.push(redirectPath).catch(() => {})
 }
 
 function requireLogin(message = 'Please sign in to continue booking.') {
@@ -570,6 +579,7 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
+  handlePostAuthRedirect()
   await loadEvents()
   await loadBookings()
 })
@@ -577,7 +587,7 @@ onMounted(async () => {
 
 <template>
   <div class="auth-root">
-    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
+    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
     <header class="topbar">

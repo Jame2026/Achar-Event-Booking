@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
 import CustomizationPage from "./pages/CustomizationPage.vue";
@@ -87,6 +87,8 @@ const customizationQuantity = ref(1);
 const selectedPackageId = ref(null);
 const packageQuantity = ref(1);
 const selectedServiceIds = ref([]);
+const packageEventType = ref("all");
+const packageSearch = ref("");
 const overallQuantity = ref(1);
 const overallAvailabilityDate = ref(
   `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
@@ -112,10 +114,31 @@ const selectedEventFilter = computed(() => {
   return typeof val === "string" ? val : "";
 });
 
+watch(
+  selectedEventFilter,
+  (value) => {
+    if (value && packageEventType.value === "all") {
+      packageEventType.value = value;
+    }
+  },
+  { immediate: true },
+);
+
 const guestPreviewPackagesFiltered = computed(() => {
-  const filter = selectedEventFilter.value;
-  if (!filter || filter === "all") return guestPreviewPackages.value;
-  return guestPreviewPackages.value.filter((pkg) => pkg.eventType === filter);
+  const filter = packageEventType.value;
+  const query = packageSearch.value.trim().toLowerCase();
+  let rows = guestPreviewPackages.value;
+  if (filter && filter !== "all") {
+    rows = rows.filter((pkg) => pkg.eventType === filter);
+  }
+  if (query) {
+    rows = rows.filter(
+      (pkg) =>
+        pkg.title.toLowerCase().includes(query) ||
+        pkg.description.toLowerCase().includes(query),
+    );
+  }
+  return rows;
 });
 
 const emptyDashboardStats = {
@@ -456,7 +479,10 @@ function noop() {}
     <PublicNavbar />
 
     <main class="shell guest-content">
-      <section v-if="section !== 'services-overall'" class="guest-panel">
+      <section
+        v-if="section !== 'services-overall' && section !== 'services-packages'"
+        class="guest-panel"
+      >
         <h1>{{ pageContent.title }}</h1>
         <p class="guest-subtitle">{{ pageContent.subtitle }}</p>
         <p class="guest-text">{{ pageContent.text }}</p>
@@ -481,19 +507,59 @@ function noop() {}
         class="package-layout"
       >
         <div class="package-layout-main">
-          <div class="package-catalog">
-            <div class="package-grid">
-              <!-- show filter description if an event is selected -->
-              <p
-                v-if="selectedEventFilter && selectedEventFilter !== 'all'"
-                class="event-filter-note"
-              >
-                Showing packages for
-                {{ eventTypeMap[selectedEventFilter] || selectedEventFilter }}
+          <section class="package-head card">
+            <div class="package-head-main">
+              <h1>Service Packages</h1>
+              <p>
+                Browse available packages by event type. Search quickly and
+                choose the best fit for your event.
               </p>
+              <div class="package-toolbar">
+                <label class="filter-field">
+                  <span>Event type</span>
+                  <select
+                    class="event-type-select"
+                    :value="packageEventType"
+                    @change="packageEventType = $event.target.value"
+                  >
+                    <option
+                      v-for="option in eventTypeOptions"
+                      :key="`pkg-${option.value}`"
+                      :value="option.value"
+                    >
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </label>
+                <label class="filter-field">
+                  <span>Search</span>
+                  <input
+                    class="customization-search"
+                    type="search"
+                    placeholder="Search packages..."
+                    :value="packageSearch"
+                    @input="packageSearch = $event.target.value"
+                  />
+                </label>
+                <div class="package-count">
+                  {{ guestPreviewPackagesFiltered.length }} package{{
+                    guestPreviewPackagesFiltered.length === 1 ? "" : "s"
+                  }}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="package-catalog">
+            <div class="package-catalog-head">
+              <p class="event-filter-note">
+                {{ packageEventType === "all" ? "Showing all packages" : `Showing packages for ${eventTypeMap[packageEventType] || packageEventType}` }}
+              </p>
+            </div>
+            <div class="package-grid">
               <p
                 v-if="guestPreviewPackagesFiltered.length === 0"
-                class="guest-text"
+                class="guest-text package-empty"
               >
                 No packages available for this event.
               </p>
@@ -670,7 +736,6 @@ function noop() {}
         v-else-if="section === 'services-overall'"
         class="overall-service-page"
       >
-        <div class="overall-breadcrumbs">Home &gt; Services &gt; General Service</div>
         <section class="overall-head card">
           <div class="overall-head-main">
             <h1>General Services</h1>
@@ -705,12 +770,11 @@ function noop() {}
                   @input="customizationSearch.value = $event.target.value"
                 />
               </label>
-              <div class="overall-count">
-                {{ matchingServicesFiltered.length }} service{{
-                  matchingServicesFiltered.length === 1 ? "" : "s"
-                }}
+                <div class="overall-count">
+                {{ matchingServicesFiltered.length }} services
+                
+                </div>
               </div>
-            </div>
           </div>
         </section>
 
@@ -902,7 +966,7 @@ function noop() {}
         v-else
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
-        :notice="'Sign in to load your bookings.'"
+        :notice="''"
         :is-loading-bookings="false"
         :filtered-bookings="[]"
         :go-to-dashboard="() => goToSection('dashboard')"
@@ -1075,41 +1139,37 @@ function noop() {}
 
 .overall-service-page {
   display: grid;
-  gap: 14px;
-  padding-bottom: 8px;
-}
-
-.overall-breadcrumbs {
-  color: #6b7280;
-  font-size: 14px;
+  gap: 16px;
+  padding-bottom: 10px;
 }
 
 .overall-head {
   border: 1px solid #dbe4f2;
-  border-radius: 18px;
+  border-radius: 24px;
   background:
     radial-gradient(circle at 95% 12%, rgba(255, 106, 0, 0.12), transparent 35%),
     linear-gradient(180deg, #ffffff, #fbfdff);
-  padding: 18px 20px;
+  padding: 22px 24px;
 }
 
 .overall-head-main h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 2.5vw, 2.6rem);
-  line-height: 1.1;
+  font-size: clamp(2.2rem, 3vw, 3.2rem);
+  line-height: 1.02;
 }
 
 .overall-head-main p {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   color: #64748b;
-  max-width: 760px;
+  max-width: 920px;
+  font-size: 18px;
 }
 
 .overall-toolbar {
-  margin-top: 14px;
+  margin-top: 18px;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 280px minmax(0, 1fr) 170px;
+  gap: 12px;
   align-items: end;
 }
 
@@ -1128,13 +1188,12 @@ function noop() {}
 
 .overall-count {
   border: 1px solid #d7e4f3;
-  border-radius: 10px;
+  border-radius: 14px;
   background: #f8fbff;
   color: #1e293b;
   font-size: 14px;
-  font-weight: 700;
-  padding: 10px 12px;
-  min-width: 130px;
+  font-weight: 800;
+  padding: 13px 12px;
   text-align: center;
 }
 
@@ -1144,8 +1203,8 @@ function noop() {}
 
 .overall-layout {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
+  grid-template-columns: 1fr 400px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -1153,6 +1212,31 @@ function noop() {}
   position: sticky;
   top: 12px;
   height: fit-content;
+  border-radius: 24px;
+}
+
+.overall-list .customization-section {
+  border-radius: 24px;
+  border-color: #d8e3f2;
+  padding: 16px;
+}
+
+.overall-list .customization-section-head {
+  margin-bottom: 8px;
+}
+
+.overall-list .customization-section-head span {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff2e8;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.overall-list .customization-section-head h2 {
+  font-size: 26px;
 }
 
 .overall-availability-check {
@@ -1273,24 +1357,84 @@ function noop() {}
   margin-top: 6px;
 }
 
+.package-head {
+  border: 1px solid #dbe4f2;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 94% 14%, rgba(255, 106, 0, 0.1), transparent 35%),
+    linear-gradient(180deg, #ffffff, #fbfdff);
+  padding: 18px 18px 16px;
+  margin-bottom: 10px;
+}
+
+.package-head-main h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.08;
+}
+
+.package-head-main p {
+  margin: 10px 0 0;
+  color: #64748b;
+  max-width: 820px;
+}
+
+.package-toolbar {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 170px;
+  gap: 10px;
+  align-items: end;
+}
+
+.package-catalog-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
 .package-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .event-filter-note {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 14px;
-  color: #4b5563;
+  color: #475569;
+  font-weight: 700;
+}
+
+.package-count {
+  border: 1px solid #d3deee;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.package-empty {
+  border: 1px dashed #d2deef;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 16px;
+  margin: 0;
 }
 
 .package-product-card {
   border: 1px solid #dbe4f1;
   border-radius: 16px;
-  background: #fff;
+  background: linear-gradient(180deg, #fff, #fcfdff);
   overflow: hidden;
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
   cursor: pointer;
   transition:
     transform 0.2s ease,
@@ -1299,21 +1443,21 @@ function noop() {}
 }
 
 .package-product-card:hover {
-  transform: translateY(-3px);
-  border-color: #cbd7ea;
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+  border-color: #c6d5ea;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.1);
 }
 
 .package-product-card img {
   width: 100%;
-  height: 164px;
+  height: 172px;
   object-fit: cover;
 }
 
 .package-product-body {
-  padding: 12px;
+  padding: 13px;
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .package-product-type {
@@ -1339,27 +1483,59 @@ function noop() {}
 }
 
 .package-product-footer {
-  margin-top: 6px;
+  margin-top: 4px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .package-product-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .package-product-footer strong {
   color: #1e293b;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.2;
 }
 
 .package-product-footer span {
   color: #e45800;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.package-product-actions .choice-indicator {
+  width: auto;
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border-color: #f5c09c;
+  background: #fff7f1;
+  color: #c2410c;
+}
+
+.package-product-actions .choice-indicator:hover {
+  background: #fff1e8;
+  border-color: #efb183;
+}
+
+.package-product-actions .favorite-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.service-section {
+  margin-top: 22px;
+}
+
+.service-section h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
 }
 
 .package-modal-overlay {
@@ -1667,6 +1843,20 @@ function noop() {}
 }
 
 @media (max-width: 720px) {
+  .package-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .package-count {
+    justify-self: start;
+  }
+
+  .package-catalog-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .prebook-overlay {
     padding: 8px;
   }
@@ -1701,6 +1891,8 @@ function noop() {}
 
   .overall-count {
     justify-self: start;
+    font-size: 16px;
+    padding: 10px 12px;
   }
 
   .overall-layout {
