@@ -538,7 +538,6 @@ function submitBooking() {
       </nav>
       <div class="nav-actions">
         <button class="ghost-btn">Sign in</button>
-        <button class="primary-btn">Sign up</button>
       </div>
     </header>
 
