@@ -1,9 +1,11 @@
 <script setup>
 import Home from './components/Home.vue'
-import Contact from './components/Contact.vue';
+// import BookingForm from './components/BookingForm.vue'
 </script>
 
 <template>
-  <Home />
-  <Contact />
+  <div class="app">
+    <Home />
+    <!-- <BookingForm /> -->
+  </div>
 </template>
