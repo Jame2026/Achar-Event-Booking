@@ -1189,6 +1189,11 @@ a {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+
+.favorite-btn:active {
+  transform: scale(0.88);
 }
 
 .favorite-btn:hover {
@@ -1197,9 +1202,16 @@ a {
 }
 
 .favorite-btn.active {
-  background: #ffe3d0;
-  border-color: #ff9a5c;
-  color: #9a3412;
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+}
+
+.favorite-btn.active:hover {
+  background: #fecaca;
+  border-color: #dc2626;
+  color: #dc2626;
 }
 
 .addon-card p {

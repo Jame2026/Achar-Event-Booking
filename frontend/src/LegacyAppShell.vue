@@ -29,6 +29,7 @@ import { useMessagesFeature } from './features/useMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -46,6 +47,61 @@ function getStoredUser() {
 }
 
 loggedInUser.value = getStoredUser()
+
+// ── Favorites ──────────────────────────────────────────────────────────────
+const savedFavorites = (() => {
+  try {
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY)
+    if (!raw) return { packageIds: [], serviceIds: [] }
+    const parsed = JSON.parse(raw)
+    return {
+      packageIds: Array.isArray(parsed.packageIds) ? parsed.packageIds : [],
+      serviceIds: Array.isArray(parsed.serviceIds) ? parsed.serviceIds : [],
+    }
+  } catch {
+    return { packageIds: [], serviceIds: [] }
+  }
+})()
+
+const favoritePackageIds = ref(savedFavorites.packageIds)
+const favoriteServiceIds = ref(savedFavorites.serviceIds)
+
+function persistFavorites() {
+  localStorage.setItem(
+    FAVORITES_STORAGE_KEY,
+    JSON.stringify({
+      packageIds: favoritePackageIds.value,
+      serviceIds: favoriteServiceIds.value,
+    }),
+  )
+}
+
+function isPackageFavorite(id) {
+  return favoritePackageIds.value.includes(id)
+}
+
+function isServiceFavorite(id) {
+  return favoriteServiceIds.value.includes(id)
+}
+
+function toggleFavoritePackage(id) {
+  if (favoritePackageIds.value.includes(id)) {
+    favoritePackageIds.value = favoritePackageIds.value.filter((item) => item !== id)
+  } else {
+    favoritePackageIds.value = [...favoritePackageIds.value, id]
+  }
+  persistFavorites()
+}
+
+function toggleFavoriteService(id) {
+  if (favoriteServiceIds.value.includes(id)) {
+    favoriteServiceIds.value = favoriteServiceIds.value.filter((item) => item !== id)
+  } else {
+    favoriteServiceIds.value = [...favoriteServiceIds.value, id]
+  }
+  persistFavorites()
+}
+// ───────────────────────────────────────────────────────────────────────────
 
 function toggleView() {
   currentView.value = currentView.value === 'register' ? 'login' : 'register'
@@ -601,6 +657,10 @@ onMounted(async () => {
       :toggle-matching-service="toggleMatchingService"
       :toggle-service-details="toggleServiceDetails"
       :confirm-customization="confirmCustomization"
+      :is-package-favorite="isPackageFavorite"
+      :is-service-favorite="isServiceFavorite"
+      :toggle-favorite-package="toggleFavoritePackage"
+      :toggle-favorite-service="toggleFavoriteService"
     />
 
     <AvailabilityPage
@@ -695,7 +755,7 @@ onMounted(async () => {
         </div>
       </div>
       <div class="shell footer-bottom">
-        <span>� {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
+        <span>� {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
         <div>
           <a href="#">Privacy Policy</a>
           <a href="#">Cookie Policy</a>

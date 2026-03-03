@@ -2,6 +2,41 @@
 import { ref, computed } from "vue";
 import PublicNavbar from "./PublicNavbar.vue";
 
+const FAVORITE_VENDORS_KEY = 'achar_favorite_vendors'
+
+// Load saved favorites from localStorage
+function loadFavoriteVendors() {
+  const saved = localStorage.getItem(FAVORITE_VENDORS_KEY)
+  if (saved) {
+    try {
+      return JSON.parse(saved)
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+// Save favorites to localStorage
+function saveFavoriteVendors(favorites) {
+  localStorage.setItem(FAVORITE_VENDORS_KEY, JSON.stringify(favorites))
+}
+
+const favoriteVendorTitles = ref(loadFavoriteVendors())
+
+function isVendorFavorite(title) {
+  return favoriteVendorTitles.value.includes(title)
+}
+
+function toggleVendorFavorite(title) {
+  if (favoriteVendorTitles.value.includes(title)) {
+    favoriteVendorTitles.value = favoriteVendorTitles.value.filter(t => t !== title)
+  } else {
+    favoriteVendorTitles.value = [...favoriteVendorTitles.value, title]
+  }
+  saveFavoriteVendors(favoriteVendorTitles.value)
+}
+
 const appLogoSrc = ref(
   localStorage.getItem("achar_brand_logo") || "/achar-logo.png",
 );
@@ -622,6 +657,14 @@ function submitBooking() {
                 <p class="price-caption">{{ vendor.priceCaption }}</p>
                 <p class="price">{{ vendor.price }}</p>
               </div>
+              <button
+                type="button"
+                class="favorite-btn"
+                :class="{ active: isVendorFavorite(vendor.title) }"
+                @click.stop="toggleVendorFavorite(vendor.title)"
+              >
+                {{ isVendorFavorite(vendor.title) ? '♥' : '♡' }}
+              </button>
               <button
                 type="button"
                 class="outline-btn"
