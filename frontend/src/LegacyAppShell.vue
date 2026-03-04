@@ -55,6 +55,7 @@ function onLoginSuccess(user) {
   loggedInUser.value = user
   if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  void bootstrapAuthenticatedShell()
 }
 
 function logout() {
@@ -177,6 +178,7 @@ const notifications = ref([])
 const notificationsUnreadCount = ref(0)
 const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
+const isBootstrappingAuth = ref(false)
 let notificationPollTimer = null
 const {
   customerName,
@@ -587,11 +589,24 @@ async function loadBookings() {
     bookings.value = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    await loadNotifications({ silent: true })
   } catch (error) {
     notice.value = 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
+  }
+}
+
+async function bootstrapAuthenticatedShell() {
+  if (!loggedInUser.value) return
+
+  isBootstrappingAuth.value = true
+  try {
+    const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    await Promise.all(tasks)
+    startNotificationPolling()
+  } finally {
+    isBootstrappingAuth.value = false
   }
 }
 
@@ -694,6 +709,8 @@ watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userL
 })
 
 watch(customerEmail, () => {
+  if (!loggedInUser.value || isBootstrappingAuth.value) return
+
   if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
     loadBookings()
   }
@@ -703,8 +720,6 @@ watch(customerEmail, () => {
 watch(loggedInUser, (user) => {
   if (user) {
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
-    loadNotifications({ silent: true })
-    startNotificationPolling()
     return
   }
 
@@ -732,10 +747,7 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
-  await loadEvents()
-  await loadBookings()
-  await loadNotifications()
-  startNotificationPolling()
+  await bootstrapAuthenticatedShell()
 })
 
 onBeforeUnmount(() => {
