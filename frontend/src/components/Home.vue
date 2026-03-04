@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
 
 const FAVORITE_VENDORS_KEY = 'achar_favorite_vendors'
@@ -46,6 +47,7 @@ function onLogoError() {
 }
 
 const showAllEvents = ref(false);
+const router = useRouter();
 
 const eventTypes = [
   {
@@ -192,6 +194,12 @@ function prevVendors() {
 
 function onEventCardImageError(event, fallback) {
   event.target.src = fallback;
+}
+
+function goToEvent(event) {
+  // convert name to key used in packageCatalogByEventType
+  const key = event.name.toLowerCase().replace(/\s+/g, "_");
+  router.push({ path: "/services/packages", query: { event: key } });
 }
 
 const vendors = [
@@ -515,7 +523,7 @@ const tips = [
 
 const showBookingModal = ref(false);
 const selectedVendor = ref(null);
-const bookingSuccess = ref("");
+const bookingSuccess = ref(false);
 const bookingForm = ref({
   fullName: "",
   email: "",
@@ -526,16 +534,9 @@ const bookingForm = ref({
 
 function openBookingModal(vendor) {
   selectedVendor.value = vendor;
-  bookingSuccess.value = "";
+  bookingSuccess.value = false;
   showBookingModal.value = true;
-}
-
-function closeBookingModal() {
-  showBookingModal.value = false;
-}
-
-function submitBooking() {
-  bookingSuccess.value = `Booking request sent for ${selectedVendor.value?.title || "service"}.`;
+  // Reset form for a clean slate each time the modal is opened
   bookingForm.value = {
     fullName: "",
     email: "",
@@ -543,6 +544,16 @@ function submitBooking() {
     guests: 50,
     notes: "",
   };
+}
+
+function closeBookingModal() {
+  showBookingModal.value = false;
+}
+
+function submitBooking() {
+  // In a real app, you'd make an API call here.
+  // On success, we just need to flip the boolean to show the success view.
+  bookingSuccess.value = true;
 }
 </script>
 
@@ -590,6 +601,11 @@ function submitBooking() {
           class="event-card"
           v-for="event in displayedEvents"
           :key="event.name"
+          role="button"
+          tabindex="0"
+          @click="goToEvent(event)"
+          @keyup.enter="goToEvent(event)"
+          style="cursor: pointer"
         >
           <div class="event-img-container">
             <img
@@ -678,62 +694,141 @@ function submitBooking() {
       </div>
     </section>
 
+    <!-- Improved Booking Modal -->
     <div
       v-if="showBookingModal"
       class="booking-modal-overlay"
       @click="closeBookingModal"
     >
-      <div class="booking-modal" @click.stop>
-        <div class="booking-modal-header">
-          <h3>Book {{ selectedVendor?.title }}</h3>
-          <button
-            type="button"
-            class="booking-close"
-            @click="closeBookingModal"
-          >
-            ×
-          </button>
-        </div>
-        <form class="booking-modal-form" @submit.prevent="submitBooking">
-          <label>
-            Full name
-            <input v-model.trim="bookingForm.fullName" type="text" required />
-          </label>
-          <label>
-            Email
-            <input v-model.trim="bookingForm.email" type="email" required />
-          </label>
-          <label>
-            Event date
-            <input v-model="bookingForm.eventDate" type="date" required />
-          </label>
-          <label>
-            Number of guests
-            <input
-              v-model.number="bookingForm.guests"
-              type="number"
-              min="1"
-              required
+      <div v-if="selectedVendor" class="booking-modal" @click.stop>
+        <button type="button" class="booking-close" @click="closeBookingModal">
+          &times;
+        </button>
+
+        <div class="booking-modal-layout">
+          <!-- Left Side: Vendor Info -->
+          <div class="booking-vendor-preview">
+            <img
+              :src="selectedVendor.image"
+              :alt="selectedVendor.title"
+              class="vendor-preview-image"
             />
-          </label>
-          <label>
-            Notes
-            <textarea
-              v-model.trim="bookingForm.notes"
-              rows="3"
-              placeholder="Add preferences or requests"
-            ></textarea>
-          </label>
-          <div class="booking-modal-actions">
-            <button type="button" class="ghost-btn" @click="closeBookingModal">
-              Cancel
-            </button>
-            <button type="submit" class="primary-btn">Confirm Booking</button>
+            <div class="vendor-preview-info">
+              <p class="eyebrow">You are booking</p>
+              <h4>{{ selectedVendor.title }}</h4>
+              <p class="vendor-location">{{ selectedVendor.location }}</p>
+              <div class="vendor-rating">
+                <span class="star">★</span>
+                <strong>{{ selectedVendor.rating }}</strong>
+                <span class="reviews"
+                  >({{
+                    selectedVendor.reviews?.toLocaleString()
+                  }}
+                  reviews)</span
+                >
+              </div>
+            </div>
           </div>
-          <p v-if="bookingSuccess" class="booking-success">
-            {{ bookingSuccess }}
-          </p>
-        </form>
+
+          <!-- Right Side: Form or Success State -->
+          <div class="booking-form-section">
+            <div v-if="bookingSuccess" class="booking-success-state">
+              <div class="success-icon">🎉</div>
+              <h3>Booking Request Sent!</h3>
+              <p>
+                Your request to book
+                <strong>{{ selectedVendor.title }}</strong> has been sent. The
+                vendor will contact you via email shortly.
+              </p>
+              <button
+                type="button"
+                class="primary-btn"
+                @click="closeBookingModal"
+              >
+                Done
+              </button>
+            </div>
+
+            <form
+              v-else
+              class="booking-modal-form"
+              @submit.prevent="submitBooking"
+            >
+              <div class="booking-modal-header">
+                <h3>Confirm Your Details</h3>
+                <p>Fill out the form below to send a booking request.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="fullName">Full name</label>
+                <input
+                  id="fullName"
+                  v-model.trim="bookingForm.fullName"
+                  type="text"
+                  required
+                  placeholder="e.g., Jane Doe"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email address</label>
+                <input
+                  id="email"
+                  v-model.trim="bookingForm.email"
+                  type="email"
+                  required
+                  placeholder="e.g., jane.doe@email.com"
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="eventDate">Event date</label>
+                  <input
+                    id="eventDate"
+                    v-model="bookingForm.eventDate"
+                    type="date"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="guests">Number of guests</label>
+                  <input
+                    id="guests"
+                    v-model.number="bookingForm.guests"
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="50"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="notes">Additional notes</label>
+                <textarea
+                  id="notes"
+                  v-model.trim="bookingForm.notes"
+                  rows="3"
+                  placeholder="Any special requests or details for the vendor..."
+                ></textarea>
+              </div>
+
+              <div class="booking-modal-actions">
+                <button
+                  type="button"
+                  class="ghost-btn"
+                  @click="closeBookingModal"
+                >
+                  Cancel
+                </button>
+                <button type="submit" class="primary-btn">
+                  Send Booking Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 

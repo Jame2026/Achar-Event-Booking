@@ -113,6 +113,14 @@ function onLoginSuccess(user) {
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
 }
 
+function requireLogin(message = 'Please sign in to continue booking.') {
+  if (loggedInUser.value) return true
+  notice.value = message
+  currentView.value = 'login'
+  router.replace({ path: '/legacy-app' }).catch(() => {})
+  return false
+}
+
 function logout() {
   loggedInUser.value = null
   currentView.value = 'login'
@@ -276,7 +284,7 @@ const {
   previousAvailabilityMonth,
   nextAvailabilityMonth,
   selectAvailabilitySlot,
-  goToAvailability,
+  goToAvailability: openAvailabilityPage,
   confirmAvailabilityRequest,
 } = useAvailabilityFeature({
   currentPage,
@@ -442,6 +450,10 @@ async function loadEvents() {
 }
 
 async function checkEventAvailability(item) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return null
+  }
+
   checkingAvailabilityEventId.value = item.id
   try {
     const result = await apiGet(`events/${item.id}/availability`)
@@ -494,6 +506,13 @@ function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '
   openCustomizationPage(currentPage, preferredEventType, preferredTitle)
 }
 
+function goToAvailability(item = null) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return
+  }
+  openAvailabilityPage(item)
+}
+
 function goToProfile() {
   openProfilePage(currentPage)
 }
@@ -508,6 +527,10 @@ function openUpcomingBookings() {
 }
 
 async function bookPackage(item) {
+  if (!requireLogin('Please sign in before checking availability and booking.')) {
+    return
+  }
+
   const name = customerName.value.trim()
   const email = customerEmail.value.trim()
 
@@ -563,6 +586,9 @@ function bookingSecondaryAction(item) {
 }
 
 async function confirmCustomization() {
+  if (!requireLogin('Please sign in before confirming your package booking.')) {
+    return
+  }
   await submitCustomization(getAvailability)
 }
 
