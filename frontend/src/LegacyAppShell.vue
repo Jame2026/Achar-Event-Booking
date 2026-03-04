@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Login from './components/LoginForm.vue'
@@ -59,13 +59,13 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-<<<<<<< HEAD
-  customerName.value = user?.name ?? customerName.value
-  customerEmail.value = user?.email ?? customerEmail.value
+  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
+  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
   const redirected = handlePostAuthRedirect()
   if (!redirected) {
     router.push('/').catch(() => {})
   }
+  void bootstrapAuthenticatedShell()
 }
 
 function handlePostAuthRedirect() {
@@ -88,11 +88,6 @@ function requireLogin(message = 'Please sign in to continue booking.') {
   currentView.value = 'login'
   router.replace({ path: '/legacy-app' }).catch(() => {})
   return false
-=======
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
-  void bootstrapAuthenticatedShell()
->>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
 }
 
 function logout() {
@@ -689,11 +684,8 @@ async function loadBookings() {
     const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-<<<<<<< HEAD
     bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
     await loadNotifications({ silent: true })
-=======
->>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -895,7 +887,6 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
-<<<<<<< HEAD
   const pendingSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
   if (pendingSearch) {
     globalSearch.value = pendingSearch
@@ -904,13 +895,7 @@ onMounted(async () => {
   if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   handlePostAuthRedirect()
-  await loadEvents()
-  await loadBookings()
-  await loadNotifications()
-  startNotificationPolling()
-=======
   await bootstrapAuthenticatedShell()
->>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
 })
 
 onBeforeUnmount(() => {
@@ -1059,44 +1044,6 @@ onBeforeUnmount(() => {
       :save-document="saveDocument"
       :delete-message="deleteMessage"
     />
-<footer v-if="currentPage !== 'messages'" class="footer">
-      <div class="shell footer-grid">
-        <div class="footer-brand-col">
-          <div class="brand">
-            <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
-            <span class="brand-text">Achar</span>
-          </div>
-          <p>Making event planning effortless and elegant for everyone, everywhere.</p>
-          <span class="footer-chip">Trusted by planners and vendors</span>
-        </div>
-        <div>
-          <h4>For Planners</h4>
-          <a href="#" @click.prevent="goToVendor()">View Vendors</a>
-          <a href="#" @click.prevent="goToDashboard">Planning Dashboard</a>
-          <a href="#" @click.prevent="goToBookings">My Bookings</a>
-        </div>
-        <div>
-          <h4>For Vendors</h4>
-          <a href="#" @click.prevent="goToVendor()">List Your Service</a>
-          <a href="#" @click.prevent="goToMessages()">Vendor Inbox</a>
-          <a href="#" @click.prevent="goToDashboard">Performance Snapshot</a>
-        </div>
-        <div>
-          <h4>Support</h4>
-          <a href="#">Help Center</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Contact Us</a>
-        </div>
-      </div>
-      <div class="shell footer-bottom">
-        <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
-        <div>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Cookie Policy</a>
-          <a href="#">Sitemap</a>
-        </div>
-      </div>
-    </footer>
   </div>
   </div>
 </template>

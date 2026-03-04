@@ -42,6 +42,36 @@ export function useProfileFeature(notice) {
     return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}`
   })
 
+  async function resolveLocationName(lat, lng) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+        },
+      })
+      if (!response.ok) return ''
+      const data = await response.json()
+      const address = data?.address || {}
+      const streetNumber = address.house_number || address.house_name || address.building || ''
+      const streetName = address.road || address.pedestrian || address.footway || ''
+      const street = [streetNumber, streetName].filter(Boolean).join(' ').trim()
+      const village = address.village || address.hamlet || address.neighbourhood || address.suburb || ''
+      const district = address.city_district || address.district || address.borough || address.county || ''
+      const city = address.city || address.town || address.municipality || address.state_district || ''
+      const province = address.state || address.region || address.province || ''
+      const parts = [street, village, district, city, province].filter((value) => String(value).trim().length > 0)
+      if (parts.length) return parts.join(', ')
+
+      const primaryName =
+        data?.name || address.shop || address.amenity || address.tourism || address.building || ''
+      return String(primaryName || '').trim()
+    } catch {
+      return ''
+    }
+  }
+
   function goToProfile(currentPage) {
     currentPage.value = 'profile'
     userProfileNotice.value = ''
@@ -82,13 +112,14 @@ export function useProfileFeature(notice) {
 
     isDetectingLocation.value = true
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const lat = Number(position.coords.latitude.toFixed(6))
         const lng = Number(position.coords.longitude.toFixed(6))
+        const placeName = await resolveLocationName(lat, lng)
         userLatitude.value = lat
         userLongitude.value = lng
-        userLocation.value = `${lat}, ${lng}`
-        userProfileDraft.value.location = `${lat}, ${lng}`
+        userLocation.value = placeName || `${lat}, ${lng}`
+        userProfileDraft.value.location = placeName || `${lat}, ${lng}`
         userProfileNotice.value = 'Current location captured.'
         notice.value = 'Real location updated.'
         isDetectingLocation.value = false

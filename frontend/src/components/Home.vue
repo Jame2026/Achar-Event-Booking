@@ -2,18 +2,14 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
-
 const appLogoSrc = ref(
   localStorage.getItem("achar_brand_logo") || "/achar-logo.png",
 );
-
 function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
 }
-
 const showAllEvents = ref(false);
 const router = useRouter();
-
 const eventTypes = [
   {
     name: "Wedding",
@@ -130,416 +126,25 @@ const eventTypes = [
     fallback: "/W5.png",
   },
 ];
-
 const displayedEvents = computed(() => {
   return showAllEvents.value ? eventTypes : eventTypes.slice(0, 4);
-});
-
-// vendor carousel controls
-const currentVendorIndex = ref(0);
-const VENDOR_PAGE_SIZE = 4;
-const displayedVendors = computed(() => {
-  return vendors.slice(
-    currentVendorIndex.value,
-    currentVendorIndex.value + VENDOR_PAGE_SIZE,
-  );
-});
-
-function nextVendors() {
-  if (currentVendorIndex.value + VENDOR_PAGE_SIZE < vendors.length) {
-    currentVendorIndex.value += VENDOR_PAGE_SIZE;
-  }
-}
-
-function prevVendors() {
-  if (currentVendorIndex.value - VENDOR_PAGE_SIZE >= 0) {
-    currentVendorIndex.value -= VENDOR_PAGE_SIZE;
-  }
-}
-
-function onEventCardImageError(event, fallback) {
-  event.target.src = fallback;
-}
-
-function goToEvent(event) {
-  // convert name to key used in packageCatalogByEventType
-  const key = event.name.toLowerCase().replace(/\s+/g, "_");
-  router.push({ path: "/services/packages", query: { event: key } });
-}
-
-const vendors = [
-  {
-    tag: "Top rated",
-    title: "Skyline Grand Atrium",
-    categories: ["Wedding Planning", "Event Design", "Venue"],
-    location: "Downtown Manhattan",
-    rating: 4.9,
-    reviews: 2458,
-    price: "$3,500",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Artisan Palate",
-    categories: ["Catering", "Private Dining", "Menu Design"],
-    location: "Upper West Side",
-    rating: 4.8,
-    reviews: 1945,
-    price: "$150/pp",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Lumina Studios",
-    categories: ["Photography", "Cinematography", "Videography"],
-    location: "Brooklyn Heights",
-    rating: 4.9,
-    reviews: 3021,
-    price: "$2,200",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Elegant Events Co",
-    categories: ["Decoration", "Floral Design", "Styling"],
-    location: "Queens Center",
-    rating: 4.7,
-    reviews: 1523,
-    price: "$1,200",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Premium",
-    title: "Prime Venues",
-    categories: ["Venue Rental", "Layout Design", "Catering"],
-    location: "The Hamptons",
-    rating: 4.8,
-    reviews: 876,
-    price: "$4,000",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Blooming Bliss Florals",
-    categories: ["Floral Design", "Bouquets", "Installation"],
-    location: "Midtown East",
-    rating: 4.9,
-    reviews: 2156,
-    price: "$800",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Harmony Music Collective",
-    categories: ["Live Music", "DJ Services", "Entertainment"],
-    location: "Brooklyn",
-    rating: 4.7,
-    reviews: 1834,
-    price: "$600",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Beauty & Glamour Studio",
-    categories: ["Makeup", "Hair Styling", "Bridal Services"],
-    location: "Manhattan",
-    rating: 4.8,
-    reviews: 2342,
-    price: "$350",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Premium",
-    title: "Luxe Rentals & Linens",
-    categories: ["Table Rentals", "Linens", "Décor Elements"],
-    location: "Long Island City",
-    rating: 4.9,
-    reviews: 1567,
-    price: "$500",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Sweet Confections Bakery",
-    categories: ["Custom Cakes", "Desserts", "Pastries"],
-    location: "Upper East Side",
-    rating: 4.8,
-    reviews: 2089,
-    price: "$250",
-    priceCaption: "Per Tier from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Prestige Event Planning",
-    categories: [
-      "Event Coordination",
-      "Budget Management",
-      "Timeline Planning",
-    ],
-    location: "Midtown Manhattan",
-    rating: 4.9,
-    reviews: 2567,
-    price: "$1,500",
-    priceCaption: "Planning Fee from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "ProAudio & Lighting Co",
-    categories: ["Sound System", "Stage Lighting", "AV Equipment"],
-    location: "Queens",
-    rating: 4.8,
-    reviews: 1923,
-    price: "$900",
-    priceCaption: "Setup from",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Elegant Invitations Studio",
-    categories: ["Invitation Design", "Printing", "Stationery"],
-    location: "Brooklyn",
-    rating: 4.7,
-    reviews: 1456,
-    price: "$200",
-    priceCaption: "Per Set from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Premium",
-    title: "Luxe Transportation Services",
-    categories: ["Airport Pickup", "Valet Service", "Guest Transportation"],
-    location: "Manhattan",
-    rating: 4.9,
-    reviews: 1765,
-    price: "$75",
-    priceCaption: "Per Hour from",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Grand Tent & Canopy Rentals",
-    categories: ["Tent Rentals", "Canopy Setup", "Weather Protection"],
-    location: "New Jersey",
-    rating: 4.8,
-    reviews: 1342,
-    price: "$400",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Premium Bar & Beverage Service",
-    categories: ["Bar Service", "Beverage Selection", "Bartending"],
-    location: "Manhattan",
-    rating: 4.7,
-    reviews: 2134,
-    price: "$35",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Corporate Event Specialists",
-    categories: ["Corporate Planning", "Conference Setup", "Team Events"],
-    location: "Midtown",
-    rating: 4.9,
-    reviews: 2301,
-    price: "$2,000",
-    priceCaption: "Event Planning from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Hospitality & Guest Services",
-    categories: ["Guest Reception", "Coat Check", "Concierge Services"],
-    location: "Upper East Side",
-    rating: 4.8,
-    reviews: 1678,
-    price: "$25",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Premium",
-    title: "Sacred Rituals & Blessings",
-    categories: [
-      "House Blessing",
-      "Ritual Services",
-      "Traditional Ceremonies",
-      "Monk Ceremony",
-    ],
-    location: "Queens",
-    rating: 4.9,
-    reviews: 987,
-    price: "$400",
-    priceCaption: "Service from",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Monk Ceremony Package",
-    categories: ["Monk Ceremony", "Traditional Services", "Blessing"],
-    location: "Phnom Penh",
-    rating: 4.8,
-    reviews: 643,
-    price: "$300",
-    priceCaption: "Service from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Kids Paradise Entertainment",
-    categories: [
-      "Kids Entertainment",
-      "Games & Activities",
-      "Character Meet & Greet",
-    ],
-    location: "Brooklyn",
-    rating: 4.8,
-    reviews: 1523,
-    price: "$300",
-    priceCaption: "Per Hour from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Gourmet Catering Elite",
-    categories: ["Fine Dining Catering", "Menu Customization", "Chef Services"],
-    location: "Manhattan",
-    rating: 4.9,
-    reviews: 2678,
-    price: "$85",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-];
-
-const steps = [
-  {
-    title: "Discover Vendors",
-    text: "Browse thousands of curated local services to match your vibe.",
-    icon: "🔍",
-  },
-  {
-    title: "Chat & Customize",
-    text: "Message vendors, compare options, and personalize every detail.",
-    icon: "💬",
-  },
-  {
-    title: "Book Securely",
-    text: "Lock in dates with confidence—secure payments and reminders.",
-    icon: "🛡️",
-  },
-];
-
-const tips = [
-  {
-    category: "Wedding Planning",
-    title: "5 Secrets to a Stress-Free Wedding Ceremony",
-    meta: "By Claire Muller • 6 min read",
-    image: "public/W1.png",
-  },
-  {
-    category: "Corporate",
-    title: "Choosing the Right Venue for Corporate Galas",
-    meta: "By Team Achar • 4 min read",
-    image: "public/p1.png",
-  },
-  {
-    category: "Decor & Styling",
-    title: "Minimalist Tablescapes That Still Feel Luxe",
-    meta: "By In-house Stylists • 5 min read",
-    image: "public/p2.png",
-  },
-];
-
-const showBookingModal = ref(false);
-const selectedVendor = ref(null);
-const bookingSuccess = ref(false);
-const bookingForm = ref({
-  fullName: "",
-  email: "",
-  eventDate: "",
-  guests: 50,
-  notes: "",
-});
-
-function openBookingModal(vendor) {
-  selectedVendor.value = vendor;
-  bookingSuccess.value = false;
-  showBookingModal.value = true;
-  // Reset form for a clean slate each time the modal is opened
-  bookingForm.value = {
-    fullName: "",
-    email: "",
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
-}
-
-function closeBookingModal() {
-  showBookingModal.value = false;
-}
-
-function submitBooking() {
-  // In a real app, you'd make an API call here.
-  // On success, we just need to flip the boolean to show the success view.
-  bookingSuccess.value = true;
-}
+}); // vendor carousel controlsconst currentVendorIndex = ref(0);const VENDOR_PAGE_SIZE = 4;const displayedVendors = computed(() => {  return vendors.slice(    currentVendorIndex.value,    currentVendorIndex.value + VENDOR_PAGE_SIZE,  );});function nextVendors() {  if (currentVendorIndex.value + VENDOR_PAGE_SIZE < vendors.length) {    currentVendorIndex.value += VENDOR_PAGE_SIZE;  }}function prevVendors() {  if (currentVendorIndex.value - VENDOR_PAGE_SIZE >= 0) {    currentVendorIndex.value -= VENDOR_PAGE_SIZE;  }}function onEventCardImageError(event, fallback) {  event.target.src = fallback;}function goToEvent(event) {  // convert name to key used in packageCatalogByEventType  const key = event.name.toLowerCase().replace(/\s+/g, "_");  router.push({ path: "/services/packages", query: { event: key } });}const vendors = [  {    tag: "Top rated",    title: "Skyline Grand Atrium",    categories: ["Wedding Planning", "Event Design", "Venue"],    location: "Downtown Manhattan",    rating: 4.9,    reviews: 2458,    price: "$3,500",    priceCaption: "Starts from",    cta: "Book",    image: "public/W2.png",  },  {    tag: "Top rated",    title: "Artisan Palate",    categories: ["Catering", "Private Dining", "Menu Design"],    location: "Upper West Side",    rating: 4.8,    reviews: 1945,    price: "$150/pp",    priceCaption: "From",    cta: "Book",    image: "public/W5.png",  },  {    tag: "Top rated",    title: "Lumina Studios",    categories: ["Photography", "Cinematography", "Videography"],    location: "Brooklyn Heights",    rating: 4.9,    reviews: 3021,    price: "$2,200",    priceCaption: "Starts from",    cta: "Book",    image: "public/w4.png",  },  {    tag: "Best Value",    title: "Elegant Events Co",    categories: ["Decoration", "Floral Design", "Styling"],    location: "Queens Center",    rating: 4.7,    reviews: 1523,    price: "$1,200",    priceCaption: "Starts from",    cta: "Book",    image: "public/W1.png",  },  {    tag: "Premium",    title: "Prime Venues",    categories: ["Venue Rental", "Layout Design", "Catering"],    location: "The Hamptons",    rating: 4.8,    reviews: 876,    price: "$4,000",    priceCaption: "From",    cta: "Book",    image: "public/p1.png",  },  {    tag: "Top rated",    title: "Blooming Bliss Florals",    categories: ["Floral Design", "Bouquets", "Installation"],    location: "Midtown East",    rating: 4.9,    reviews: 2156,    price: "$800",    priceCaption: "Starts from",    cta: "Book",    image: "public/W3.png",  },  {    tag: "Best Value",    title: "Harmony Music Collective",    categories: ["Live Music", "DJ Services", "Entertainment"],    location: "Brooklyn",    rating: 4.7,    reviews: 1834,    price: "$600",    priceCaption: "From",    cta: "Book",    image: "public/p2.png",  },  {    tag: "Top rated",    title: "Beauty & Glamour Studio",    categories: ["Makeup", "Hair Styling", "Bridal Services"],    location: "Manhattan",    rating: 4.8,    reviews: 2342,    price: "$350",    priceCaption: "Per Person from",    cta: "Book",    image: "public/W1.png",  },  {    tag: "Premium",    title: "Luxe Rentals & Linens",    categories: ["Table Rentals", "Linens", "Décor Elements"],    location: "Long Island City",    rating: 4.9,    reviews: 1567,    price: "$500",    priceCaption: "Starts from",    cta: "Book",    image: "public/W5.png",  },  {    tag: "Top rated",    title: "Sweet Confections Bakery",    categories: ["Custom Cakes", "Desserts", "Pastries"],    location: "Upper East Side",    rating: 4.8,    reviews: 2089,    price: "$250",    priceCaption: "Per Tier from",    cta: "Book",    image: "public/w4.png",  },  {    tag: "Top rated",    title: "Prestige Event Planning",    categories: [      "Event Coordination",      "Budget Management",      "Timeline Planning",    ],    location: "Midtown Manhattan",    rating: 4.9,    reviews: 2567,    price: "$1,500",    priceCaption: "Planning Fee from",    cta: "Book",    image: "public/W2.png",  },  {    tag: "Top rated",    title: "ProAudio & Lighting Co",    categories: ["Sound System", "Stage Lighting", "AV Equipment"],    location: "Queens",    rating: 4.8,    reviews: 1923,    price: "$900",    priceCaption: "Setup from",    cta: "Book",    image: "public/p1.png",  },  {    tag: "Best Value",    title: "Elegant Invitations Studio",    categories: ["Invitation Design", "Printing", "Stationery"],    location: "Brooklyn",    rating: 4.7,    reviews: 1456,    price: "$200",    priceCaption: "Per Set from",    cta: "Book",    image: "public/W3.png",  },  {    tag: "Premium",    title: "Luxe Transportation Services",    categories: ["Airport Pickup", "Valet Service", "Guest Transportation"],    location: "Manhattan",    rating: 4.9,    reviews: 1765,    price: "$75",    priceCaption: "Per Hour from",    cta: "Book",    image: "public/p2.png",  },  {    tag: "Top rated",    title: "Grand Tent & Canopy Rentals",    categories: ["Tent Rentals", "Canopy Setup", "Weather Protection"],    location: "New Jersey",    rating: 4.8,    reviews: 1342,    price: "$400",    priceCaption: "Starts from",    cta: "Book",    image: "public/W1.png",  },  {    tag: "Best Value",    title: "Premium Bar & Beverage Service",    categories: ["Bar Service", "Beverage Selection", "Bartending"],    location: "Manhattan",    rating: 4.7,    reviews: 2134,    price: "$35",    priceCaption: "Per Person from",    cta: "Book",    image: "public/W5.png",  },  {    tag: "Top rated",    title: "Corporate Event Specialists",    categories: ["Corporate Planning", "Conference Setup", "Team Events"],    location: "Midtown",    rating: 4.9,    reviews: 2301,    price: "$2,000",    priceCaption: "Event Planning from",    cta: "Book",    image: "public/w4.png",  },  {    tag: "Top rated",    title: "Hospitality & Guest Services",    categories: ["Guest Reception", "Coat Check", "Concierge Services"],    location: "Upper East Side",    rating: 4.8,    reviews: 1678,    price: "$25",    priceCaption: "Per Person from",    cta: "Book",    image: "public/W2.png",  },  {    tag: "Premium",    title: "Sacred Rituals & Blessings",    categories: [      "House Blessing",      "Ritual Services",      "Traditional Ceremonies",      "Monk Ceremony",    ],    location: "Queens",    rating: 4.9,    reviews: 987,    price: "$400",    priceCaption: "Service from",    cta: "Book",    image: "public/p1.png",  },  {    tag: "Top rated",    title: "Monk Ceremony Package",    categories: ["Monk Ceremony", "Traditional Services", "Blessing"],    location: "Phnom Penh",    rating: 4.8,    reviews: 643,    price: "$300",    priceCaption: "Service from",    cta: "Book",    image: "public/W3.png",  },  {    tag: "Best Value",    title: "Kids Paradise Entertainment",    categories: [      "Kids Entertainment",      "Games & Activities",      "Character Meet & Greet",    ],    location: "Brooklyn",    rating: 4.8,    reviews: 1523,    price: "$300",    priceCaption: "Per Hour from",    cta: "Book",    image: "public/W3.png",  },  {    tag: "Top rated",    title: "Gourmet Catering Elite",    categories: ["Fine Dining Catering", "Menu Customization", "Chef Services"],    location: "Manhattan",    rating: 4.9,    reviews: 2678,    price: "$85",    priceCaption: "Per Person from",    cta: "Book",    image: "public/p2.png",  },];const steps = [  {    title: "Discover Vendors",    text: "Browse thousands of curated local services to match your vibe.",    icon: "🔍",  },  {    title: "Chat & Customize",    text: "Message vendors, compare options, and personalize every detail.",    icon: "💬",  },  {    title: "Book Securely",    text: "Lock in dates with confidence—secure payments and reminders.",    icon: "🛡️",  },];const tips = [  {    category: "Wedding Planning",    title: "5 Secrets to a Stress-Free Wedding Ceremony",    meta: "By Claire Muller • 6 min read",    image: "public/W1.png",  },  {    category: "Corporate",    title: "Choosing the Right Venue for Corporate Galas",    meta: "By Team Achar • 4 min read",    image: "public/p1.png",  },  {    category: "Decor & Styling",    title: "Minimalist Tablescapes That Still Feel Luxe",    meta: "By In-house Stylists • 5 min read",    image: "public/p2.png",  },];const showBookingModal = ref(false);const selectedVendor = ref(null);const bookingSuccess = ref(false);const bookingForm = ref({  fullName: "",  email: "",  eventDate: "",  guests: 50,  notes: "",});function openBookingModal(vendor) {  selectedVendor.value = vendor;  bookingSuccess.value = false;  showBookingModal.value = true;  // Reset form for a clean slate each time the modal is opened  bookingForm.value = {    fullName: "",    email: "",    eventDate: "",    guests: 50,    notes: "",  };}function closeBookingModal() {  showBookingModal.value = false;}function submitBooking() {  // In a real app, you'd make an API call here.  // On success, we just need to flip the boolean to show the success view.  bookingSuccess.value = true;}
 </script>
-
 <template>
   <div class="home-page">
     <PublicNavbar />
-
     <section class="hero">
       <div class="hero__bg-shape"></div>
       <div class="hero__grid">
         <div class="hero__text">
           <h1>
-            Your Perfect Event,
-            <span class="highlight">Orchestrated</span>
-            to Perfection
+            Your Perfect Event, <span class="highlight">Orchestrated</span> to
+            Perfection
           </h1>
           <p class="lede">
             Discover and book the finest venues, caterers, and specialists to
             master your traditional and modern ceremonies.
           </p>
-
           <router-link
             class="search-btn hero-explore-btn"
             to="/services/packages"
@@ -550,7 +155,6 @@ function submitBooking() {
         </div>
       </div>
     </section>
-
     <section id="services" class="section">
       <div class="section__header">
         <div>
@@ -587,7 +191,6 @@ function submitBooking() {
         </div>
       </div>
     </section>
-
     <section class="section">
       <div class="section__header">
         <div>
@@ -627,8 +230,7 @@ function submitBooking() {
               </p>
             </div>
             <div class="vendor-rating">
-              <span class="star">★</span>
-              <strong>{{ vendor.rating }}</strong>
+              <span class="star">★</span> <strong>{{ vendor.rating }}</strong>
               <span class="reviews"
                 >{{ vendor.reviews?.toLocaleString() || "4,758" }} reviews</span
               >
@@ -650,7 +252,6 @@ function submitBooking() {
         </article>
       </div>
     </section>
-
     <!-- Improved Booking Modal -->
     <div
       v-if="showBookingModal"
@@ -661,7 +262,6 @@ function submitBooking() {
         <button type="button" class="booking-close" @click="closeBookingModal">
           &times;
         </button>
-
         <div class="booking-modal-layout">
           <!-- Left Side: Vendor Info -->
           <div class="booking-vendor-preview">
@@ -686,7 +286,6 @@ function submitBooking() {
               </div>
             </div>
           </div>
-
           <!-- Right Side: Form or Success State -->
           <div class="booking-form-section">
             <div v-if="bookingSuccess" class="booking-success-state">
@@ -705,7 +304,6 @@ function submitBooking() {
                 Done
               </button>
             </div>
-
             <form
               v-else
               class="booking-modal-form"
@@ -715,7 +313,6 @@ function submitBooking() {
                 <h3>Confirm Your Details</h3>
                 <p>Fill out the form below to send a booking request.</p>
               </div>
-
               <div class="form-group">
                 <label for="fullName">Full name</label>
                 <input
@@ -726,7 +323,6 @@ function submitBooking() {
                   placeholder="e.g., Jane Doe"
                 />
               </div>
-
               <div class="form-group">
                 <label for="email">Email address</label>
                 <input
@@ -737,7 +333,6 @@ function submitBooking() {
                   placeholder="e.g., jane.doe@email.com"
                 />
               </div>
-
               <div class="form-row">
                 <div class="form-group">
                   <label for="eventDate">Event date</label>
@@ -760,7 +355,6 @@ function submitBooking() {
                   />
                 </div>
               </div>
-
               <div class="form-group">
                 <label for="notes">Additional notes</label>
                 <textarea
@@ -770,7 +364,6 @@ function submitBooking() {
                   placeholder="Any special requests or details for the vendor..."
                 ></textarea>
               </div>
-
               <div class="booking-modal-actions">
                 <button
                   type="button"
@@ -788,7 +381,6 @@ function submitBooking() {
         </div>
       </div>
     </div>
-
     <section class="section steps">
       <div class="section__header center">
         <p class="eyebrow">Planning Made Simple</p>
@@ -803,7 +395,6 @@ function submitBooking() {
         </div>
       </div>
     </section>
-
     <section id="favorite" class="section tips">
       <div class="section__header">
         <div>
@@ -825,7 +416,6 @@ function submitBooking() {
         </article>
       </div>
     </section>
-
     <section class="cta">
       <div class="cta__content">
         <p class="eyebrow light">Start Planning</p>
@@ -844,70 +434,6 @@ function submitBooking() {
         </div>
       </div>
     </section>
-
-    <footer id="contact" class="footer">
-      <div class="footer__grid">
-        <div>
-          <div class="brand">
-            <img
-              class="brand-logo"
-              :src="appLogoSrc"
-              alt="Achar logo"
-              @error="onLogoError"
-            />
-            <span class="brand-name">Achar.</span>
-          </div>
-          <p class="footer-copy">
-            Achar makes event planning effortless with curated vendors, smart
-            tools, and secure bookings.
-          </p>
-          <div class="social">
-            <a href="#" aria-label="LinkedIn">in</a>
-            <a href="#" aria-label="Facebook">f</a>
-            <a href="#" aria-label="Instagram">ig</a>
-            <a href="#" aria-label="Twitter">x</a>
-          </div>
-        </div>
-        <div>
-          <p class="footer-title">For Partners</p>
-          <router-link to="/dashboard" class="footer-link"
-            >Enterprise Solutions</router-link
-          >
-          <router-link to="/services" class="footer-link"
-            >Affiliate Program</router-link
-          >
-          <router-link to="/legacy-app" class="footer-link"
-            >Corporate Packages</router-link
-          >
-        </div>
-        <div>
-          <p class="footer-title">For Vendors</p>
-          <router-link to="/dashboard" class="footer-link"
-            >Join as Vendor</router-link
-          >
-          <router-link to="/services" class="footer-link">Pricing</router-link>
-          <router-link to="/booking" class="footer-link"
-            >Help Center</router-link
-          >
-        </div>
-        <div>
-          <p class="footer-title">Subscribe</p>
-          <div class="subscribe">
-            <input type="email" placeholder="Email address" />
-            <button aria-label="Subscribe">➜</button>
-          </div>
-        </div>
-      </div>
-      <div class="footer__meta">
-        <span>© 2026 Achar Event Booking</span>
-        <div class="meta-links">
-          <router-link to="/home">Terms of Policy</router-link>
-          <router-link to="/home">Terms of Service</router-link>
-          <router-link to="/home">Cookies</router-link>
-        </div>
-      </div>
-    </footer>
   </div>
 </template>
-
 <style scoped src="../assets/Home.css"></style>

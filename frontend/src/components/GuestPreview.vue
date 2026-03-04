@@ -413,12 +413,46 @@ function detectPrebookLocation() {
   prebookLocationNotice.value = "";
 
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       const lat = Number(position.coords.latitude.toFixed(6));
       const lng = Number(position.coords.longitude.toFixed(6));
+      let placeName = "";
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+        const response = await fetch(url, {
+          headers: {
+            Accept: "application/json",
+            "Accept-Language": "en",
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const address = data?.address || {};
+          const streetNumber = address.house_number || address.house_name || address.building || "";
+          const streetName = address.road || address.pedestrian || address.footway || "";
+          const street = [streetNumber, streetName].filter(Boolean).join(" ").trim();
+          const village = address.village || address.hamlet || address.neighbourhood || address.suburb || "";
+          const district = address.city_district || address.district || address.borough || address.county || "";
+          const city = address.city || address.town || address.municipality || address.state_district || "";
+          const province = address.state || address.region || address.province || "";
+          const parts = [street, village, district, city, province].filter(
+            (value) => String(value).trim().length > 0,
+          );
+          const primaryName =
+            data?.name ||
+            address.shop ||
+            address.amenity ||
+            address.tourism ||
+            address.building ||
+            "";
+          placeName = parts.length ? parts.join(", ") : String(primaryName || "").trim();
+        }
+      } catch {
+        placeName = "";
+      }
       prebookForm.value.latitude = lat;
       prebookForm.value.longitude = lng;
-      prebookForm.value.location = `${lat}, ${lng}`;
+      prebookForm.value.location = placeName || `${lat}, ${lng}`;
       prebookLocationNotice.value = "Current location captured.";
       isDetectingPrebookLocation.value = false;
     },
