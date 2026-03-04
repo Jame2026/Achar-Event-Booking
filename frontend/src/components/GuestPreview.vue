@@ -107,10 +107,32 @@ const customizationBindings = {
 };
 const router = useRouter();
 const route = useRoute();
+const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
+
+function isUserLoggedIn() {
+  try {
+    return Boolean(localStorage.getItem("achar_auth_user"));
+  } catch {
+    return false;
+  }
+}
+
+function requireAuthForBooking() {
+  if (isUserLoggedIn()) return true;
+  sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, route.fullPath || "/booking");
+  sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
+  router.push("/legacy-app");
+  return false;
+}
 
 // compute event filter key from query string
 const selectedEventFilter = computed(() => {
   const val = route.query.event;
+  return typeof val === "string" ? val : "";
+});
+const selectedSearchQuery = computed(() => {
+  const val = route.query.q;
   return typeof val === "string" ? val : "";
 });
 
@@ -252,7 +274,10 @@ const guestPreviewPackagesForCustomization = computed(() => {
 });
 
 const matchingServicesFiltered = computed(() => {
-  const q = customizationSearch.value.trim().toLowerCase();
+  const q =
+    section.value === "services-packages"
+      ? packageSearch.value.trim().toLowerCase()
+      : customizationSearch.value.trim().toLowerCase();
   const filter = customizationEventType.value;
   return matchingServicesCatalog.filter((s) => {
     const matchesType =
@@ -276,6 +301,7 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
+  if (!requireAuthForBooking()) return;
   prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
   prebookForm.value = {
     fullName: "",
@@ -334,6 +360,10 @@ function submitPrebookForm() {
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
+    requestedEventType:
+      selectedPackage.value?.eventType ||
+      activePackage.value?.eventType ||
+      (usingOverallFlow ? customizationEventType.value : "other"),
     items: checkoutItems,
   };
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
@@ -426,6 +456,77 @@ const favoriteServices = computed(() =>
     favoriteServiceIds.value.includes(service.id),
   ),
 );
+const favoriteBookingPackageId = ref(null);
+const favoriteBookingQuantity = ref(1);
+const favoriteSelectedPackage = computed(() =>
+  favoritePackages.value.find((item) => item.id === favoriteBookingPackageId.value) || null,
+);
+const favoriteSelectedServiceIds = computed(() =>
+  favoriteServices.value.map((service) => service.id),
+);
+const favoritePackageSubtotal = computed(() =>
+  Number(favoriteSelectedPackage.value?.price || 0) * Number(favoriteBookingQuantity.value || 1),
+);
+const favoriteServicesSubtotal = computed(() => {
+  const perUnit = favoriteServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0);
+  return perUnit * Number(favoriteBookingQuantity.value || 1);
+});
+const favoriteServiceFee = computed(() =>
+  Number(((favoritePackageSubtotal.value + favoriteServicesSubtotal.value) * serviceFeeRate).toFixed(2)),
+);
+const favoriteTotal = computed(() =>
+  Number((favoritePackageSubtotal.value + favoriteServicesSubtotal.value + favoriteServiceFee.value).toFixed(2)),
+);
+
+watch(
+  favoritePackages,
+  (rows) => {
+    if (!rows.length) {
+      favoriteBookingPackageId.value = null;
+      return;
+    }
+    if (!favoriteBookingPackageId.value || !rows.some((item) => item.id === favoriteBookingPackageId.value)) {
+      favoriteBookingPackageId.value = rows[0].id;
+    }
+  },
+  { immediate: true },
+);
+watch(
+  selectedSearchQuery,
+  (value) => {
+    if (!value) return;
+    packageEventType.value = "all";
+    customizationEventType.value = "all";
+    packageSearch.value = value;
+    customizationSearch.value = value;
+  },
+  { immediate: true },
+);
+
+function favoriteQtyChanged(e) {
+  const val = Number(e.target.value);
+  if (Number.isFinite(val) && val >= 1) favoriteBookingQuantity.value = val;
+}
+
+function openFavoritePrebookForm() {
+  if (!requireAuthForBooking()) return;
+  if (!favoriteSelectedPackage.value && favoriteServices.value.length === 0) return;
+  selectedPackageId.value = favoriteSelectedPackage.value?.id || null;
+  selectedServiceIds.value = [...favoriteSelectedServiceIds.value];
+  packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
+  prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
+  prebookForm.value = {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    eventDate: "",
+    guests: 50,
+    notes: "",
+  };
+  prebookSuccess.value = "";
+  showPrebookModal.value = true;
+}
 
 const overallServicesSubtotal = computed(() => {
   const perUnit = selectedServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0);
@@ -960,6 +1061,71 @@ function noop() {}
             </ul>
           </article>
         </div>
+
+        <article class="favorite-card favorite-booking-card">
+          <h3>Book Favorites</h3>
+          <p class="guest-text">
+            Select package and quantity, include your favorite services, then pre-book with total calculation.
+          </p>
+
+          <div class="favorite-booking-grid">
+            <label class="filter-field">
+              <span>Favorite Package</span>
+              <select
+                class="event-type-select"
+                :value="favoriteBookingPackageId || ''"
+                @change="favoriteBookingPackageId = $event.target.value || null"
+              >
+                <option value="">No package</option>
+                <option
+                  v-for="item in favoritePackages"
+                  :key="`fav-pkg-${item.id}`"
+                  :value="item.id"
+                >
+                  {{ item.title }} ({{ item.priceLabel }})
+                </option>
+              </select>
+            </label>
+
+            <label class="filter-field">
+              <span>Quantity</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                :value="favoriteBookingQuantity"
+                @input="favoriteQtyChanged"
+              />
+            </label>
+          </div>
+
+          <div class="summary-row">
+            <span>Package Subtotal</span>
+            <strong>${{ favoritePackageSubtotal.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Services Subtotal</span>
+            <strong>${{ favoriteServicesSubtotal.toLocaleString() }}</strong>
+          </div>
+          <div class="summary-row muted">
+            <span>Service Fee (10%)</span>
+            <strong>${{ favoriteServiceFee.toLocaleString() }}</strong>
+          </div>
+
+          <div class="summary-total">
+            <span>Total Price</span>
+            <strong>${{ favoriteTotal.toLocaleString() }}</strong>
+          </div>
+
+          <button
+            type="button"
+            class="confirm-selection"
+            :disabled="!favoriteSelectedPackage && favoriteServices.length === 0"
+            @click="openFavoritePrebookForm"
+          >
+            Pre-book Favorite Items
+          </button>
+        </article>
       </section>
 
       <BookingsPage
@@ -1842,6 +2008,26 @@ function noop() {}
   background: #f8fafc;
 }
 
+.favorite-booking-card {
+  margin-top: 12px;
+}
+
+.favorite-booking-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 10px;
+}
+
+.favorite-booking-grid input {
+  width: 100%;
+  border: 1px solid #d7e4f3;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  font: inherit;
+}
+
 @media (max-width: 720px) {
   .package-toolbar {
     grid-template-columns: 1fr;
@@ -1909,6 +2095,10 @@ function noop() {}
   }
 
   .favorite-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-booking-grid {
     grid-template-columns: 1fr;
   }
 

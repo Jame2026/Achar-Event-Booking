@@ -15,13 +15,16 @@ const form = reactive({
   password_confirmation: '',
 })
 const registerMethod = ref<'email' | 'phone'>('email')
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
-const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
+const authBaseUrl = apiOrigin
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
@@ -57,7 +60,7 @@ const submitRegister = async () => {
     }
 
     const response = await fetch(
-      `${apiBaseUrl}/api/register`,
+      `${apiBaseUrl}/register`,
       {
         method: 'POST',
         headers: {
@@ -185,24 +188,52 @@ const submitRegister = async () => {
 
           <label class="field">
             <span>Password</span>
-            <input
-              v-model="form.password"
-              type="password"
-              placeholder="At least 8 characters"
-              minlength="8"
-              required
-            />
+            <div class="password-wrap">
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="At least 8 characters"
+                minlength="8"
+                required
+              />
+              <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
+                <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
           </label>
 
           <label class="field">
             <span>Confirm Password</span>
-            <input
-              v-model="form.password_confirmation"
-              type="password"
-              placeholder="Repeat password"
-              minlength="8"
-              required
-            />
+            <div class="password-wrap">
+              <input
+                v-model="form.password_confirmation"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                placeholder="Repeat password"
+                minlength="8"
+                required
+              />
+              <button type="button" class="ghost-btn" @click="showConfirmPassword = !showConfirmPassword">
+                <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
           </label>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
@@ -232,3 +263,4 @@ const submitRegister = async () => {
     </main>
   </section>
 </template>
+

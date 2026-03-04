@@ -1,9 +1,13 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { apiPost } from "../features/apiClient";
 
 const router = useRouter();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
+const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 const fallback = {
@@ -64,13 +68,70 @@ function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
 }
 
-function handleConfirmAndPay() {
+function saveLocalBooking(user) {
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    const rows = Array.isArray(existing) ? existing : [];
+    const email = String(booking.email || user?.email || "").trim().toLowerCase();
+    if (!email) return;
+    const firstItem = bookingItems.value[0] || {};
+    rows.unshift({
+      id: `local-${Date.now()}`,
+      customerEmail: email,
+      customerName: booking.fullName || user?.name || "Guest User",
+      vendor: booking.vendorTitle || "Selected Vendor",
+      service: firstItem.name || booking.vendorTitle || "Service Booking",
+      dateLabel: booking.eventDate || "Date TBD",
+      eventType: "other",
+      total: Number(bookingTotal.value || 0),
+      status: "Confirmed",
+      statusClass: "confirmed",
+      type: "Upcoming",
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(rows.slice(0, 100)));
+  } catch {
+    // Ignore local-storage issues and continue checkout flow.
+  }
+}
+
+async function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) {
     paymentNotice.value = "Please sign in or register to continue payment.";
-    sessionStorage.setItem("achar_post_auth_redirect", "/checkout");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
     router.push("/legacy-app");
+    return;
+  }
+  let user = null;
+  try {
+    user = stored ? JSON.parse(stored) : null;
+  } catch {
+    user = null;
+  }
+  const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerName = String(booking.fullName || user?.name || "Guest User").trim();
+  if (!customerEmail) {
+    paymentNotice.value = "Please add your email before confirming payment.";
+    return;
+  }
+  const firstItem = bookingItems.value[0] || {};
+  const quantity = Math.max(1, Number(firstItem.qty || 1));
+  try {
+    await apiPost("bookings", {
+      event_id: booking.eventId || null,
+      quantity,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      service_name: firstItem.name || booking.vendorTitle || "Service Booking",
+      requested_event_type: booking.requestedEventType || "other",
+      total_amount: bookingTotal.value,
+    });
+  } catch (error) {
+    paymentNotice.value = error?.message || "Unable to save booking to database.";
     return;
   }
   const receiptPayload = {
@@ -83,6 +144,7 @@ function handleConfirmAndPay() {
     paidMethod: selectedMethod.value,
     paidAt: new Date().toISOString(),
   };
+  saveLocalBooking(user);
   sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
   router.push("/checkout/confirmed");
 }

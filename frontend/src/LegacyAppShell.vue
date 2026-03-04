@@ -9,6 +9,7 @@ import CustomizationPage from './components/pages/CustomizationPage.vue'
 import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
+import PublicNavbar from './components/PublicNavbar.vue'
 import VendorPage from './components/pages/VendorPage.vue'
 import {
   eventTypeMap,
@@ -30,6 +31,10 @@ import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
+const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
+const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
+const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
+const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -54,16 +59,26 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
-  handlePostAuthRedirect()
+  customerName.value = user?.name ?? customerName.value
+  customerEmail.value = user?.email ?? customerEmail.value
+  const redirected = handlePostAuthRedirect()
+  if (!redirected) {
+    router.push('/').catch(() => {})
+  }
 }
 
 function handlePostAuthRedirect() {
   const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
-  if (!redirectPath) return
+  const redirectAtRaw = sessionStorage.getItem(POST_AUTH_REDIRECT_AT_KEY)
   sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+  sessionStorage.removeItem(POST_AUTH_REDIRECT_AT_KEY)
+  if (!redirectPath) return false
+  const redirectAt = Number(redirectAtRaw || 0)
+  const isFresh = Number.isFinite(redirectAt) && Date.now() - redirectAt <= POST_AUTH_REDIRECT_TTL_MS
+  const isSafePath = typeof redirectPath === 'string' && redirectPath.startsWith('/')
+  if (!isFresh || !isSafePath) return false
   router.push(redirectPath).catch(() => {})
+  return true
 }
 
 function requireLogin(message = 'Please sign in to continue booking.') {
@@ -85,6 +100,8 @@ const activeVendorTab = ref('about')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
+const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
+const defaultLegacyPage = computed(() => 'bookings')
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
@@ -92,7 +109,9 @@ function firstQueryValue(value) {
 
 function normalizePage(value) {
   const page = firstQueryValue(value)
-  return allowedPages.includes(page) ? page : 'dashboard'
+  if (!allowedPages.includes(page)) return defaultLegacyPage.value
+  if (page === 'dashboard') return 'bookings'
+  return page
 }
 
 function normalizeVendorTab(value) {
@@ -108,7 +127,7 @@ function applyRouteStateFromQuery(query) {
 
 function syncRouteQueryFromState() {
   const nextQuery = {}
-  if (currentPage.value !== 'dashboard') nextQuery.page = currentPage.value
+  if (currentPage.value !== defaultLegacyPage.value) nextQuery.page = currentPage.value
   if (currentPage.value === 'vendor') nextQuery.tab = activeVendorTab.value
 
   const currentPageQuery = firstQueryValue(route.query.page)
@@ -358,6 +377,49 @@ const dashboardStats = computed(() => {
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 
+function getLocalBookingsByEmail(email) {
+  if (!email) return []
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return []
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return []
+    const normalizedEmail = email.trim().toLowerCase()
+    return rows
+      .filter((row) => String(row?.customerEmail || '').trim().toLowerCase() === normalizedEmail)
+      .map((row, index) => ({
+        id: row.id || `local-${index}`,
+        vendor: row.vendor || vendorProfile.name,
+        service: row.service || 'Service Booking',
+        date: row.dateLabel || 'Date TBD',
+        metaLabel: 'Event Type',
+        metaValue: eventTypeMap[row.eventType] || 'Other',
+        placeLabel: 'Total',
+        placeValue: `$${Number(row.total || 0).toLocaleString()}`,
+        status: row.status || 'Confirmed',
+        statusClass: row.statusClass || 'confirmed',
+        type: row.type || 'Upcoming',
+        eventType: row.eventType || 'other',
+        eventId: null,
+        image:
+          'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
+        primaryBtn: 'View Details',
+        secondaryBtn: 'Reschedule',
+        note: `${row.customerName || 'Guest User'} | ${row.customerEmail || normalizedEmail}`,
+      }))
+  } catch {
+    return []
+  }
+}
+
+function mergeBookingsWithLocal(apiMappedRows, email) {
+  const localRows = getLocalBookingsByEmail(email)
+  if (!localRows.length) return apiMappedRows
+  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
+  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
+  return [...localOnlyRows, ...apiMappedRows]
+}
+
 function onBrandLogoError() {
   brandLogoSrc.value = '/favicon.ico'
 }
@@ -425,27 +487,33 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  if (!customerEmail.value.trim()) {
+  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  if (!email) {
     bookings.value = []
     return
   }
 
   isLoadingBookings.value = true
   try {
-    const result = await apiGet('bookings', { customer_email: customerEmail.value.trim() })
+    const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
-    bookings.value = rows.map((row) =>
+    const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
+    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
   } catch (error) {
-    notice.value = 'Could not load bookings. Check backend API and database migrations.'
+    const localRows = getLocalBookingsByEmail(email)
+    bookings.value = localRows
+    notice.value = localRows.length
+      ? 'Loaded your latest booking from this device.'
+      : 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
   }
 }
 
 function goToDashboard() {
-  currentPage.value = 'dashboard'
+  goToBookings()
 }
 
 function goToVendor(tab = 'about') {
@@ -472,6 +540,30 @@ function goToProfile() {
 
 function goToBookings() {
   currentPage.value = 'bookings'
+}
+
+function goToHomePage() {
+  router.push('/').catch(() => {})
+}
+
+function goToAboutPage() {
+  router.push('/about').catch(() => {})
+}
+
+function goToServicePage() {
+  router.push('/services/packages').catch(() => {})
+}
+
+function goToFavoritePage() {
+  router.push('/favorite').catch(() => {})
+}
+
+function goToContactPage() {
+  router.push('/contact').catch(() => {})
+}
+
+function goToMyBookingPage() {
+  router.push('/booking').catch(() => {})
 }
 
 function openUpcomingBookings() {
@@ -579,6 +671,13 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
+  const pendingSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
+  if (pendingSearch) {
+    globalSearch.value = pendingSearch
+    sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+  }
+  if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
+  if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   handlePostAuthRedirect()
   await loadEvents()
   await loadBookings()
@@ -590,49 +689,10 @@ onMounted(async () => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-    <header class="topbar">
-      <div class="shell topbar-inner">
-        <div class="brand">
-          <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
-          <span class="brand-text">Achar</span>
-        </div>
-
-        <nav class="top-links">
-          <a href="#" :class="{ active: currentPage === 'dashboard' }" @click.prevent="goToDashboard">Dashboard</a>
-          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' || currentPage === 'availability' }" @click.prevent="goToVendor()">View Vendors</a>
-          <a href="#" :class="{ active: currentPage === 'bookings' }" @click.prevent="goToBookings">My Bookings</a>
-          <a href="#" :class="{ active: currentPage === 'messages' }" @click.prevent="goToMessages()">Messages</a>
-        </nav>
-
-        <div class="top-actions">
-          <input
-            v-if="currentPage !== 'messages'"
-            v-model="globalSearch"
-            type="search"
-            :placeholder="navSearchPlaceholder"
-          />
-          <button type="button" class="top-logout" @click="logout">Logout</button>
-          <button type="button" class="avatar avatar-btn" @click="goToProfile">{{ userAvatarInitial }}</button>
-        </div>
-      </div>
-    </header>
-
-        <DashboardPage
-      v-if="currentPage === 'dashboard'"
-      :notice="notice"
-      :customer-name="customerName"
-      :dashboard-stats="dashboardStats"
-      :recent-bookings="recentBookings"
-      :recent-conversations="recentConversations"
-      :go-to-vendor="goToVendor"
-      :go-to-bookings="goToBookings"
-      :go-to-messages="goToMessages"
-      :go-to-package-customization="goToPackageCustomization"
-      :open-upcoming-bookings="openUpcomingBookings"
-    />
+    <PublicNavbar />
 
     <VendorPage
-      v-else-if="currentPage === 'vendor'"
+      v-if="currentPage === 'vendor'"
       :vendor-profile="vendorProfile"
       :bindings="vendorBindings"
       :stats="stats"
