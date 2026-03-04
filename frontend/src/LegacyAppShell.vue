@@ -29,6 +29,8 @@ import { useMessagesFeature } from './features/useMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
+const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -53,8 +55,16 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  customerName.value = user?.name ?? customerName.value
+  customerEmail.value = user?.email ?? customerEmail.value
+  handlePostAuthRedirect()
+}
+
+function handlePostAuthRedirect() {
+  const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
+  if (!redirectPath) return
+  sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+  router.push(redirectPath).catch(() => {})
 }
 
 function requireLogin(message = 'Please sign in to continue booking.') {
@@ -349,6 +359,49 @@ const dashboardStats = computed(() => {
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 
+function getLocalBookingsByEmail(email) {
+  if (!email) return []
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return []
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return []
+    const normalizedEmail = email.trim().toLowerCase()
+    return rows
+      .filter((row) => String(row?.customerEmail || '').trim().toLowerCase() === normalizedEmail)
+      .map((row, index) => ({
+        id: row.id || `local-${index}`,
+        vendor: row.vendor || vendorProfile.name,
+        service: row.service || 'Service Booking',
+        date: row.dateLabel || 'Date TBD',
+        metaLabel: 'Event Type',
+        metaValue: eventTypeMap[row.eventType] || 'Other',
+        placeLabel: 'Total',
+        placeValue: `$${Number(row.total || 0).toLocaleString()}`,
+        status: row.status || 'Confirmed',
+        statusClass: row.statusClass || 'confirmed',
+        type: row.type || 'Upcoming',
+        eventType: row.eventType || 'other',
+        eventId: null,
+        image:
+          'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
+        primaryBtn: 'View Details',
+        secondaryBtn: 'Reschedule',
+        note: `${row.customerName || 'Guest User'} | ${row.customerEmail || normalizedEmail}`,
+      }))
+  } catch {
+    return []
+  }
+}
+
+function mergeBookingsWithLocal(apiMappedRows, email) {
+  const localRows = getLocalBookingsByEmail(email)
+  if (!localRows.length) return apiMappedRows
+  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
+  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
+  return [...localOnlyRows, ...apiMappedRows]
+}
+
 function onBrandLogoError() {
   brandLogoSrc.value = '/favicon.ico'
 }
@@ -416,20 +469,26 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  if (!customerEmail.value.trim()) {
+  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  if (!email) {
     bookings.value = []
     return
   }
 
   isLoadingBookings.value = true
   try {
-    const result = await apiGet('bookings', { customer_email: customerEmail.value.trim() })
+    const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
-    bookings.value = rows.map((row) =>
+    const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
+    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
   } catch (error) {
-    notice.value = 'Could not load bookings. Check backend API and database migrations.'
+    const localRows = getLocalBookingsByEmail(email)
+    bookings.value = localRows
+    notice.value = localRows.length
+      ? 'Loaded your latest booking from this device.'
+      : 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
   }
@@ -570,6 +629,9 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
+  if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
+  if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
+  handlePostAuthRedirect()
   await loadEvents()
   await loadBookings()
 })
@@ -577,7 +639,7 @@ onMounted(async () => {
 
 <template>
   <div class="auth-root">
-    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
+    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
     <header class="topbar">

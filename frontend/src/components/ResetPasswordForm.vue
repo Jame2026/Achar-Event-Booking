@@ -5,7 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
 const form = reactive({
   token: '',
   email: '',
@@ -37,7 +38,7 @@ async function submitResetPassword() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/reset-password`, {
+    const response = await fetch(`${apiBaseUrl}/reset-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

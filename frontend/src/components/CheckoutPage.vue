@@ -1,9 +1,12 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { apiPost } from "../features/apiClient";
 
 const router = useRouter();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
+const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 const fallback = {
   vendorTitle: "Selected Vendor",
@@ -59,7 +62,39 @@ function goBack() {
   router.back();
 }
 
-function handleConfirmAndPay() {
+function onLogoError() {
+  appLogoSrc.value = "/favicon.ico";
+}
+
+function saveLocalBooking(user) {
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    const rows = Array.isArray(existing) ? existing : [];
+    const email = String(booking.email || user?.email || "").trim().toLowerCase();
+    if (!email) return;
+    const firstItem = bookingItems.value[0] || {};
+    rows.unshift({
+      id: `local-${Date.now()}`,
+      customerEmail: email,
+      customerName: booking.fullName || user?.name || "Guest User",
+      vendor: booking.vendorTitle || "Selected Vendor",
+      service: firstItem.name || booking.vendorTitle || "Service Booking",
+      dateLabel: booking.eventDate || "Date TBD",
+      eventType: "other",
+      total: Number(bookingTotal.value || 0),
+      status: "Confirmed",
+      statusClass: "confirmed",
+      type: "Upcoming",
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(rows.slice(0, 100)));
+  } catch {
+    // Ignore local-storage issues and continue checkout flow.
+  }
+}
+
+async function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) {
@@ -68,7 +103,47 @@ function handleConfirmAndPay() {
     router.push("/legacy-app");
     return;
   }
-  paymentNotice.value = "Payment flow will continue after account verification.";
+  let user = null;
+  try {
+    user = stored ? JSON.parse(stored) : null;
+  } catch {
+    user = null;
+  }
+  const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerName = String(booking.fullName || user?.name || "Guest User").trim();
+  if (!customerEmail) {
+    paymentNotice.value = "Please add your email before confirming payment.";
+    return;
+  }
+  const firstItem = bookingItems.value[0] || {};
+  const quantity = Math.max(1, Number(firstItem.qty || 1));
+  try {
+    await apiPost("bookings", {
+      event_id: booking.eventId || null,
+      quantity,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      service_name: firstItem.name || booking.vendorTitle || "Service Booking",
+      requested_event_type: booking.requestedEventType || "other",
+      total_amount: bookingTotal.value,
+    });
+  } catch (error) {
+    paymentNotice.value = error?.message || "Unable to save booking to database.";
+    return;
+  }
+  const receiptPayload = {
+    booking,
+    items: bookingItems.value,
+    bookingTotal: bookingTotal.value,
+    processingFee: processingFee.value,
+    deposit: deposit.value,
+    remaining: remaining.value,
+    paidMethod: selectedMethod.value,
+    paidAt: new Date().toISOString(),
+  };
+  saveLocalBooking(user);
+  sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
+  router.push("/checkout/confirmed");
 }
 </script>
 
@@ -76,10 +151,9 @@ function handleConfirmAndPay() {
   <div class="checkout-page">
     <header class="checkout-header">
       <div class="checkout-brand">
-        <div class="checkout-logo">A</div>
+        <img class="checkout-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
         <div>
-          <strong>Achar</strong>
-          <p>Checkout</p>
+          <strong class="checkout-brand-name">Achar</strong>
         </div>
       </div>
       <div class="checkout-steps">
@@ -246,34 +320,36 @@ function handleConfirmAndPay() {
   z-index: 40;
   background: #fff;
   border-bottom: 1px solid #dbe2ee;
-  padding: 12px 20px;
+  padding: 10px 20px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .checkout-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .checkout-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #f59b23;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  border: 1px solid #f2d2bb;
+  background: #fff;
+  object-fit: contain;
+  padding: 6px;
+  box-shadow: 0 6px 14px rgba(198, 100, 14, 0.15);
 }
 
-.checkout-brand p {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
+.checkout-brand-name {
+  display: block;
+  font-size: clamp(26px, 3vw, 42px);
+  line-height: 1.1;
+  color: #c76316;
+  font-weight: 800;
 }
 
 .checkout-steps {
@@ -607,6 +683,23 @@ function handleConfirmAndPay() {
 }
 
 @media (max-width: 980px) {
+  .checkout-header {
+    grid-template-columns: auto;
+    justify-items: start;
+    gap: 8px;
+  }
+
+  .checkout-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .checkout-brand-name {
+    font-size: 28px;
+  }
+
   .checkout-shell {
     grid-template-columns: 1fr;
   }

@@ -2,7 +2,8 @@
 import { reactive, ref } from 'vue'
 
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
 const form = reactive({
   email: '',
 })
@@ -22,7 +23,7 @@ async function submitForgotPassword() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/forgot-password`, {
+    const response = await fetch(`${apiBaseUrl}/forgot-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -79,3 +80,4 @@ async function submitForgotPassword() {
     </main>
   </section>
 </template>
+

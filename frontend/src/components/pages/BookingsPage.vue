@@ -49,18 +49,7 @@ const props = defineProps([
 
     <p v-if="props.notice" class="notice">{{ props.notice }}</p>
 
-    <section class="bookings-layout">
-      <aside class="bookings-sidebar">
-        <a href="#" @click.prevent="props.goToDashboard">Dashboard</a>
-        <a href="#" @click.prevent="props.goToVendor()">View Vendors</a>
-        <a class="active" href="#">My Bookings</a>
-        <a href="#" @click.prevent="props.goToMessages()">Messages</a>
-        <a href="#">Saved Vendors</a>
-        <hr />
-        <a href="#" @click.prevent="props.goToProfile">Settings</a>
-        <a class="danger" href="#">Sign Out</a>
-      </aside>
-
+    <section>
       <div class="booking-list">
         <div v-if="props.isLoadingBookings" class="card empty-state">Loading bookings from API...</div>
         <div v-else-if="props.filteredBookings.length === 0" class="card empty-state">
