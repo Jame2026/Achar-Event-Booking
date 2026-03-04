@@ -1,129 +1,130 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import LegacyAppShell from '../LegacyAppShell.vue'
-import GuestPreview from '../components/GuestPreview.vue'
-import AboutPage from '../components/AboutPage.vue'
-import ContactPage from '../components/ContactPage.vue'
-import VendorDetail from '../components/VendorDetail.vue'
-import CheckoutPage from '../components/CheckoutPage.vue'
-import CheckoutConfirmedPage from '../components/CheckoutConfirmedPage.vue'
-import CheckoutReceiptPage from '../components/CheckoutReceiptPage.vue'
+import { createRouter, createWebHistory } from "vue-router";
+import LegacyAppShell from "../LegacyAppShell.vue";
+import GuestPreview from "../components/GuestPreview.vue";
+import AboutPage from "../components/AboutPage.vue";
+import ContactPage from "../components/ContactPage.vue";
+import VendorDetail from "../components/VendorDetail.vue";
+import CheckoutPage from "../components/CheckoutPage.vue";
+import CheckoutConfirmedPage from "../components/CheckoutConfirmedPage.vue";
+import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
 
 const routes = [
   {
-    path: '/',
-    redirect: '/legacy-app?page=dashboard'
-  },
-  {
-    path: '/home',
-    redirect: '/legacy-app?page=dashboard'
-  },
-  {
-    path: '/about',
-    name: 'About',
-    component: AboutPage
-  },
-  {
-    path: '/contact',
-    name: 'Contact',
-    component: ContactPage
-  },
-  {
-    path: '/booking',
-    name: 'BookingForm',
+    path: "/",
+    name: "Home",
     component: GuestPreview,
-    props: { section: 'bookings' }
+    props: { section: "dashboard" },
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
+    path: "/home",
+    redirect: "/",
+  },
+  {
+    path: "/about",
+    name: "About",
+    component: AboutPage,
+  },
+  {
+    path: "/contact",
+    name: "Contact",
+    component: ContactPage,
+  },
+  {
+    path: "/booking",
+    name: "BookingForm",
     component: GuestPreview,
-    props: { section: 'dashboard' }
+    props: { section: "bookings" },
   },
   {
-    path: '/services',
-    name: 'Services',
+    path: "/dashboard",
+    name: "Dashboard",
     component: GuestPreview,
-    props: { section: 'services-packages' }
+    props: { section: "dashboard" },
   },
   {
-    path: '/services/packages',
-    name: 'ServicePackages',
+    path: "/services",
+    name: "Services",
     component: GuestPreview,
-    props: { section: 'services-packages' }
+    props: { section: "services-packages" },
   },
   {
-    path: '/services/overall',
-    name: 'ServiceOverall',
+    path: "/services/packages",
+    name: "ServicePackages",
     component: GuestPreview,
-    props: { section: 'services-overall' }
+    props: { section: "services-packages" },
   },
   {
-    path: '/legacy-app',
-    name: 'LegacyApp',
-    component: LegacyAppShell
-  },
-  {
-    path: '/vendor',
-    name: 'VendorDetail',
-    component: VendorDetail
-  },
-  {
-    path: '/vendor/legacy',
-    redirect: '/legacy-app?page=vendor'
-  },
-  {
-    path: '/checkout',
-    name: 'Checkout',
-    component: CheckoutPage
-  },
-  {
-    path: '/checkout/confirmed',
-    name: 'CheckoutConfirmed',
-    component: CheckoutConfirmedPage
-  },
-  {
-    path: '/checkout/receipt',
-    name: 'CheckoutReceipt',
-    component: CheckoutReceiptPage
-  },
-  {
-    path: '/customization',
-    name: 'Customization',
+    path: "/services/overall",
+    name: "ServiceOverall",
     component: GuestPreview,
-    props: { section: 'customization' }
+    props: { section: "services-overall" },
   },
   {
-    path: '/favorite',
-    name: 'Favorite',
+    path: "/legacy-app",
+    name: "LegacyApp",
+    component: LegacyAppShell,
+  },
+  {
+    path: "/vendor",
+    name: "VendorDetail",
+    component: VendorDetail,
+  },
+  {
+    path: "/vendor/legacy",
+    redirect: "/legacy-app?page=vendor",
+  },
+  {
+    path: "/checkout",
+    name: "Checkout",
+    component: CheckoutPage,
+  },
+  {
+    path: "/checkout/confirmed",
+    name: "CheckoutConfirmed",
+    component: CheckoutConfirmedPage,
+  },
+  {
+    path: "/checkout/receipt",
+    name: "CheckoutReceipt",
+    component: CheckoutReceiptPage,
+  },
+  {
+    path: "/customization",
+    name: "Customization",
     component: GuestPreview,
-    props: { section: 'favorite' }
+    props: { section: "customization" },
   },
   {
-    path: '/availability',
-    redirect: '/legacy-app?page=availability'
+    path: "/favorite",
+    name: "Favorite",
+    component: GuestPreview,
+    props: { section: "favorite" },
   },
   {
-    path: '/my-bookings',
-    redirect: '/legacy-app?page=bookings'
+    path: "/availability",
+    redirect: "/legacy-app?page=availability",
   },
   {
-    path: '/messages',
-    redirect: '/legacy-app?page=messages'
+    path: "/my-bookings",
+    redirect: "/legacy-app?page=bookings",
   },
   {
-    path: '/profile',
-    redirect: '/legacy-app?page=profile'
+    path: "/messages",
+    redirect: "/legacy-app?page=messages",
   },
   {
-    path: '/:pathMatch(.*)*',
-    redirect: '/'
-  }
-]
+    path: "/profile",
+    redirect: "/legacy-app?page=profile",
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    redirect: "/",
+  },
+];
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
-})
+  routes,
+});
 
-export default router
-
+export default router;
