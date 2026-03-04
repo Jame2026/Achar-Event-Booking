@@ -8,8 +8,9 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
-const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
+const authBaseUrl = apiOrigin
 const form = reactive({
   login: '',
   password: '',
@@ -43,7 +44,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${apiBaseUrl}/api/login`,
+      `${apiBaseUrl}/login`,
       {
         method: 'POST',
         headers: {
@@ -105,15 +106,27 @@ const submitLogin = async () => {
                 required
               />
               <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
-                {{ showPassword ? 'Hide' : 'Show' }}
+                <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
               </button>
             </div>
           </label>
 
-          <label class="check-row">
-            <input v-model="form.remember" type="checkbox" />
-            <span>Remember this device</span>
-          </label>
+          <div class="auth-help-row">
+            <label class="check-row">
+              <input v-model="form.remember" type="checkbox" />
+              <span>Remember this device</span>
+            </label>
+            <router-link class="link-btn" to="/forgot-password">Forgot password?</router-link>
+          </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
@@ -141,3 +154,4 @@ const submitLogin = async () => {
     </main>
   </section>
 </template>
+

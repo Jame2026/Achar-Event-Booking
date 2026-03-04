@@ -24,6 +24,23 @@ export function useProfileFeature(notice) {
     const lng = userLongitude.value.toFixed(6)
     return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=13&size=700x320&markers=${lat},${lng},orange-pushpin`
   })
+  const userLocationMapEmbedUrl = computed(() => {
+    if (userLatitude.value === null || userLongitude.value === null) return ''
+    const lat = Number(userLatitude.value.toFixed(6))
+    const lng = Number(userLongitude.value.toFixed(6))
+    const delta = 0.012
+    const left = (lng - delta).toFixed(6)
+    const bottom = (lat - delta).toFixed(6)
+    const right = (lng + delta).toFixed(6)
+    const top = (lat + delta).toFixed(6)
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${lat}%2C${lng}`
+  })
+  const userLocationMapLinkUrl = computed(() => {
+    if (userLatitude.value === null || userLongitude.value === null) return ''
+    const lat = Number(userLatitude.value.toFixed(6))
+    const lng = Number(userLongitude.value.toFixed(6))
+    return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}`
+  })
 
   function goToProfile(currentPage) {
     currentPage.value = 'profile'
@@ -100,6 +117,8 @@ export function useProfileFeature(notice) {
     userProfileDraft,
     userAvatarInitial,
     userLocationMapUrl,
+    userLocationMapEmbedUrl,
+    userLocationMapLinkUrl,
     goToProfile,
     saveUserProfile,
     resetUserProfile,
