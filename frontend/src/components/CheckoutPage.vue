@@ -5,6 +5,8 @@ import { apiPost } from "../features/apiClient";
 
 const router = useRouter();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
@@ -99,7 +101,8 @@ async function handleConfirmAndPay() {
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) {
     paymentNotice.value = "Please sign in or register to continue payment.";
-    sessionStorage.setItem("achar_post_auth_redirect", "/checkout");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
     router.push("/legacy-app");
     return;
   }
