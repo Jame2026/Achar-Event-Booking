@@ -59,6 +59,7 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
+<<<<<<< HEAD
   customerName.value = user?.name ?? customerName.value
   customerEmail.value = user?.email ?? customerEmail.value
   const redirected = handlePostAuthRedirect()
@@ -87,6 +88,11 @@ function requireLogin(message = 'Please sign in to continue booking.') {
   currentView.value = 'login'
   router.replace({ path: '/legacy-app' }).catch(() => {})
   return false
+=======
+  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
+  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  void bootstrapAuthenticatedShell()
+>>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
 }
 
 function logout() {
@@ -222,6 +228,7 @@ const notifications = ref([])
 const notificationsUnreadCount = ref(0)
 const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
+const isBootstrappingAuth = ref(false)
 let notificationPollTimer = null
 const {
   customerName,
@@ -682,8 +689,11 @@ async function loadBookings() {
     const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
+<<<<<<< HEAD
     bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
     await loadNotifications({ silent: true })
+=======
+>>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -692,6 +702,20 @@ async function loadBookings() {
       : 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
+  }
+}
+
+async function bootstrapAuthenticatedShell() {
+  if (!loggedInUser.value) return
+
+  isBootstrappingAuth.value = true
+  try {
+    const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    await Promise.all(tasks)
+    startNotificationPolling()
+  } finally {
+    isBootstrappingAuth.value = false
   }
 }
 
@@ -832,6 +856,8 @@ watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userL
 })
 
 watch(customerEmail, () => {
+  if (!loggedInUser.value || isBootstrappingAuth.value) return
+
   if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
     loadBookings()
   }
@@ -841,8 +867,6 @@ watch(customerEmail, () => {
 watch(loggedInUser, (user) => {
   if (user) {
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
-    loadNotifications({ silent: true })
-    startNotificationPolling()
     return
   }
 
@@ -871,6 +895,7 @@ onMounted(async () => {
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
+<<<<<<< HEAD
   const pendingSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
   if (pendingSearch) {
     globalSearch.value = pendingSearch
@@ -883,6 +908,9 @@ onMounted(async () => {
   await loadBookings()
   await loadNotifications()
   startNotificationPolling()
+=======
+  await bootstrapAuthenticatedShell()
+>>>>>>> 9b6fef82c45963645ae8650bb2d39cfce58cc7a3
 })
 
 onBeforeUnmount(() => {

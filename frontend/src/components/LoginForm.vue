@@ -52,7 +52,7 @@ const submitLogin = async () => {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          email: form.login,
+          login: form.login,
           password: form.password,
         }),
       },
