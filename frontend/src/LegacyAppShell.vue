@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Login from './components/LoginForm.vue'
@@ -859,6 +859,7 @@ watch(customerEmail, () => {
 watch(loggedInUser, (user) => {
   if (user) {
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+    window.dispatchEvent(new Event('achar:auth-updated'))
     return
   }
 
@@ -867,6 +868,7 @@ watch(loggedInUser, (user) => {
   notificationsUnreadCount.value = 0
   notificationsError.value = ''
   notificationDropdownOpen.value = false
+  window.dispatchEvent(new Event('achar:auth-updated'))
 })
 watch(
   () => route.query,
@@ -1047,6 +1049,7 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
+
 
 
 

@@ -499,7 +499,7 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
 }
 
 .nav-search {
-  width: clamp(220px, 24vw, 360px);
+  width: clamp(120px, 24vw, 160px);
   min-width: 220px;
   max-width: 100%;
   border: 1px solid #d6dde9;

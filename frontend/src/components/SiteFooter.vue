@@ -134,8 +134,8 @@ function onBankLogoError(name) {
 }
 
 .brand-logo {
-  width: 44px;
-  height: 44px;
+  width: 96px;
+  height: 96px;
   border-radius: 10px;
   object-fit: cover;
   border: 1px solid #e5ebf4;
@@ -160,7 +160,7 @@ function onBankLogoError(name) {
   color: #64748b;
   font-size: 14px;
   line-height: 1.6;
-  max-width: 370px;
+  max-width: 305px;
 }
 
 .trust-row {
@@ -183,7 +183,7 @@ function onBankLogoError(name) {
 .links-col h4 {
   margin: 0 0 10px;
   color: #334155;
-  font-size: 15px;
+  font-size: 20px;
 }
 
 .nav-links {
@@ -193,7 +193,8 @@ function onBankLogoError(name) {
 
 .nav-links a {
   color: #64748b;
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -218,10 +219,10 @@ function onBankLogoError(name) {
 
 .payment-card {
   border: 1px solid #d9e2ef;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fff;
-  padding: 7px 10px;
-  min-height: 42px;
+  padding: 2px 0px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -237,8 +238,8 @@ function onBankLogoError(name) {
 }
 
 .payment-logo {
-  width: 42px;
-  height: 26px;
+  width: 56px;
+  height: 40px;
   object-fit: contain;
   flex: 0 0 auto;
 }
