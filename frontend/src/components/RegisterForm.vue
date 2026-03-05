@@ -30,7 +30,7 @@ function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
 
-const startSocialAuth = (provider: 'google') => {
+const startSocialAuth = (provider: 'google' | 'facebook') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
   window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
 }
@@ -252,6 +252,10 @@ const submitRegister = async () => {
           <button type="button" class="social-btn social-btn-google" @click="startSocialAuth('google')">
             <span class="social-mark">G</span>
             <span>Google</span>
+          </button>
+          <button type="button" class="social-btn social-btn-facebook" @click="startSocialAuth('facebook')">
+            <span class="social-mark">f</span>
+            <span>Facebook</span>
           </button>
         </div>
 

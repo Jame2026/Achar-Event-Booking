@@ -3144,8 +3144,19 @@ a {
 }
 
 .social-btn-google .social-mark {
-  background: #ea4335;
+  background: #ff3939;
   color: #fff;
+}
+.social-btn-google:hover {
+  background: #ffdcdc;
+}
+.social-btn-facebook .social-mark{
+  background-color: #1877f2;
+  color: #fff;
+}
+
+.social-btn-facebook:hover {
+  background-color: #c0dbff;
 }
 
 .link-btn {

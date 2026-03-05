@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class SocialAuthController extends Controller
 {
-    private const ALLOWED_PROVIDERS = ['google'];
+    private const ALLOWED_PROVIDERS = ['google', 'facebook'];
 
     public function redirectToProvider(Request $request, string $provider): RedirectResponse
     {
@@ -23,7 +23,7 @@ class SocialAuthController extends Controller
 
         $config = $this->providerConfig($provider);
         if (! $config) {
-            return $this->redirectToFrontendError(ucfirst($provider).' OAuth is not configured.', $preferredFrontendUrl);
+            return $this->redirectToFrontendError(ucfirst($provider) . ' OAuth is not configured.', $preferredFrontendUrl);
         }
 
         $state = $this->makeState($provider, $preferredFrontendUrl);
@@ -39,7 +39,7 @@ class SocialAuthController extends Controller
 
         $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 
-        return redirect()->away($authUrl.'?'.http_build_query($query));
+        return redirect()->away($authUrl . '?' . http_build_query($query));
     }
 
     public function handleProviderCallback(Request $request, string $provider): RedirectResponse
@@ -50,7 +50,7 @@ class SocialAuthController extends Controller
 
         $config = $this->providerConfig($provider);
         if (! $config) {
-            return $this->redirectToFrontendError(ucfirst($provider).' OAuth is not configured.');
+            return $this->redirectToFrontendError(ucfirst($provider) . ' OAuth is not configured.');
         }
 
         if ($request->filled('error')) {
@@ -103,6 +103,7 @@ class SocialAuthController extends Controller
     {
         return match ($provider) {
             'google' => $this->resolveGoogleUser($code, $config),
+            'facebook' => $this->resolveFacebookUser($code, $config),
             default => null,
         };
     }
@@ -138,6 +139,34 @@ class SocialAuthController extends Controller
         ];
     }
 
+    private function resolveFacebookUser(string $code, array $config): ?array
+    {
+        $tokenResponse = Http::timeout(30)->asForm()->post('https://graph.facebook.com/v19.0/oauth/access_token', [
+            'client_id'     => $config['client_id'],
+            'client_secret' => $config['client_secret'],
+            'redirect_uri'  => $config['redirect_uri'],
+            'code'          => $code,
+        ]);
+
+        if (!$tokenResponse->successful()) return null;
+
+        $token = $tokenResponse->json('access_token');
+        if (!is_string($token) || $token === '') return null;
+
+        $userResponse = Http::timeout(30)->get('https://graph.facebook.com/me', [
+            'fields'       => 'id,name,email',
+            'access_token' => $token,
+        ]);
+
+        if (!$userResponse->successful()) return null;
+
+        return [
+            'id'    => $userResponse->json('id'),
+            'name'  => $userResponse->json('name'),
+            'email' => $userResponse->json('email'),
+        ];
+    }
+
     private function providerConfig(string $provider): ?array
     {
         $clientId = (string) config("services.$provider.client_id", '');
@@ -168,7 +197,7 @@ class SocialAuthController extends Controller
         $payload = $this->base64UrlEncode(json_encode($payloadData));
         $signature = hash_hmac('sha256', $payload, $this->stateKey());
 
-        return $payload.'.'.$signature;
+        return $payload . '.' . $signature;
     }
 
     private function parseValidStatePayload(string $provider, string $state): ?array
@@ -235,7 +264,7 @@ class SocialAuthController extends Controller
             'role' => $user->role,
         ]);
 
-        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/legacy-app?'.$query);
+        return redirect()->away($this->frontendBaseUrl($preferredFrontend) . '/legacy-app?' . $query);
     }
 
     private function redirectToFrontendError(string $message, ?string $preferredFrontend = null): RedirectResponse
@@ -245,7 +274,7 @@ class SocialAuthController extends Controller
             'message' => $message,
         ]);
 
-        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/legacy-app?'.$query);
+        return redirect()->away($this->frontendBaseUrl($preferredFrontend) . '/legacy-app?' . $query);
     }
 
     private function sanitizeFrontendUrl(mixed $value): ?string
@@ -275,8 +304,8 @@ class SocialAuthController extends Controller
             return null;
         }
 
-        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
 
-        return $scheme.'://'.$host.$port;
+        return $scheme . '://' . $host . $port;
     }
 }
