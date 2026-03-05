@@ -170,7 +170,7 @@ const vendors = [
     price: "$3,500",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Top rated",
@@ -182,7 +182,7 @@ const vendors = [
     price: "$150/pp",
     priceCaption: "From",
     cta: "Book",
-    image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -194,7 +194,7 @@ const vendors = [
     price: "$2,200",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Best Value",
@@ -206,7 +206,7 @@ const vendors = [
     price: "$1,200",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Premium",
@@ -218,7 +218,7 @@ const vendors = [
     price: "$4,000",
     priceCaption: "From",
     cta: "Book",
-    image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Top rated",
@@ -230,7 +230,7 @@ const vendors = [
     price: "$800",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Best Value",
@@ -242,7 +242,7 @@ const vendors = [
     price: "$600",
     priceCaption: "From",
     cta: "Book",
-    image: "public/p2.png",
+    image: "/p2.png",
   },
   {
     tag: "Top rated",
@@ -254,7 +254,7 @@ const vendors = [
     price: "$350",
     priceCaption: "Per Person from",
     cta: "Book",
-    image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Premium",
@@ -266,7 +266,7 @@ const vendors = [
     price: "$500",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -278,7 +278,7 @@ const vendors = [
     price: "$250",
     priceCaption: "Per Tier from",
     cta: "Book",
-    image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Top rated",
@@ -294,7 +294,7 @@ const vendors = [
     price: "$1,500",
     priceCaption: "Planning Fee from",
     cta: "Book",
-    image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Top rated",
@@ -306,7 +306,7 @@ const vendors = [
     price: "$900",
     priceCaption: "Setup from",
     cta: "Book",
-    image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Best Value",
@@ -318,7 +318,7 @@ const vendors = [
     price: "$200",
     priceCaption: "Per Set from",
     cta: "Book",
-    image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Premium",
@@ -330,7 +330,7 @@ const vendors = [
     price: "$75",
     priceCaption: "Per Hour from",
     cta: "Book",
-    image: "public/p2.png",
+    image: "/p2.png",
   },
   {
     tag: "Top rated",
@@ -342,7 +342,7 @@ const vendors = [
     price: "$400",
     priceCaption: "Starts from",
     cta: "Book",
-    image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Best Value",
@@ -354,7 +354,7 @@ const vendors = [
     price: "$35",
     priceCaption: "Per Person from",
     cta: "Book",
-    image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -366,7 +366,7 @@ const vendors = [
     price: "$2,000",
     priceCaption: "Event Planning from",
     cta: "Book",
-    image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Top rated",
@@ -378,7 +378,7 @@ const vendors = [
     price: "$25",
     priceCaption: "Per Person from",
     cta: "Book",
-    image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Premium",
@@ -395,7 +395,7 @@ const vendors = [
     price: "$400",
     priceCaption: "Service from",
     cta: "Book",
-    image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Top rated",
@@ -407,7 +407,7 @@ const vendors = [
     price: "$300",
     priceCaption: "Service from",
     cta: "Book",
-    image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Best Value",
@@ -423,7 +423,7 @@ const vendors = [
     price: "$300",
     priceCaption: "Per Hour from",
     cta: "Book",
-    image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Top rated",
@@ -435,7 +435,7 @@ const vendors = [
     price: "$85",
     priceCaption: "Per Person from",
     cta: "Book",
-    image: "public/p2.png",
+    image: "/p2.png",
   },
 ];
 
@@ -462,19 +462,19 @@ const tips = [
     category: "Wedding Planning",
     title: "5 Secrets to a Stress-Free Wedding Ceremony",
     meta: "By Claire Muller • 6 min read",
-    image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     category: "Corporate",
     title: "Choosing the Right Venue for Corporate Galas",
     meta: "By Team Achar • 4 min read",
-    image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     category: "Decor & Styling",
     title: "Minimalist Tablescapes That Still Feel Luxe",
     meta: "By In-house Stylists • 5 min read",
-    image: "public/p2.png",
+    image: "/p2.png",
   },
 ];
 
@@ -816,3 +816,4 @@ function submitBooking() {
 </template>
 
 <style scoped src="../assets/Home.css"></style>
+

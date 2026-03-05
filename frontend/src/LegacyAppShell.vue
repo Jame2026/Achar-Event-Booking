@@ -53,8 +53,10 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  const accountName = String(user?.name || '').trim()
+  const accountEmail = normalizeEmail(user?.email)
+  if (accountName) customerName.value = accountName
+  if (accountEmail) customerEmail.value = accountEmail
   void bootstrapAuthenticatedShell()
 }
 
@@ -77,6 +79,10 @@ const allowedVendorTabs = ['about', 'services', 'reviews']
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 function normalizePage(value) {
@@ -435,7 +441,9 @@ function buildNotificationQuery() {
   const userId = Number(user.id)
   if (Number.isFinite(userId) && userId > 0) query.user_id = userId
 
-  const email = String(user.email || customerEmail.value || '').trim().toLowerCase()
+  const profileEmail = normalizeEmail(customerEmail.value)
+  const accountEmail = normalizeEmail(user.email)
+  const email = profileEmail || accountEmail
   if (email) query.email = email
 
   if (!query.user_id && !query.email) return null
@@ -577,14 +585,15 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  if (!customerEmail.value.trim()) {
+  const email = normalizeEmail(customerEmail.value)
+  if (!email) {
     bookings.value = []
     return
   }
 
   isLoadingBookings.value = true
   try {
-    const result = await apiGet('bookings', { customer_email: customerEmail.value.trim() })
+    const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
     bookings.value = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
@@ -640,7 +649,7 @@ function openUpcomingBookings() {
 
 async function bookPackage(item) {
   const name = customerName.value.trim()
-  const email = customerEmail.value.trim()
+  const email = normalizeEmail(customerEmail.value)
 
   if (!name || !email) {
     notice.value = 'Please enter your name and email before booking.'
@@ -827,19 +836,22 @@ onBeforeUnmount(() => {
 
               <ul v-else class="notification-list">
                 <li v-for="item in notificationItems" :key="item.id">
-                  <button
-                    type="button"
-                    class="notification-item"
-                    :class="{ unread: !item.is_read }"
-                    @click="openNotification(item)"
-                  >
+                  <article class="notification-item" :class="{ unread: !item.is_read }">
                     <div class="notification-item-top">
-                      <strong>{{ item.title }}</strong>
+                      <strong>
+                        {{ item.title }}
+                        <span v-if="!item.is_read" class="notification-item-dot" aria-hidden="true"></span>
+                      </strong>
                       <span>{{ item.createdLabel }}</span>
                     </div>
                     <p>{{ item.message }}</p>
-                    <small>{{ item.eventTitle }} · {{ item.eventDate }}</small>
-                  </button>
+                    <div class="notification-item-bottom">
+                      <small>{{ item.eventTitle }} - {{ item.eventDate }}</small>
+                      <button type="button" class="notification-item-link" @click="openNotification(item)">
+                        View booking
+                      </button>
+                    </div>
+                  </article>
                 </li>
               </ul>
             </section>
@@ -1021,6 +1033,3 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
-
-
-
