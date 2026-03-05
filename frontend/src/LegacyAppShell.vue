@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Login from './components/LoginForm.vue'
 import Register from './components/RegisterForm.vue'
@@ -22,7 +22,7 @@ import {
   stats,
   vendorProfile,
 } from './features/appData'
-import { apiGet, apiPost } from './features/apiClient'
+import { apiGet, apiPatch, apiPost } from './features/apiClient'
 import { mapBooking as mapApiBooking, mapEvent as mapApiEvent } from './features/bookingMappers'
 import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
@@ -59,12 +59,13 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-  customerName.value = user?.name ?? customerName.value
-  customerEmail.value = user?.email ?? customerEmail.value
+  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
+  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
   const redirected = handlePostAuthRedirect()
   if (!redirected) {
     router.push('/').catch(() => {})
   }
+  void bootstrapAuthenticatedShell()
 }
 
 function handlePostAuthRedirect() {
@@ -92,6 +93,11 @@ function requireLogin(message = 'Please sign in to continue booking.') {
 function logout() {
   loggedInUser.value = null
   currentView.value = 'login'
+  notifications.value = []
+  notificationsUnreadCount.value = 0
+  notificationsError.value = ''
+  notificationDropdownOpen.value = false
+  stopNotificationPolling()
   localStorage.removeItem(AUTH_USER_STORAGE_KEY)
 }
 
@@ -188,6 +194,15 @@ function handleSocialQueryResult() {
 
 const globalSearch = ref('')
 
+function applyGlobalSearchFromSession() {
+  const nextSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
+  globalSearch.value = typeof nextSearch === 'string' ? nextSearch : ''
+}
+
+function handleGlobalSearchUpdated() {
+  applyGlobalSearchFromSession()
+}
+
 const selectedEventType = ref('all')
 const bookingEventTypeFilter = ref('all')
 
@@ -200,8 +215,16 @@ const brandLogoSrc = ref('/achar-logo.png')
 
 const isLoadingEvents = ref(false)
 const isLoadingBookings = ref(false)
+const isLoadingNotifications = ref(false)
 const bookingSubmittingEventId = ref(null)
 const notice = ref('')
+const notificationsError = ref('')
+const notifications = ref([])
+const notificationsUnreadCount = ref(0)
+const notificationDropdownOpen = ref(false)
+const notificationMenuRef = ref(null)
+const isBootstrappingAuth = ref(false)
+let notificationPollTimer = null
 const {
   customerName,
   customerEmail,
@@ -214,6 +237,8 @@ const {
   userProfileDraft,
   userAvatarInitial,
   userLocationMapUrl,
+  userLocationMapEmbedUrl,
+  userLocationMapLinkUrl,
   goToProfile: openProfilePage,
   saveUserProfile,
   resetUserProfile,
@@ -311,6 +336,21 @@ const bookingsBindings = { bookingFilter, bookingEventTypeFilter }
 const profileBindings = { userProfileDraft }
 const messagesBindings = { conversationSearch, selectedConversationId, composerText }
 const availabilityBindings = { selectedAvailabilitySlot }
+const notificationItems = computed(() =>
+  notifications.value.map((item) => {
+    const booking = item.booking || {}
+    const event = booking.event || {}
+    return {
+      ...item,
+      eventTitle: event.title || 'Service Booking',
+      eventDate: formatNotificationDate(event.starts_at),
+      createdLabel: formatNotificationTime(item.created_at),
+    }
+  }),
+)
+const unreadNotificationCount = computed(
+  () => notificationsUnreadCount.value || notifications.value.filter((item) => !item.is_read).length,
+)
 
 const navSearchPlaceholder = computed(() =>
   currentPage.value === 'bookings' ? 'Search bookings...' : 'Search services...',
@@ -444,6 +484,150 @@ function getAvailabilityLabel(item) {
   return 'Available'
 }
 
+function formatNotificationDate(value) {
+  if (!value) return 'Date TBD'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Date TBD'
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  })
+}
+
+function formatNotificationTime(value) {
+  if (!value) return 'Just now'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Just now'
+
+  const diffMinutes = Math.floor((Date.now() - parsed.getTime()) / 60000)
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  if (diffMinutes < 24 * 60) return `${Math.floor(diffMinutes / 60)}h ago`
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+  })
+}
+
+function notificationRole(role) {
+  return role === 'vendor' ? 'vendor' : 'user'
+}
+
+function buildNotificationQuery() {
+  const user = loggedInUser.value || {}
+  const query = {
+    role: notificationRole(user.role),
+    limit: 20,
+  }
+
+  const userId = Number(user.id)
+  if (Number.isFinite(userId) && userId > 0) query.user_id = userId
+
+  const email = String(user.email || customerEmail.value || '').trim().toLowerCase()
+  if (email) query.email = email
+
+  if (!query.user_id && !query.email) return null
+  return query
+}
+
+function stopNotificationPolling() {
+  if (!notificationPollTimer) return
+  clearInterval(notificationPollTimer)
+  notificationPollTimer = null
+}
+
+function startNotificationPolling() {
+  stopNotificationPolling()
+  notificationPollTimer = setInterval(() => {
+    loadNotifications({ silent: true })
+  }, 30000)
+}
+
+function closeNotificationDropdown() {
+  notificationDropdownOpen.value = false
+}
+
+function handleDocumentClick(event) {
+  if (!notificationDropdownOpen.value) return
+  if (!notificationMenuRef.value) return
+  if (!notificationMenuRef.value.contains(event.target)) {
+    closeNotificationDropdown()
+  }
+}
+
+async function loadNotifications(options = {}) {
+  const { silent = false } = options
+  const query = buildNotificationQuery()
+
+  if (!query) {
+    notifications.value = []
+    notificationsUnreadCount.value = 0
+    return
+  }
+
+  if (!silent) isLoadingNotifications.value = true
+  notificationsError.value = ''
+
+  try {
+    const result = await apiGet('notifications/bookings', query)
+    const rows = Array.isArray(result.data) ? result.data : []
+    notifications.value = rows
+    notificationsUnreadCount.value = Number(result.unread_count || 0)
+  } catch (error) {
+    notificationsError.value = 'Could not load notifications right now.'
+  } finally {
+    if (!silent) isLoadingNotifications.value = false
+  }
+}
+
+async function toggleNotificationDropdown() {
+  notificationDropdownOpen.value = !notificationDropdownOpen.value
+  if (!notificationDropdownOpen.value) return
+  await loadNotifications()
+}
+
+async function markNotificationAsRead(notification, options = {}) {
+  const { silent = false } = options
+  if (!notification || notification.is_read) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  notification.is_read = true
+  notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+
+  try {
+    await apiPatch(`notifications/bookings/${notification.id}/read`, query)
+  } catch (error) {
+    if (!silent) notificationsError.value = 'Could not mark notification as read.'
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function markAllNotificationsAsRead() {
+  if (unreadNotificationCount.value < 1) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  try {
+    await apiPatch('notifications/bookings/read-all', query)
+    notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }))
+    notificationsUnreadCount.value = 0
+  } catch (error) {
+    notificationsError.value = 'Could not mark all notifications as read.'
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function openNotification(notification) {
+  await markNotificationAsRead(notification, { silent: true })
+  closeNotificationDropdown()
+  goToBookings()
+}
+
 async function loadEvents() {
   isLoadingEvents.value = true
   try {
@@ -501,6 +685,7 @@ async function loadBookings() {
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
     bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
+    await loadNotifications({ silent: true })
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -509,6 +694,20 @@ async function loadBookings() {
       : 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
+  }
+}
+
+async function bootstrapAuthenticatedShell() {
+  if (!loggedInUser.value) return
+
+  isBootstrappingAuth.value = true
+  try {
+    const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    await Promise.all(tasks)
+    startNotificationPolling()
+  } finally {
+    isBootstrappingAuth.value = false
   }
 }
 
@@ -607,6 +806,7 @@ async function bookPackage(item) {
 
     notice.value = `Booking created for ${item.title}.`
     await loadBookings()
+    await loadNotifications({ silent: true })
     goToBookings()
     bookingFilter.value = 'Upcoming'
   } catch (error) {
@@ -635,6 +835,7 @@ async function confirmCustomization() {
     return
   }
   await submitCustomization(getAvailability)
+  await loadNotifications({ silent: true })
 }
 
 watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userLongitude], () => {
@@ -647,13 +848,27 @@ watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userL
 })
 
 watch(customerEmail, () => {
+  if (!loggedInUser.value || isBootstrappingAuth.value) return
+
   if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
     loadBookings()
   }
+  loadNotifications({ silent: true })
 })
 
 watch(loggedInUser, (user) => {
-  if (user) localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+  if (user) {
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+    window.dispatchEvent(new Event('achar:auth-updated'))
+    return
+  }
+
+  stopNotificationPolling()
+  notifications.value = []
+  notificationsUnreadCount.value = 0
+  notificationsError.value = ''
+  notificationDropdownOpen.value = false
+  window.dispatchEvent(new Event('achar:auth-updated'))
 })
 watch(
   () => route.query,
@@ -664,10 +879,13 @@ watch(
 )
 
 watch([currentPage, activeVendorTab], () => {
+  closeNotificationDropdown()
   syncRouteQueryFromState()
 })
 
 onMounted(async () => {
+  document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
@@ -679,8 +897,13 @@ onMounted(async () => {
   if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   handlePostAuthRedirect()
-  await loadEvents()
-  await loadBookings()
+  await bootstrapAuthenticatedShell()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
+  stopNotificationPolling()
 })
 </script>
 
@@ -690,6 +913,19 @@ onMounted(async () => {
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
     <PublicNavbar />
+<DashboardPage
+      v-if="currentPage === 'dashboard'"
+      :notice="notice"
+      :customer-name="customerName"
+      :dashboard-stats="dashboardStats"
+      :recent-bookings="recentBookings"
+      :recent-conversations="recentConversations"
+      :go-to-vendor="goToVendor"
+      :go-to-bookings="goToBookings"
+      :go-to-messages="goToMessages"
+      :go-to-package-customization="goToPackageCustomization"
+      :open-upcoming-bookings="openUpcomingBookings"
+    />
 
     <VendorPage
       v-if="currentPage === 'vendor'"
@@ -789,9 +1025,12 @@ onMounted(async () => {
       :user-latitude="userLatitude"
       :user-longitude="userLongitude"
       :user-location-map-url="userLocationMapUrl"
+      :user-location-map-embed-url="userLocationMapEmbedUrl"
+      :user-location-map-link-url="userLocationMapLinkUrl"
       :detect-current-location="detectCurrentLocation"
       :reset-user-profile="resetUserProfile"
       :save-user-profile="saveUserProfile"
+      :logout-user="logout"
     />
 
     <MessagesPage
@@ -807,47 +1046,11 @@ onMounted(async () => {
       :save-document="saveDocument"
       :delete-message="deleteMessage"
     />
-<footer v-if="currentPage !== 'messages'" class="footer">
-      <div class="shell footer-grid">
-        <div class="footer-brand-col">
-          <div class="brand">
-            <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
-            <span class="brand-text">Achar</span>
-          </div>
-          <p>Making event planning effortless and elegant for everyone, everywhere.</p>
-          <span class="footer-chip">Trusted by planners and vendors</span>
-        </div>
-        <div>
-          <h4>For Planners</h4>
-          <a href="#" @click.prevent="goToVendor()">View Vendors</a>
-          <a href="#" @click.prevent="goToDashboard">Planning Dashboard</a>
-          <a href="#" @click.prevent="goToBookings">My Bookings</a>
-        </div>
-        <div>
-          <h4>For Vendors</h4>
-          <a href="#" @click.prevent="goToVendor()">List Your Service</a>
-          <a href="#" @click.prevent="goToMessages()">Vendor Inbox</a>
-          <a href="#" @click.prevent="goToDashboard">Performance Snapshot</a>
-        </div>
-        <div>
-          <h4>Support</h4>
-          <a href="#">Help Center</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Contact Us</a>
-        </div>
-      </div>
-      <div class="shell footer-bottom">
-        <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
-        <div>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Cookie Policy</a>
-          <a href="#">Sitemap</a>
-        </div>
-      </div>
-    </footer>
   </div>
   </div>
 </template>
+
+
 
 
 

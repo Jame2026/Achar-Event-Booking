@@ -244,11 +244,15 @@ const prebookForm = ref({
   email: "",
   phone: "",
   location: "",
+  latitude: null,
+  longitude: null,
   eventDate: "",
   guests: 50,
   notes: "",
 });
 const prebookSuccess = ref("");
+const isDetectingPrebookLocation = ref(false);
+const prebookLocationNotice = ref("");
 const activePackage = computed(
   () =>
     guestPreviewPackages.value.find(
@@ -308,11 +312,14 @@ function openPrebookForm() {
     email: "",
     phone: "",
     location: "",
+    latitude: null,
+    longitude: null,
     eventDate: "",
     guests: 50,
     notes: "",
   };
   prebookSuccess.value = "";
+  prebookLocationNotice.value = "";
   closePackageDetails();
   showPrebookModal.value = true;
 }
@@ -357,6 +364,8 @@ function submitPrebookForm() {
     email: prebookForm.value.email,
     phone: prebookForm.value.phone,
     location: prebookForm.value.location,
+    latitude: prebookForm.value.latitude,
+    longitude: prebookForm.value.longitude,
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
@@ -369,6 +378,94 @@ function submitPrebookForm() {
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
   showPrebookModal.value = false;
   router.push("/checkout");
+}
+
+const prebookLocationMapEmbedUrl = computed(() => {
+  const lat = Number(prebookForm.value.latitude);
+  const lng = Number(prebookForm.value.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const safeLat = Number(lat.toFixed(6));
+  const safeLng = Number(lng.toFixed(6));
+  const delta = 0.012;
+  const left = (safeLng - delta).toFixed(6);
+  const bottom = (safeLat - delta).toFixed(6);
+  const right = (safeLng + delta).toFixed(6);
+  const top = (safeLat + delta).toFixed(6);
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${safeLat}%2C${safeLng}`;
+});
+
+const prebookLocationMapLinkUrl = computed(() => {
+  const lat = Number(prebookForm.value.latitude);
+  const lng = Number(prebookForm.value.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const safeLat = Number(lat.toFixed(6));
+  const safeLng = Number(lng.toFixed(6));
+  return `https://www.openstreetmap.org/?mlat=${safeLat}&mlon=${safeLng}#map=14/${safeLat}/${safeLng}`;
+});
+
+function detectPrebookLocation() {
+  if (!navigator.geolocation) {
+    prebookLocationNotice.value = "Geolocation is not supported by this browser.";
+    return;
+  }
+
+  isDetectingPrebookLocation.value = true;
+  prebookLocationNotice.value = "";
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = Number(position.coords.latitude.toFixed(6));
+      const lng = Number(position.coords.longitude.toFixed(6));
+      let placeName = "";
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+        const response = await fetch(url, {
+          headers: {
+            Accept: "application/json",
+            "Accept-Language": "en",
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const address = data?.address || {};
+          const streetNumber = address.house_number || address.house_name || address.building || "";
+          const streetName = address.road || address.pedestrian || address.footway || "";
+          const street = [streetNumber, streetName].filter(Boolean).join(" ").trim();
+          const village = address.village || address.hamlet || address.neighbourhood || address.suburb || "";
+          const district = address.city_district || address.district || address.borough || address.county || "";
+          const city = address.city || address.town || address.municipality || address.state_district || "";
+          const province = address.state || address.region || address.province || "";
+          const parts = [street, village, district, city, province].filter(
+            (value) => String(value).trim().length > 0,
+          );
+          const primaryName =
+            data?.name ||
+            address.shop ||
+            address.amenity ||
+            address.tourism ||
+            address.building ||
+            "";
+          placeName = parts.length ? parts.join(", ") : String(primaryName || "").trim();
+        }
+      } catch {
+        placeName = "";
+      }
+      prebookForm.value.latitude = lat;
+      prebookForm.value.longitude = lng;
+      prebookForm.value.location = placeName || `${lat}, ${lng}`;
+      prebookLocationNotice.value = "Current location captured.";
+      isDetectingPrebookLocation.value = false;
+    },
+    () => {
+      prebookLocationNotice.value = "Could not access your current location.";
+      isDetectingPrebookLocation.value = false;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 300000,
+    },
+  );
 }
 
 function selectPackage(id) {
@@ -413,6 +510,7 @@ function persistFavorites() {
       serviceIds: favoriteServiceIds.value,
     }),
   );
+  window.dispatchEvent(new Event("achar:favorites-updated"));
 }
 
 function toggleFavoritePackage(id) {
@@ -520,11 +618,14 @@ function openFavoritePrebookForm() {
     email: "",
     phone: "",
     location: "",
+    latitude: null,
+    longitude: null,
     eventDate: "",
     guests: 50,
     notes: "",
   };
   prebookSuccess.value = "";
+  prebookLocationNotice.value = "";
   showPrebookModal.value = true;
 }
 
@@ -1260,6 +1361,39 @@ function noop() {}
               placeholder="City / Venue address"
             />
           </label>
+          <div class="prebook-location-tools">
+            <button
+              type="button"
+              class="modal-action-btn modal-action-neutral"
+              :disabled="isDetectingPrebookLocation"
+              @click="detectPrebookLocation"
+            >
+              {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+            </button>
+            <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
+            <p
+              v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
+              class="prebook-location-coords"
+            >
+              Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng: {{ Number(prebookForm.longitude).toFixed(6) }}
+            </p>
+            <iframe
+              v-if="prebookLocationMapEmbedUrl"
+              class="prebook-map-frame"
+              :src="prebookLocationMapEmbedUrl"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
+            <a
+              v-if="prebookLocationMapLinkUrl"
+              class="prebook-map-link"
+              :href="prebookLocationMapLinkUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open current location in map
+            </a>
+          </div>
 
           <label>
             <span>Event date</span>
@@ -1774,6 +1908,38 @@ function noop() {}
 .prebook-form label {
   display: grid;
   gap: 6px;
+}
+
+.prebook-location-tools {
+  display: grid;
+  gap: 8px;
+}
+
+.prebook-location-notice,
+.prebook-location-coords {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prebook-map-frame {
+  width: 100%;
+  height: 220px;
+  border: 1px solid #d6dfec;
+  border-radius: 12px;
+}
+
+.prebook-map-link {
+  display: inline-block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c25c13;
+  text-decoration: none;
+}
+
+.prebook-map-link:hover {
+  text-decoration: underline;
 }
 
 .prebook-form span {

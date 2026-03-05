@@ -29,3 +29,18 @@ export async function apiPost(path, payload) {
 
   return response.json()
 }
+
+export async function apiPatch(path, payload = {}) {
+  const response = await fetch(`${API_BASE}/${path.replace(/^\//, '')}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(errorBody.message || 'Request failed')
+  }
+
+  return response.json()
+}
