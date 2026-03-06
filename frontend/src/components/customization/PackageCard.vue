@@ -20,8 +20,30 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'toggle-details', 'check-availability', 'message', 'toggle-favorite'])
 
+const fallbackImageByEventType = {
+  wedding: '/event-cards/wedding-stage.jpg',
+  monk_ceremony: '/event-cards/orange-flowers.jpg',
+  house_blessing: '/event-cards/house-blessing-offering.jpg',
+  company_party: '/event-cards/ceremony-hall.jpg',
+  birthday: '/event-cards/anniversary-arch.jpg',
+  school_event: '/event-cards/ceremony-hall.jpg',
+  engagement: '/event-cards/engagement-attire.jpg',
+  anniversary: '/event-cards/anniversary-arch.jpg',
+  baby_shower: '/event-cards/orange-flowers.jpg',
+  graduation: '/event-cards/ceremony-hall.jpg',
+  festival: '/event-cards/ceremony-hall.jpg',
+  other: '/event-cards/ceremony-hall.jpg',
+}
+
 function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`
+}
+
+function handleImageError(event, eventType) {
+  const image = event?.target
+  if (!image) return
+  image.onerror = null
+  image.src = fallbackImageByEventType[eventType] || fallbackImageByEventType.other
 }
 </script>
 
@@ -34,7 +56,13 @@ function formatCurrency(value) {
     @click="emit('toggle-details', item.id)"
     @keyup.enter="emit('toggle-details', item.id)"
   >
-    <img class="addon-card-image" :src="item.image" :alt="`${item.title} package`" loading="lazy" />
+    <img
+      class="addon-card-image"
+      :src="item.image"
+      :alt="`${item.title} package`"
+      loading="lazy"
+      @error="handleImageError($event, item.eventType)"
+    />
 
     <div class="addon-card-row">
       <strong>{{ item.title }}</strong>

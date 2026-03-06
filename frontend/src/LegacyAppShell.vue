@@ -15,7 +15,7 @@ import {
   eventTypeOptions,
   fallbackVendorLocation,
   packageCatalogByEventType,
-  packageImageByEventType,
+  getPackageImage,
   reviews,
   serviceFeeRate,
   stats,
@@ -257,7 +257,7 @@ const vendorFallbackPackages = computed(() => {
         date: 'Date TBD',
         price,
         priceLabel: `From $${price.toLocaleString()}`,
-        image: packageImageByEventType[type] || packageImageByEventType.other,
+        image: getPackageImage(type, entry.id, entry.title),
         isPreview: true,
       })
     })

@@ -117,7 +117,7 @@ export const packageImageByEventType = {
   birthday:
     'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=900&q=80',
   school_event:
-    'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80',
+    'https://myschoolconnect.com.au/blog/wp-content/uploads/2021/03/Why-School-Events-are-Important-for-Community-Spiri.jpg',
   engagement:
     'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80',
   anniversary:
@@ -130,6 +130,63 @@ export const packageImageByEventType = {
     'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80',
   other:
     'https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=80',
+}
+
+export const packageImageByPackageId = {
+  'wed-royal':
+    'https://www.penheaven.com/media/mageplaza/blog/post/uploads/2018/04/Royal-Vows-Hero.jpg',
+  'wed-classic':
+    'https://img.partyslate.com/2022/03/photo-5179e46b-9616-4359-b6cd-2a7eeecfee0d-scaled.jpeg?auto=compress%2Cformat&ixlib=php-3.3.1',
+  'monk-blessing':
+    'https://tricycle.org/wp-content/uploads/2025/07/image-copy-4.jpg',
+  'monk-traditional':
+    'https://thumbs.dreamstime.com/b/monk-seats-making-merit-chanting-praying-meditating-traditional-buddhism-ceremony-engagement-design-decoration-133046544.jpg',
+  'house-premium':
+    'https://media.designcafe.com/wp-content/uploads/2026/01/27223142/home-alter-designs.jpg',
+  'house-basic':
+    'https://dam.thdstatic.com/content/production/al9DuJxgKZ7SHMf9FPN7BA/g-s16P8HvmXKYEEnI726Qg/Original%20file/Christmas-lights-BG-2025-hero.jpg',
+  'corp-gala':
+    'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80',
+  'corp-social':
+    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80',
+  'bday-deluxe':
+    'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=900&q=80',
+  'bday-family':
+    'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80',
+  'school-annual':
+    'https://www.nsmpublicschoolvijayawada.org/wp-content/uploads/2023/03/DSC_0125.jpg',
+  'school-ceremony':
+    'https://alaska.edu.vn/wp-content/uploads/2023/09/3.jpg',
+  'eng-gold':
+    'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=900&q=80',
+  'eng-intimate':
+    'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',
+  'anni-romance':
+    'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=900&q=80',
+  'anni-family':
+    'https://images.unsplash.com/photo-1472653816316-3ad6f10a6592?auto=format&fit=crop&w=900&q=80',
+  'baby-soft':
+    'https://cdn.giftlaya.com/images/50/6a314913-4f18-4d2b-990b-6b7cb2864a2c.webp',
+  'baby-classic':
+    'https://bjarnibaby.com/wp-content/uploads/2024/12/baby-in-bloom-baby-shower.jpg',
+  'grad-stage':
+    'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=900&q=80',
+  'grad-party':
+    'https://m.media-amazon.com/images/I/81sv2E4elIL._AC_UF894,1000_QL80_.jpg',
+  'fest-premium':
+    'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=900&q=80',
+  'fest-community':
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80',
+  'other-custom':
+    'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&q=80',
+  'other-essentials':
+    'https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=80',
+}
+
+export function getPackageImage(eventType, packageId, _title = '') {
+  const mappedImage = packageImageByPackageId[packageId]
+  if (mappedImage) return mappedImage
+  return packageImageByEventType[eventType] || packageImageByEventType.other
 }
 
 const packageServiceTemplatesByEventType = {

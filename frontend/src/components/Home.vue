@@ -28,7 +28,7 @@ const eventTypes = [
   {
     name: "House Blessing",
     note: "Event Planning",
-    image: "/event-cards/house-blessing-offering.jpg",
+    image: "/house.png",
     fallback: "/W3.png",
   },
   {

@@ -8,9 +8,9 @@ import {
   buildPackageServiceDescriptions,
   eventTypeMap,
   eventTypeOptions,
+  getPackageImage,
   matchingServicesCatalog,
   packageCatalogByEventType,
-  packageImageByEventType,
   serviceFeeRate,
   vendorProfile,
 } from '../features/appData'
@@ -126,7 +126,7 @@ const guestPreviewPackages = computed(() => {
         date: 'Date TBD',
         price,
         priceLabel: `From $${price.toLocaleString()}`,
-        image: packageImageByEventType[eventType] || packageImageByEventType.other,
+        image: getPackageImage(eventType, entry.id, entry.title),
         services: buildPackageServiceDescriptions(eventType, entry.title),
         isPreview: true,
       })
@@ -138,6 +138,28 @@ const activePackageId = ref(null)
 const activePackage = computed(
   () => guestPreviewPackages.value.find((item) => item.id === activePackageId.value) || null,
 )
+
+const fallbackImageByEventType = {
+  wedding: '/event-cards/wedding-stage.jpg',
+  monk_ceremony: '/event-cards/orange-flowers.jpg',
+  house_blessing: '/event-cards/house-blessing-offering.jpg',
+  company_party: '/event-cards/ceremony-hall.jpg',
+  birthday: '/event-cards/anniversary-arch.jpg',
+  school_event: '/event-cards/ceremony-hall.jpg',
+  engagement: '/event-cards/engagement-attire.jpg',
+  anniversary: '/event-cards/anniversary-arch.jpg',
+  baby_shower: '/event-cards/orange-flowers.jpg',
+  graduation: '/event-cards/ceremony-hall.jpg',
+  festival: '/event-cards/ceremony-hall.jpg',
+  other: '/event-cards/ceremony-hall.jpg',
+}
+
+function handleImageError(event, eventType) {
+  const image = event?.target
+  if (!image) return
+  image.onerror = null
+  image.src = fallbackImageByEventType[eventType] || fallbackImageByEventType.other
+}
 
 function openPackageDetails(id) {
   activePackageId.value = id
@@ -243,7 +265,7 @@ function noop() {}
             @click="openPackageDetails(item.id)"
             @keyup.enter="openPackageDetails(item.id)"
           >
-            <img :src="item.image" :alt="item.title" />
+            <img :src="item.image" :alt="item.title" @error="handleImageError($event, item.eventType)" />
             <div class="package-product-body">
               <p class="package-product-type">{{ item.eventTypeLabel }}</p>
               <h3>{{ item.title }}</h3>
@@ -358,7 +380,12 @@ function noop() {}
           </div>
           <button type="button" class="package-modal-close" @click="closePackageDetails">×</button>
         </div>
-        <img class="package-modal-image" :src="activePackage.image" :alt="activePackage.title" />
+        <img
+          class="package-modal-image"
+          :src="activePackage.image"
+          :alt="activePackage.title"
+          @error="handleImageError($event, activePackage.eventType)"
+        />
         <p class="package-modal-desc">{{ activePackage.description }}</p>
         <div class="package-modal-meta">
           <p><strong>Price:</strong> {{ activePackage.priceLabel }}</p>

@@ -4,9 +4,9 @@ import {
   eventTypeMap,
   eventTypeOptions,
   fallbackVendorLocation,
+  getPackageImage,
   matchingServicesCatalog,
   packageCatalogByEventType,
-  packageImageByEventType,
   serviceFeeRate,
 } from './appData'
 
@@ -48,7 +48,7 @@ export function useCustomizationFeature({
           title: entry.title,
           description: entry.description,
           price: entry.basePrice,
-          image: packageImageByEventType[type] || packageImageByEventType.other,
+          image: getPackageImage(type, entry.id, entry.title),
           services: buildPackageServiceDescriptions(type, entry.title),
           eventType: type,
           eventTypeLabel: eventTypeMap[type] || 'Other',
