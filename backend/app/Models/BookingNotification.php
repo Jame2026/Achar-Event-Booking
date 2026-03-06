@@ -19,12 +19,14 @@ class BookingNotification extends Model
         'title',
         'message',
         'is_read',
+        'is_archived',
     ];
 
     protected function casts(): array
     {
         return [
             'is_read' => 'boolean',
+            'is_archived' => 'boolean',
         ];
     }
 

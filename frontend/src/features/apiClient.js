@@ -44,3 +44,18 @@ export async function apiPatch(path, payload = {}) {
 
   return response.json()
 }
+
+export async function apiDelete(path, payload = {}) {
+  const response = await fetch(`${API_BASE}/${path.replace(/^\//, '')}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(errorBody.message || 'Request failed')
+  }
+
+  return response.json().catch(() => ({}))
+}

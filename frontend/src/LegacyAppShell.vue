@@ -22,7 +22,7 @@ import {
   stats,
   vendorProfile,
 } from './features/appData'
-import { apiGet, apiPatch, apiPost } from './features/apiClient'
+import { apiGet, apiPatch, apiPost, apiDelete } from './features/apiClient'
 import { mapBooking as mapApiBooking, mapEvent as mapApiEvent } from './features/bookingMappers'
 import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
@@ -632,6 +632,75 @@ async function openNotification(notification) {
   goToBookings()
 }
 
+async function toggleNotificationRead(notification) {
+  if (!notification) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const wasRead = notification.is_read
+  notification.is_read = !wasRead
+  if (!wasRead) {
+    notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+  } else {
+    notificationsUnreadCount.value = (unreadNotificationCount.value || 0) + 1
+  }
+
+  try {
+    const endpoint = wasRead ? 'unread' : 'read'
+    await apiPatch(`notifications/bookings/${notification.id}/${endpoint}`, query)
+  } catch (error) {
+    notification.is_read = wasRead
+    notificationsError.value = `Could not update notification status. ${error?.message || ''}`
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function archiveNotification(notification) {
+  if (!notification) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const notificationIndex = notifications.value.findIndex((n) => n.id === notification.id)
+
+  try {
+    await apiPatch(`notifications/bookings/${notification.id}/archive`, query)
+    if (notificationIndex >= 0) {
+      notifications.value.splice(notificationIndex, 1)
+    }
+    if (!notification.is_read) {
+      notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+    }
+  } catch (error) {
+    notificationsError.value = 'Could not archive notification.'
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function deleteNotification(notification) {
+  if (!notification) return
+  if (!confirm('Are you sure you want to delete this notification?')) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const notificationIndex = notifications.value.findIndex((n) => n.id === notification.id)
+
+  try {
+    await apiDelete(`notifications/bookings/${notification.id}?${new URLSearchParams(query).toString()}`)
+    if (notificationIndex >= 0) {
+      notifications.value.splice(notificationIndex, 1)
+    }
+    if (!notification.is_read) {
+      notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+    }
+  } catch (error) {
+    notificationsError.value = 'Could not delete notification.'
+    await loadNotifications({ silent: true })
+  }
+}
+
 async function loadEvents() {
   isLoadingEvents.value = true
   try {
@@ -991,8 +1060,37 @@ onBeforeUnmount(() => {
                       <span>{{ item.createdLabel }}</span>
                     </div>
                     <p>{{ item.message }}</p>
-                    <div class="notification-item-bottom">
+                    <div class="notification-item-info">
                       <small>{{ item.eventTitle }} - {{ item.eventDate }}</small>
+                    </div>
+                    <div class="notification-item-bottom">
+                      <div class="notification-item-actions">
+                        <button
+                          type="button"
+                          class="notification-action-btn"
+                          :class="{ secondary: item.is_read }"
+                          :title="item.is_read ? 'Mark as unread' : 'Mark as read'"
+                          @click="toggleNotificationRead(item)"
+                        >
+                          {{ item.is_read ? '✗ Mark unread' : '✓ Mark read' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="notification-action-btn"
+                          title="Archive notification"
+                          @click="archiveNotification(item)"
+                        >
+                          Archive
+                        </button>
+                        <button
+                          type="button"
+                          class="notification-action-btn danger"
+                          title="Delete notification"
+                          @click="deleteNotification(item)"
+                        >
+                          Delete
+                        </button>
+                      </div>
                       <button type="button" class="notification-item-link" @click="openNotification(item)">
                         View booking
                       </button>
