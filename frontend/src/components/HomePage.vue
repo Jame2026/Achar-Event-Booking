@@ -1,16 +1,16 @@
 <script setup lang="ts">
 defineProps<{
   user: {
-    id: number
-    name: string
-    email: string
-    role: string
-  }
-}>()
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+}>();
 
 defineEmits<{
-  logout: []
-}>()
+  logout: [];
+}>();
 </script>
 
 <template>
@@ -20,7 +20,9 @@ defineEmits<{
         <span class="brand-dot"></span>
         <span class="brand-name">Achar Booking</span>
       </div>
-      <button class="link-btn" type="button" @click="$emit('logout')">Logout</button>
+      <button class="link-btn" type="button" @click="$emit('logout')">
+        Logout
+      </button>
     </header>
 
     <main class="home-content">
@@ -36,7 +38,9 @@ defineEmits<{
 
         <article class="home-card">
           <h2>Next Step</h2>
-          <p>You can now replace this page with your actual dashboard modules.</p>
+          <p>
+            You can now replace this page with your actual dashboard modules.
+          </p>
         </article>
       </div>
     </main>

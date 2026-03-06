@@ -7,13 +7,13 @@ import VendorDetail from "../components/VendorDetail.vue";
 import CheckoutPage from "../components/CheckoutPage.vue";
 import CheckoutConfirmedPage from "../components/CheckoutConfirmedPage.vue";
 import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
+import Home from "@/components/Home.vue";
 
 const routes = [
   {
     path: "/",
     name: "Home",
-    component: GuestPreview,
-    props: { section: "dashboard" },
+    component: Home,
   },
   {
     path: "/home",
