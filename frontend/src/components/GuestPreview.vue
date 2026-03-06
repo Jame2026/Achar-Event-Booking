@@ -107,24 +107,6 @@ const customizationBindings = {
 };
 const router = useRouter();
 const route = useRoute();
-const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
-const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
-
-function isUserLoggedIn() {
-  try {
-    return Boolean(localStorage.getItem("achar_auth_user"));
-  } catch {
-    return false;
-  }
-}
-
-function requireAuthForBooking() {
-  if (isUserLoggedIn()) return true;
-  sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, route.fullPath || "/booking");
-  sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
-  router.push("/legacy-app");
-  return false;
-}
 
 // compute event filter key from query string
 const selectedEventFilter = computed(() => {
@@ -305,7 +287,6 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
-  if (!requireAuthForBooking()) return;
   prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
   prebookForm.value = {
     fullName: "",
@@ -607,7 +588,6 @@ function favoriteQtyChanged(e) {
 }
 
 function openFavoritePrebookForm() {
-  if (!requireAuthForBooking()) return;
   if (!favoriteSelectedPackage.value && favoriteServices.value.length === 0) return;
   selectedPackageId.value = favoriteSelectedPackage.value?.id || null;
   selectedServiceIds.value = [...favoriteSelectedServiceIds.value];

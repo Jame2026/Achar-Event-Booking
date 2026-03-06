@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
 
 const FAVORITE_VENDORS_KEY = "achar_favorite_vendors";
@@ -216,6 +215,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Top rated",
@@ -228,6 +228,7 @@ const vendors = [
     priceCaption: "From",
     cta: "Book",
     image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -240,6 +241,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Best Value",
@@ -252,6 +254,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Premium",
@@ -264,6 +267,7 @@ const vendors = [
     priceCaption: "From",
     cta: "Book",
     image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Top rated",
@@ -276,6 +280,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Best Value",
@@ -288,6 +293,7 @@ const vendors = [
     priceCaption: "From",
     cta: "Book",
     image: "public/p2.png",
+    image: "/p2.png",
   },
   {
     tag: "Top rated",
@@ -300,6 +306,7 @@ const vendors = [
     priceCaption: "Per Person from",
     cta: "Book",
     image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Premium",
@@ -312,6 +319,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -324,6 +332,7 @@ const vendors = [
     priceCaption: "Per Tier from",
     cta: "Book",
     image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Top rated",
@@ -341,6 +350,7 @@ const vendors = [
     cta: "Book",
 
     image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Top rated",
@@ -353,6 +363,7 @@ const vendors = [
     priceCaption: "Setup from",
     cta: "Book",
     image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Best Value",
@@ -365,6 +376,7 @@ const vendors = [
     priceCaption: "Per Set from",
     cta: "Book",
     image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Premium",
@@ -377,6 +389,7 @@ const vendors = [
     priceCaption: "Per Hour from",
     cta: "Book",
     image: "public/p2.png",
+    image: "/p2.png",
   },
   {
     tag: "Top rated",
@@ -389,6 +402,7 @@ const vendors = [
     priceCaption: "Starts from",
     cta: "Book",
     image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     tag: "Best Value",
@@ -401,6 +415,7 @@ const vendors = [
     priceCaption: "Per Person from",
     cta: "Book",
     image: "public/W5.png",
+    image: "/W5.png",
   },
   {
     tag: "Top rated",
@@ -413,6 +428,7 @@ const vendors = [
     priceCaption: "Event Planning from",
     cta: "Book",
     image: "public/w4.png",
+    image: "/w4.png",
   },
   {
     tag: "Top rated",
@@ -425,6 +441,7 @@ const vendors = [
     priceCaption: "Per Person from",
     cta: "Book",
     image: "public/W2.png",
+    image: "/W2.png",
   },
   {
     tag: "Premium",
@@ -442,6 +459,7 @@ const vendors = [
     priceCaption: "Service from",
     cta: "Book",
     image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     tag: "Top rated",
@@ -454,6 +472,7 @@ const vendors = [
     priceCaption: "Service from",
     cta: "Book",
     image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Best Value",
@@ -470,6 +489,7 @@ const vendors = [
     priceCaption: "Per Hour from",
     cta: "Book",
     image: "public/W3.png",
+    image: "/W3.png",
   },
   {
     tag: "Top rated",
@@ -482,6 +502,7 @@ const vendors = [
     priceCaption: "Per Person from",
     cta: "Book",
     image: "public/p2.png",
+    image: "/p2.png",
   },
 ];
 
@@ -500,6 +521,7 @@ const steps = [
     title: "Book Securely",
     text: "Lock in dates with confidence—secure payments and reminders.",
     icon: "🛡",
+    icon: "🛡️",
   },
 ];
 
@@ -509,24 +531,28 @@ const tips = [
     title: "5 Secrets to a Stress-Free Wedding Ceremony",
     meta: "By Claire Muller • 6 min read",
     image: "public/W1.png",
+    image: "/W1.png",
   },
   {
     category: "Corporate",
     title: "Choosing the Right Venue for Corporate Galas",
     meta: "By Team Achar • 4 min read",
     image: "public/p1.png",
+    image: "/p1.png",
   },
   {
     category: "Decor & Styling",
     title: "Minimalist Tablescapes That Still Feel Luxe",
     meta: "By In-house Stylists • 5 min read",
     image: "public/p2.png",
+    image: "/p2.png",
   },
 ];
 
 const showBookingModal = ref(false);
 const selectedVendor = ref(null);
 const bookingSuccess = ref(false);
+const bookingSuccess = ref("");
 const bookingForm = ref({
   fullName: "",
   email: "",
@@ -540,6 +566,16 @@ function openBookingModal(vendor) {
   bookingSuccess.value = false;
   showBookingModal.value = true;
   // Reset form for a clean slate each time the modal is opened
+  bookingSuccess.value = "";
+  showBookingModal.value = true;
+}
+
+function closeBookingModal() {
+  showBookingModal.value = false;
+}
+
+function submitBooking() {
+  bookingSuccess.value = `Booking request sent for ${selectedVendor.value?.title || "service"}.`;
   bookingForm.value = {
     fullName: "",
     email: "",
@@ -604,11 +640,6 @@ function submitBooking() {
           class="event-card"
           v-for="event in displayedEvents"
           :key="event.name"
-          role="button"
-          tabindex="0"
-          @click="goToEvent(event)"
-          @keyup.enter="goToEvent(event)"
-          style="cursor: pointer"
         >
           <div class="event-img-container">
             <img
@@ -807,6 +838,56 @@ function submitBooking() {
               Send Booking Request
             </button>
           </div>
+      <div class="booking-modal" @click.stop>
+        <div class="booking-modal-header">
+          <h3>Book {{ selectedVendor?.title }}</h3>
+          <button
+            type="button"
+            class="booking-close"
+            @click="closeBookingModal"
+          >
+            ×
+          </button>
+        </div>
+        <form class="booking-modal-form" @submit.prevent="submitBooking">
+          <label>
+            Full name
+            <input v-model.trim="bookingForm.fullName" type="text" required />
+          </label>
+          <label>
+            Email
+            <input v-model.trim="bookingForm.email" type="email" required />
+          </label>
+          <label>
+            Event date
+            <input v-model="bookingForm.eventDate" type="date" required />
+          </label>
+          <label>
+            Number of guests
+            <input
+              v-model.number="bookingForm.guests"
+              type="number"
+              min="1"
+              required
+            />
+          </label>
+          <label>
+            Notes
+            <textarea
+              v-model.trim="bookingForm.notes"
+              rows="3"
+              placeholder="Add preferences or requests"
+            ></textarea>
+          </label>
+          <div class="booking-modal-actions">
+            <button type="button" class="ghost-btn" @click="closeBookingModal">
+              Cancel
+            </button>
+            <button type="submit" class="primary-btn">Confirm Booking</button>
+          </div>
+          <p v-if="bookingSuccess" class="booking-success">
+            {{ bookingSuccess }}
+          </p>
         </form>
       </div>
 
@@ -942,3 +1023,4 @@ function submitBooking() {
 </template>
 
 <style scoped src="../assets/Home.css"></style>
+
