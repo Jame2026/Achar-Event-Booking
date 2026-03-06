@@ -61,6 +61,10 @@ function onLoginSuccess(user) {
   loggedInUser.value = user
   if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  const redirected = handlePostAuthRedirect()
+  if (!redirected) {
+    router.push('/').catch(() => {})
+  }
   void bootstrapAuthenticatedShell()
 }
 
@@ -107,10 +111,6 @@ const defaultLegacyPage = computed(() => 'bookings')
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
-}
-
-function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase()
 }
 
 function normalizePage(value) {
@@ -525,9 +525,7 @@ function buildNotificationQuery() {
   const userId = Number(user.id)
   if (Number.isFinite(userId) && userId > 0) query.user_id = userId
 
-  const profileEmail = normalizeEmail(customerEmail.value)
-  const accountEmail = normalizeEmail(user.email)
-  const email = profileEmail || accountEmail
+  const email = String(user.email || customerEmail.value || '').trim().toLowerCase()
   if (email) query.email = email
 
   if (!query.user_id && !query.email) return null
@@ -673,7 +671,8 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  if (!customerEmail.value.trim()) {
+  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  if (!email) {
     bookings.value = []
     return
   }
@@ -777,7 +776,7 @@ async function bookPackage(item) {
   }
 
   const name = customerName.value.trim()
-  const email = normalizeEmail(customerEmail.value)
+  const email = customerEmail.value.trim()
 
   if (!name || !email) {
     notice.value = 'Please enter your name and email before booking.'
@@ -913,96 +912,8 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-    <header class="topbar">
-      <div class="shell topbar-inner">
-        <div class="brand">
-          <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
-          <span class="brand-text">Achar</span>
-        </div>
-
-        <nav class="top-links">
-          <a href="#" :class="{ active: currentPage === 'dashboard' }" @click.prevent="goToDashboard">Dashboard</a>
-          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' || currentPage === 'availability' }" @click.prevent="goToVendor()">View Vendors</a>
-          <a href="#" :class="{ active: currentPage === 'bookings' }" @click.prevent="goToBookings">My Bookings</a>
-          <a href="#" :class="{ active: currentPage === 'messages' }" @click.prevent="goToMessages()">Messages</a>
-        </nav>
-
-        <div class="top-actions">
-          <input
-            v-if="currentPage !== 'messages'"
-            v-model="globalSearch"
-            type="search"
-            :placeholder="navSearchPlaceholder"
-          />
-          <div ref="notificationMenuRef" class="notification-wrap">
-            <button
-              type="button"
-              class="notification-btn"
-              aria-label="Open booking notifications"
-              :aria-expanded="notificationDropdownOpen ? 'true' : 'false'"
-              @click.stop="toggleNotificationDropdown"
-            >
-              <span class="notification-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </span>
-              <span v-if="unreadNotificationCount > 0" class="notification-badge">
-                {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
-              </span>
-            </button>
-
-            <section v-if="notificationDropdownOpen" class="notification-panel card" @click.stop>
-              <div class="notification-head">
-                <div>
-                  <h3>Booking Notifications</h3>
-                  <p>{{ unreadNotificationCount }} unread</p>
-                </div>
-                <button
-                  v-if="unreadNotificationCount > 0"
-                  type="button"
-                  class="notification-mark-all"
-                  @click="markAllNotificationsAsRead"
-                >
-                  Mark all read
-                </button>
-              </div>
-
-              <p v-if="isLoadingNotifications" class="notification-empty">Loading notifications...</p>
-              <p v-else-if="notificationsError" class="notification-empty notification-empty-error">
-                {{ notificationsError }}
-              </p>
-              <p v-else-if="notificationItems.length === 0" class="notification-empty">
-                No booking notifications yet.
-              </p>
-
-              <ul v-else class="notification-list">
-                <li v-for="item in notificationItems" :key="item.id">
-                  <button
-                    type="button"
-                    class="notification-item"
-                    :class="{ unread: !item.is_read }"
-                    @click="openNotification(item)"
-                  >
-                    <div class="notification-item-top">
-                      <strong>{{ item.title }}</strong>
-                      <span>{{ item.createdLabel }}</span>
-                    </div>
-                    <p>{{ item.message }}</p>
-                    <small>{{ item.eventTitle }} · {{ item.eventDate }}</small>
-                  </button>
-                </li>
-              </ul>
-            </section>
-          </div>
-          <button type="button" class="top-logout" @click="logout">Logout</button>
-          <button type="button" class="avatar avatar-btn" @click="goToProfile">{{ userAvatarInitial }}</button>
-        </div>
-      </div>
-    </header>
-
-        <DashboardPage
+    <PublicNavbar />
+<DashboardPage
       v-if="currentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
@@ -1138,6 +1049,8 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
+
+
 
 
 
