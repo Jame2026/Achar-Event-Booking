@@ -14,13 +14,13 @@ const eventTypes = [
   {
     name: "Wedding",
     note: "Event Planning",
-    image: "/809395af0a420d3e22970e1fdda1d6e3.jpg",
+    image: "/event-cards/wedding-stage.jpg",
     fallback: "/W1.png",
   },
   {
     name: "Baby Shower",
     note: "Event Planning",
-    image: "/c3327dfbbaf34f11d3f6cd86cf97deca.jpg",
+    image: "/event-cards/orange-flowers.jpg",
     fallback: "/W2.png",
   },
   {
@@ -31,7 +31,7 @@ const eventTypes = [
   {
     name: "Monk Ceremony",
     note: "Traditional Ritual",
-    image: "/10442cc348903c28309a0b967a9f1c11.jpg",
+    image: "/event-cards/house-blessing-offering.jpg",
     fallback: "/W2.png",
   },
   {
