@@ -29,18 +29,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-<<<<<<< HEAD
   <div class="app-container">
     <router-view />
+    <SiteFooter v-if="!hideFooter" />
   </div>
-=======
-  <router-view />
-  <SiteFooter v-if="!hideFooter" />
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
 </template>
-
-<script setup>
-</script>
 
 <style>
 .app-container {

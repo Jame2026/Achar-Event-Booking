@@ -30,15 +30,12 @@ import { useMessagesFeature } from './features/useMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
-<<<<<<< HEAD
 const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
-=======
 const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
 const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
 const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -185,6 +182,10 @@ function normalizeVendorTab(value) {
 }
 
 function applyRouteStateFromQuery(query) {
+  const authView = firstQueryValue(query.auth)
+  if (!loggedInUser.value) {
+    currentView.value = authView === 'register' ? 'register' : 'login'
+  }
   const nextPage = normalizePage(query.page)
   currentPage.value = nextPage
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
@@ -1109,8 +1110,7 @@ onBeforeUnmount(() => {
       :save-document="saveDocument"
       :delete-message="deleteMessage"
     />
-<<<<<<< HEAD
-<footer v-if="currentPage !== 'messages'" class="footer">
+    <footer v-if="currentPage !== 'messages'" class="footer">
       <div class="shell footer-grid">
         <div class="footer-brand-col">
           <div class="brand">
@@ -1140,11 +1140,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="shell footer-bottom">
-<<<<<<< HEAD
-        <span>� {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
-=======
         <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
->>>>>>> 1ccdbeab25cfe617b1a831f324f597e3f1a21a36
         <div>
           <a href="#">Privacy Policy</a>
           <a href="#">Cookie Policy</a>
@@ -1152,8 +1148,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </footer>
-=======
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
   </div>
   </div>
 </template>

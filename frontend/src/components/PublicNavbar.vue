@@ -231,6 +231,9 @@ const isBookingActive = computed(
 )
 const isFavoriteActive = computed(() => route.path === '/favorite')
 const isContactActive = computed(() => route.path === '/contact')
+const isRegisterActive = computed(
+  () => route.path === '/register' || (route.path === '/legacy-app' && route.query?.auth === 'register'),
+)
 
 onMounted(() => {
   refreshAuthState()
@@ -349,7 +352,10 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
         <button v-if="isLoggedIn" type="button" class="profile-btn" @click="openProfile">
           {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
         </button>
-        <RouterLink v-else class="signin-btn" to="/legacy-app">Sign in</RouterLink>
+        <template v-else>
+          <RouterLink class="register-btn" :class="{ active: isRegisterActive }" to="/register">Register</RouterLink>
+          <RouterLink class="signin-btn" to="/legacy-app">Sign in</RouterLink>
+        </template>
       </div>
     </div>
   </header>
@@ -650,6 +656,21 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
   font-weight: 700;
   text-decoration: none;
   padding: 0.58rem 1rem;
+}
+
+.register-btn {
+  border: 1px solid #f3c29d;
+  border-radius: 14px;
+  background: #fff3e8;
+  color: #c25c13;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.58rem 1rem;
+}
+
+.register-btn.active {
+  background: #ffe9d6;
 }
 
 @media (max-width: 980px) {

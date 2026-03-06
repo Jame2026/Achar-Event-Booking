@@ -67,6 +67,10 @@ const routes = [
     component: LegacyAppShell
   },
   {
+    path: '/register',
+    redirect: '/legacy-app?auth=register'
+  },
+  {
     path: '/forgot-password',
     name: 'ForgotPassword',
     component: ForgotPasswordForm
