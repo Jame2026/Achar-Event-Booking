@@ -2,7 +2,6 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
-<<<<<<< HEAD
 
 const FAVORITE_VENDORS_KEY = 'achar_favorite_vendors'
 
@@ -39,8 +38,6 @@ function toggleVendorFavorite(title) {
   saveFavoriteVendors(favoriteVendorTitles.value)
 }
 
-=======
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
 const appLogoSrc = ref(
   localStorage.getItem("achar_brand_logo") || "/achar-logo.png",
 );
@@ -298,19 +295,15 @@ const displayedEvents = computed(() => {
         </article>
       </div>
     </section>
-<<<<<<< HEAD
 
     <!-- Booking Modal -->
-=======
     <!-- Improved Booking Modal -->
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
     <div
       v-if="showBookingModal"
       class="booking-modal-overlay"
       @click.self="closeBookingModal"
     >
       <div v-if="selectedVendor" class="booking-modal" @click.stop>
-<<<<<<< HEAD
         <!-- Banner Image -->
         <div class="booking-modal-banner">
           <img :src="selectedVendor.image" :alt="selectedVendor.title" />
@@ -325,7 +318,6 @@ const displayedEvents = computed(() => {
             <span class="star">★</span>
             <strong>{{ selectedVendor.rating }}</strong>
             <span>({{ selectedVendor.reviews?.toLocaleString() }} reviews)</span>
-=======
         <button type="button" class="booking-close" @click="closeBookingModal">
           &times;
         </button>
@@ -444,7 +436,6 @@ const displayedEvents = computed(() => {
                 </button>
               </div>
             </form>
->>>>>>> 9d35ffa2d1ff350b05b246cd65a5b3509f643bb5
           </div>
         </div>
 
