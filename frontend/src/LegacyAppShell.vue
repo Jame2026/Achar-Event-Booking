@@ -59,19 +59,10 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-<<<<<<< HEAD
   const accountName = String(user?.name || '').trim()
   const accountEmail = normalizeEmail(user?.email)
   if (accountName) customerName.value = accountName
   if (accountEmail) customerEmail.value = accountEmail
-=======
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
-  const redirected = handlePostAuthRedirect()
-  if (!redirected) {
-    router.push('/').catch(() => {})
-  }
->>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
   void bootstrapAuthenticatedShell()
 }
 
@@ -684,11 +675,7 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-<<<<<<< HEAD
   const email = normalizeEmail(customerEmail.value)
-=======
-  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
->>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
   if (!email) {
     bookings.value = []
     return
@@ -929,7 +916,6 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-<<<<<<< HEAD
     <header class="topbar">
       <div class="shell topbar-inner">
         <div class="brand">
@@ -1023,10 +1009,6 @@ onBeforeUnmount(() => {
     </header>
 
         <DashboardPage
-=======
-    <PublicNavbar />
-<DashboardPage
->>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
       v-if="currentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
@@ -1162,11 +1144,3 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
-<<<<<<< HEAD
-=======
-
-
-
-
-
->>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
