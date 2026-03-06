@@ -191,6 +191,17 @@ const serviceFeeAmount = computed(() =>
 
 const totalPrice = computed(() => packagePrice.value + servicesSubtotal.value + serviceFeeAmount.value);
 
+const expandedServiceIds = ref([]);
+
+function toggleServiceDetails(id) {
+  const idx = expandedServiceIds.value.indexOf(id);
+  if (idx === -1) {
+    expandedServiceIds.value.push(id);
+  } else {
+    expandedServiceIds.value.splice(idx, 1);
+  }
+}
+
 const activePackageId = ref(null);
 const showPrebookModal = ref(false);
 const prebookTargetTitle = ref("");
@@ -533,7 +544,11 @@ function noop() {}
                             : "Select Package"
                         }}
                       </button>
-                      <span>View Details</span>
+                      <button
+                        type="button"
+                        class="read-more-btn"
+                        @click.stop="openPackageDetails(item.id)"
+                      >View Details</button>
                     </div>
                   </div>
                 </div>
@@ -554,12 +569,12 @@ function noop() {}
                   :key="service.id"
                   :service="service"
                   :is-selected="selectedServiceIds.includes(service.id)"
-                  :is-expanded="false"
+                  :is-expanded="expandedServiceIds.includes(service.id)"
                   :is-favorite="isServiceFavorite(service.id)"
                   :event-type-map="eventTypeMap"
                   :service-fee-rate="serviceFeeRate"
                   @toggle-service="toggleService(service.id)"
-                  @toggle-details="goToSignIn"
+                  @toggle-details="toggleServiceDetails"
                   @message="goToSignIn"
                   @toggle-favorite="toggleFavoriteService"
                 />
@@ -735,12 +750,12 @@ function noop() {}
                   :key="service.id"
                   :service="service"
                   :is-selected="selectedServiceIds.includes(service.id)"
-                  :is-expanded="false"
+                  :is-expanded="expandedServiceIds.includes(service.id)"
                   :is-favorite="isServiceFavorite(service.id)"
                   :event-type-map="eventTypeMap"
                   :service-fee-rate="serviceFeeRate"
                   @toggle-service="toggleService(service.id)"
-                  @toggle-details="goToSignIn"
+                  @toggle-details="toggleServiceDetails"
                   @message="goToSignIn"
                   @toggle-favorite="toggleFavoriteService"
                 />
