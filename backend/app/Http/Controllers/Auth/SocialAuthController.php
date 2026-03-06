@@ -27,17 +27,7 @@ class SocialAuthController extends Controller
         }
 
         $state = $this->makeState($provider, $preferredFrontendUrl);
-        $query = [
-            'client_id' => $config['client_id'],
-            'redirect_uri' => $config['redirect_uri'],
-            'response_type' => 'code',
-            'scope' => 'openid email profile',
-            'state' => $state,
-            'access_type' => 'online',
-            'prompt' => 'select_account',
-        ];
-
-        $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+        [$authUrl, $query] = $this->providerAuthorizeConfig($provider, $config, $state);
 
         return redirect()->away($authUrl . '?' . http_build_query($query));
     }
@@ -182,6 +172,38 @@ class SocialAuthController extends Controller
             'client_secret' => $clientSecret,
             'redirect_uri' => $redirectUri,
         ];
+    }
+
+    private function providerAuthorizeConfig(string $provider, array $config, string $state): array
+    {
+        return match ($provider) {
+            'google' => [
+                'https://accounts.google.com/o/oauth2/v2/auth',
+                [
+                    'client_id' => $config['client_id'],
+                    'redirect_uri' => $config['redirect_uri'],
+                    'response_type' => 'code',
+                    'scope' => 'openid email profile',
+                    'state' => $state,
+                    'access_type' => 'online',
+                    'prompt' => 'select_account',
+                ],
+            ],
+            'facebook' => [
+                'https://www.facebook.com/v19.0/dialog/oauth',
+                [
+                    'client_id' => $config['client_id'],
+                    'redirect_uri' => $config['redirect_uri'],
+                    'response_type' => 'code',
+                    'scope' => 'email,public_profile',
+                    'state' => $state,
+                ],
+            ],
+            default => [
+                '',
+                [],
+            ],
+        };
     }
 
     private function makeState(string $provider, ?string $frontendUrl = null): string
