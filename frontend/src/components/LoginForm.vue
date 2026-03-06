@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 
 const emit = defineEmits<{
   switch: []
@@ -8,8 +8,11 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
+const authBaseUrl = apiOrigin
 const form = reactive({
-  email: '',
+  login: '',
   password: '',
   remember: false,
 })
@@ -21,6 +24,18 @@ function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
 
+const startSocialAuth = (provider: 'google') => {
+  const frontendUrl = encodeURIComponent(window.location.origin)
+  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+}
+
+onMounted(() => {
+  const socialError = localStorage.getItem('achar_social_error')
+  if (!socialError) return
+  errorMessage.value = socialError
+  localStorage.removeItem('achar_social_error')
+})
+
 const submitLogin = async () => {
   if (submitting.value) return
 
@@ -29,7 +44,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'}/api/login`,
+      `${apiBaseUrl}/login`,
       {
         method: 'POST',
         headers: {
@@ -37,7 +52,7 @@ const submitLogin = async () => {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          email: form.email,
+          login: form.login,
           password: form.password,
         }),
       },
@@ -77,8 +92,8 @@ const submitLogin = async () => {
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-            <span>Email</span>
-            <input v-model="form.email" type="email" placeholder="you@example.com" required />
+            <span>Email or Phone</span>
+            <input v-model="form.login" type="text" placeholder="you@example.com or +85512345678" required />
           </label>
 
           <label class="field">
@@ -91,15 +106,27 @@ const submitLogin = async () => {
                 required
               />
               <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
-                {{ showPassword ? 'Hide' : 'Show' }}
+                <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
               </button>
             </div>
           </label>
 
-          <label class="check-row">
-            <input v-model="form.remember" type="checkbox" />
-            <span>Remember this device</span>
-          </label>
+          <div class="auth-help-row">
+            <label class="check-row">
+              <input v-model="form.remember" type="checkbox" />
+              <span>Remember this device</span>
+            </label>
+            <router-link class="link-btn" to="/forgot-password">Forgot password?</router-link>
+          </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
@@ -107,6 +134,17 @@ const submitLogin = async () => {
             {{ submitting ? 'Signing in...' : 'Login' }}
           </button>
         </form>
+
+        <div class="auth-divider">
+          <span>or continue with</span>
+        </div>
+
+        <div class="social-grid">
+          <button type="button" class="social-btn social-btn-google" @click="startSocialAuth('google')">
+            <span class="social-mark">G</span>
+            <span>Google</span>
+          </button>
+        </div>
 
         <p class="switch-row">
           No account yet?
@@ -116,3 +154,4 @@ const submitLogin = async () => {
     </main>
   </section>
 </template>
+

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingNotification;
 use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -95,29 +96,48 @@ class BookingController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'event_id' => ['required', 'exists:events,id'],
+            'event_id' => ['nullable', 'exists:events,id'],
             'quantity' => ['required', 'integer', 'min:1'],
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
             'service_name' => ['nullable', 'string', 'max:255'],
             'requested_event_type' => ['nullable', 'string', 'max:60'],
+            'total_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $event = Event::findOrFail($validated['event_id']);
-        if (! $event->is_active) {
-            return response()->json(['message' => 'This event is not available for booking.'], 422);
-        }
+        $eventId = $validated['event_id'] ?? null;
+        $event = $eventId ? Event::with('vendor:id,name,email')->findOrFail($eventId) : null;
+        $totalAmount = 0.0;
 
-        if (! $this->hasCapacity($event, $validated['quantity'])) {
-            return response()->json(['message' => 'Not enough seats available for this booking.'], 422);
+        if ($event) {
+            if (! $event->is_active) {
+                return response()->json(['message' => 'This event is not available for booking.'], 422);
+            }
+
+            if (! $this->hasCapacity($event, $validated['quantity'])) {
+                return response()->json(['message' => 'Not enough seats available for this booking.'], 422);
+            }
+
+            $totalAmount = $this->calculateTotal($event->price, $validated['quantity']);
+        } else {
+            $totalAmount = round((float) ($validated['total_amount'] ?? 0), 2);
+            if ($totalAmount <= 0) {
+                return response()->json([
+                    'message' => 'total_amount is required when event_id is not provided.',
+                ], 422);
+            }
         }
 
         $booking = Booking::create([
             ...$validated,
             'user_id' => $request->user() ? $request->user()->id : null,
             'status' => 'pending',
-            'total_amount' => $this->calculateTotal($event->price, $validated['quantity']),
+            'service_name' => $validated['service_name'] ?? ($event?->title ?? 'Custom Booking'),
+            'total_amount' => $totalAmount,
         ]);
+
+        $booking->setRelation('event', $event);
+        $this->createBookingCreatedNotifications($booking);
 
         return response()->json($booking->load('event:id,title,event_type,starts_at,location'), 201);
     }
@@ -140,6 +160,7 @@ class BookingController extends Controller
 
         $event = $booking->event;
         $newQuantity = $validated['quantity'] ?? $booking->quantity;
+        $previousStatus = $booking->status;
 
         if ($event && ! $this->hasCapacity($event, $newQuantity, $booking->id)) {
             return response()->json(['message' => 'Not enough seats available for this update.'], 422);
@@ -152,14 +173,20 @@ class BookingController extends Controller
                 : $booking->total_amount,
         ]);
 
-        return response()->json($booking->fresh()->load('event:id,title,event_type,starts_at,location'));
+        $updatedBooking = $booking->fresh()->load('event.vendor:id,name,email');
+
+        if (array_key_exists('status', $validated) && $validated['status'] !== $previousStatus) {
+            $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
+        }
+
+        return response()->json($updatedBooking->load('event:id,title,event_type,starts_at,location'));
     }
 
     public function destroy(Booking $booking): JsonResponse
     {
         $booking->delete();
 
-        return response()->noContent();
+        return response()->json(null, 204);
     }
 
     private function hasCapacity(Event $event, int $requestedQuantity, ?int $ignoreBookingId = null): bool
@@ -228,5 +255,76 @@ class BookingController extends Controller
         }
 
         return 'Service and vendor are available.';
+    }
+
+    private function createBookingCreatedNotifications(Booking $booking): void
+    {
+        $event = $booking->event;
+        if (! $event) {
+            return;
+        }
+
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $eventDate = $event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date';
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'user',
+            'recipient_user_id' => $booking->user_id,
+            'recipient_email' => strtolower((string) $booking->customer_email),
+            'kind' => 'booking_created',
+            'title' => 'Booking request received',
+            'message' => "Your booking for {$serviceName} on {$eventDate} is pending approval.",
+        ]);
+
+        if (! $event->vendor_id) {
+            return;
+        }
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'vendor',
+            'recipient_user_id' => $event->vendor_id,
+            'recipient_email' => $event->vendor ? strtolower((string) $event->vendor->email) : null,
+            'kind' => 'booking_created',
+            'title' => 'New booking request',
+            'message' => "{$booking->customer_name} requested {$booking->quantity} seat(s) for {$serviceName}.",
+        ]);
+    }
+
+    private function createBookingStatusNotifications(Booking $booking, string $nextStatus): void
+    {
+        $event = $booking->event;
+        if (! $event) {
+            return;
+        }
+
+        $statusLabel = ucfirst($nextStatus);
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $eventDate = $event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date';
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'user',
+            'recipient_user_id' => $booking->user_id,
+            'recipient_email' => strtolower((string) $booking->customer_email),
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.",
+        ]);
+
+        if (! $event->vendor_id) {
+            return;
+        }
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'vendor',
+            'recipient_user_id' => $event->vendor_id,
+            'recipient_email' => $event->vendor ? strtolower((string) $event->vendor->email) : null,
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
+        ]);
     }
 }

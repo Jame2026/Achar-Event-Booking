@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,8 @@ Route::get('/health', function () {
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
@@ -21,6 +24,9 @@ Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']
 Route::get('events/{event}/availability', [BookingController::class, 'availability']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
+Route::get('notifications/bookings', [NotificationController::class, 'index']);
+Route::patch('notifications/bookings/read-all', [NotificationController::class, 'markAllRead']);
+Route::patch('notifications/bookings/{notification}/read', [NotificationController::class, 'markRead']);
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);

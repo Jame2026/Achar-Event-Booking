@@ -91,7 +91,6 @@ class VendorController extends Controller
         }
 
         $event->delete();
-
         return response()->noContent();
     }
 

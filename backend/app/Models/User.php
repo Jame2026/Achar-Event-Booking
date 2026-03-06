@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,6 +22,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'role',
     ];
@@ -58,6 +60,11 @@ class User extends Authenticatable
         return $this->hasMany(Event::class, 'vendor_id');
     }
 
+    public function bookingNotifications(): HasMany
+    {
+        return $this->hasMany(BookingNotification::class, 'recipient_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -71,5 +78,10 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role === 'user';
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

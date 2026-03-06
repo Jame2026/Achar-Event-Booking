@@ -1,9 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../components/Home.vue'
 import LegacyAppShell from '../LegacyAppShell.vue'
 import GuestPreview from '../components/GuestPreview.vue'
+import Home from '../components/Home.vue'
 import AboutPage from '../components/AboutPage.vue'
 import ContactPage from '../components/ContactPage.vue'
+import VendorDetail from '../components/VendorDetail.vue'
+import CheckoutPage from '../components/CheckoutPage.vue'
+import CheckoutConfirmedPage from '../components/CheckoutConfirmedPage.vue'
+import CheckoutReceiptPage from '../components/CheckoutReceiptPage.vue'
+import ForgotPasswordForm from '../components/ForgotPasswordForm.vue'
+import ResetPasswordForm from '../components/ResetPasswordForm.vue'
 
 const routes = [
   {
@@ -61,8 +67,38 @@ const routes = [
     component: LegacyAppShell
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPasswordForm
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPasswordForm
+  },
+  {
     path: '/vendor',
+    name: 'VendorDetail',
+    component: VendorDetail
+  },
+  {
+    path: '/vendor/legacy',
     redirect: '/legacy-app?page=vendor'
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: CheckoutPage
+  },
+  {
+    path: '/checkout/confirmed',
+    name: 'CheckoutConfirmed',
+    component: CheckoutConfirmedPage
+  },
+  {
+    path: '/checkout/receipt',
+    name: 'CheckoutReceipt',
+    component: CheckoutReceiptPage
   },
   {
     path: '/customization',
@@ -104,3 +140,4 @@ const router = createRouter({
 })
 
 export default router
+
