@@ -9,6 +9,7 @@ import CustomizationPage from './components/pages/CustomizationPage.vue'
 import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
+import PublicNavbar from './components/PublicNavbar.vue'
 import VendorPage from './components/pages/VendorPage.vue'
 import {
   eventTypeMap,
@@ -29,6 +30,11 @@ import { useMessagesFeature } from './features/useMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
+const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
+const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
+const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
+const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -53,11 +59,42 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
+<<<<<<< HEAD
   const accountName = String(user?.name || '').trim()
   const accountEmail = normalizeEmail(user?.email)
   if (accountName) customerName.value = accountName
   if (accountEmail) customerEmail.value = accountEmail
+=======
+  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
+  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  const redirected = handlePostAuthRedirect()
+  if (!redirected) {
+    router.push('/').catch(() => {})
+  }
+>>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
   void bootstrapAuthenticatedShell()
+}
+
+function handlePostAuthRedirect() {
+  const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
+  const redirectAtRaw = sessionStorage.getItem(POST_AUTH_REDIRECT_AT_KEY)
+  sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY)
+  sessionStorage.removeItem(POST_AUTH_REDIRECT_AT_KEY)
+  if (!redirectPath) return false
+  const redirectAt = Number(redirectAtRaw || 0)
+  const isFresh = Number.isFinite(redirectAt) && Date.now() - redirectAt <= POST_AUTH_REDIRECT_TTL_MS
+  const isSafePath = typeof redirectPath === 'string' && redirectPath.startsWith('/')
+  if (!isFresh || !isSafePath) return false
+  router.push(redirectPath).catch(() => {})
+  return true
+}
+
+function requireLogin(message = 'Please sign in to continue booking.') {
+  if (loggedInUser.value) return true
+  notice.value = message
+  currentView.value = 'login'
+  router.replace({ path: '/legacy-app' }).catch(() => {})
+  return false
 }
 
 function logout() {
@@ -76,6 +113,8 @@ const activeVendorTab = ref('about')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
+const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
+const defaultLegacyPage = computed(() => 'bookings')
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
@@ -87,7 +126,9 @@ function normalizeEmail(value) {
 
 function normalizePage(value) {
   const page = firstQueryValue(value)
-  return allowedPages.includes(page) ? page : 'dashboard'
+  if (!allowedPages.includes(page)) return defaultLegacyPage.value
+  if (page === 'dashboard') return 'bookings'
+  return page
 }
 
 function normalizeVendorTab(value) {
@@ -103,7 +144,7 @@ function applyRouteStateFromQuery(query) {
 
 function syncRouteQueryFromState() {
   const nextQuery = {}
-  if (currentPage.value !== 'dashboard') nextQuery.page = currentPage.value
+  if (currentPage.value !== defaultLegacyPage.value) nextQuery.page = currentPage.value
   if (currentPage.value === 'vendor') nextQuery.tab = activeVendorTab.value
 
   const currentPageQuery = firstQueryValue(route.query.page)
@@ -164,6 +205,15 @@ function handleSocialQueryResult() {
 
 const globalSearch = ref('')
 
+function applyGlobalSearchFromSession() {
+  const nextSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
+  globalSearch.value = typeof nextSearch === 'string' ? nextSearch : ''
+}
+
+function handleGlobalSearchUpdated() {
+  applyGlobalSearchFromSession()
+}
+
 const selectedEventType = ref('all')
 const bookingEventTypeFilter = ref('all')
 
@@ -198,6 +248,8 @@ const {
   userProfileDraft,
   userAvatarInitial,
   userLocationMapUrl,
+  userLocationMapEmbedUrl,
+  userLocationMapLinkUrl,
   goToProfile: openProfilePage,
   saveUserProfile,
   resetUserProfile,
@@ -240,7 +292,7 @@ const {
   previousAvailabilityMonth,
   nextAvailabilityMonth,
   selectAvailabilitySlot,
-  goToAvailability,
+  goToAvailability: openAvailabilityPage,
   confirmAvailabilityRequest,
 } = useAvailabilityFeature({
   currentPage,
@@ -375,6 +427,49 @@ const dashboardStats = computed(() => {
 })
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
+
+function getLocalBookingsByEmail(email) {
+  if (!email) return []
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return []
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return []
+    const normalizedEmail = email.trim().toLowerCase()
+    return rows
+      .filter((row) => String(row?.customerEmail || '').trim().toLowerCase() === normalizedEmail)
+      .map((row, index) => ({
+        id: row.id || `local-${index}`,
+        vendor: row.vendor || vendorProfile.name,
+        service: row.service || 'Service Booking',
+        date: row.dateLabel || 'Date TBD',
+        metaLabel: 'Event Type',
+        metaValue: eventTypeMap[row.eventType] || 'Other',
+        placeLabel: 'Total',
+        placeValue: `$${Number(row.total || 0).toLocaleString()}`,
+        status: row.status || 'Confirmed',
+        statusClass: row.statusClass || 'confirmed',
+        type: row.type || 'Upcoming',
+        eventType: row.eventType || 'other',
+        eventId: null,
+        image:
+          'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
+        primaryBtn: 'View Details',
+        secondaryBtn: 'Reschedule',
+        note: `${row.customerName || 'Guest User'} | ${row.customerEmail || normalizedEmail}`,
+      }))
+  } catch {
+    return []
+  }
+}
+
+function mergeBookingsWithLocal(apiMappedRows, email) {
+  const localRows = getLocalBookingsByEmail(email)
+  if (!localRows.length) return apiMappedRows
+  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
+  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
+  return [...localOnlyRows, ...apiMappedRows]
+}
 
 function onBrandLogoError() {
   brandLogoSrc.value = '/favicon.ico'
@@ -567,6 +662,10 @@ async function loadEvents() {
 }
 
 async function checkEventAvailability(item) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return null
+  }
+
   checkingAvailabilityEventId.value = item.id
   try {
     const result = await apiGet(`events/${item.id}/availability`)
@@ -585,7 +684,11 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
+<<<<<<< HEAD
   const email = normalizeEmail(customerEmail.value)
+=======
+  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+>>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
   if (!email) {
     bookings.value = []
     return
@@ -595,11 +698,17 @@ async function loadBookings() {
   try {
     const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
-    bookings.value = rows.map((row) =>
+    const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
+    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
+    await loadNotifications({ silent: true })
   } catch (error) {
-    notice.value = 'Could not load bookings. Check backend API and database migrations.'
+    const localRows = getLocalBookingsByEmail(email)
+    bookings.value = localRows
+    notice.value = localRows.length
+      ? 'Loaded your latest booking from this device.'
+      : 'Could not load bookings. Check backend API and database migrations.'
   } finally {
     isLoadingBookings.value = false
   }
@@ -620,7 +729,7 @@ async function bootstrapAuthenticatedShell() {
 }
 
 function goToDashboard() {
-  currentPage.value = 'dashboard'
+  goToBookings()
 }
 
 function goToVendor(tab = 'about') {
@@ -634,6 +743,13 @@ function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '
   openCustomizationPage(currentPage, preferredEventType, preferredTitle)
 }
 
+function goToAvailability(item = null) {
+  if (!requireLogin('Please sign in to check service availability.')) {
+    return
+  }
+  openAvailabilityPage(item)
+}
+
 function goToProfile() {
   openProfilePage(currentPage)
 }
@@ -642,12 +758,40 @@ function goToBookings() {
   currentPage.value = 'bookings'
 }
 
+function goToHomePage() {
+  router.push('/').catch(() => {})
+}
+
+function goToAboutPage() {
+  router.push('/about').catch(() => {})
+}
+
+function goToServicePage() {
+  router.push('/services/packages').catch(() => {})
+}
+
+function goToFavoritePage() {
+  router.push('/favorite').catch(() => {})
+}
+
+function goToContactPage() {
+  router.push('/contact').catch(() => {})
+}
+
+function goToMyBookingPage() {
+  router.push('/booking').catch(() => {})
+}
+
 function openUpcomingBookings() {
   bookingFilter.value = 'Upcoming'
   goToBookings()
 }
 
 async function bookPackage(item) {
+  if (!requireLogin('Please sign in before checking availability and booking.')) {
+    return
+  }
+
   const name = customerName.value.trim()
   const email = normalizeEmail(customerEmail.value)
 
@@ -704,6 +848,9 @@ function bookingSecondaryAction(item) {
 }
 
 async function confirmCustomization() {
+  if (!requireLogin('Please sign in before confirming your package booking.')) {
+    return
+  }
   await submitCustomization(getAvailability)
   await loadNotifications({ silent: true })
 }
@@ -729,6 +876,7 @@ watch(customerEmail, () => {
 watch(loggedInUser, (user) => {
   if (user) {
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+    window.dispatchEvent(new Event('achar:auth-updated'))
     return
   }
 
@@ -737,6 +885,7 @@ watch(loggedInUser, (user) => {
   notificationsUnreadCount.value = 0
   notificationsError.value = ''
   notificationDropdownOpen.value = false
+  window.dispatchEvent(new Event('achar:auth-updated'))
 })
 watch(
   () => route.query,
@@ -753,23 +902,34 @@ watch([currentPage, activeVendorTab], () => {
 
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
+  const pendingSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
+  if (pendingSearch) {
+    globalSearch.value = pendingSearch
+    sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+  }
+  if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
+  if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
+  handlePostAuthRedirect()
   await bootstrapAuthenticatedShell()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
   stopNotificationPolling()
 })
 </script>
 
 <template>
   <div class="auth-root">
-    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" />
+    <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
+<<<<<<< HEAD
     <header class="topbar">
       <div class="shell topbar-inner">
         <div class="brand">
@@ -863,6 +1023,10 @@ onBeforeUnmount(() => {
     </header>
 
         <DashboardPage
+=======
+    <PublicNavbar />
+<DashboardPage
+>>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
       v-if="currentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
@@ -877,7 +1041,7 @@ onBeforeUnmount(() => {
     />
 
     <VendorPage
-      v-else-if="currentPage === 'vendor'"
+      v-if="currentPage === 'vendor'"
       :vendor-profile="vendorProfile"
       :bindings="vendorBindings"
       :stats="stats"
@@ -974,9 +1138,12 @@ onBeforeUnmount(() => {
       :user-latitude="userLatitude"
       :user-longitude="userLongitude"
       :user-location-map-url="userLocationMapUrl"
+      :user-location-map-embed-url="userLocationMapEmbedUrl"
+      :user-location-map-link-url="userLocationMapLinkUrl"
       :detect-current-location="detectCurrentLocation"
       :reset-user-profile="resetUserProfile"
       :save-user-profile="saveUserProfile"
+      :logout-user="logout"
     />
 
     <MessagesPage
@@ -992,44 +1159,14 @@ onBeforeUnmount(() => {
       :save-document="saveDocument"
       :delete-message="deleteMessage"
     />
-<footer v-if="currentPage !== 'messages'" class="footer">
-      <div class="shell footer-grid">
-        <div class="footer-brand-col">
-          <div class="brand">
-            <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
-            <span class="brand-text">Achar</span>
-          </div>
-          <p>Making event planning effortless and elegant for everyone, everywhere.</p>
-          <span class="footer-chip">Trusted by planners and vendors</span>
-        </div>
-        <div>
-          <h4>For Planners</h4>
-          <a href="#" @click.prevent="goToVendor()">View Vendors</a>
-          <a href="#" @click.prevent="goToDashboard">Planning Dashboard</a>
-          <a href="#" @click.prevent="goToBookings">My Bookings</a>
-        </div>
-        <div>
-          <h4>For Vendors</h4>
-          <a href="#" @click.prevent="goToVendor()">List Your Service</a>
-          <a href="#" @click.prevent="goToMessages()">Vendor Inbox</a>
-          <a href="#" @click.prevent="goToDashboard">Performance Snapshot</a>
-        </div>
-        <div>
-          <h4>Support</h4>
-          <a href="#">Help Center</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Contact Us</a>
-        </div>
-      </div>
-      <div class="shell footer-bottom">
-        <span>© {{ new Date().getFullYear() }} Achar Event Booking. All rights reserved.</span>
-        <div>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Cookie Policy</a>
-          <a href="#">Sitemap</a>
-        </div>
-      </div>
-    </footer>
   </div>
   </div>
 </template>
+<<<<<<< HEAD
+=======
+
+
+
+
+
+>>>>>>> acce13ee3b728e80955b14dabb688e041efae40c
