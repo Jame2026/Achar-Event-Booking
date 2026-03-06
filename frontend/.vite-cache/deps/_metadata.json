@@ -1,25 +1,25 @@
 {
-  "hash": "68417f9f",
-  "configHash": "95cff226",
+  "hash": "c7abc11c",
+  "configHash": "8cac0bdb",
   "lockfileHash": "036557b9",
-  "browserHash": "646249cf",
+  "browserHash": "c56ffa3f",
   "optimized": {
     "html2pdf.js": {
       "src": "../../node_modules/html2pdf.js/dist/html2pdf.js",
       "file": "html2pdf__js.js",
-      "fileHash": "cfe88ec8",
+      "fileHash": "21d6cd9f",
       "needsInterop": true
     },
     "vue": {
       "src": "../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
       "file": "vue.js",
-      "fileHash": "d28e9fd6",
+      "fileHash": "8eb54289",
       "needsInterop": false
     },
     "vue-router": {
       "src": "../../node_modules/vue-router/dist/vue-router.mjs",
       "file": "vue-router.js",
-      "fileHash": "e5ec55e7",
+      "fileHash": "30742e96",
       "needsInterop": false
     }
   },
