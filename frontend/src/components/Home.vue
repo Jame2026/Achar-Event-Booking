@@ -159,6 +159,12 @@ function onEventCardImageError(event, fallback) {
   event.target.src = fallback;
 }
 
+function goToEvent(event) {
+  const key = event.name.toLowerCase().replace(/\s+/g, "_");
+  router.push({ path: "/services/packages", query: { event: key } });
+}
+
+
 const vendors = [
   {
     tag: "Top rated",

@@ -59,8 +59,19 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
+<<<<<<<<< Temporary merge branch 1
   if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  const redirected = handlePostAuthRedirect()
+  if (!redirected) {
+    router.push('/').catch(() => {})
+  }
+=========
+  const accountName = String(user?.name || '').trim()
+  const accountEmail = normalizeEmail(user?.email)
+  if (accountName) customerName.value = accountName
+  if (accountEmail) customerEmail.value = accountEmail
+>>>>>>>>> Temporary merge branch 2
   void bootstrapAuthenticatedShell()
 }
 
@@ -673,7 +684,12 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  if (!customerEmail.value.trim()) {
+<<<<<<<<< Temporary merge branch 1
+  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+=========
+  const email = normalizeEmail(customerEmail.value)
+>>>>>>>>> Temporary merge branch 2
+  if (!email) {
     bookings.value = []
     return
   }
@@ -1138,6 +1154,11 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
+<<<<<<<<< Temporary merge branch 1
 
 
 
+
+
+=========
+>>>>>>>>> Temporary merge branch 2
