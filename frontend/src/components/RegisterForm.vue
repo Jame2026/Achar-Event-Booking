@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 
 const emit = defineEmits<{
   switch: []
+  success: [user: { id: number; name: string; email: string; role: string }]
 }>()
 
 const form = reactive({
@@ -21,8 +22,9 @@ const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
-const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
+const authBaseUrl = apiOrigin
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
@@ -58,7 +60,7 @@ const submitRegister = async () => {
     }
 
     const response = await fetch(
-      `${apiBaseUrl}/api/register`,
+      `${apiBaseUrl}/register`,
       {
         method: 'POST',
         headers: {
@@ -82,6 +84,17 @@ const submitRegister = async () => {
     }
 
     successMessage.value = data?.message ?? 'Registration successful.'
+
+    if (data?.user && data.user.name && data.user.email) {
+      emit('success', {
+        id: Number(data.user.id || Date.now()),
+        name: String(data.user.name),
+        email: String(data.user.email),
+        role: String(data.user.role || form.role || 'user'),
+      })
+      return
+    }
+
     form.name = ''
     form.email = ''
     form.phone = ''

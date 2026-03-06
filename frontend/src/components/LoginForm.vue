@@ -8,8 +8,9 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
-const authBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
+const apiBaseUrl = `${apiOrigin}/api`
+const authBaseUrl = apiOrigin
 const form = reactive({
   login: '',
   password: '',
@@ -43,7 +44,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${apiBaseUrl}/api/login`,
+      `${apiBaseUrl}/login`,
       {
         method: 'POST',
         headers: {
@@ -51,7 +52,7 @@ const submitLogin = async () => {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          email: form.login,
+          login: form.login,
           password: form.password,
         }),
       },

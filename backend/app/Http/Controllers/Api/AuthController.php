@@ -67,8 +67,14 @@ class AuthController extends Controller
 
         $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
         $user = $isEmail
-            ? User::where('email', strtolower($identifier))->first()
-            : User::where('phone', $this->normalizePhone($identifier))->first();
+            ? User::query()
+                ->select(['id', 'name', 'email', 'role', 'password'])
+                ->where('email', strtolower($identifier))
+                ->first()
+            : User::query()
+                ->select(['id', 'name', 'email', 'role', 'password'])
+                ->where('phone', $this->normalizePhone($identifier))
+                ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
@@ -78,7 +84,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => $user,
+            'user' => $user->only(['id', 'name', 'email', 'role']),
         ]);
     }
 

@@ -60,6 +60,11 @@ class User extends Authenticatable
         return $this->hasMany(Event::class, 'vendor_id');
     }
 
+    public function bookingNotifications(): HasMany
+    {
+        return $this->hasMany(BookingNotification::class, 'recipient_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
