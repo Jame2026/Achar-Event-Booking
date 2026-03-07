@@ -106,59 +106,20 @@ function goReceipt() {
 
 <style scoped>
 .confirmed-page {
+  --flow-bg: #eef2f8;
+  --flow-border: #d8e2ef;
+  --flow-muted: #64748b;
+  --flow-accent: #f97316;
   min-height: 100vh;
-  background: #eff2f7;
-}
-
-.confirmed-header {
-  height: 66px;
-  background: #fff;
-  border-bottom: 1px solid #d9e1ee;
-  padding: 0 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid #f2d2bb;
-  padding: 2px;
-  background: #fff;
-  object-fit: contain;
-}
-
-.brand strong {
-  display: block;
-  font-size: 26px;
-  line-height: 1;
-  color: #111827;
-}
-
-.brand p {
-  margin: 1px 0 0;
-  color: #7185a1;
-  font-size: 13px;
-}
-
-.confirmed-header a {
-  color: #1f2937;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 13px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.12), transparent 36%),
+    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.12), transparent 32%),
+    var(--flow-bg);
 }
 
 .confirmed-shell {
-  width: min(680px, calc(100% - 1.25rem));
-  margin: 22px auto 14px;
+  width: min(760px, calc(100% - 1.25rem));
+  margin: 28px auto 18px;
   text-align: center;
 }
 
@@ -168,43 +129,45 @@ function goReceipt() {
 }
 
 .status-icon {
-  width: 50px;
-  height: 50px;
+  width: 64px;
+  height: 64px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 700;
   background: linear-gradient(135deg, #f59e0b, #f97316);
-  box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 10px rgba(245, 158, 11, 0.14);
 }
 
 .confirmed-shell h1 {
-  margin: 12px 0 6px;
+  margin: 14px 0 6px;
   color: #0f172a;
-  font-size: clamp(1.55rem, 2.6vw, 2.2rem);
+  font-size: clamp(2rem, 3vw, 2.8rem);
   line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
   margin: 0;
   color: #5f728d;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .receipt-card {
-  margin-top: 10px;
+  margin-top: 16px;
   background: #fff;
-  border: 1px solid #d6deea;
-  border-radius: 14px;
+  border: 1px solid var(--flow-border);
+  border-radius: 18px;
   overflow: hidden;
   text-align: left;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
 }
 
 .receipt-head {
-  padding: 12px 14px;
-  background: linear-gradient(120deg,  #f59e0b 0%, #f97316 100%);
+  padding: 14px 16px;
+  background: linear-gradient(120deg, #f59e0b 0%, #f97316 100%);
   color: #fff;
   display: flex;
   justify-content: space-between;
@@ -223,8 +186,9 @@ function goReceipt() {
 .receipt-head strong {
   display: block;
   margin-top: 3px;
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .receipt-id {
@@ -237,7 +201,7 @@ function goReceipt() {
 }
 
 .receipt-body {
-  padding: 10px 14px 12px;
+  padding: 14px 16px;
 }
 
 .receipt-meta {
@@ -258,7 +222,7 @@ function goReceipt() {
 .receipt-meta strong {
   display: block;
   margin-top: 2px;
-  font-size: 18px;
+  font-size: 20px;
   color: #0f172a;
 }
 
@@ -272,11 +236,11 @@ function goReceipt() {
 }
 
 .service-list {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #dce3ef;
   display: grid;
-  gap: 7px;
+  gap: 10px;
 }
 
 .service-list article {
@@ -287,7 +251,7 @@ function goReceipt() {
 
 .service-list strong {
   color: #0f172a;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .service-list p {
@@ -298,18 +262,18 @@ function goReceipt() {
 
 .service-list span {
   color: #334155;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
 }
 
 .totals-box {
-  margin-top: 10px;
+  margin-top: 12px;
   border: 1px solid #d6dfee;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px;
   background: #f6f9fd;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .totals-box div {
@@ -325,12 +289,12 @@ function goReceipt() {
 
 .totals-box strong {
   color: #0f172a;
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .totals-box .deposit-row strong {
   color: #f97316;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .totals-box small {
@@ -341,16 +305,16 @@ function goReceipt() {
 
 .receipt-foot {
   border-top: 1px solid #dce3ef;
-  padding: 8px 16px;
+  padding: 10px 16px;
   color: #8da0bb;
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
 
 .confirmed-actions {
-  margin-top: 10px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -358,12 +322,16 @@ function goReceipt() {
 
 .btn-light,
 .btn-primary {
-  min-height: 40px;
-  border-radius: 11px;
+  min-height: 44px;
+  border-radius: 12px;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .btn-light {
@@ -379,37 +347,29 @@ function goReceipt() {
   box-shadow: 0 6px 12px rgba(234, 88, 12, 0.22);
 }
 
+.btn-light:hover,
+.btn-primary:hover {
+  transform: translateY(-1px);
+}
+
 @media (max-width: 760px) {
-  .confirmed-header {
-    height: 50px;
-    padding: 0 12px;
-  }
-
-  .brand strong {
-    font-size: 16px;
-  }
-
-  .brand p {
-    font-size: 11px;
-  }
-
   .confirmed-shell {
     width: calc(100% - 1rem);
     margin-top: 10px;
   }
 
   .status-icon {
-    width: 52px;
-    height: 52px;
-    font-size: 28px;
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
   }
 
   .confirmed-shell h1 {
-    font-size: 24px;
+    font-size: 30px;
   }
 
   .subtitle {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .receipt-head {
@@ -421,41 +381,13 @@ function goReceipt() {
     text-align: left;
   }
 
-  .receipt-head strong {
-    font-size: 38px;
-  }
-
-  .receipt-id strong {
-    font-size: 28px;
-  }
-
   .receipt-meta {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .receipt-meta strong {
-    font-size: 30px;
-  }
-
   .service-list article {
     flex-direction: column;
-  }
-
-  .service-list strong {
-    font-size: 24px;
-  }
-
-  .service-list span {
-    font-size: 20px;
-  }
-
-  .totals-box strong {
-    font-size: 26px;
-  }
-
-  .totals-box .deposit-row strong {
-    font-size: 30px;
   }
 
   .receipt-foot {

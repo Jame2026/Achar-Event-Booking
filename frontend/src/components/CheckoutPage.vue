@@ -8,7 +8,13 @@ const AUTH_USER_STORAGE_KEY = "achar_auth_user";
 const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
 const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
+const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
+const paymentLogoError = ref({
+  aba: false,
+  wing: false,
+  acleda: false,
+});
 
 const fallback = {
   vendorTitle: "Selected Vendor",
@@ -59,13 +65,49 @@ const remaining = computed(() =>
 const selectedMethod = ref("aba");
 const agreedTerms = ref(false);
 const paymentNotice = ref("");
+const cardForm = ref({
+  holderName: "",
+  cardNumber: "",
+  expiry: "",
+  cvv: "",
+});
 
 function goBack() {
   router.back();
 }
 
+function goToServices() {
+  const firstPackage = bookingItems.value.find((item) => item.type === "package");
+  const firstService = bookingItems.value.find((item) => item.type === "service");
+  const requestedEventType = String(booking.requestedEventType || "").trim();
+  const query = { from: "checkout" };
+  if (requestedEventType) query.event = requestedEventType;
+
+  const hasService = Boolean(firstService?.name);
+  if (hasService) {
+    query.service = firstService.name;
+    query.q = firstService.name;
+  } else if (firstPackage?.name) {
+    query.package = firstPackage.name;
+    query.q = firstPackage.name;
+  }
+
+  sessionStorage.setItem(CHECKOUT_FLOW_FLAG_KEY, "1");
+  router.push({
+    path: hasService ? "/services/overall" : "/services/packages",
+    query,
+  });
+}
+
 function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
+}
+
+function onPaymentLogoError(key) {
+  paymentLogoError.value = {
+    ...paymentLogoError.value,
+    [key]: true,
+  };
 }
 
 function saveLocalBooking(user) {
@@ -98,6 +140,28 @@ function saveLocalBooking(user) {
 
 async function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
+  if (selectedMethod.value === "card") {
+    const holder = String(cardForm.value.holderName || "").trim();
+    const digits = String(cardForm.value.cardNumber || "").replace(/\D/g, "");
+    const expiry = String(cardForm.value.expiry || "").trim();
+    const cvv = String(cardForm.value.cvv || "").trim();
+    const expiryMatch = expiry.match(/^(\d{2})\/(\d{2})$/);
+
+    if (!holder || digits.length < 13 || digits.length > 19 || !expiryMatch || !/^\d{3,4}$/.test(cvv)) {
+      paymentNotice.value = "Please enter valid card details to continue.";
+      return;
+    }
+
+    const mm = Number(expiryMatch[1]);
+    const yy = Number(expiryMatch[2]);
+    const now = new Date();
+    const currentYY = Number(String(now.getFullYear()).slice(-2));
+    const currentMM = now.getMonth() + 1;
+    if (mm < 1 || mm > 12 || yy < currentYY || (yy === currentYY && mm < currentMM)) {
+      paymentNotice.value = "Your card expiry date is invalid or already expired.";
+      return;
+    }
+  }
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) {
     paymentNotice.value = "Please sign in or register to continue payment.";
@@ -160,7 +224,7 @@ async function handleConfirmAndPay() {
         </div>
       </div>
       <div class="checkout-steps">
-        <span>1 Services</span>
+        <button type="button" class="step-link" @click="goToServices">1 Services</button>
         <span class="active">2 Review & Payment</span>
       </div>
       <button type="button" class="close-btn" @click="goBack">x</button>
@@ -170,6 +234,7 @@ async function handleConfirmAndPay() {
       <section class="checkout-main">
         <div class="section-head">
           <h1>Booking Summary</h1>
+          <p class="section-subtitle">Review selected items and customer details before payment.</p>
         </div>
 
         <article
@@ -207,6 +272,7 @@ async function handleConfirmAndPay() {
       <aside class="checkout-side">
         <article class="payment-card">
           <h2>Payment Summary</h2>
+          <p class="payment-subtitle">Choose a payment method and confirm your deposit securely.</p>
           <div class="row"><span>Booking Total</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
           <div class="row"><span>Processing Fee (2%)</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
           <div class="deposit-box">
@@ -226,7 +292,16 @@ async function handleConfirmAndPay() {
             :class="{ active: selectedMethod === 'aba' }"
             @click="selectedMethod = 'aba'"
           >
-            <span class="method-logo aba">ABA</span>
+            <span class="method-logo aba">
+              <img
+                v-if="!paymentLogoError.aba"
+                src="/ABA.png"
+                alt="ABA logo"
+                loading="lazy"
+                @error="onPaymentLogoError('aba')"
+              />
+              <span v-else>ABA</span>
+            </span>
             <span class="method-copy">
               <strong>ABA Pay</strong>
               <small>Instant QR payment</small>
@@ -239,7 +314,16 @@ async function handleConfirmAndPay() {
             :class="{ active: selectedMethod === 'wing' }"
             @click="selectedMethod = 'wing'"
           >
-            <span class="method-logo wing">Wing</span>
+            <span class="method-logo wing">
+              <img
+                v-if="!paymentLogoError.wing"
+                src="/wing.png"
+                alt="Wing logo"
+                loading="lazy"
+                @error="onPaymentLogoError('wing')"
+              />
+              <span v-else>Wing</span>
+            </span>
             <span class="method-copy">
               <strong>Wing Bank</strong>
               <small>Pay via Wing App or Account</small>
@@ -252,44 +336,90 @@ async function handleConfirmAndPay() {
             :class="{ active: selectedMethod === 'acleda' }"
             @click="selectedMethod = 'acleda'"
           >
-            <span class="method-logo acleda">ACLEDA</span>
+            <span class="method-logo acleda">
+              <img
+                v-if="!paymentLogoError.acleda"
+                src="/Ac.png"
+                alt="ACLEDA logo"
+                loading="lazy"
+                @error="onPaymentLogoError('acleda')"
+              />
+              <span v-else>ACLEDA</span>
+            </span>
             <span class="method-copy">
               <strong>ACLEDA Bank</strong>
               <small>ACLEDA Mobile / QR</small>
             </span>
             <span class="method-radio"></span>
           </button>
+          <button
+            type="button"
+            class="method-card"
+            :class="{ active: selectedMethod === 'card' }"
+            @click="selectedMethod = 'card'"
+          >
+            <span class="method-logo card">
+              <span>VISA</span>
+            </span>
+            <span class="method-copy">
+              <strong>Credit / Visa Card</strong>
+              <small>Secure card payment</small>
+            </span>
+            <span class="method-radio"></span>
+          </button>
 
-          <div class="qr-panel">
+          <div v-if="selectedMethod !== 'card'" class="qr-panel">
             <div class="qr-placeholder" aria-label="Example QR code">
-              <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
-                <rect x="0" y="0" width="120" height="120" fill="#ffffff" />
-                <rect x="8" y="8" width="26" height="26" fill="#1e293b" />
-                <rect x="12" y="12" width="18" height="18" fill="#ffffff" />
-                <rect x="16" y="16" width="10" height="10" fill="#1e293b" />
-                <rect x="86" y="8" width="26" height="26" fill="#1e293b" />
-                <rect x="90" y="12" width="18" height="18" fill="#ffffff" />
-                <rect x="94" y="16" width="10" height="10" fill="#1e293b" />
-                <rect x="8" y="86" width="26" height="26" fill="#1e293b" />
-                <rect x="12" y="90" width="18" height="18" fill="#ffffff" />
-                <rect x="16" y="94" width="10" height="10" fill="#1e293b" />
-                <rect x="46" y="46" width="6" height="6" fill="#1e293b" />
-                <rect x="56" y="46" width="6" height="6" fill="#1e293b" />
-                <rect x="66" y="46" width="6" height="6" fill="#1e293b" />
-                <rect x="46" y="56" width="6" height="6" fill="#1e293b" />
-                <rect x="66" y="56" width="6" height="6" fill="#1e293b" />
-                <rect x="46" y="66" width="6" height="6" fill="#1e293b" />
-                <rect x="56" y="66" width="6" height="6" fill="#1e293b" />
-                <rect x="66" y="66" width="6" height="6" fill="#1e293b" />
-                <rect x="80" y="52" width="6" height="6" fill="#1e293b" />
-                <rect x="90" y="52" width="6" height="6" fill="#1e293b" />
-                <rect x="80" y="62" width="6" height="6" fill="#1e293b" />
-                <rect x="90" y="72" width="6" height="6" fill="#1e293b" />
-                <rect x="52" y="80" width="6" height="6" fill="#1e293b" />
-                <rect x="62" y="90" width="6" height="6" fill="#1e293b" />
-              </svg>
+              <img src="/qrcode.jpg" alt="QR code for payment" loading="lazy" />
             </div>
             <p>Scan the QR code within your banking app to authorize the deposit.</p>
+          </div>
+          <div v-else class="card-panel">
+            <label class="card-field">
+              <span>Cardholder Name</span>
+              <input
+                v-model.trim="cardForm.holderName"
+                type="text"
+                autocomplete="cc-name"
+                placeholder="Name on card"
+              />
+            </label>
+            <label class="card-field">
+              <span>Card Number</span>
+              <input
+                v-model="cardForm.cardNumber"
+                type="text"
+                inputmode="numeric"
+                autocomplete="cc-number"
+                maxlength="23"
+                placeholder="1234 5678 9012 3456"
+              />
+            </label>
+            <div class="card-row">
+              <label class="card-field">
+                <span>Expiry (MM/YY)</span>
+                <input
+                  v-model="cardForm.expiry"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="cc-exp"
+                  maxlength="5"
+                  placeholder="MM/YY"
+                />
+              </label>
+              <label class="card-field">
+                <span>CVV</span>
+                <input
+                  v-model="cardForm.cvv"
+                  type="password"
+                  inputmode="numeric"
+                  autocomplete="cc-csc"
+                  maxlength="4"
+                  placeholder="123"
+                />
+              </label>
+            </div>
+            <p class="card-help">Your card details are encrypted and processed securely.</p>
           </div>
 
           <label class="terms-row">
@@ -313,131 +443,204 @@ async function handleConfirmAndPay() {
 
 <style scoped>
 .checkout-page {
+  --checkout-bg: #edf2f9;
+  --checkout-text: #0f172a;
+  --checkout-muted: #64748b;
+  --checkout-border: #d8e2ef;
+  --checkout-accent: #f97316;
+  --checkout-accent-strong: #ea580c;
+  --checkout-soft: #fff7ed;
   min-height: 100vh;
-  background: #f3f5f9;
+  background:
+    radial-gradient(circle at 6% 0%, rgba(249, 115, 22, 0.12), transparent 36%),
+    radial-gradient(circle at 96% 10%, rgba(59, 130, 246, 0.08), transparent 34%),
+    var(--checkout-bg);
 }
 
 .checkout-header {
   position: sticky;
   top: 0;
-  z-index: 40;
-  background: #fff;
+  z-index: 70;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid #dbe2ee;
-  padding: 10px 20px;
+  padding: 10px 18px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .checkout-brand {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .checkout-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
   border: 1px solid #f2d2bb;
   background: #fff;
   object-fit: contain;
-  padding: 6px;
-  box-shadow: 0 6px 14px rgba(198, 100, 14, 0.15);
+  padding: 5px;
+  box-shadow: 0 8px 16px rgba(198, 100, 14, 0.16);
 }
 
 .checkout-brand-name {
   display: block;
-  font-size: clamp(26px, 3vw, 42px);
-  line-height: 1.1;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1;
   color: #c76316;
   font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .checkout-steps {
   justify-self: center;
   color: #7c8ca2;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
-  gap: 16px;
+  gap: 14px;
+  font-size: 14px;
+  background: #f8fbff;
+  border: 1px solid #dbe4f1;
+  border-radius: 999px;
+  padding: 7px 12px;
 }
 
 .checkout-steps .active {
-  color: #e67a00;
+  color: #fff;
+  background: linear-gradient(120deg, var(--checkout-accent), #fb923c);
+  border-radius: 999px;
+  padding: 4px 10px;
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.24);
+}
+
+.checkout-steps .step-link {
+  border: 0;
+  background: transparent;
+  color: #7c8ca2;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  cursor: pointer;
+}
+
+.checkout-steps .step-link:hover {
+  color: #475569;
 }
 
 .close-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
   border: 1px solid #d6deeb;
   background: #fff;
   cursor: pointer;
+  color: #334155;
+  font-size: 18px;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.close-btn:hover {
+  border-color: #fdba74;
+  background: #fff7ed;
+  transform: translateY(-1px);
 }
 
 .checkout-shell {
   width: min(1220px, calc(100% - 2rem));
-  margin: 16px auto 0;
+  margin: 20px auto 0;
   display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 405px;
+  gap: 18px;
   align-items: start;
+}
+
+.section-head {
+  border: 1px solid var(--checkout-border);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 94% 16%, rgba(249, 115, 22, 0.08), transparent 38%),
+    linear-gradient(180deg, #ffffff, #fcfdff);
+  padding: 16px 18px;
 }
 
 .checkout-main h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(28px, 2.4vw, 36px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.section-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .line-item,
 .guarantee-card,
 .payment-card {
-  border: 1px solid #d5dfec;
-  border-radius: 16px;
+  border: 1px solid var(--checkout-border);
+  border-radius: 18px;
   background: #fff;
 }
 
 .line-item {
   margin-top: 12px;
-  padding: 14px;
+  padding: 16px 18px;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
 }
 
 .line-item h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  color: var(--checkout-text);
 }
 
 .line-item p {
-  margin: 6px 0 0;
-  font-size: 15px;
-  color: #64748b;
+  margin: 5px 0 0;
+  font-size: 14px;
+  color: var(--checkout-muted);
 }
 
 .line-item small {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .line-item strong {
-  color: #e67a00;
-  font-size: 20px;
+  color: #c2410c;
+  font-size: 22px;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .guarantee-card {
   margin-top: 12px;
-  padding: 14px;
+  padding: 16px 18px;
+  background:
+    radial-gradient(circle at 98% 0%, rgba(59, 130, 246, 0.06), transparent 36%),
+    #fff;
 }
 
 .guarantee-card h3 {
   margin: 0 0 8px;
   font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
 }
 
 .guarantee-grid {
@@ -454,12 +657,24 @@ async function handleConfirmAndPay() {
 }
 
 .payment-card {
-  padding: 14px;
+  padding: 16px;
+  position: sticky;
+  top: 84px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.07);
 }
 
 .payment-card h2 {
-  margin: 0 0 10px;
-  font-size: 16px;
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
+
+.payment-subtitle {
+  margin: 5px 0 12px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .row {
@@ -477,23 +692,26 @@ async function handleConfirmAndPay() {
 
 .deposit-box {
   margin-top: 10px;
-  border: 1px solid #f2c995;
-  border-radius: 12px;
-  background: #fff8ef;
-  padding: 10px;
+  border: 1px solid #f8c99f;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff8ef, #fff2e4);
+  padding: 10px 11px;
 }
 
 .deposit-box p {
   margin: 0;
   color: #b45309;
   text-transform: uppercase;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 .deposit-box strong {
   display: inline-block;
-  font-size: 38px;
+  font-size: 34px;
+  line-height: 1;
+  color: #c2410c;
 }
 
 .deposit-row {
@@ -524,9 +742,9 @@ async function handleConfirmAndPay() {
   margin: 0 0 8px;
   color: #94a3b8;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .method-card {
@@ -534,14 +752,24 @@ async function handleConfirmAndPay() {
   border: 1px solid #d8e2ef;
   border-radius: 14px;
   background: #fff;
-  padding: 10px;
+  padding: 11px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   margin-bottom: 8px;
   text-align: left;
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.method-card:hover {
+  border-color: #f5c39d;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.12);
+  transform: translateY(-1px);
 }
 
 .method-card.active {
@@ -550,39 +778,62 @@ async function handleConfirmAndPay() {
 }
 
 .method-logo {
-  min-width: 52px;
-  height: 32px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
+  width: 64px;
+  height: 40px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   font-weight: 900;
+  overflow: hidden;
+  border: 1px solid #dbe4f1;
+  background: #fff;
+  padding: 3px;
+}
+
+.method-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.method-logo.aba img {
+  transform: scale(1.12);
 }
 
 .method-logo.aba {
-  background: #e9f1ff;
   color: #003a75;
 }
 
 .method-logo.wing {
-  background: #8bc53f;
-  color: #fff;
+  color: #4d7f18;
 }
 
 .method-logo.acleda {
-  background: #f3dd3d;
   color: #173b9f;
+}
+
+.method-logo.card {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #fff;
+  border-color: #1d4ed8;
+  padding: 0;
+  font-size: 13px;
+  letter-spacing: 0.03em;
 }
 
 .method-copy strong {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.2;
   color: #0f172a;
 }
 
 .method-copy small {
   color: #64748b;
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .method-radio {
@@ -599,9 +850,9 @@ async function handleConfirmAndPay() {
 
 .qr-panel {
   margin-top: 8px;
-  border: 1px dashed #d3ddeb;
+  border: 1px dashed #cfdceb;
   border-radius: 14px;
-  background: #f8fbff;
+  background: linear-gradient(180deg, #f8fbff, #f3f8ff);
   padding: 12px;
   text-align: center;
 }
@@ -618,13 +869,59 @@ async function handleConfirmAndPay() {
   padding: 8px;
 }
 
-.qr-placeholder svg {
+.qr-placeholder img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .qr-panel p {
   margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.card-panel {
+  margin-top: 8px;
+  border: 1px solid #d8e2ef;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfdff, #f7faff);
+  padding: 12px;
+  display: grid;
+  gap: 11px;
+}
+
+.card-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card-field {
+  display: grid;
+  gap: 5px;
+}
+
+.card-field span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.card-field input {
+  width: 100%;
+  border: 1px solid #d7e1ef;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  padding: 10px 11px;
+}
+
+.card-help {
+  margin: -2px 0 0;
   color: #64748b;
   font-size: 12px;
 }
@@ -657,17 +954,27 @@ async function handleConfirmAndPay() {
   margin-top: 14px;
   border: none;
   border-radius: 12px;
-  background: #f59b23;
+  background: linear-gradient(120deg, var(--checkout-accent), var(--checkout-accent-strong));
   color: #fff;
   font-size: 16px;
   font-weight: 800;
   padding: 12px;
   cursor: pointer;
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.28);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.pay-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(249, 115, 22, 0.32);
 }
 
 .pay-btn:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .secure-note {
@@ -707,16 +1014,21 @@ async function handleConfirmAndPay() {
     grid-template-columns: 1fr;
   }
 
+  .payment-card {
+    position: static;
+    top: auto;
+  }
+
   .checkout-main h1 {
     font-size: 30px;
   }
 
   .line-item h3 {
-    font-size: 22px;
+    font-size: 17px;
   }
 
   .line-item p {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .line-item small {
@@ -724,7 +1036,7 @@ async function handleConfirmAndPay() {
   }
 
   .line-item strong {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .guarantee-card h3,
@@ -741,6 +1053,51 @@ async function handleConfirmAndPay() {
 
   .deposit-box strong {
     font-size: 30px;
+  }
+}
+
+@media (max-width: 680px) {
+  .checkout-header {
+    padding: 8px 12px;
+  }
+
+  .checkout-steps {
+    width: 100%;
+    justify-content: center;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .checkout-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .checkout-brand-name {
+    font-size: 24px;
+  }
+
+  .checkout-shell {
+    width: calc(100% - 1rem);
+    margin-top: 12px;
+    gap: 10px;
+  }
+
+  .line-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .line-item strong {
+    font-size: 20px;
+  }
+
+  .guarantee-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deposit-box strong {
+    font-size: 28px;
   }
 }
 </style>

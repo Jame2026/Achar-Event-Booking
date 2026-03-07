@@ -13,9 +13,13 @@ class EventController extends Controller
 {
     public function index(): JsonResponse
     {
+        $perPage = (int) request()->integer('per_page', 15);
+        $perPage = max(1, min($perPage, 100));
+
         $events = Event::query()
+            ->with('vendor:id,name')
             ->latest('starts_at')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json($events);
     }
@@ -41,7 +45,7 @@ class EventController extends Controller
 
     public function show(Event $event): JsonResponse
     {
-        $event->loadCount('bookings');
+        $event->load(['vendor:id,name'])->loadCount('bookings');
 
         return response()->json($event);
     }

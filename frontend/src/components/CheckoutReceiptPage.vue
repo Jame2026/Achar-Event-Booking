@@ -185,18 +185,28 @@ function downloadPdf() {
 
 <style scoped>
 .receipt-page {
+  --receipt-accent: #f59e0b;
+  --receipt-accent-strong: #d97706;
   min-height: 100vh;
-  background: #ededf0;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(245, 158, 11, 0.14), transparent 32%),
+    radial-gradient(circle at 94% 10%, rgba(59, 130, 246, 0.09), transparent 34%),
+    #eceff4;
   padding: 16px 10px 24px;
 }
 
 .receipt-toolbar {
   width: min(760px, calc(100% - 1rem));
-  margin: 0 auto 10px;
+  margin: 0 auto 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #d9e2ef;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
 }
 
 .back-link {
@@ -256,22 +266,28 @@ function downloadPdf() {
 }
 
 .receipt-primary-btn {
-  border: 1px solid #f59e0b;
-  background: #f59e0b;
+  border: 1px solid var(--receipt-accent);
+  background: linear-gradient(120deg, var(--receipt-accent), var(--receipt-accent-strong));
   color: #fff;
 }
 
 .receipt-sheet {
+  --sheet-gutter: 16px;
   width: min(760px, calc(100% - 1rem));
   margin: 0 auto;
   background: #fff;
   border: 1px solid #d8e2ee;
-  border-radius: 14px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   overflow: hidden;
 }
 
+.items-body {
+  display: block;
+}
+
 .sheet-head {
-  padding: 16px;
+  padding: var(--sheet-gutter);
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 14px;
@@ -284,6 +300,7 @@ function downloadPdf() {
 .brand-block {
   display: grid;
   gap: 8px;
+  align-content: start;
 }
 
 .brand-top {
@@ -312,7 +329,7 @@ function downloadPdf() {
 }
 
 .brand-meta {
-  padding-left: 82px;
+  padding-left: 0;
 }
 
 .brand-meta p {
@@ -358,7 +375,7 @@ function downloadPdf() {
 }
 
 .meta-item strong {
-  font-size: 19px;
+  font-size: 20px;
   color: #0f172a;
   line-height: 1.2;
 }
@@ -370,7 +387,7 @@ function downloadPdf() {
 }
 
 .info-row article {
-  padding: 12px 16px;
+  padding: 12px var(--sheet-gutter);
 }
 
 .info-row article + article {
@@ -398,7 +415,7 @@ function downloadPdf() {
 }
 
 .items-head {
-  padding: 10px 16px;
+  padding: 10px var(--sheet-gutter);
   border-bottom: 1px solid #e4ebf3;
   display: grid;
   grid-template-columns: 1fr 56px 96px 96px;
@@ -410,7 +427,7 @@ function downloadPdf() {
 }
 
 .item-row {
-  padding: 10px 16px;
+  padding: 10px var(--sheet-gutter);
   border-bottom: 1px solid #edf2f8;
   display: grid;
   grid-template-columns: 1fr 56px 96px 96px;
@@ -424,7 +441,7 @@ function downloadPdf() {
 }
 
 .item-row strong {
-  font-size: 14px;
+  font-size: 15px;
   color: #111827;
 }
 
@@ -439,7 +456,7 @@ function downloadPdf() {
 }
 
 .sheet-foot {
-  padding: 12px 16px;
+  padding: 12px var(--sheet-gutter);
   display: grid;
   grid-template-columns: 1fr 280px;
   gap: 12px;
@@ -500,7 +517,7 @@ function downloadPdf() {
 }
 
 .totals-panel p strong {
-  font-size: 18px;
+  font-size: 19px;
   color: #0f172a;
 }
 
@@ -510,7 +527,7 @@ function downloadPdf() {
 
 .totals-panel p.due strong {
   color: #ea580c;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .disclaimer {
@@ -525,6 +542,7 @@ function downloadPdf() {
   .receipt-toolbar {
     flex-direction: column;
     align-items: stretch;
+    padding: 8px;
   }
 
   .toolbar-actions {
@@ -534,6 +552,7 @@ function downloadPdf() {
   .receipt-ghost-btn,
   .receipt-primary-btn {
     width: 100%;
+    min-height: 40px;
   }
 
   .sheet-head,
@@ -576,6 +595,20 @@ function downloadPdf() {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .no-print,
   .receipt-toolbar {
     display: none !important;
@@ -583,13 +616,61 @@ function downloadPdf() {
 
   .receipt-page {
     background: #fff;
-    padding: 0;
+    padding: 0 !important;
+    min-height: auto;
   }
 
   .receipt-sheet {
-    width: 100%;
-    border: none;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 1px solid #d8e2ee;
     border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .sheet-head,
+  .info-row article,
+  .items-head,
+  .item-row,
+  .sheet-foot,
+  .disclaimer {
+    break-inside: avoid-page;
+  }
+
+  .sheet-head {
+    padding: 8mm 8mm 6mm;
+  }
+
+  .items-head,
+  .item-row {
+    grid-template-columns: 1fr 18mm 28mm 28mm;
+    gap: 3mm;
+  }
+
+  .items-head {
+    font-size: 10px;
+  }
+
+  .item-row {
+    font-size: 12px;
+  }
+
+  .item-row strong {
+    font-size: 13px;
+  }
+
+  .sheet-foot {
+    grid-template-columns: 1fr 72mm;
+  }
+
+  .totals-panel p strong {
+    font-size: 16px;
+  }
+
+  .totals-panel p.due strong {
+    font-size: 22px;
   }
 }
 </style>
