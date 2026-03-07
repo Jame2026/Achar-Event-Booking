@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
-import { apiGet, apiPost } from "../features/apiClient";
+import { apiGet } from "../features/apiClient";
 
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 const showAllEvents = ref(false);
@@ -134,64 +134,19 @@ const tips = [
   { category: "Decor & Styling", title: "Minimalist Tablescapes That Still Feel Luxe", meta: "By In-house Stylists - 5 min read", image: "/p2.png" },
 ];
 
-const showBookingModal = ref(false);
-const selectedVendor = ref(null);
-const bookingSuccess = ref(false);
-const bookingSubmitting = ref(false);
-const bookingError = ref("");
-const bookingForm = ref({
-  fullName: "",
-  email: "",
-  eventDate: "",
-  guests: 50,
-  notes: "",
-});
+function openServiceBookingForm(vendor) {
+  const query = {};
+  const title = String(vendor?.title || "").trim();
+  const eventType = String(vendor?.requestedEventType || "").trim();
+  const eventId = Number(vendor?.eventId || 0);
 
-function openBookingModal(vendor) {
-  selectedVendor.value = vendor;
-  bookingSuccess.value = false;
-  bookingError.value = "";
-  showBookingModal.value = true;
-  bookingForm.value = {
-    fullName: "",
-    email: "",
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
-}
-
-function closeBookingModal() {
-  showBookingModal.value = false;
-  bookingSubmitting.value = false;
-  bookingError.value = "";
-}
-
-async function submitBooking() {
-  if (!selectedVendor.value?.eventId) {
-    bookingError.value = "This service is not connected to a live vendor listing yet.";
-    return;
+  if (title) query.q = title;
+  if (eventType && eventType !== "other") query.event = eventType;
+  if (Number.isFinite(eventId) && eventId > 0) {
+    query.prebookEventId = String(eventId);
   }
 
-  bookingSubmitting.value = true;
-  bookingError.value = "";
-
-  try {
-    await apiPost("bookings", {
-      event_id: selectedVendor.value.eventId,
-      quantity: Number(bookingForm.value.guests || 1),
-      customer_name: String(bookingForm.value.fullName || "").trim(),
-      customer_email: String(bookingForm.value.email || "").trim(),
-      service_name: selectedVendor.value.title,
-      requested_event_type: selectedVendor.value.requestedEventType || "other",
-    });
-
-    bookingSuccess.value = true;
-  } catch (error) {
-    bookingError.value = error?.message || "Could not create booking right now.";
-  } finally {
-    bookingSubmitting.value = false;
-  }
+  router.push({ path: "/services/packages", query });
 }
 
 onMounted(() => {
@@ -304,7 +259,7 @@ onMounted(() => {
               <button
                 type="button"
                 class="outline-btn"
-                @click="openBookingModal(vendor)"
+                @click="openServiceBookingForm(vendor)"
               >
                 {{ vendor.cta }}
               </button>
@@ -313,135 +268,6 @@ onMounted(() => {
         </article>
       </div>
     </section>
-    <div
-      v-if="showBookingModal"
-      class="booking-modal-overlay"
-      @click="closeBookingModal"
-    >
-      <div v-if="selectedVendor" class="booking-modal" @click.stop>
-        <button type="button" class="booking-close" @click="closeBookingModal">
-          &times;
-        </button>
-        <div class="booking-modal-layout">
-          <div class="booking-vendor-preview">
-            <img
-              :src="selectedVendor.image"
-              :alt="selectedVendor.title"
-              class="vendor-preview-image"
-            />
-            <div class="vendor-preview-info">
-              <p class="eyebrow">You are booking</p>
-              <h4>{{ selectedVendor.title }}</h4>
-              <p class="vendor-location">{{ selectedVendor.location }}</p>
-              <div class="vendor-rating">
-                <span class="star">*</span>
-                <strong>{{ selectedVendor.rating }}</strong>
-                <span class="reviews"
-                  >({{ selectedVendor.reviews?.toLocaleString() }} reviews)</span
-                >
-              </div>
-            </div>
-          </div>
-          <div class="booking-form-section">
-            <div v-if="bookingSuccess" class="booking-success-state">
-              <div class="success-icon">Sent</div>
-              <h3>Booking Request Sent!</h3>
-              <p>
-                Your request to book
-                <strong>{{ selectedVendor.title }}</strong> has been sent. The
-                vendor will contact you via email shortly.
-              </p>
-              <button
-                type="button"
-                class="primary-btn"
-                @click="closeBookingModal"
-              >
-                Done
-              </button>
-            </div>
-            <form
-              v-else
-              class="booking-modal-form"
-              @submit.prevent="submitBooking"
-            >
-              <div class="booking-modal-header">
-                <h3>Confirm Your Details</h3>
-                <p>Fill out the form below to send a booking request.</p>
-              </div>
-              <div class="form-group">
-                <label for="fullName">Full name</label>
-                <input
-                  id="fullName"
-                  v-model.trim="bookingForm.fullName"
-                  type="text"
-                  required
-                  placeholder="e.g., Jane Doe"
-                />
-              </div>
-              <div class="form-group">
-                <label for="email">Email address</label>
-                <input
-                  id="email"
-                  v-model.trim="bookingForm.email"
-                  type="email"
-                  required
-                  placeholder="e.g., jane.doe@email.com"
-                />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="eventDate">Event date</label>
-                  <input
-                    id="eventDate"
-                    v-model="bookingForm.eventDate"
-                    type="date"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="guests">Number of guests</label>
-                  <input
-                    id="guests"
-                    v-model.number="bookingForm.guests"
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="50"
-                  />
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="notes">Additional notes</label>
-                <textarea
-                  id="notes"
-                  v-model.trim="bookingForm.notes"
-                  rows="3"
-                  placeholder="Any special requests or details for the vendor..."
-                ></textarea>
-              </div>
-              <p
-                v-if="bookingError"
-                style="margin: 0; color: #b91c1c; font-weight: 600"
-              >
-                {{ bookingError }}
-              </p>
-              <div class="booking-modal-actions">
-                <button
-                  type="button"
-                  class="ghost-btn"
-                  @click="closeBookingModal"
-                >
-                  Cancel
-                </button>
-                <button type="submit" class="primary-btn" :disabled="bookingSubmitting">
-                  {{ bookingSubmitting ? "Sending..." : "Send Booking Request" }}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
     <section class="section steps">
       <div class="section__header center">
         <p class="eyebrow">Planning Made Simple</p>

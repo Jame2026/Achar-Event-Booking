@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\User;
+use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
@@ -22,11 +24,26 @@ class VendorController extends Controller
             return $vendor;
         }
 
-        $events = Event::query()
-            ->where('vendor_id', $vendor->id)
-            ->withCount('bookings')
-            ->latest('starts_at')
-            ->get();
+        $events = VendorCache::rememberServices($vendor->id, function () use ($vendor) {
+            return Event::query()
+                ->select([
+                    'id',
+                    'vendor_id',
+                    'title',
+                    'event_type',
+                    'description',
+                    'image_url',
+                    'location',
+                    'starts_at',
+                    'ends_at',
+                    'price',
+                    'capacity',
+                    'is_active',
+                ])
+                ->where('vendor_id', $vendor->id)
+                ->latest('starts_at')
+                ->get();
+        });
 
         return response()->json([
             'data' => $events,
@@ -36,7 +53,6 @@ class VendorController extends Controller
     public function storeServiceByVendorId(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'vendor_user_id' => ['required', 'integer', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'event_type' => ['required', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
@@ -70,6 +86,7 @@ class VendorController extends Controller
             ...$validated,
             'vendor_id' => $vendor->id,
         ]);
+        VendorCache::flushVendor($vendor->id);
 
         return response()->json($event, 201);
     }
@@ -120,6 +137,7 @@ class VendorController extends Controller
         }
 
         $event->update($validated);
+        VendorCache::flushVendor($vendor->id);
 
         return response()->json($event->fresh());
     }
@@ -136,6 +154,8 @@ class VendorController extends Controller
         }
 
         $event->delete();
+        VendorCache::flushVendor($vendor->id);
+
         return response()->noContent();
     }
 
@@ -146,11 +166,13 @@ class VendorController extends Controller
             return $vendor;
         }
 
-        $bookings = Booking::query()
-            ->with(['event:id,title,event_type,starts_at,location,vendor_id', 'user:id,name,email'])
-            ->whereHas('event', fn ($query) => $query->where('vendor_id', $vendor->id))
-            ->latest()
-            ->get();
+        $bookings = VendorCache::rememberBookings($vendor->id, function () use ($vendor) {
+            return Booking::query()
+                ->with(['event:id,title,event_type,starts_at,location,vendor_id', 'user:id,name,email'])
+                ->whereHas('event', fn ($query) => $query->where('vendor_id', $vendor->id))
+                ->latest()
+                ->get();
+        });
 
         return response()->json([
             'data' => $bookings,
@@ -176,6 +198,7 @@ class VendorController extends Controller
         $booking->update([
             'status' => $validated['status'],
         ]);
+        VendorCache::flushVendor($vendor->id);
 
         return response()->json($booking->fresh()->load(['event:id,title,event_type,starts_at,location,vendor_id', 'user:id,name,email']));
     }
@@ -183,12 +206,16 @@ class VendorController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $vendor = $request->user();
-        $eventIds = $vendor->events()->pluck('id');
+        $summary = VendorCache::rememberDashboard((int) $vendor->id, function () use ($vendor) {
+            $eventIds = $vendor->events()->pluck('id');
 
-        return response()->json([
-            'events_count' => $eventIds->count(),
-            'bookings_count' => \App\Models\Booking::whereIn('event_id', $eventIds)->count(),
-        ]);
+            return [
+                'events_count' => $eventIds->count(),
+                'bookings_count' => Booking::query()->whereIn('event_id', $eventIds)->count(),
+            ];
+        });
+
+        return response()->json($summary);
     }
 
     public function myEvents(Request $request): JsonResponse
@@ -217,6 +244,7 @@ class VendorController extends Controller
         ]);
 
         $event = $request->user()->events()->create($validated);
+        VendorCache::flushVendor((int) $request->user()->id);
 
         return response()->json($event, 201);
     }
@@ -249,6 +277,7 @@ class VendorController extends Controller
         }
 
         $event->update($validated);
+        VendorCache::flushVendor((int) $event->vendor_id);
 
         return response()->json($event->fresh());
     }
@@ -259,7 +288,10 @@ class VendorController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
+        $vendorId = (int) $event->vendor_id;
         $event->delete();
+        VendorCache::flushVendor($vendorId);
+
         return response()->noContent();
     }
 
@@ -291,12 +323,16 @@ class VendorController extends Controller
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
     {
         $validated = $request->validate([
-            'vendor_user_id' => ['required', 'integer', 'exists:users,id'],
+            'vendor_user_id' => ['required', 'integer', 'min:1'],
         ]);
 
         $vendor = User::query()
             ->select(['id', 'role'])
-            ->findOrFail((int) $validated['vendor_user_id']);
+            ->find((int) $validated['vendor_user_id']);
+
+        if (! $vendor) {
+            return response()->json(['message' => 'Selected vendor account does not exist.'], 422);
+        }
 
         if (! in_array($vendor->role, ['vendor', 'admin'], true)) {
             return response()->json(['message' => 'Selected user is not a vendor account.'], 422);
@@ -307,16 +343,24 @@ class VendorController extends Controller
 
     private function storeEventImage(UploadedFile $image): string
     {
-        $directory = public_path('uploads/services');
+        $disk = (string) config('media.event_image_disk', 'public');
+        $directory = trim((string) config('media.event_image_directory', 'services'), '/');
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (! config("filesystems.disks.{$disk}")) {
+            throw new \RuntimeException("Image storage disk [{$disk}] is not configured.");
         }
 
-        $filename = Str::uuid()->toString().'.'.$image->getClientOriginalExtension();
-        $image->move($directory, $filename);
+        // Cloudinary SDK expects public IDs without file extension.
+        $isCloudinary = $disk === 'cloudinary';
+        $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
+        $filename = $isCloudinary ? Str::uuid()->toString() : Str::uuid()->toString().'.'.$extension;
+        $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
 
-        return url('uploads/services/'.$filename);
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException('Failed to store event image.');
+        }
+
+        return Storage::disk($disk)->url($path);
     }
 
     private function validateUploadedImage(UploadedFile $image): ?string

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\Event;
+use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -137,6 +138,7 @@ class BookingController extends Controller
         ]);
 
         $booking->setRelation('event', $event);
+        $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
         return response()->json($booking->load('event:id,title,event_type,starts_at,location'), 201);
@@ -172,6 +174,7 @@ class BookingController extends Controller
                 ? $this->calculateTotal($event->price, $newQuantity)
                 : $booking->total_amount,
         ]);
+        $this->flushVendorCacheForBooking($booking);
 
         $updatedBooking = $booking->fresh()->load('event.vendor:id,name,email');
 
@@ -184,6 +187,7 @@ class BookingController extends Controller
 
     public function destroy(Booking $booking): JsonResponse
     {
+        $this->flushVendorCacheForBooking($booking);
         $booking->delete();
 
         return response()->json(null, 204);
@@ -326,5 +330,17 @@ class BookingController extends Controller
             'title' => "Booking {$statusLabel}",
             'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
         ]);
+    }
+
+    private function flushVendorCacheForBooking(Booking $booking): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->select(['id', 'vendor_id'])->first();
+
+        $vendorId = (int) ($event?->vendor_id ?? 0);
+        if ($vendorId > 0) {
+            VendorCache::flushVendor($vendorId);
+        }
     }
 }

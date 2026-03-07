@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -131,16 +132,24 @@ class EventController extends Controller
 
     private function storeEventImage(UploadedFile $image): string
     {
-        $directory = public_path('uploads/services');
+        $disk = (string) config('media.event_image_disk', 'public');
+        $directory = trim((string) config('media.event_image_directory', 'services'), '/');
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (! config("filesystems.disks.{$disk}")) {
+            throw new \RuntimeException("Image storage disk [{$disk}] is not configured.");
         }
 
-        $filename = Str::uuid()->toString().'.'.$image->getClientOriginalExtension();
-        $image->move($directory, $filename);
+        // Cloudinary SDK expects public IDs without file extension.
+        $isCloudinary = $disk === 'cloudinary';
+        $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
+        $filename = $isCloudinary ? Str::uuid()->toString() : Str::uuid()->toString().'.'.$extension;
+        $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
 
-        return url('uploads/services/'.$filename);
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException('Failed to store event image.');
+        }
+
+        return Storage::disk($disk)->url($path);
     }
 
     private function validateUploadedImage(UploadedFile $image): ?string

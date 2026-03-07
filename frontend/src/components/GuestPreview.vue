@@ -118,6 +118,13 @@ const selectedSearchQuery = computed(() => {
   const val = route.query.q;
   return typeof val === "string" ? val : "";
 });
+const selectedPrebookEventId = computed(() => {
+  const raw = Array.isArray(route.query.prebookEventId)
+    ? route.query.prebookEventId[0]
+    : route.query.prebookEventId;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+});
 
 watch(
   selectedEventFilter,
@@ -288,20 +295,24 @@ const totalPrice = computed(() => packagePrice.value + servicesSubtotal.value + 
 const activePackageId = ref(null);
 const showPrebookModal = ref(false);
 const prebookTargetTitle = ref("");
-const prebookForm = ref({
-  fullName: "",
-  email: "",
-  phone: "",
-  location: "",
-  latitude: null,
-  longitude: null,
-  eventDate: "",
-  guests: 50,
-  notes: "",
-});
+function createEmptyPrebookForm() {
+  return {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    latitude: null,
+    longitude: null,
+    eventDate: "",
+    guests: 50,
+    notes: "",
+  };
+}
+const prebookForm = ref(createEmptyPrebookForm());
 const prebookSuccess = ref("");
 const isDetectingPrebookLocation = ref(false);
 const prebookLocationNotice = ref("");
+const lastHandledPrebookEventId = ref(null);
 const activePackage = computed(
   () =>
     guestPreviewPackages.value.find(
@@ -355,17 +366,7 @@ function closePackageDetails() {
 
 function openPrebookForm() {
   prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
-  prebookForm.value = {
-    fullName: "",
-    email: "",
-    phone: "",
-    location: "",
-    latitude: null,
-    longitude: null,
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
+  prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
   closePackageDetails();
@@ -648,6 +649,30 @@ watch(
   },
   { immediate: true },
 );
+watch(
+  [selectedPrebookEventId, guestPreviewPackages, section],
+  ([eventId, packages, currentSection]) => {
+    if (currentSection !== "services-packages" || !eventId) return;
+    if (lastHandledPrebookEventId.value === eventId) return;
+
+    const targetPackage = packages.find((item) => Number(item.backingEventId || 0) === eventId);
+    if (!targetPackage) return;
+
+    selectedPackageId.value = targetPackage.id;
+    packageQuantity.value = 1;
+    prebookTargetTitle.value = targetPackage.title || "Selected Vendor";
+    prebookForm.value = createEmptyPrebookForm();
+    prebookSuccess.value = "";
+    prebookLocationNotice.value = "";
+    showPrebookModal.value = true;
+    lastHandledPrebookEventId.value = eventId;
+
+    const nextQuery = { ...route.query };
+    delete nextQuery.prebookEventId;
+    router.replace({ path: route.path, query: nextQuery }).catch(() => {});
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   void loadLiveVendorEvents();
@@ -664,17 +689,7 @@ function openFavoritePrebookForm() {
   selectedServiceIds.value = [...favoriteSelectedServiceIds.value];
   packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
   prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
-  prebookForm.value = {
-    fullName: "",
-    email: "",
-    phone: "",
-    location: "",
-    latitude: null,
-    longitude: null,
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
+  prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
   showPrebookModal.value = true;

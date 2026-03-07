@@ -923,7 +923,6 @@ async function loadBookings() {
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
     bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
-    await loadNotifications({ silent: true })
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -942,7 +941,7 @@ async function bootstrapAuthenticatedShell() {
   try {
     const tasks = [loadEvents(), loadNotifications({ silent: true })]
     if (isVendorAccount.value) tasks.push(loadVendorBookings())
-    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
   } finally {
@@ -1093,7 +1092,7 @@ watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userL
 watch(customerEmail, () => {
   if (!loggedInUser.value || isBootstrappingAuth.value) return
 
-  if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
+  if (!isVendorAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
     loadBookings()
   }
   loadNotifications({ silent: true })
