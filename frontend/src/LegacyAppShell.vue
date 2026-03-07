@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Login from './components/LoginForm.vue'
@@ -10,6 +10,7 @@ import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
 import PublicNavbar from './components/PublicNavbar.vue'
+import VendorDashboardPage from './components/pages/VendorDashboardPage.vue'
 import VendorPage from './components/pages/VendorPage.vue'
 import {
   eventTypeMap,
@@ -22,11 +23,11 @@ import {
   stats,
   vendorProfile,
 } from './features/appData'
-import { apiGet, apiPatch, apiPost } from './features/apiClient'
+import { apiDelete, apiGet, apiPatch, apiPost } from './features/apiClient'
 import { mapBooking as mapApiBooking, mapEvent as mapApiEvent } from './features/bookingMappers'
 import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
-import { useMessagesFeature } from './features/useMessagesFeature'
+import { useVendorMessagesFeature } from './features/useVendorMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
@@ -63,7 +64,9 @@ function onLoginSuccess(user) {
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
   const redirected = handlePostAuthRedirect()
   if (!redirected) {
-    router.push('/').catch(() => {})
+    const role = String(user?.role || '').trim().toLowerCase()
+    const target = role === 'vendor' || role === 'admin' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+    router.push(target).catch(() => {})
   }
   void bootstrapAuthenticatedShell()
 }
@@ -103,11 +106,16 @@ function logout() {
 
 const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
+const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
-const defaultLegacyPage = computed(() => 'bookings')
+const isVendorAccount = computed(() =>
+  ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
+)
+const defaultLegacyPage = computed(() => (isVendorAccount.value ? 'dashboard' : 'bookings'))
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
@@ -116,7 +124,7 @@ function firstQueryValue(value) {
 function normalizePage(value) {
   const page = firstQueryValue(value)
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
-  if (page === 'dashboard') return 'bookings'
+  if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
   return page
 }
 
@@ -125,24 +133,35 @@ function normalizeVendorTab(value) {
   return allowedVendorTabs.includes(tab) ? tab : 'about'
 }
 
+function normalizeVendorDashboardTab(value) {
+  const tab = firstQueryValue(value)
+  return allowedVendorDashboardTabs.includes(tab) ? tab : 'overview'
+}
+
 function applyRouteStateFromQuery(query) {
   const nextPage = normalizePage(query.page)
   currentPage.value = nextPage
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
+  if (isVendorAccount.value && nextPage === 'dashboard') {
+    vendorDashboardTab.value = normalizeVendorDashboardTab(query.vtab)
+  }
 }
 
 function syncRouteQueryFromState() {
   const nextQuery = {}
   if (currentPage.value !== defaultLegacyPage.value) nextQuery.page = currentPage.value
   if (currentPage.value === 'vendor') nextQuery.tab = activeVendorTab.value
+  if (isVendorAccount.value && currentPage.value === 'dashboard') nextQuery.vtab = vendorDashboardTab.value
 
   const currentPageQuery = firstQueryValue(route.query.page)
   const currentTabQuery = firstQueryValue(route.query.tab)
+  const currentVendorTabQuery = firstQueryValue(route.query.vtab)
 
   const samePage = (currentPageQuery || undefined) === (nextQuery.page || undefined)
   const sameTab = (currentTabQuery || undefined) === (nextQuery.tab || undefined)
+  const sameVendorTab = (currentVendorTabQuery || undefined) === (nextQuery.vtab || undefined)
 
-  if (!samePage || !sameTab) {
+  if (!samePage || !sameTab || !sameVendorTab) {
     router.replace({ path: '/legacy-app', query: nextQuery }).catch(() => {})
   }
 }
@@ -205,8 +224,26 @@ function handleGlobalSearchUpdated() {
 
 const selectedEventType = ref('all')
 const bookingEventTypeFilter = ref('all')
+const isSubmittingVendorService = ref(false)
+const vendorServiceNotice = ref('')
+const vendorServiceForm = ref({
+  title: '',
+  event_type: 'wedding',
+  description: '',
+  image_url: '',
+  image_file: null,
+  location: '',
+  location_latitude: null,
+  location_longitude: null,
+  starts_at: '',
+  ends_at: '',
+  price: 0,
+  capacity: 1,
+  is_active: true,
+})
 
 const vendorEvents = ref([])
+const vendorBookings = ref([])
 const bookings = ref([])
 const selectedQuantities = ref({})
 const availabilityByEvent = ref({})
@@ -214,6 +251,7 @@ const checkingAvailabilityEventId = ref(null)
 const brandLogoSrc = ref('/achar-logo.png')
 
 const isLoadingEvents = ref(false)
+const isLoadingVendorBookings = ref(false)
 const isLoadingBookings = ref(false)
 const isLoadingNotifications = ref(false)
 const bookingSubmittingEventId = ref(null)
@@ -261,7 +299,9 @@ const {
   sendLocation,
   saveDocument,
   deleteMessage,
-} = useMessagesFeature(currentPage)
+  isLoadingMessages,
+  messagesError,
+} = useVendorMessagesFeature(currentPage, loggedInUser, notice)
 const {
   availabilityMonthCursor,
   selectedAvailabilityDate,
@@ -416,6 +456,32 @@ const dashboardStats = computed(() => {
 })
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
+const vendorDisplayName = computed(
+  () => String(loggedInUser.value?.name || vendorProfile.name || 'Vendor').trim() || 'Vendor',
+)
+const messagesSummary = computed(
+  () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
+)
+const vendorIncome = computed(() => {
+  const total = vendorBookings.value
+    .filter((item) => String(item.status || '').toLowerCase() === 'confirmed')
+    .reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
+  const confirmedCount = vendorBookings.value.filter(
+    (item) => String(item.status || '').toLowerCase() === 'confirmed',
+  ).length
+  const newBookings = vendorBookings.value.filter(
+    (item) => String(item.status || '').toLowerCase() === 'pending',
+  ).length
+  const activeServices = vendorEvents.value.filter((item) => item.isActive).length
+  return {
+    total,
+    confirmedCount,
+    newBookings,
+    thisMonth: total,
+    thisYear: total,
+    activeServices,
+  }
+})
 
 function getLocalBookingsByEmail(email) {
   if (!email) return []
@@ -631,7 +697,11 @@ async function openNotification(notification) {
 async function loadEvents() {
   isLoadingEvents.value = true
   try {
-    const result = await apiGet('events')
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    const result =
+      isVendorAccount.value && Number.isFinite(vendorUserId) && vendorUserId > 0
+        ? await apiGet('vendor/services', { vendor_user_id: vendorUserId })
+        : await apiGet('events')
     const rows = Array.isArray(result.data) ? result.data : []
     vendorEvents.value = rows.map((row) => mapApiEvent(row, eventTypeMap))
     availabilityByEvent.value = {}
@@ -645,6 +715,174 @@ async function loadEvents() {
     notice.value = 'Could not load events from backend API. Please start backend server.'
   } finally {
     isLoadingEvents.value = false
+  }
+}
+
+function resetVendorServiceForm() {
+  vendorServiceForm.value = {
+    title: '',
+    event_type: 'wedding',
+    description: '',
+    image_url: '',
+    image_file: null,
+    location: '',
+    location_latitude: null,
+    location_longitude: null,
+    starts_at: '',
+    ends_at: '',
+    price: 0,
+    capacity: 1,
+    is_active: true,
+  }
+}
+
+async function submitVendorService() {
+  if (!isVendorAccount.value) return
+
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
+    vendorServiceNotice.value = 'Vendor account is missing.'
+    return
+  }
+
+  const imageUrl = String(vendorServiceForm.value.image_url || '').trim()
+  const imageFile = vendorServiceForm.value.image_file instanceof File ? vendorServiceForm.value.image_file : null
+  const normalizedPayload = {
+    vendor_user_id: vendorUserId,
+    title: String(vendorServiceForm.value.title || '').trim(),
+    event_type: String(vendorServiceForm.value.event_type || 'other'),
+    description: String(vendorServiceForm.value.description || '').trim(),
+    image_url: imageUrl,
+    location: String(vendorServiceForm.value.location || '').trim(),
+    starts_at: vendorServiceForm.value.starts_at || null,
+    ends_at: vendorServiceForm.value.ends_at || null,
+    price: Number(vendorServiceForm.value.price || 0),
+    capacity: Number(vendorServiceForm.value.capacity || 0),
+    is_active: Boolean(vendorServiceForm.value.is_active),
+  }
+
+  if (!normalizedPayload.title || !normalizedPayload.location || !normalizedPayload.starts_at) {
+    vendorServiceNotice.value = 'Please fill title, location, and start date.'
+    return
+  }
+
+  isSubmittingVendorService.value = true
+  vendorServiceNotice.value = ''
+  try {
+    const payload = imageFile
+      ? (() => {
+          const formData = new FormData()
+          Object.entries(normalizedPayload).forEach(([key, value]) => {
+            if (key === 'image_url') {
+              return
+            }
+            if (value !== null && value !== undefined) {
+              if (key === 'is_active') {
+                formData.append(key, value ? '1' : '0')
+                return
+              }
+              formData.append(key, value)
+            }
+          })
+          formData.append('image', imageFile)
+          return formData
+        })()
+      : normalizedPayload
+
+    await apiPost('vendor/services', payload)
+    await loadEvents()
+    selectedEventType.value = normalizedPayload.event_type
+    vendorServiceNotice.value = 'Service created successfully and is now visible to users.'
+    resetVendorServiceForm()
+  } catch (error) {
+    vendorServiceNotice.value = error?.message || 'Could not create service.'
+  } finally {
+    isSubmittingVendorService.value = false
+  }
+}
+
+async function toggleVendorServiceActive(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiPatch(`vendor/services/${item.id}`, {
+      vendor_user_id: vendorUserId,
+      is_active: !item.isActive,
+    })
+    await loadEvents()
+  } catch (error) {
+    vendorServiceNotice.value = error?.message || 'Could not update service status.'
+  }
+}
+
+async function deleteVendorService(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
+    await loadEvents()
+  } catch (error) {
+    vendorServiceNotice.value = error?.message || 'Could not delete service.'
+  }
+}
+
+function mapVendorBookingRow(row) {
+  const event = row.event || {}
+  return {
+    id: row.id,
+    service_name: row.service_name || event.title || 'Service Booking',
+    customer_name: row.customer_name || row.user?.name || 'Customer',
+    date_label: event.starts_at
+      ? new Date(event.starts_at).toLocaleString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : 'Date TBD',
+    status: String(row.status || 'pending'),
+    total_amount: Number(row.total_amount || 0),
+  }
+}
+
+async function loadVendorBookings() {
+  if (!isVendorAccount.value) return
+
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
+    vendorBookings.value = []
+    return
+  }
+
+  isLoadingVendorBookings.value = true
+  try {
+    const result = await apiGet('vendor/bookings', { vendor_user_id: vendorUserId })
+    const rows = Array.isArray(result.data) ? result.data : []
+    vendorBookings.value = rows.map(mapVendorBookingRow)
+  } catch (error) {
+    vendorBookings.value = []
+    notice.value = 'Could not load vendor bookings right now.'
+  } finally {
+    isLoadingVendorBookings.value = false
+  }
+}
+
+async function updateVendorBookingStatus(item, status) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiPatch(`vendor/bookings/${item.id}/status`, {
+      vendor_user_id: vendorUserId,
+      status,
+    })
+    await loadVendorBookings()
+    await loadNotifications({ silent: true })
+  } catch (error) {
+    notice.value = error?.message || 'Could not update booking status.'
   }
 }
 
@@ -703,6 +941,7 @@ async function bootstrapAuthenticatedShell() {
   isBootstrappingAuth.value = true
   try {
     const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    if (isVendorAccount.value) tasks.push(loadVendorBookings())
     if (customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
@@ -712,7 +951,11 @@ async function bootstrapAuthenticatedShell() {
 }
 
 function goToDashboard() {
-  goToBookings()
+  currentPage.value = isVendorAccount.value ? 'dashboard' : 'bookings'
+}
+
+function setVendorDashboardTab(tab) {
+  vendorDashboardTab.value = normalizeVendorDashboardTab(tab)
 }
 
 function goToVendor(tab = 'about') {
@@ -878,7 +1121,7 @@ watch(
   { deep: true },
 )
 
-watch([currentPage, activeVendorTab], () => {
+watch([currentPage, activeVendorTab, vendorDashboardTab], () => {
   closeNotificationDropdown()
   syncRouteQueryFromState()
 })
@@ -912,9 +1155,31 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-    <PublicNavbar />
-<DashboardPage
-      v-if="currentPage === 'dashboard'"
+      <PublicNavbar v-if="!(isVendorAccount && currentPage === 'dashboard')" />
+      <VendorDashboardPage
+        v-if="isVendorAccount && currentPage === 'dashboard'"
+        :app-logo-src="brandLogoSrc"
+        :vendor-display-name="vendorDisplayName"
+        v-model:active-tab="vendorDashboardTab"
+        :event-type-options="eventTypeOptions"
+        :vendor-events="vendorEvents"
+        :vendor-bookings="vendorBookings"
+        :is-loading-events="isLoadingEvents"
+        :is-loading-vendor-bookings="isLoadingVendorBookings"
+        :vendor-service-form="vendorServiceForm"
+        :is-submitting-vendor-service="isSubmittingVendorService"
+        :vendor-service-notice="vendorServiceNotice"
+        :vendor-income="vendorIncome"
+        :messages-summary="messagesSummary"
+        :submit-vendor-service="submitVendorService"
+        :toggle-vendor-service-active="toggleVendorServiceActive"
+        :delete-vendor-service="deleteVendorService"
+        :update-vendor-booking-status="updateVendorBookingStatus"
+        :go-to-messages="goToMessages"
+        :logout-user="logout"
+      />
+      <DashboardPage
+      v-else-if="currentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
       :dashboard-stats="dashboardStats"
@@ -927,10 +1192,14 @@ onBeforeUnmount(() => {
       :open-upcoming-bookings="openUpcomingBookings"
     />
 
-    <VendorPage
-      v-if="currentPage === 'vendor'"
+      <VendorPage
+      v-else-if="currentPage === 'vendor'"
       :vendor-profile="vendorProfile"
       :bindings="vendorBindings"
+      :is-vendor-account="isVendorAccount"
+      :vendor-service-form="vendorServiceForm"
+      :is-submitting-vendor-service="isSubmittingVendorService"
+      :vendor-service-notice="vendorServiceNotice"
       :stats="stats"
       :reviews="reviews"
       :event-type-options="eventTypeOptions"
@@ -949,9 +1218,10 @@ onBeforeUnmount(() => {
       :get-availability-tone="getAvailabilityTone"
       :get-availability-label="getAvailabilityLabel"
       :get-availability="getAvailability"
+      :submit-vendor-service="submitVendorService"
     />
 
-    <CustomizationPage
+      <CustomizationPage
       v-else-if="currentPage === 'customization'"
       :event-type-options="eventTypeOptions"
       :event-type-map="eventTypeMap"
@@ -981,7 +1251,7 @@ onBeforeUnmount(() => {
       :confirm-customization="confirmCustomization"
     />
 
-    <AvailabilityPage
+      <AvailabilityPage
       v-else-if="currentPage === 'availability'"
       :bindings="availabilityBindings"
       :month-label="monthLabel"
@@ -1002,7 +1272,7 @@ onBeforeUnmount(() => {
       :confirm-availability-request="confirmAvailabilityRequest"
     />
 
-    <BookingsPage
+      <BookingsPage
       v-else-if="currentPage === 'bookings'"
       :bindings="bookingsBindings"
       :event-type-options="eventTypeOptions"
@@ -1017,7 +1287,7 @@ onBeforeUnmount(() => {
       :booking-primary-action="bookingPrimaryAction"
     />
 
-    <ProfilePage
+      <ProfilePage
       v-else-if="currentPage === 'profile'"
       :bindings="profileBindings"
       :user-profile-notice="userProfileNotice"
@@ -1033,7 +1303,7 @@ onBeforeUnmount(() => {
       :logout-user="logout"
     />
 
-    <MessagesPage
+      <MessagesPage
       v-else
       :bindings="messagesBindings"
       :filtered-conversations="filteredConversations"
@@ -1045,10 +1315,14 @@ onBeforeUnmount(() => {
       :is-sharing-location="isSharingLocation"
       :save-document="saveDocument"
       :delete-message="deleteMessage"
-    />
-  </div>
+      :is-loading-messages="isLoadingMessages"
+      :messages-error="messagesError"
+      />
+    </div>
   </div>
 </template>
+
+
 
 
 

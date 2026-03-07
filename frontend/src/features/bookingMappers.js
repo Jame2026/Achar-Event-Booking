@@ -53,6 +53,7 @@ export function mapEvent(apiEvent, eventTypeMap) {
   const price = Number(apiEvent.price || 0)
   return {
     id: apiEvent.id,
+    vendorId: apiEvent.vendor_id || null,
     title: apiEvent.title,
     eventType: apiEvent.event_type || 'other',
     eventTypeLabel: eventTypeMap[apiEvent.event_type] || 'Other',
@@ -61,7 +62,9 @@ export function mapEvent(apiEvent, eventTypeMap) {
     date: formatDateTime(apiEvent.starts_at),
     price,
     priceLabel: `From $${price.toLocaleString()}`,
+    isActive: Boolean(apiEvent.is_active),
     image:
+      apiEvent.image_url ||
       'https://images.unsplash.com/photo-1477511801984-4ad318ed9846?auto=format&fit=crop&w=760&q=80',
   }
 }

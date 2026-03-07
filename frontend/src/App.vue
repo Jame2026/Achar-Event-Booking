@@ -13,7 +13,7 @@ function refreshAuthUserState() {
 
 const hideFooter = computed(() => {
   if (route.path === '/reset-password' || route.path === '/forgot-password') return true
-  if (route.path === '/legacy-app' && !hasAuthUser.value) return true
+  if (route.path === '/legacy-app') return true
   return false
 })
 
