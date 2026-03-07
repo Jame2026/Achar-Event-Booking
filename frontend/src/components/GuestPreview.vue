@@ -1,11 +1,16 @@
 <script setup>
+<<<<<<< HEAD
 import { computed, nextTick, ref, watch } from "vue";
+=======
+import { computed, onMounted, ref, watch } from "vue";
+>>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
 import CustomizationPage from "./pages/CustomizationPage.vue";
 import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
+import { apiGet } from "../features/apiClient";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -197,8 +202,69 @@ const savedFavorites = (() => {
 })();
 const favoritePackageIds = ref(savedFavorites.packageIds);
 const favoriteServiceIds = ref(savedFavorites.serviceIds);
+const liveVendorEvents = ref([]);
+
+function formatEventDateLabel(value) {
+  if (!value) return "Date TBD";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Date TBD";
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function mapEventToGuestPackage(item) {
+  const eventType = String(item.event_type || "other");
+  const price = Number(item.price || 0);
+  const vendorName = String(item.vendor?.name || "Verified Vendor");
+  return {
+    id: `live-package-${item.id}`,
+    title: String(item.title || "Service Booking"),
+    eventType,
+    eventTypeLabel: eventTypeMap[eventType] || "Other",
+    description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+    location: item.location || "Location TBD",
+    date: formatEventDateLabel(item.starts_at),
+    price,
+    priceLabel: `From $${price.toLocaleString()}`,
+    image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
+    services: buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
+    isPreview: false,
+    backingEventId: Number(item.id || 0) || null,
+    vendorName,
+  };
+}
+
+function mapEventToGuestService(item) {
+  const eventType = String(item.event_type || "other");
+  return {
+    id: `live-service-${item.id}`,
+    name: String(item.title || "Service Booking"),
+    description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+    price: Number(item.price || 0),
+    eventTypes: [eventType],
+    backingEventId: Number(item.id || 0) || null,
+    vendorName: String(item.vendor?.name || "Verified Vendor"),
+    location: item.location || "Location TBD",
+  };
+}
+
+async function loadLiveVendorEvents() {
+  try {
+    const result = await apiGet("events");
+    liveVendorEvents.value = Array.isArray(result.data) ? result.data : [];
+  } catch {
+    liveVendorEvents.value = [];
+  }
+}
 
 const guestPreviewPackages = computed(() => {
+  if (liveVendorEvents.value.length) {
+    return liveVendorEvents.value.map(mapEventToGuestPackage);
+  }
+
   const rows = [];
   Object.entries(packageCatalogByEventType).forEach(([eventType, entries]) => {
     entries.forEach((entry) => {
@@ -223,6 +289,11 @@ const guestPreviewPackages = computed(() => {
   return rows;
 });
 
+const servicesCatalog = computed(() => {
+  const liveRows = liveVendorEvents.value.map(mapEventToGuestService);
+  return liveRows.length ? [...liveRows, ...matchingServicesCatalog] : matchingServicesCatalog;
+});
+
 const selectedPackage = computed(
   () =>
     guestPreviewPackages.value.find((item) => item.id === selectedPackageId.value) ||
@@ -230,7 +301,7 @@ const selectedPackage = computed(
 );
 
 const selectedServices = computed(() =>
-  matchingServicesCatalog.filter((service) => selectedServiceIds.value.includes(service.id)),
+  servicesCatalog.value.filter((service) => selectedServiceIds.value.includes(service.id)),
 );
 
 const packagePrice = computed(() => {
@@ -296,7 +367,7 @@ const matchingServicesFiltered = computed(() => {
       ? packageSearch.value.trim().toLowerCase()
       : customizationSearch.value.trim().toLowerCase();
   const filter = customizationEventType.value;
-  return matchingServicesCatalog.filter((s) => {
+  return servicesCatalog.value.filter((s) => {
     const matchesType =
       !filter ||
       filter === "all" ||
@@ -648,7 +719,7 @@ const favoritePackages = computed(() =>
 );
 
 const favoriteServices = computed(() =>
-  matchingServicesCatalog.filter((service) =>
+  servicesCatalog.value.filter((service) =>
     favoriteServiceIds.value.includes(service.id),
   ),
 );
@@ -714,6 +785,10 @@ watch(
   },
   { immediate: true },
 );
+
+onMounted(() => {
+  void loadLiveVendorEvents();
+});
 
 function favoriteQtyChanged(e) {
   const val = Number(e.target.value);

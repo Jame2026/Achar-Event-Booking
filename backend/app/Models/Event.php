@@ -16,6 +16,7 @@ class Event extends Model
         'title',
         'event_type',
         'description',
+        'image_url',
         'location',
         'starts_at',
         'ends_at',

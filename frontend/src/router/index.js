@@ -9,6 +9,23 @@ import CheckoutConfirmedPage from "../components/CheckoutConfirmedPage.vue";
 import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
 import Home from "@/components/Home.vue";
 
+const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+
+function getStoredRole() {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY)
+    if (!raw) return 'guest'
+    const user = JSON.parse(raw)
+    return String(user?.role || 'guest').trim().toLowerCase()
+  } catch {
+    return 'guest'
+  }
+}
+
+function dashboardRedirect() {
+  return getStoredRole() === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+}
+
 const routes = [
   {
     path: "/",
@@ -30,6 +47,7 @@ const routes = [
     component: ContactPage,
   },
   {
+<<<<<<< HEAD
     path: "/booking",
     name: "BookingForm",
     component: GuestPreview,
@@ -40,6 +58,14 @@ const routes = [
     name: "Dashboard",
     component: GuestPreview,
     props: { section: "dashboard" },
+=======
+    path: '/booking',
+    redirect: '/legacy-app?page=bookings'
+  },
+  {
+    path: '/dashboard',
+    redirect: dashboardRedirect
+>>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
   },
   {
     path: "/services",
@@ -84,9 +110,19 @@ const routes = [
     component: CheckoutConfirmedPage,
   },
   {
+<<<<<<< HEAD
     path: "/checkout/receipt",
     name: "CheckoutReceipt",
     component: CheckoutReceiptPage,
+=======
+    path: '/vendor/dashboard',
+    redirect: dashboardRedirect
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: CheckoutPage
+>>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
   },
   {
     path: "/customization",
