@@ -55,7 +55,7 @@ const props = defineProps([
 
     <nav class="section-tabs">
       <a href="#" :class="{ active: props.bindings.activeVendorTab.value === 'about' }" @click.prevent="props.bindings.activeVendorTab.value = 'about'">About</a>
-      <a href="#" :class="{ active: props.bindings.activeVendorTab.value === 'services' }" @click.prevent="props.goToPackageCustomization()">Packages & Services</a>
+      <a href="#" :class="{ active: props.bindings.activeVendorTab.value === 'services' }" @click.prevent="props.bindings.activeVendorTab.value = 'services'">Packages & Services</a>
       <a href="#" :class="{ active: props.bindings.activeVendorTab.value === 'reviews' }" @click.prevent="props.bindings.activeVendorTab.value = 'reviews'">Reviews</a>
     </nav>
 

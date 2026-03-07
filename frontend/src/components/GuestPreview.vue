@@ -409,6 +409,21 @@ function submitPrebookForm() {
 
   const payload = {
     vendorTitle: prebookTargetTitle.value || "Selected Vendor",
+    vendorName:
+      selectedPackage.value?.vendorName ||
+      activePackage.value?.vendorName ||
+      "Selected Vendor",
+    eventId:
+      selectedPackage.value?.backingEventId ||
+      activePackage.value?.backingEventId ||
+      null,
+    image:
+      selectedPackage.value?.image ||
+      activePackage.value?.image ||
+      packageImageByEventType[
+        selectedPackage.value?.eventType || activePackage.value?.eventType || "other"
+      ] ||
+      packageImageByEventType.other,
     fullName: prebookForm.value.fullName,
     email: prebookForm.value.email,
     phone: prebookForm.value.phone,

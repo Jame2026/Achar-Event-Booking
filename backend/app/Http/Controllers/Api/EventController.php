@@ -86,6 +86,7 @@ class EventController extends Controller
                 return response()->json(['message' => $imageValidationError], 422);
             }
 
+            $this->deleteStoredEventImage($event->image_url);
             $validated['image_url'] = $this->storeEventImage($request->file('image'));
         }
 
@@ -107,9 +108,10 @@ class EventController extends Controller
 
     public function destroy(Event $event): JsonResponse
     {
+        $this->deleteStoredEventImage($event->image_url);
         $event->delete();
 
-        return response()->noContent();
+        return response()->json(null, 204);
     }
 
     private function allowedEventTypes(): array
@@ -139,10 +141,12 @@ class EventController extends Controller
             throw new \RuntimeException("Image storage disk [{$disk}] is not configured.");
         }
 
-        // Cloudinary SDK expects public IDs without file extension.
-        $isCloudinary = $disk === 'cloudinary';
+        if ($disk === 'cloudinary') {
+            return $this->storeCloudinaryEventImage($disk, $directory, $image);
+        }
+
         $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
-        $filename = $isCloudinary ? Str::uuid()->toString() : Str::uuid()->toString().'.'.$extension;
+        $filename = Str::uuid()->toString().'.'.$extension;
         $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
 
         if (! is_string($path) || $path === '') {
@@ -150,6 +154,110 @@ class EventController extends Controller
         }
 
         return Storage::disk($disk)->url($path);
+    }
+
+    private function storeCloudinaryEventImage(string $disk, string $directory, UploadedFile $image): string
+    {
+        $prefix = trim((string) config("filesystems.disks.{$disk}.prefix", ''), '/');
+        $folder = ltrim(collect([$prefix, $directory])->filter()->implode('/'), '/');
+        $publicId = Str::uuid()->toString();
+        $uploadOptions = [
+            'public_id' => $publicId,
+            'resource_type' => 'image',
+        ];
+
+        if ($folder !== '') {
+            $uploadOptions['folder'] = $folder;
+        }
+
+        $result = cloudinary()->uploadApi()->upload($image->getRealPath(), $uploadOptions);
+        $secureUrl = (string) data_get($result, 'secure_url', '');
+
+        if ($secureUrl === '') {
+            throw new \RuntimeException('Cloudinary did not return a secure URL for the uploaded image.');
+        }
+
+        return $secureUrl;
+    }
+
+    private function deleteStoredEventImage(?string $imageUrl): void
+    {
+        if (! is_string($imageUrl) || trim($imageUrl) === '') {
+            return;
+        }
+
+        $disk = (string) config('media.event_image_disk', 'public');
+
+        try {
+            if ($disk === 'cloudinary') {
+                $publicId = $this->extractCloudinaryPublicId($imageUrl);
+                if ($publicId !== null) {
+                    cloudinary()->uploadApi()->destroy($publicId, ['resource_type' => 'image']);
+                }
+
+                return;
+            }
+
+            $path = $this->extractLocalStoragePath($imageUrl);
+            if ($path !== null && Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function extractCloudinaryPublicId(string $imageUrl): ?string
+    {
+        $path = (string) parse_url($imageUrl, PHP_URL_PATH);
+        $marker = '/image/upload/';
+        $position = strpos($path, $marker);
+
+        if ($position === false) {
+            return null;
+        }
+
+        $publicPath = substr($path, $position + strlen($marker));
+        $publicPath = ltrim($publicPath, '/');
+
+        if ($publicPath === '') {
+            return null;
+        }
+
+        $segments = array_values(array_filter(explode('/', $publicPath), fn (string $segment) => $segment !== ''));
+        if ($segments !== [] && preg_match('/^v\d+$/', $segments[0]) === 1) {
+            array_shift($segments);
+        }
+
+        if ($segments === []) {
+            return null;
+        }
+
+        $lastSegment = array_pop($segments);
+        $extension = pathinfo($lastSegment, PATHINFO_EXTENSION);
+
+        if ($extension !== '') {
+            $lastSegment = pathinfo($lastSegment, PATHINFO_FILENAME);
+        }
+
+        $segments[] = $lastSegment;
+
+        return implode('/', $segments);
+    }
+
+    private function extractLocalStoragePath(string $imageUrl): ?string
+    {
+        $path = (string) parse_url($imageUrl, PHP_URL_PATH);
+
+        if (Str::startsWith($path, '/storage/')) {
+            return Str::after($path, '/storage/');
+        }
+
+        if (Str::startsWith($path, '/uploads/')) {
+            return Str::after($path, '/uploads/');
+        }
+
+        return null;
     }
 
     private function validateUploadedImage(UploadedFile $image): ?string

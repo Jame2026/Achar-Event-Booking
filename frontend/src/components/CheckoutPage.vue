@@ -78,10 +78,12 @@ function saveLocalBooking(user) {
     const firstItem = bookingItems.value[0] || {};
     rows.unshift({
       id: `local-${Date.now()}`,
+      eventId: booking.eventId || null,
       customerEmail: email,
       customerName: booking.fullName || user?.name || "Guest User",
-      vendor: booking.vendorTitle || "Selected Vendor",
+      vendor: booking.vendorName || booking.vendorTitle || "Selected Vendor",
       service: firstItem.name || booking.vendorTitle || "Service Booking",
+      image: booking.image || "",
       dateLabel: booking.eventDate || "Date TBD",
       eventType: "other",
       total: Number(bookingTotal.value || 0),

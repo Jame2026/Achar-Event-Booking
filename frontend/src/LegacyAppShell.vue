@@ -506,8 +506,9 @@ function getLocalBookingsByEmail(email) {
         statusClass: row.statusClass || 'confirmed',
         type: row.type || 'Upcoming',
         eventType: row.eventType || 'other',
-        eventId: null,
+        eventId: row.eventId || null,
         image:
+          row.image ||
           'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
         primaryBtn: 'View Details',
         secondaryBtn: 'Reschedule',
@@ -518,12 +519,32 @@ function getLocalBookingsByEmail(email) {
   }
 }
 
-function mergeBookingsWithLocal(apiMappedRows, email) {
-  const localRows = getLocalBookingsByEmail(email)
-  if (!localRows.length) return apiMappedRows
-  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
-  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
-  return [...localOnlyRows, ...apiMappedRows]
+function clearLocalBookingsByEmail(email) {
+  if (!email) return
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return
+
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const remainingRows = rows.filter(
+      (row) => String(row?.customerEmail || '').trim().toLowerCase() !== normalizedEmail,
+    )
+
+    if (remainingRows.length === rows.length) return
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY)
+      return
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows))
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
 }
 
 function onBrandLogoError() {
@@ -922,7 +943,8 @@ async function loadBookings() {
     const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
+    bookings.value = apiMappedRows
+    clearLocalBookingsByEmail(email)
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -962,6 +984,17 @@ function goToVendor(tab = 'about') {
   const allowedTabs = ['about', 'services', 'reviews']
   currentPage.value = 'vendor'
   activeVendorTab.value = allowedTabs.includes(normalizedTab) ? normalizedTab : 'about'
+}
+
+function openBookedServiceDetails(item) {
+  const eventType = typeof item?.eventType === 'string' && item.eventType ? item.eventType : 'all'
+  const serviceName = typeof item?.service === 'string' ? item.service.trim() : ''
+
+  selectedEventType.value = eventType
+  globalSearch.value = serviceName
+  sessionStorage.setItem(GLOBAL_SEARCH_SESSION_KEY, serviceName)
+  currentPage.value = 'vendor'
+  activeVendorTab.value = 'services'
 }
 
 function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '') {
@@ -1064,7 +1097,7 @@ function bookingPrimaryAction(item) {
     return
   }
   if (item.primaryBtn === 'View Details') {
-    goToVendor()
+    openBookedServiceDetails(item)
   }
 }
 

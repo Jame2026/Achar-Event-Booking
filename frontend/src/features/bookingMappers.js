@@ -42,6 +42,7 @@ export function mapBooking(apiBooking, options) {
     eventType: event.event_type || apiBooking.requested_event_type || 'other',
     eventId: event.id,
     image:
+      event.image_url ||
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
     primaryBtn: status === 'pending' ? 'Message Vendor' : 'View Details',
     secondaryBtn: 'Reschedule',
