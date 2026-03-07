@@ -1,9 +1,5 @@
-<script setup>
-<<<<<<< HEAD
+﻿<script setup>
 import { computed, nextTick, ref, watch } from "vue";
-=======
-import { computed, onMounted, ref, watch } from "vue";
->>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
 import CustomizationPage from "./pages/CustomizationPage.vue";
@@ -848,9 +844,9 @@ const selectedAvailabilityDateLabel = computed(() => {
 });
 const availabilitySlotGroups = computed(() => {
   const groups = [
-    { key: "morning", label: "Morning", icon: "☀", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
-    { key: "afternoon", label: "Afternoon", icon: "☀", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
-    { key: "evening", label: "Evening", icon: "☽", slots: ["07:00 PM", "08:30 PM"] },
+    { key: "morning", label: "Morning", icon: "â˜€", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
+    { key: "afternoon", label: "Afternoon", icon: "â˜€", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
+    { key: "evening", label: "Evening", icon: "â˜½", slots: ["07:00 PM", "08:30 PM"] },
   ];
   return groups.map((group) => ({
     ...group,
@@ -1011,7 +1007,7 @@ function noop() {}
                         :class="{ active: isPackageFavorite(item.id) }"
                         @click.stop="toggleFavoritePackage(item.id)"
                       >
-                        {{ isPackageFavorite(item.id) ? "♥" : "♡" }}
+                        {{ isPackageFavorite(item.id) ? "â™¥" : "â™¡" }}
                       </button>
                       <button
                         type="button"
@@ -1576,7 +1572,7 @@ function noop() {}
             class="package-modal-close"
             @click="closePackageDetails"
           >
-            ×
+            Ã—
           </button>
         </div>
         <img

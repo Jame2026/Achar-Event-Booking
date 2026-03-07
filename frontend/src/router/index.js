@@ -47,7 +47,6 @@ const routes = [
     component: ContactPage,
   },
   {
-<<<<<<< HEAD
     path: "/booking",
     name: "BookingForm",
     component: GuestPreview,
@@ -58,14 +57,6 @@ const routes = [
     name: "Dashboard",
     component: GuestPreview,
     props: { section: "dashboard" },
-=======
-    path: '/booking',
-    redirect: '/legacy-app?page=bookings'
-  },
-  {
-    path: '/dashboard',
-    redirect: dashboardRedirect
->>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
   },
   {
     path: "/services",
@@ -110,19 +101,13 @@ const routes = [
     component: CheckoutConfirmedPage,
   },
   {
-<<<<<<< HEAD
     path: "/checkout/receipt",
     name: "CheckoutReceipt",
     component: CheckoutReceiptPage,
-=======
-    path: '/vendor/dashboard',
-    redirect: dashboardRedirect
   },
   {
-    path: '/checkout',
-    name: 'Checkout',
-    component: CheckoutPage
->>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
+    path: '/vendor/dashboard',
+    redirect: dashboardRedirect
   },
   {
     path: "/customization",
