@@ -27,6 +27,10 @@ Route::apiResource('bookings', BookingController::class)->only(['store']);
 Route::get('notifications/bookings', [NotificationController::class, 'index']);
 Route::patch('notifications/bookings/read-all', [NotificationController::class, 'markAllRead']);
 Route::patch('notifications/bookings/{notification}/read', [NotificationController::class, 'markRead']);
+Route::patch('notifications/bookings/{notification}/unread', [NotificationController::class, 'markUnread']);
+Route::patch('notifications/bookings/{notification}/archive', [NotificationController::class, 'archive']);
+Route::patch('notifications/bookings/{notification}/restore', [NotificationController::class, 'restore']);
+Route::delete('notifications/bookings/{notification}', [NotificationController::class, 'delete']);
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);

@@ -17,12 +17,15 @@ class NotificationController extends Controller
         $limit = (int) ($validated['limit'] ?? 12);
 
         $query = BookingNotification::query()
+            ->where('is_archived', false)
             ->with('booking.event:id,title,event_type,starts_at,location')
             ->latest();
 
         $this->applyRecipientFilters($query, $validated);
 
-        $unreadCountQuery = BookingNotification::query()->where('is_read', false);
+        $unreadCountQuery = BookingNotification::query()
+            ->where('is_read', false)
+            ->where('is_archived', false);
         $this->applyRecipientFilters($unreadCountQuery, $validated);
 
         return response()->json([
@@ -51,7 +54,9 @@ class NotificationController extends Controller
     {
         $validated = $this->validateRecipientRequest($request, false);
 
-        $query = BookingNotification::query()->where('is_read', false);
+        $query = BookingNotification::query()
+            ->where('is_read', false)
+            ->where('is_archived', false);
         $this->applyRecipientFilters($query, $validated);
 
         $updated = $query->update(['is_read' => true]);
@@ -59,6 +64,69 @@ class NotificationController extends Controller
         return response()->json([
             'message' => 'Notifications marked as read.',
             'updated' => $updated,
+        ]);
+    }
+
+    public function markUnread(Request $request, BookingNotification $notification): JsonResponse
+    {
+        $validated = $this->validateRecipientRequest($request, false);
+
+        if (! $this->canAccessNotification($notification, $validated)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $notification->update(['is_read' => false]);
+
+        return response()->json([
+            'message' => 'Notification marked as unread.',
+            'data' => $notification->fresh()->load('booking.event:id,title,event_type,starts_at,location'),
+        ]);
+    }
+
+    public function archive(Request $request, BookingNotification $notification): JsonResponse
+    {
+        $validated = $this->validateRecipientRequest($request, false);
+
+        if (! $this->canAccessNotification($notification, $validated)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $notification->update(['is_archived' => true]);
+
+        return response()->json([
+            'message' => 'Notification archived.',
+            'data' => $notification->fresh()->load('booking.event:id,title,event_type,starts_at,location'),
+        ]);
+    }
+
+    public function delete(Request $request, BookingNotification $notification): JsonResponse
+    {
+        $validated = $this->validateRecipientRequest($request, false);
+
+        if (! $this->canAccessNotification($notification, $validated)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $notification->delete();
+
+        return response()->json([
+            'message' => 'Notification deleted.',
+        ]);
+    }
+
+    public function restore(Request $request, BookingNotification $notification): JsonResponse
+    {
+        $validated = $this->validateRecipientRequest($request, false);
+
+        if (! $this->canAccessNotification($notification, $validated)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $notification->update(['is_archived' => false]);
+
+        return response()->json([
+            'message' => 'Notification restored.',
+            'data' => $notification->fresh()->load('booking.event:id,title,event_type,starts_at,location'),
         ]);
     }
 

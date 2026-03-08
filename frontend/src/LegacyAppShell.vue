@@ -22,7 +22,7 @@ import {
   stats,
   vendorProfile,
 } from './features/appData'
-import { apiGet, apiPatch, apiPost } from './features/apiClient'
+import { apiGet, apiPatch, apiPost, apiDelete } from './features/apiClient'
 import { mapBooking as mapApiBooking, mapEvent as mapApiEvent } from './features/bookingMappers'
 import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
@@ -59,12 +59,10 @@ function toggleView() {
 
 function onLoginSuccess(user) {
   loggedInUser.value = user
-  if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
-  if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
-  const redirected = handlePostAuthRedirect()
-  if (!redirected) {
-    router.push('/').catch(() => {})
-  }
+  const accountName = String(user?.name || '').trim()
+  const accountEmail = normalizeEmail(user?.email)
+  if (accountName) customerName.value = accountName
+  if (accountEmail) customerEmail.value = accountEmail
   void bootstrapAuthenticatedShell()
 }
 
@@ -111,6 +109,10 @@ const defaultLegacyPage = computed(() => 'bookings')
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 function normalizePage(value) {
@@ -525,7 +527,9 @@ function buildNotificationQuery() {
   const userId = Number(user.id)
   if (Number.isFinite(userId) && userId > 0) query.user_id = userId
 
-  const email = String(user.email || customerEmail.value || '').trim().toLowerCase()
+  const profileEmail = normalizeEmail(customerEmail.value)
+  const accountEmail = normalizeEmail(user.email)
+  const email = profileEmail || accountEmail
   if (email) query.email = email
 
   if (!query.user_id && !query.email) return null
@@ -628,6 +632,75 @@ async function openNotification(notification) {
   goToBookings()
 }
 
+async function toggleNotificationRead(notification) {
+  if (!notification) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const wasRead = notification.is_read
+  notification.is_read = !wasRead
+  if (!wasRead) {
+    notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+  } else {
+    notificationsUnreadCount.value = (unreadNotificationCount.value || 0) + 1
+  }
+
+  try {
+    const endpoint = wasRead ? 'unread' : 'read'
+    await apiPatch(`notifications/bookings/${notification.id}/${endpoint}`, query)
+  } catch (error) {
+    notification.is_read = wasRead
+    notificationsError.value = `Could not update notification status. ${error?.message || ''}`
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function archiveNotification(notification) {
+  if (!notification) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const notificationIndex = notifications.value.findIndex((n) => n.id === notification.id)
+
+  try {
+    await apiPatch(`notifications/bookings/${notification.id}/archive`, query)
+    if (notificationIndex >= 0) {
+      notifications.value.splice(notificationIndex, 1)
+    }
+    if (!notification.is_read) {
+      notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+    }
+  } catch (error) {
+    notificationsError.value = 'Could not archive notification.'
+    await loadNotifications({ silent: true })
+  }
+}
+
+async function deleteNotification(notification) {
+  if (!notification) return
+  if (!confirm('Are you sure you want to delete this notification?')) return
+
+  const query = buildNotificationQuery()
+  if (!query) return
+
+  const notificationIndex = notifications.value.findIndex((n) => n.id === notification.id)
+
+  try {
+    await apiDelete(`notifications/bookings/${notification.id}?${new URLSearchParams(query).toString()}`)
+    if (notificationIndex >= 0) {
+      notifications.value.splice(notificationIndex, 1)
+    }
+    if (!notification.is_read) {
+      notificationsUnreadCount.value = Math.max(0, unreadNotificationCount.value - 1)
+    }
+  } catch (error) {
+    notificationsError.value = 'Could not delete notification.'
+    await loadNotifications({ silent: true })
+  }
+}
+
 async function loadEvents() {
   isLoadingEvents.value = true
   try {
@@ -671,7 +744,7 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  const email = normalizeEmail(customerEmail.value)
   if (!email) {
     bookings.value = []
     return
@@ -776,7 +849,7 @@ async function bookPackage(item) {
   }
 
   const name = customerName.value.trim()
-  const email = customerEmail.value.trim()
+  const email = normalizeEmail(customerEmail.value)
 
   if (!name || !email) {
     notice.value = 'Please enter your name and email before booking.'
@@ -912,8 +985,128 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-    <PublicNavbar />
-<DashboardPage
+    <header class="topbar">
+      <div class="shell topbar-inner">
+        <div class="brand">
+          <img class="brand-logo" :src="brandLogoSrc" alt="Achar logo" @error="onBrandLogoError" />
+          <span class="brand-text">Achar</span>
+        </div>
+
+        <nav class="top-links">
+          <a href="#" :class="{ active: currentPage === 'dashboard' }" @click.prevent="goToDashboard">Dashboard</a>
+          <a href="#" :class="{ active: currentPage === 'vendor' || currentPage === 'customization' || currentPage === 'availability' }" @click.prevent="goToVendor()">View Vendors</a>
+          <a href="#" :class="{ active: currentPage === 'bookings' }" @click.prevent="goToBookings">My Bookings</a>
+          <a href="#" :class="{ active: currentPage === 'messages' }" @click.prevent="goToMessages()">Messages</a>
+        </nav>
+
+        <div class="top-actions">
+          <input
+            v-if="currentPage !== 'messages'"
+            v-model="globalSearch"
+            type="search"
+            :placeholder="navSearchPlaceholder"
+          />
+          <div ref="notificationMenuRef" class="notification-wrap">
+            <button
+              type="button"
+              class="notification-btn"
+              aria-label="Open booking notifications"
+              :aria-expanded="notificationDropdownOpen ? 'true' : 'false'"
+              @click.stop="toggleNotificationDropdown"
+            >
+              <span class="notification-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </span>
+              <span v-if="unreadNotificationCount > 0" class="notification-badge">
+                {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+              </span>
+            </button>
+
+            <section v-if="notificationDropdownOpen" class="notification-panel card" @click.stop>
+              <div class="notification-head">
+                <div>
+                  <h3>Booking Notifications</h3>
+                  <p>{{ unreadNotificationCount }} unread</p>
+                </div>
+                <button
+                  v-if="unreadNotificationCount > 0"
+                  type="button"
+                  class="notification-mark-all"
+                  @click="markAllNotificationsAsRead"
+                >
+                  Mark all read
+                </button>
+              </div>
+
+              <p v-if="isLoadingNotifications" class="notification-empty">Loading notifications...</p>
+              <p v-else-if="notificationsError" class="notification-empty notification-empty-error">
+                {{ notificationsError }}
+              </p>
+              <p v-else-if="notificationItems.length === 0" class="notification-empty">
+                No booking notifications yet.
+              </p>
+
+              <ul v-else class="notification-list">
+                <li v-for="item in notificationItems" :key="item.id">
+                  <article class="notification-item" :class="{ unread: !item.is_read }">
+                    <div class="notification-item-top">
+                      <strong>
+                        {{ item.title }}
+                        <span v-if="!item.is_read" class="notification-item-dot" aria-hidden="true"></span>
+                      </strong>
+                      <span>{{ item.createdLabel }}</span>
+                    </div>
+                    <p>{{ item.message }}</p>
+                    <div class="notification-item-info">
+                      <small>{{ item.eventTitle }} - {{ item.eventDate }}</small>
+                    </div>
+                    <div class="notification-item-bottom">
+                      <div class="notification-item-actions">
+                        <button
+                          type="button"
+                          class="notification-action-btn"
+                          :class="{ secondary: item.is_read }"
+                          :title="item.is_read ? 'Mark as unread' : 'Mark as read'"
+                          @click="toggleNotificationRead(item)"
+                        >
+                          {{ item.is_read ? '✗ Mark unread' : '✓ Mark read' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="notification-action-btn"
+                          title="Archive notification"
+                          @click="archiveNotification(item)"
+                        >
+                          Archive
+                        </button>
+                        <button
+                          type="button"
+                          class="notification-action-btn danger"
+                          title="Delete notification"
+                          @click="deleteNotification(item)"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <button type="button" class="notification-item-link" @click="openNotification(item)">
+                        View booking
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <button type="button" class="top-logout" @click="logout">Logout</button>
+          <button type="button" class="avatar avatar-btn" @click="goToProfile">{{ userAvatarInitial }}</button>
+        </div>
+      </div>
+    </header>
+
+        <DashboardPage
       v-if="currentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
@@ -1049,8 +1242,3 @@ onBeforeUnmount(() => {
   </div>
   </div>
 </template>
-
-
-
-
-
