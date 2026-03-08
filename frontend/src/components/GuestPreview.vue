@@ -319,6 +319,7 @@ const totalPrice = computed(() => packagePrice.value + servicesSubtotal.value + 
 const activePackageId = ref(null);
 const showPrebookModal = ref(false);
 const prebookTargetTitle = ref("");
+const prebookTargetPackageId = ref(null);
 const prebookForm = ref({
   fullName: "",
   email: "",
@@ -388,7 +389,9 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
-  prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
+  const targetPackage = activePackage.value || selectedPackage.value;
+  prebookTargetPackageId.value = targetPackage?.id || null;
+  prebookTargetTitle.value = targetPackage?.title || "Selected Vendor";
   prebookForm.value = {
     fullName: "",
     email: "",
@@ -508,9 +511,13 @@ async function submitPrebookForm() {
   const usingOverallFlow = section.value === "services-overall";
   const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
   const checkoutItems = [];
+  const targetPackage =
+    guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) ||
+    selectedPackage.value ||
+    activePackage.value;
 
   if (!usingOverallFlow) {
-    const pkg = selectedPackage.value || activePackage.value;
+    const pkg = targetPackage;
     if (pkg) {
       checkoutItems.push({
         type: "package",
@@ -545,10 +552,9 @@ async function submitPrebookForm() {
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
-    requestedEventType:
-      selectedPackage.value?.eventType ||
-      activePackage.value?.eventType ||
-      (usingOverallFlow ? customizationEventType.value : "other"),
+    requestedEventType: usingOverallFlow
+      ? customizationEventType.value
+      : targetPackage?.eventType || "other",
     items: checkoutItems,
   };
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
@@ -904,6 +910,7 @@ function openFavoritePrebookForm() {
   selectedPackageId.value = favoriteSelectedPackage.value?.id || null;
   selectedServiceIds.value = [...favoriteSelectedServiceIds.value];
   packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
+  prebookTargetPackageId.value = favoriteSelectedPackage.value?.id || null;
   prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
   prebookForm.value = {
     fullName: "",

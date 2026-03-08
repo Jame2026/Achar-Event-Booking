@@ -244,7 +244,7 @@ watch(selectedMethod, () => {
     </header>
 
     <main class="checkout-shell">
-      <section class="checkout-main">
+      <section class="checkout-main paper-canvas">
         <div class="section-head">
           <h1>Booking Summary</h1>
           <p class="section-subtitle">Review selected items and customer details before payment.</p>
@@ -473,7 +473,7 @@ watch(selectedMethod, () => {
 
 <style scoped>
 .checkout-page {
-  --checkout-bg: #edf2f9;
+  --checkout-bg: #e9eef5;
   --checkout-text: #0f172a;
   --checkout-muted: #64748b;
   --checkout-border: #d8e2ef;
@@ -592,12 +592,27 @@ watch(selectedMethod, () => {
   align-items: start;
 }
 
+.checkout-main.paper-canvas {
+  border: 1px solid #d7dee9;
+  border-radius: 22px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 95% 2%, rgba(217, 119, 6, 0.06), transparent 30%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(148, 163, 184, 0.05) 0,
+      rgba(148, 163, 184, 0.05) 1px,
+      transparent 1px,
+      transparent 34px
+    ),
+    linear-gradient(180deg, #ffffff, #fbfcff);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
 .section-head {
   border: 1px solid var(--checkout-border);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 94% 16%, rgba(249, 115, 22, 0.08), transparent 38%),
-    linear-gradient(180deg, #ffffff, #fcfdff);
+  border-radius: 18px;
+  background: #fff;
   padding: 16px 18px;
 }
 
@@ -628,7 +643,7 @@ watch(selectedMethod, () => {
   display: flex;
   justify-content: space-between;
   gap: 14px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
 }
 
 .line-item h3 {
@@ -660,9 +675,7 @@ watch(selectedMethod, () => {
 .guarantee-card {
   margin-top: 12px;
   padding: 16px 18px;
-  background:
-    radial-gradient(circle at 98% 0%, rgba(59, 130, 246, 0.06), transparent 36%),
-    #fff;
+  background: #fff;
 }
 
 .guarantee-card h3 {
@@ -690,7 +703,8 @@ watch(selectedMethod, () => {
   padding: 16px;
   position: sticky;
   top: 84px;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.07);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, #ffffff, #fdfefe);
 }
 
 .payment-card h2 {
