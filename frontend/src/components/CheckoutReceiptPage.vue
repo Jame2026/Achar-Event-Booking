@@ -2,8 +2,10 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import html2pdf from "html2pdf.js";
+import { useLanguage } from "../features/language";
 
 const router = useRouter();
+const { language } = useLanguage();
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 function onLogoError() {
@@ -57,6 +59,97 @@ function downloadPdf() {
   };
   html2pdf().set(options).from(receiptSheetRef.value).save();
 }
+
+const copyByLanguage = {
+  en: {
+    back: "Back to Dashboard",
+    downloadPdf: "Download PDF",
+    printReceipt: "Print Receipt",
+    officialReceipt: "Official Receipt",
+    receiptNo: "Receipt No.",
+    dateIssued: "Date Issued",
+    customerDetails: "Customer Details",
+    guestUser: "Guest User",
+    noPhone: "No phone provided",
+    noEmail: "No email provided",
+    eventInfo: "Event Information",
+    selectedVendor: "Selected Vendor",
+    dateTbd: "Date TBD",
+    locationTbd: "Location TBD",
+    serviceDescription: "Service Description",
+    qty: "Qty",
+    unitPrice: "Unit Price",
+    amount: "Amount",
+    serviceItem: "Service item",
+    processingFee: "Processing Fee",
+    feeText: "Secure platform and coordination fee (2%)",
+    authenticity: "Authenticity",
+    authenticityText: "Scan this QR code to verify this official receipt on the Achar network.",
+    grandTotal: "Grand Total",
+    amountPaid: "Amount Paid",
+    balanceDue: "Balance Due",
+    disclaimer: "This is a computer-generated document. No signature is required. For inquiries, contact support@achar.com.kh.",
+  },
+  km: {
+    back: "ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង",
+    downloadPdf: "ទាញយក PDF",
+    printReceipt: "បោះពុម្ពបង្កាន់ដៃ",
+    officialReceipt: "បង្កាន់ដៃផ្លូវការ",
+    receiptNo: "លេខបង្កាន់ដៃ",
+    dateIssued: "កាលបរិច្ឆេទចេញ",
+    customerDetails: "ព័ត៌មានអតិថិជន",
+    guestUser: "អ្នកប្រើភ្ញៀវ",
+    noPhone: "គ្មានលេខទូរស័ព្ទ",
+    noEmail: "គ្មានអ៊ីមែល",
+    eventInfo: "ព័ត៌មានព្រឹត្តិការណ៍",
+    selectedVendor: "អ្នកផ្គត់ផ្គង់ដែលបានជ្រើស",
+    dateTbd: "កាលបរិច្ឆេទមិនទាន់កំណត់",
+    locationTbd: "ទីតាំងមិនទាន់កំណត់",
+    serviceDescription: "ពិពណ៌នាសេវាកម្ម",
+    qty: "ចំនួន",
+    unitPrice: "តម្លៃឯកតា",
+    amount: "ចំនួនទឹកប្រាក់",
+    serviceItem: "ធាតុសេវាកម្ម",
+    processingFee: "កម្រៃដំណើរការ",
+    feeText: "កម្រៃវេទិកា និងសម្របសម្រួល (2%)",
+    authenticity: "ភាពត្រឹមត្រូវ",
+    authenticityText: "ស្កេន QR នេះ ដើម្បីផ្ទៀងផ្ទាត់បង្កាន់ដៃផ្លូវការនេះនៅលើបណ្តាញ Achar។",
+    grandTotal: "សរុបទាំងមូល",
+    amountPaid: "បានបង់",
+    balanceDue: "សមតុល្យត្រូវបង់",
+    disclaimer: "នេះជាឯកសារបង្កើតដោយកុំព្យូទ័រ។ មិនចាំបាច់ហត្ថលេខាទេ។ សម្រាប់សំណួរ សូមទាក់ទង support@achar.com.kh។",
+  },
+  zh: {
+    back: "返回控制台",
+    downloadPdf: "下载 PDF",
+    printReceipt: "打印收据",
+    officialReceipt: "官方收据",
+    receiptNo: "收据编号",
+    dateIssued: "签发日期",
+    customerDetails: "客户信息",
+    guestUser: "访客用户",
+    noPhone: "未提供电话",
+    noEmail: "未提供邮箱",
+    eventInfo: "活动信息",
+    selectedVendor: "已选商家",
+    dateTbd: "日期待定",
+    locationTbd: "地点待定",
+    serviceDescription: "服务说明",
+    qty: "数量",
+    unitPrice: "单价",
+    amount: "金额",
+    serviceItem: "服务项目",
+    processingFee: "手续费",
+    feeText: "平台与协调服务费 (2%)",
+    authenticity: "真伪验证",
+    authenticityText: "扫描此二维码以在 Achar 网络上验证该官方收据。",
+    grandTotal: "总计",
+    amountPaid: "已支付",
+    balanceDue: "应付余额",
+    disclaimer: "此为电脑生成文件，无需签名。如有疑问，请联系 support@achar.com.kh。",
+  },
+};
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 </script>
 
 <template>
@@ -64,11 +157,11 @@ function downloadPdf() {
     <div class="receipt-toolbar no-print">
       <button type="button" class="back-link" @click="goDashboard">
         <span class="back-icon" aria-hidden="true">&larr;</span>
-        <span>Back to Dashboard</span>
+        <span>{{ uiText.back }}</span>
       </button>
       <div class="toolbar-actions">
-        <button type="button" class="receipt-ghost-btn" @click="downloadPdf">Download PDF</button>
-        <button type="button" class="receipt-primary-btn" @click="printReceipt">Print Receipt</button>
+        <button type="button" class="receipt-ghost-btn" @click="downloadPdf">{{ uiText.downloadPdf }}</button>
+        <button type="button" class="receipt-primary-btn" @click="printReceipt">{{ uiText.printReceipt }}</button>
       </div>
     </div>
 
@@ -87,13 +180,13 @@ function downloadPdf() {
         </div>
 
         <div class="receipt-meta">
-          <p class="meta-kicker">Official Receipt</p>
+          <p class="meta-kicker">{{ uiText.officialReceipt }}</p>
           <div class="meta-item">
-            <span>Receipt No.</span>
+            <span>{{ uiText.receiptNo }}</span>
             <strong>{{ receiptNo }}</strong>
           </div>
           <div class="meta-item">
-            <span>Date Issued</span>
+            <span>{{ uiText.dateIssued }}</span>
             <strong>{{ issuedDate }}</strong>
           </div>
         </div>
@@ -101,31 +194,31 @@ function downloadPdf() {
 
       <div class="info-row">
         <article>
-          <h3>Customer Details</h3>
-          <strong>{{ booking.fullName || "Guest User" }}</strong>
-          <p>{{ booking.phone || "No phone provided" }}</p>
-          <p>{{ booking.email || "No email provided" }}</p>
+          <h3>{{ uiText.customerDetails }}</h3>
+          <strong>{{ booking.fullName || uiText.guestUser }}</strong>
+          <p>{{ booking.phone || uiText.noPhone }}</p>
+          <p>{{ booking.email || uiText.noEmail }}</p>
         </article>
         <article>
-          <h3>Event Information</h3>
-          <strong>{{ booking.vendorTitle || "Selected Vendor" }}</strong>
-          <p>{{ booking.eventDate || "Date TBD" }}</p>
-          <p>{{ booking.location || "Location TBD" }}</p>
+          <h3>{{ uiText.eventInfo }}</h3>
+          <strong>{{ booking.vendorTitle || uiText.selectedVendor }}</strong>
+          <p>{{ booking.eventDate || uiText.dateTbd }}</p>
+          <p>{{ booking.location || uiText.locationTbd }}</p>
         </article>
       </div>
 
       <div class="items-head">
-        <span>Service Description</span>
-        <span>Qty</span>
-        <span>Unit Price</span>
-        <span>Amount</span>
+        <span>{{ uiText.serviceDescription }}</span>
+        <span>{{ uiText.qty }}</span>
+        <span>{{ uiText.unitPrice }}</span>
+        <span>{{ uiText.amount }}</span>
       </div>
 
       <div class="items-body">
         <article v-for="(item, index) in items" :key="`${item.type}-${item.name}-${index}`" class="item-row">
           <div>
             <strong>{{ item.name }}</strong>
-            <p>{{ item.description || "Service item" }}</p>
+            <p>{{ item.description || uiText.serviceItem }}</p>
           </div>
           <span>{{ Number(item.qty || 1) }}</span>
           <span>${{ Number(item.unitPrice || item.totalPrice || 0).toLocaleString() }}</span>
@@ -134,8 +227,8 @@ function downloadPdf() {
 
         <article class="item-row fee-row">
           <div>
-            <strong>Processing Fee</strong>
-            <p>Secure platform and coordination fee (2%)</p>
+            <strong>{{ uiText.processingFee }}</strong>
+            <p>{{ uiText.feeText }}</p>
           </div>
           <span>1</span>
           <span>${{ processingFee.toLocaleString() }}</span>
@@ -164,20 +257,20 @@ function downloadPdf() {
             </svg>
           </div>
           <div>
-            <h4>Authenticity</h4>
-            <p>Scan this QR code to verify this official receipt on the Achar network.</p>
+            <h4>{{ uiText.authenticity }}</h4>
+            <p>{{ uiText.authenticityText }}</p>
           </div>
         </div>
 
         <div class="totals-panel">
-          <p><span>Grand Total</span><strong>${{ grandTotal.toLocaleString() }}</strong></p>
-          <p class="paid"><span>Amount Paid</span><strong>-${{ deposit.toLocaleString() }}</strong></p>
-          <p class="due"><span>Balance Due</span><strong>${{ remaining.toLocaleString() }}</strong></p>
+          <p><span>{{ uiText.grandTotal }}</span><strong>${{ grandTotal.toLocaleString() }}</strong></p>
+          <p class="paid"><span>{{ uiText.amountPaid }}</span><strong>-${{ deposit.toLocaleString() }}</strong></p>
+          <p class="due"><span>{{ uiText.balanceDue }}</span><strong>${{ remaining.toLocaleString() }}</strong></p>
         </div>
       </footer>
 
       <div class="disclaimer">
-        This is a computer-generated document. No signature is required. For inquiries, contact support@achar.com.kh.
+        {{ uiText.disclaimer }}
       </div>
     </section>
   </div>

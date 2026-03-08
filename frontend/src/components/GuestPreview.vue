@@ -7,6 +7,7 @@ import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
+import { useLanguage } from "../features/language";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -29,52 +30,116 @@ const props = defineProps({
 const section = computed(() => props.section);
 const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+const { language } = useLanguage();
+const copyByLanguage = {
+  en: {
+    favorite: "Favorite",
+    favoriteSub: "Your saved packages and services.",
+    favoriteText: "Favorites are saved on this device. Sign in to sync across your account.",
+    myBooking: "My Booking",
+    bookingSub: "No booking data yet.",
+    bookingText: "Sign in to view your booking history, upcoming events, and confirmations.",
+    servicePackages: "Service Packages",
+    packageSub: "Browse available packages by event type.",
+    packageText: "Click any package card to see full details and included services.",
+    overallService: "Overall Service",
+    overallSub: "No overall service data yet.",
+    overallText: "Sign in to select multiple services and packages for pre-booking.",
+    customization: "Customization",
+    customSub: "No customization data yet.",
+    customText: "Sign in to customize your package and save your selected services.",
+    dashboard: "Dashboard",
+    dashboardSub: "No dashboard data yet.",
+    dashboardText: "Sign in to view your dashboard, activity, and quick actions.",
+  },
+  km: {
+    favorite: "ចូលចិត្ត",
+    favoriteSub: "កញ្ចប់ និងសេវាកម្មដែលបានរក្សាទុក។",
+    favoriteText: "ចំណូលចិត្តត្រូវបានរក្សាទុកលើឧបករណ៍នេះ។ សូមចូលប្រើ ដើម្បីសមកាលកម្មគណនី។",
+    myBooking: "ការកក់របស់ខ្ញុំ",
+    bookingSub: "មិនទាន់មានទិន្នន័យកក់ទេ។",
+    bookingText: "សូមចូលប្រើ ដើម្បីមើលប្រវត្តិ និងការកក់ខាងមុខ។",
+    servicePackages: "កញ្ចប់សេវាកម្ម",
+    packageSub: "រកមើលកញ្ចប់តាមប្រភេទព្រឹត្តិការណ៍។",
+    packageText: "ចុចកាតណាមួយ ដើម្បីមើលលម្អិត និងសេវាកម្មរួម។",
+    overallService: "សេវាកម្មទូទៅ",
+    overallSub: "មិនទាន់មានទិន្នន័យសេវាទូទៅ។",
+    overallText: "សូមចូលប្រើ ដើម្បីជ្រើសសេវាកម្មជាច្រើនសម្រាប់ការកក់ជាមុន។",
+    customization: "កែតម្រូវ",
+    customSub: "មិនទាន់មានទិន្នន័យកែតម្រូវ។",
+    customText: "សូមចូលប្រើ ដើម្បីកែតម្រូវកញ្ចប់ និងរក្សាទុកជម្រើស។",
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    dashboardSub: "មិនទាន់មានទិន្នន័យផ្ទាំងគ្រប់គ្រង។",
+    dashboardText: "សូមចូលប្រើ ដើម្បីមើលសកម្មភាព និងមុខងាររហ័ស។",
+  },
+  zh: {
+    favorite: "收藏",
+    favoriteSub: "您保存的套餐与服务。",
+    favoriteText: "收藏保存在当前设备。登录后可与账户同步。",
+    myBooking: "我的预订",
+    bookingSub: "暂无预订数据。",
+    bookingText: "登录后可查看历史、即将到来的活动与确认信息。",
+    servicePackages: "服务套餐",
+    packageSub: "按活动类型浏览可用套餐。",
+    packageText: "点击任意套餐卡片可查看详细内容与包含服务。",
+    overallService: "综合服务",
+    overallSub: "暂无综合服务数据。",
+    overallText: "登录后可选择多个服务与套餐进行预订。",
+    customization: "定制",
+    customSub: "暂无定制数据。",
+    customText: "登录后可定制套餐并保存所选服务。",
+    dashboard: "控制台",
+    dashboardSub: "暂无控制台数据。",
+    dashboardText: "登录后可查看您的控制台、活动与快捷操作。",
+  },
+};
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 
 const pageContent = computed(() => {
   if (props.section === "favorite") {
     return {
-      title: "Favorite",
-      subtitle: "Your saved packages and services.",
-      text: "Favorites are saved on this device. Sign in to sync across your account.",
+      title: uiText.value.favorite,
+      subtitle: uiText.value.favoriteSub,
+      text: uiText.value.favoriteText,
     };
   }
 
   if (props.section === "bookings") {
     return {
-      title: "My Booking",
-      subtitle: "No booking data yet.",
-      text: "Sign in to view your booking history, upcoming events, and confirmations.",
+      title: uiText.value.myBooking,
+      subtitle: uiText.value.bookingSub,
+      text: uiText.value.bookingText,
     };
   }
 
   if (props.section === "services-packages") {
     return {
-      title: "Service Packages",
-      subtitle: "Browse available packages by event type.",
-      text: "Click any package card to see full details and included services.",
+      title: uiText.value.servicePackages,
+      subtitle: uiText.value.packageSub,
+      text: uiText.value.packageText,
     };
   }
 
   if (props.section === "services-overall") {
     return {
-      title: "Overall Service",
-      subtitle: "No overall service data yet.",
-      text: "Sign in to select multiple services and packages for pre-booking.",
+      title: uiText.value.overallService,
+      subtitle: uiText.value.overallSub,
+      text: uiText.value.overallText,
     };
   }
 
   if (props.section === "customization") {
     return {
-      title: "Customization",
-      subtitle: "No customization data yet.",
-      text: "Sign in to customize your package and save your selected services.",
+      title: uiText.value.customization,
+      subtitle: uiText.value.customSub,
+      text: uiText.value.customText,
     };
   }
 
   return {
-    title: "Dashboard",
-    subtitle: "No dashboard data yet.",
-    text: "Sign in to view your dashboard, activity, and quick actions.",
+    title: uiText.value.dashboard,
+    subtitle: uiText.value.dashboardSub,
+    text: uiText.value.dashboardText,
   };
 });
 

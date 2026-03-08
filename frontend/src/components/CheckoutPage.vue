@@ -2,8 +2,10 @@
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { apiPost } from "../features/apiClient";
+import { useLanguage } from "../features/language";
 
 const router = useRouter();
+const { language } = useLanguage();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
 const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
 const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
@@ -225,6 +227,119 @@ watch(selectedMethod, () => {
   isAwaitingPayment.value = false;
   paymentNotice.value = "";
 });
+
+const copyByLanguage = {
+  en: {
+    servicesStep: "1 Services",
+    reviewStep: "2 Review & Payment",
+    bookingSummary: "Booking Summary",
+    bookingSubtitle: "Review selected items and customer details before payment.",
+    dateNotSelected: "Date not selected",
+    package: "Package",
+    service: "Service",
+    qty: "Qty",
+    customerDetails: "Customer Details",
+    noPhone: "No phone",
+    noEmail: "No email",
+    noNotes: "No additional notes.",
+    serviceGuarantees: "Service Guarantees",
+    vendorVerification: "Vendor Verification",
+    vendorsChecked: "All vendors are background checked.",
+    secureEscrow: "Secure Escrow",
+    escrowText: "Your payment is held until service completion.",
+    paymentSummary: "Payment Summary",
+    paymentSubtitle: "Choose a payment method and confirm your deposit securely.",
+    bookingTotal: "Booking Total",
+    processingFee: "Processing Fee (2%)",
+    depositRequired: "Deposit Required (30%)",
+    remainingBalance: "Remaining Balance",
+    selectPaymentMethod: "Select Payment Method",
+    cardholderName: "Cardholder Name",
+    cardNumber: "Card Number",
+    expiry: "Expiry (MM/YY)",
+    cardSecure: "Your card details are encrypted and processed securely.",
+    agreeTerms: "I agree to the Terms of Service, Cancellation Policy and Privacy Policy of Achar.",
+    confirmPay: "Confirm and Pay Deposit",
+    securePayment: "Encrypted and secure payment processing",
+    qrText: "Scan this QR code with your banking app to pay the deposit.",
+    back: "Back",
+    completePayment: "Complete Payment",
+  },
+  km: {
+    servicesStep: "1 សេវាកម្ម",
+    reviewStep: "2 ពិនិត្យ និងទូទាត់",
+    bookingSummary: "សេចក្តីសង្ខេបការកក់",
+    bookingSubtitle: "ពិនិត្យធាតុដែលបានជ្រើស និងព័ត៌មានអតិថិជនមុនទូទាត់។",
+    dateNotSelected: "មិនទាន់ជ្រើសកាលបរិច្ឆេទ",
+    package: "កញ្ចប់",
+    service: "សេវាកម្ម",
+    qty: "ចំនួន",
+    customerDetails: "ព័ត៌មានអតិថិជន",
+    noPhone: "គ្មានលេខទូរស័ព្ទ",
+    noEmail: "គ្មានអ៊ីមែល",
+    noNotes: "មិនមានកំណត់ចំណាំបន្ថែម។",
+    serviceGuarantees: "ការធានាសេវាកម្ម",
+    vendorVerification: "ផ្ទៀងផ្ទាត់អ្នកផ្គត់ផ្គង់",
+    vendorsChecked: "អ្នកផ្គត់ផ្គង់ទាំងអស់ត្រូវបានពិនិត្យប្រវត្តិ។",
+    secureEscrow: "ការធានាលុយសុវត្ថិភាព",
+    escrowText: "ការទូទាត់របស់អ្នកត្រូវបានរក្សាទុករហូតដល់សេវាកម្មបញ្ចប់។",
+    paymentSummary: "សេចក្តីសង្ខេបទូទាត់",
+    paymentSubtitle: "ជ្រើសវិធីទូទាត់ ហើយបញ្ជាក់ប្រាក់កក់ដោយសុវត្ថិភាព។",
+    bookingTotal: "សរុបការកក់",
+    processingFee: "កម្រៃសេវា (2%)",
+    depositRequired: "ប្រាក់កក់ត្រូវការ (30%)",
+    remainingBalance: "សមតុល្យនៅសល់",
+    selectPaymentMethod: "ជ្រើសវិធីទូទាត់",
+    cardholderName: "ឈ្មោះម្ចាស់កាត",
+    cardNumber: "លេខកាត",
+    expiry: "ផុតកំណត់ (MM/YY)",
+    cardSecure: "ព័ត៌មានកាតរបស់អ្នកត្រូវបានអ៊ិនគ្រីប និងដំណើរការដោយសុវត្ថិភាព។",
+    agreeTerms: "ខ្ញុំយល់ព្រមនឹងលក្ខខណ្ឌ ការលុបចោល និងគោលការណ៍ឯកជនភាពរបស់ Achar។",
+    confirmPay: "បញ្ជាក់ និងទូទាត់ប្រាក់កក់",
+    securePayment: "ការទូទាត់មានការអ៊ិនគ្រីប និងសុវត្ថិភាព",
+    qrText: "ស្កេន QR នេះក្នុងកម្មវិធីធនាគាររបស់អ្នក ដើម្បីទូទាត់ប្រាក់កក់។",
+    back: "ត្រឡប់",
+    completePayment: "បញ្ចប់ការទូទាត់",
+  },
+  zh: {
+    servicesStep: "1 服务",
+    reviewStep: "2 审核与支付",
+    bookingSummary: "预订摘要",
+    bookingSubtitle: "支付前请先确认所选项目与客户信息。",
+    dateNotSelected: "未选择日期",
+    package: "套餐",
+    service: "服务",
+    qty: "数量",
+    customerDetails: "客户信息",
+    noPhone: "无电话",
+    noEmail: "无邮箱",
+    noNotes: "无附加备注。",
+    serviceGuarantees: "服务保障",
+    vendorVerification: "商家核验",
+    vendorsChecked: "所有商家均已完成背景审核。",
+    secureEscrow: "资金托管",
+    escrowText: "您的付款将在服务完成后再结算。",
+    paymentSummary: "支付摘要",
+    paymentSubtitle: "选择支付方式并安全确认定金。",
+    bookingTotal: "订单总额",
+    processingFee: "手续费 (2%)",
+    depositRequired: "需支付定金 (30%)",
+    remainingBalance: "剩余尾款",
+    selectPaymentMethod: "选择支付方式",
+    cardholderName: "持卡人姓名",
+    cardNumber: "卡号",
+    expiry: "有效期 (MM/YY)",
+    cardSecure: "您的卡片信息将被加密并安全处理。",
+    agreeTerms: "我同意 Achar 的服务条款、取消政策与隐私政策。",
+    confirmPay: "确认并支付定金",
+    securePayment: "加密并安全的支付处理",
+    qrText: "请使用银行应用扫描此二维码支付定金。",
+    back: "返回",
+    completePayment: "完成支付",
+  },
+};
+
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 </script>
 
 <template>
@@ -237,8 +352,8 @@ watch(selectedMethod, () => {
         </div>
       </div>
       <div class="checkout-steps">
-        <button type="button" class="step-link" @click="goToServices">1 Services</button>
-        <span class="active">2 Review & Payment</span>
+        <button type="button" class="step-link" @click="goToServices">{{ uiText.servicesStep }}</button>
+        <span class="active">{{ uiText.reviewStep }}</span>
       </div>
       <button type="button" class="close-btn" @click="goBack">x</button>
     </header>
@@ -246,8 +361,8 @@ watch(selectedMethod, () => {
     <main class="checkout-shell">
       <section class="checkout-main paper-canvas">
         <div class="section-head">
-          <h1>Booking Summary</h1>
-          <p class="section-subtitle">Review selected items and customer details before payment.</p>
+          <h1>{{ uiText.bookingSummary }}</h1>
+          <p class="section-subtitle">{{ uiText.bookingSubtitle }}</p>
         </div>
 
         <article
@@ -257,8 +372,8 @@ watch(selectedMethod, () => {
         >
           <div class="line-item-copy">
             <h3>{{ item.name }}</h3>
-            <p>{{ booking.eventDate || "Date not selected" }} | {{ booking.location }}</p>
-            <p>{{ item.type === "package" ? "Package" : "Service" }} | Qty {{ item.qty }}</p>
+            <p>{{ booking.eventDate || uiText.dateNotSelected }} | {{ booking.location }}</p>
+            <p>{{ item.type === "package" ? uiText.package : uiText.service }} | {{ uiText.qty }} {{ item.qty }}</p>
             <small>{{ item.description || "No additional details." }}</small>
           </div>
           <strong>${{ Number(item.totalPrice || 0).toLocaleString() }}</strong>
@@ -266,39 +381,39 @@ watch(selectedMethod, () => {
 
         <article class="line-item customer-item">
           <div class="line-item-copy">
-            <h3>Customer Details</h3>
-            <p>{{ booking.fullName }} | {{ booking.phone || "No phone" }}</p>
-            <p>{{ booking.email || "No email" }}</p>
-            <small>{{ booking.notes || "No additional notes." }}</small>
+            <h3>{{ uiText.customerDetails }}</h3>
+            <p>{{ booking.fullName }} | {{ booking.phone || uiText.noPhone }}</p>
+            <p>{{ booking.email || uiText.noEmail }}</p>
+            <small>{{ booking.notes || uiText.noNotes }}</small>
           </div>
         </article>
 
         <article class="guarantee-card">
-          <h3>Service Guarantees</h3>
+          <h3>{{ uiText.serviceGuarantees }}</h3>
           <div class="guarantee-grid">
-            <p><strong>Vendor Verification</strong><br />All vendors are background checked.</p>
-            <p><strong>Secure Escrow</strong><br />Your payment is held until service completion.</p>
+            <p><strong>{{ uiText.vendorVerification }}</strong><br />{{ uiText.vendorsChecked }}</p>
+            <p><strong>{{ uiText.secureEscrow }}</strong><br />{{ uiText.escrowText }}</p>
           </div>
         </article>
       </section>
 
       <aside class="checkout-side">
         <article class="payment-card">
-          <h2>Payment Summary</h2>
-          <p class="payment-subtitle">Choose a payment method and confirm your deposit securely.</p>
-          <div class="row"><span>Booking Total</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
-          <div class="row"><span>Processing Fee (2%)</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
+          <h2>{{ uiText.paymentSummary }}</h2>
+          <p class="payment-subtitle">{{ uiText.paymentSubtitle }}</p>
+          <div class="row"><span>{{ uiText.bookingTotal }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
+          <div class="row"><span>{{ uiText.processingFee }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
           <div class="deposit-box">
-            <p>Deposit Required (30%)</p>
+            <p>{{ uiText.depositRequired }}</p>
             <div class="deposit-row">
               <strong>${{ deposit.toLocaleString() }}</strong>
               <span class="deposit-icon">c</span>
             </div>
           </div>
-          <div class="row"><span>Remaining Balance</span><strong>${{ remaining.toLocaleString() }}</strong></div>
+          <div class="row"><span>{{ uiText.remainingBalance }}</span><strong>${{ remaining.toLocaleString() }}</strong></div>
           <hr class="payment-divider" />
 
-          <p class="payment-method-label">Select Payment Method</p>
+          <p class="payment-method-label">{{ uiText.selectPaymentMethod }}</p>
           <button
             type="button"
             class="method-card"
@@ -382,8 +497,8 @@ watch(selectedMethod, () => {
           </button>
 
           <div v-if="selectedMethod === 'card'" class="card-panel">
-            <label class="card-field">
-              <span>Cardholder Name</span>
+              <label class="card-field">
+                <span>{{ uiText.cardholderName }}</span>
               <input
                 v-model.trim="cardForm.holderName"
                 type="text"
@@ -391,8 +506,8 @@ watch(selectedMethod, () => {
                 placeholder="Name on card"
               />
             </label>
-            <label class="card-field">
-              <span>Card Number</span>
+              <label class="card-field">
+                <span>{{ uiText.cardNumber }}</span>
               <input
                 v-model="cardForm.cardNumber"
                 type="text"
@@ -404,7 +519,7 @@ watch(selectedMethod, () => {
             </label>
             <div class="card-row">
               <label class="card-field">
-                <span>Expiry (MM/YY)</span>
+                <span>{{ uiText.expiry }}</span>
                 <input
                   v-model="cardForm.expiry"
                   type="text"
@@ -426,22 +541,21 @@ watch(selectedMethod, () => {
                 />
               </label>
             </div>
-            <p class="card-help">Your card details are encrypted and processed securely.</p>
+            <p class="card-help">{{ uiText.cardSecure }}</p>
           </div>
 
           <label class="terms-row">
             <input v-model="agreedTerms" type="checkbox" />
             <span>
-              I agree to the <b>Terms of Service</b>, <b>Cancellation Policy</b> and
-              <b>Privacy Policy</b> of Achar.
+              {{ uiText.agreeTerms }}
             </span>
           </label>
 
           <button type="button" class="pay-btn" :disabled="!agreedTerms" @click="handleConfirmAndPay">
-            Confirm and Pay Deposit
+            {{ uiText.confirmPay }}
           </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
-          <p class="secure-note">Encrypted and secure payment processing</p>
+          <p class="secure-note">{{ uiText.securePayment }}</p>
         </article>
       </aside>
     </main>
@@ -457,13 +571,13 @@ watch(selectedMethod, () => {
         <div class="qr-fullscreen-image-wrap">
           <img :src="qrCodeImageSrc" alt="QR code for payment" loading="lazy" />
         </div>
-        <p>Scan this QR code with your banking app to pay the deposit.</p>
+        <p>{{ uiText.qrText }}</p>
         <div class="qr-fullscreen-actions">
           <button type="button" class="modal-btn ghost" @click="isAwaitingPayment = false">
-            Back
+            {{ uiText.back }}
           </button>
           <button type="button" class="modal-btn primary" @click="handleConfirmAndPay">
-            Complete Payment
+            {{ uiText.completePayment }}
           </button>
         </div>
       </div>

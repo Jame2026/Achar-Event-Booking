@@ -1,8 +1,80 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import PublicNavbar from './PublicNavbar.vue'
+import { useLanguage } from '../features/language'
 
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const { language } = useLanguage()
+
+const copyByLanguage = {
+  en: {
+    chip: 'About Achar Event Booking',
+    titleA: 'Your Perfect Event,',
+    titleB: 'Orchestrated',
+    titleC: 'to Perfection',
+    intro:
+      'Discover and book trusted vendors, venues, and specialists for both traditional and modern celebrations.',
+    cta: 'Explore Services & Packages',
+    featured: 'Featured Experience',
+    why: 'Why Achar',
+    modernPlatform: 'A modern platform for seamless event planning',
+    heroText:
+      'Achar helps people plan celebrations and professional events by matching them with the right services. Instead of handling vendors across scattered channels, users can discover options, compare packages, customize services, and confirm bookings in one workflow.',
+    missionTitle: 'What this platform delivers',
+    missionText:
+      'The goal is to make event planning reliable, transparent, and less stressful. Clients get better control over budget, schedule, and service quality. Vendors get a clearer channel to showcase offerings, engage customers, and convert interest into confirmed bookings.',
+    t1: 'Transparent Pricing',
+    t2: 'Reliable Vendors',
+    t3: 'Faster Booking',
+    t4: 'Better Visibility',
+    journey: 'How Achar Works',
+  },
+  km: {
+    chip: 'អំពី Achar Event Booking',
+    titleA: 'ព្រឹត្តិការណ៍ដ៏ល្អឥតខ្ចោះរបស់អ្នក,',
+    titleB: 'រៀបចំ',
+    titleC: 'យ៉ាងល្អឥតខ្ចោះ',
+    intro:
+      'ស្វែងរក និងកក់អ្នកផ្គត់ផ្គង់ ទីតាំង និងអ្នកជំនាញដែលទុកចិត្តបាន សម្រាប់ពិធីប្រពៃណី និងទំនើប។',
+    cta: 'ស្វែងរកសេវាកម្ម និងកញ្ចប់',
+    featured: 'បទពិសោធន៍ពិសេស',
+    why: 'ហេតុអ្វី Achar',
+    modernPlatform: 'វេទិកាទំនើបសម្រាប់រៀបចំព្រឹត្តិការណ៍បានរលូន',
+    heroText:
+      'Achar ជួយមនុស្សរៀបចំពិធី និងព្រឹត្តិការណ៍អាជីព ដោយផ្គូផ្គងជាមួយសេវាកម្មត្រឹមត្រូវ។ អ្នកអាចស្វែងរក ប្រៀបធៀប កែតម្រូវ និងបញ្ជាក់ការកក់បានក្នុងដំណើរការតែមួយ។',
+    missionTitle: 'អ្វីដែលវេទិកានេះផ្តល់ជូន',
+    missionText:
+      'គោលដៅគឺធ្វើឱ្យការរៀបចំព្រឹត្តិការណ៍មានភាពជឿទុកចិត្ត បើកចំហ និងកាត់បន្ថយសម្ពាធ។ អតិថិជនគ្រប់គ្រងថវិកា និងគុណភាពបានល្អជាងមុន។ អ្នកផ្គត់ផ្គង់ក៏មានឆានែលច្បាស់ក្នុងការបង្ហាញសេវាកម្មផងដែរ។',
+    t1: 'តម្លៃបើកចំហ',
+    t2: 'អ្នកផ្គត់ផ្គង់គួរឱ្យទុកចិត្ត',
+    t3: 'កក់បានលឿន',
+    t4: 'មើលឃើញបានច្បាស់',
+    journey: 'របៀបដំណើរការ Achar',
+  },
+  zh: {
+    chip: '关于 Achar Event Booking',
+    titleA: '您的完美活动，',
+    titleB: '精心策划',
+    titleC: '到位',
+    intro: '发现并预订值得信赖的供应商、场地和专家，适用于传统与现代庆典。',
+    cta: '探索服务与套餐',
+    featured: '精选体验',
+    why: '为什么选择 Achar',
+    modernPlatform: '现代化活动策划平台',
+    heroText:
+      'Achar 通过匹配合适服务，帮助用户高效筹备庆典和专业活动。您可以在一个流程中完成发现、比较、定制与确认预订。',
+    missionTitle: '平台带来的价值',
+    missionText:
+      '我们的目标是让活动策划更可靠、更透明、更省心。客户能更好掌控预算与时间，商家也能更清晰展示服务并提升转化。',
+    t1: '透明定价',
+    t2: '可靠商家',
+    t3: '更快预订',
+    t4: '更高可见性',
+    journey: 'Achar 如何运作',
+  },
+}
+
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en)
 
 function onLogoError() {
   appLogoSrc.value = '/favicon.ico'
@@ -68,6 +140,60 @@ const journeyCards = [
     image: '/event-cards/orange-flowers.jpg',
   },
 ]
+
+const localizedPillars = computed(() => {
+  if (language.value === 'km') {
+    return [
+      {
+        title: 'អ្នកផ្គត់ផ្គង់ជ្រើសរើស',
+        text: 'Achar ភ្ជាប់អតិថិជនជាមួយទីតាំង អ្នករៀបចំ ការតុបតែង អាហារ និងថតរូបដែលទុកចិត្តបាន។',
+      },
+      {
+        title: 'ដំណើរការរៀបចំឆ្លាតវៃ',
+        text: 'ចាប់ពីស្វែងរកដល់កែតម្រូវ និងកក់ចុងក្រោយ វេទិកានេះធ្វើឱ្យការងារទាំងអស់មានរបៀបរៀបរយ។',
+      },
+      {
+        title: 'សម្រាប់ម្ចាស់ពិធី និងអ្នកផ្គត់ផ្គង់',
+        text: 'អតិថិជនរៀបចំបានលឿន ខណៈអ្នកផ្គត់ផ្គង់គ្រប់គ្រងសំណើ និងការកក់បានច្បាស់។',
+      },
+    ]
+  }
+  if (language.value === 'zh') {
+    return [
+      {
+        title: '精选商家',
+        text: 'Achar 将客户与场地、策划、装饰、餐饮、摄影等可信服务方连接在一个平台。',
+      },
+      {
+        title: '智能策划流程',
+        text: '从发现到定制再到最终预订，平台让每一步都清晰易管理。',
+      },
+      {
+        title: '面向客户与商家',
+        text: '客户更快完成筹备，商家更清楚地管理咨询、套餐与订单。',
+      },
+    ]
+  }
+  return platformPillars
+})
+
+const localizedJourneyCards = computed(() => {
+  if (language.value === 'km') {
+    return [
+      { step: '01', title: 'ស្វែងរក', text: 'រកមើលកញ្ចប់ សេវាកម្ម និងអ្នកជំនាញ។', image: '/event-cards/engagement-attire.jpg' },
+      { step: '02', title: 'កែតម្រូវ', text: 'កំណត់ចំនួន សេវាបន្ថែម និងចំណូលចិត្ត។', image: '/W5.png' },
+      { step: '03', title: 'កក់', text: 'បញ្ជាក់ផែនការ ដោយសង្ខេបច្បាស់ និងការទូទាត់សុវត្ថិភាព។', image: '/event-cards/orange-flowers.jpg' },
+    ]
+  }
+  if (language.value === 'zh') {
+    return [
+      { step: '01', title: '发现', text: '浏览套餐、服务与专业商家。', image: '/event-cards/engagement-attire.jpg' },
+      { step: '02', title: '定制', text: '在同一流程中调整数量、附加项和偏好。', image: '/W5.png' },
+      { step: '03', title: '预订', text: '通过清晰摘要与结账确认活动方案。', image: '/event-cards/orange-flowers.jpg' },
+    ]
+  }
+  return journeyCards
+})
 </script>
 <template>
   <div class="about-page-root">
@@ -76,17 +202,16 @@ const journeyCards = [
       <section class="about-banner card">
         <img class="about-banner-watermark" :src="appLogoSrc" alt="Achar emblem" @error="onLogoError" />
         <div class="about-banner-content">
-          <p class="about-chip">About Achar Event Booking</p>
+          <p class="about-chip">{{ uiText.chip }}</p>
           <h1>
-            Your Perfect Event,
-            <span>Orchestrated</span> to Perfection
+            {{ uiText.titleA }}
+            <span>{{ uiText.titleB }}</span> {{ uiText.titleC }}
           </h1>
           <p>
-            Discover and book trusted vendors, venues, and specialists for both
-            traditional and modern celebrations.
+            {{ uiText.intro }}
           </p>
           <RouterLink to="/services/packages" class="about-banner-cta">
-            Explore Services & Packages
+            {{ uiText.cta }}
           </RouterLink>
         </div>
       </section>
@@ -100,7 +225,7 @@ const journeyCards = [
         >
           <img :src="card.image" :alt="card.title" loading="lazy" />
           <div>
-            <p v-if="index === 0" class="about-chip">Featured Experience</p>
+            <p v-if="index === 0" class="about-chip">{{ uiText.featured }}</p>
             <h3>{{ card.title }}</h3>
             <p>{{ card.text }}</p>
           </div>
@@ -108,20 +233,17 @@ const journeyCards = [
       </section>
 
       <section class="about-hero card">
-        <p class="about-hero-kicker">Why Achar</p>
-        <h2>A modern platform for seamless event planning</h2>
+        <p class="about-hero-kicker">{{ uiText.why }}</p>
+        <h2>{{ uiText.modernPlatform }}</h2>
         <p>
-          Achar helps people plan celebrations and professional events by
-          matching them with the right services. Instead of handling vendors
-          across scattered channels, users can discover options, compare
-          packages, customize services, and confirm bookings in one workflow.
+          {{ uiText.heroText }}
         </p>
       </section>
 
       <section class="about-grid">
         <article
           class="card about-block"
-          v-for="(pillar, index) in platformPillars"
+          v-for="(pillar, index) in localizedPillars"
           :key="pillar.title"
         >
           <span class="about-block-index">0{{ index + 1 }}</span>
@@ -130,18 +252,15 @@ const journeyCards = [
         </article>
       </section>
       <section class="card about-mission">
-        <h2>What this platform delivers</h2>
+        <h2>{{ uiText.missionTitle }}</h2>
         <p>
-          The goal is to make event planning reliable, transparent, and less
-          stressful. Clients get better control over budget, schedule, and
-          service quality. Vendors get a clearer channel to showcase offerings,
-          engage customers, and convert interest into confirmed bookings.
+          {{ uiText.missionText }}
         </p>
         <div class="about-mission-tags">
-          <span>Transparent Pricing</span>
-          <span>Reliable Vendors</span>
-          <span>Faster Booking</span>
-          <span>Better Visibility</span>
+          <span>{{ uiText.t1 }}</span>
+          <span>{{ uiText.t2 }}</span>
+          <span>{{ uiText.t3 }}</span>
+          <span>{{ uiText.t4 }}</span>
         </div>
       </section>
       <section class="about-stats">
@@ -156,9 +275,9 @@ const journeyCards = [
       </section>
 
       <section class="card about-journey">
-        <h2>How Achar Works</h2>
+        <h2>{{ uiText.journey }}</h2>
         <div class="about-journey-grid">
-          <article v-for="item in journeyCards" :key="item.step" class="about-journey-card">
+          <article v-for="item in localizedJourneyCards" :key="item.step" class="about-journey-card">
             <img :src="item.image" :alt="item.title" loading="lazy" />
             <div>
               <span>{{ item.step }}</span>

@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useLanguage } from "../features/language";
 
 const router = useRouter();
+const { language } = useLanguage();
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 function onLogoError() {
@@ -41,6 +43,61 @@ function goDashboard() {
 function goReceipt() {
   router.push("/checkout/receipt");
 }
+
+const copyByLanguage = {
+  en: {
+    title: "Your Celebration is Set!",
+    subtitle: "Your booking has been confirmed. A copy of the receipt has been sent to your email.",
+    digitalReceipt: "Digital Receipt",
+    bookingId: "Booking ID",
+    eventDate: "Event Date",
+    depositPaid: "Deposit Paid",
+    serviceItem: "Service item",
+    totalBooking: "Total Booking Value",
+    processingFees: "Processing Fees",
+    deposit30: "Deposit Paid (30%)",
+    remaining: "Remaining Balance",
+    secured: "Secured by Achar Protection",
+    issuedOn: "Issued on",
+    downloadPdf: "Download PDF Receipt",
+    dashboard: "Go to My Event Dashboard",
+  },
+  km: {
+    title: "ព្រឹត្តិការណ៍របស់អ្នករួចរាល់ហើយ!",
+    subtitle: "ការកក់របស់អ្នកត្រូវបានបញ្ជាក់។ ច្បាប់ចម្លងបង្កាន់ដៃត្រូវបានផ្ញើទៅអ៊ីមែលរបស់អ្នក។",
+    digitalReceipt: "បង្កាន់ដៃឌីជីថល",
+    bookingId: "លេខកក់",
+    eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+    depositPaid: "បានបង់ប្រាក់កក់",
+    serviceItem: "ធាតុសេវាកម្ម",
+    totalBooking: "តម្លៃសរុបការកក់",
+    processingFees: "កម្រៃដំណើរការ",
+    deposit30: "ប្រាក់កក់បានបង់ (30%)",
+    remaining: "សមតុល្យនៅសល់",
+    secured: "ការពារដោយ Achar",
+    issuedOn: "ចេញនៅ",
+    downloadPdf: "ទាញយកបង្កាន់ដៃ PDF",
+    dashboard: "ទៅផ្ទាំងគ្រប់គ្រងព្រឹត្តិការណ៍របស់ខ្ញុំ",
+  },
+  zh: {
+    title: "您的庆典已安排完成！",
+    subtitle: "您的预订已确认，收据副本已发送到您的邮箱。",
+    digitalReceipt: "电子收据",
+    bookingId: "预订编号",
+    eventDate: "活动日期",
+    depositPaid: "定金已支付",
+    serviceItem: "服务项目",
+    totalBooking: "订单总额",
+    processingFees: "手续费",
+    deposit30: "已付定金 (30%)",
+    remaining: "剩余尾款",
+    secured: "由 Achar 提供保障",
+    issuedOn: "签发时间",
+    downloadPdf: "下载 PDF 收据",
+    dashboard: "前往我的活动控制台",
+  },
+};
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 </script>
 
 <template>
@@ -48,17 +105,17 @@ function goReceipt() {
       <div class="status-wrap">
         <div class="status-icon">&#10003;</div>
       </div>
-      <h1>Your Celebration is Set!</h1>
-      <p class="subtitle">Your booking has been confirmed. A copy of the receipt has been sent to your email.</p>
+      <h1>{{ uiText.title }}</h1>
+      <p class="subtitle">{{ uiText.subtitle }}</p>
 
       <section class="receipt-card">
         <div class="receipt-head">
           <div>
-            <small>Digital Receipt</small>
+            <small>{{ uiText.digitalReceipt }}</small>
             <strong>Achar Event Planning</strong>
           </div>
           <div class="receipt-id">
-            <small>Booking ID</small>
+            <small>{{ uiText.bookingId }}</small>
             <strong>{{ bookingId }}</strong>
           </div>
         </div>
@@ -66,39 +123,39 @@ function goReceipt() {
         <div class="receipt-body">
           <div class="receipt-meta">
             <div>
-              <small>Event Date</small>
+              <small>{{ uiText.eventDate }}</small>
               <strong>{{ booking.eventDate || "TBD" }}</strong>
             </div>
-            <div class="paid-pill">Deposit Paid</div>
+            <div class="paid-pill">{{ uiText.depositPaid }}</div>
           </div>
 
           <div class="service-list">
             <article v-for="item in items" :key="`${item.type}-${item.name}`">
               <div>
                 <strong>{{ item.name }}</strong>
-                <p>{{ item.description || "Service item" }}</p>
+                <p>{{ item.description || uiText.serviceItem }}</p>
               </div>
               <span>${{ Number(item.totalPrice || 0).toLocaleString() }}</span>
             </article>
           </div>
 
           <div class="totals-box">
-            <div><span>Total Booking Value</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
-            <div><span>Processing Fees</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
-            <div class="deposit-row"><span>Deposit Paid (30%)</span><strong>${{ deposit.toLocaleString() }}</strong></div>
-            <div><small>Remaining Balance</small><strong>${{ remaining.toLocaleString() }}</strong></div>
+            <div><span>{{ uiText.totalBooking }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
+            <div><span>{{ uiText.processingFees }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
+            <div class="deposit-row"><span>{{ uiText.deposit30 }}</span><strong>${{ deposit.toLocaleString() }}</strong></div>
+            <div><small>{{ uiText.remaining }}</small><strong>${{ remaining.toLocaleString() }}</strong></div>
           </div>
         </div>
 
         <footer class="receipt-foot">
-          <span>Secured by Achar Protection</span>
-          <span>Issued on {{ paidDateLabel }}</span>
+          <span>{{ uiText.secured }}</span>
+          <span>{{ uiText.issuedOn }} {{ paidDateLabel }}</span>
         </footer>
       </section>
 
       <div class="confirmed-actions">
-        <button type="button" class="btn-light" @click="goReceipt">Download PDF Receipt</button>
-        <button type="button" class="btn-primary" @click="goDashboard">Go to My Event Dashboard</button>
+        <button type="button" class="btn-light" @click="goReceipt">{{ uiText.downloadPdf }}</button>
+        <button type="button" class="btn-primary" @click="goDashboard">{{ uiText.dashboard }}</button>
       </div>
     </main>
   </div>
