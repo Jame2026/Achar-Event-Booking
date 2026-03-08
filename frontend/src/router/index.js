@@ -11,6 +11,23 @@ import CheckoutReceiptPage from '../components/CheckoutReceiptPage.vue'
 import ForgotPasswordForm from '../components/ForgotPasswordForm.vue'
 import ResetPasswordForm from '../components/ResetPasswordForm.vue'
 
+const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+
+function getStoredRole() {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY)
+    if (!raw) return 'guest'
+    const user = JSON.parse(raw)
+    return String(user?.role || 'guest').trim().toLowerCase()
+  } catch {
+    return 'guest'
+  }
+}
+
+function dashboardRedirect() {
+  return getStoredRole() === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+}
+
 const routes = [
   {
     path: '/',
@@ -33,15 +50,11 @@ const routes = [
   },
   {
     path: '/booking',
-    name: 'BookingForm',
-    component: GuestPreview,
-    props: { section: 'bookings' }
+    redirect: '/legacy-app?page=bookings'
   },
   {
     path: '/dashboard',
-    name: 'Dashboard',
-    component: GuestPreview,
-    props: { section: 'dashboard' }
+    redirect: dashboardRedirect
   },
   {
     path: '/services',
@@ -84,6 +97,10 @@ const routes = [
   {
     path: '/vendor/legacy',
     redirect: '/legacy-app?page=vendor'
+  },
+  {
+    path: '/vendor/dashboard',
+    redirect: dashboardRedirect
   },
   {
     path: '/checkout',

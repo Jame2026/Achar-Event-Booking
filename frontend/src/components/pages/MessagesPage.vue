@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const props = defineProps([
   'bindings',
   'filteredConversations',
@@ -10,6 +10,8 @@ const props = defineProps([
   'isSharingLocation',
   'saveDocument',
   'deleteMessage',
+  'isLoadingMessages',
+  'messagesError',
 ])
 </script>
 
@@ -24,6 +26,9 @@ const props = defineProps([
           :value="props.bindings.conversationSearch.value"
           @input="props.bindings.conversationSearch.value = $event.target.value"
         />
+
+        <p v-if="props.messagesError" class="notice">{{ props.messagesError }}</p>
+        <p v-else-if="props.isLoadingMessages" class="notice">Loading conversations...</p>
 
         <div class="conversation-list">
           <article
@@ -42,6 +47,9 @@ const props = defineProps([
               <p>{{ chat.preview }}</p>
             </div>
           </article>
+          <p v-if="!props.isLoadingMessages && props.filteredConversations.length === 0" class="notice">
+            No conversations yet.
+          </p>
         </div>
       </aside>
 
@@ -51,7 +59,10 @@ const props = defineProps([
             <img :src="props.activeConversation.image" :alt="props.activeConversation.name" />
             <div>
               <h3>{{ props.activeConversation.name }}</h3>
-              <p>{{ props.activeConversation.online ? 'Online' : 'Offline' }}</p>
+              <p v-if="props.activeConversation.serviceName">
+                Booking #{{ props.activeConversation.bookingId || '-' }} · {{ props.activeConversation.serviceName }}
+              </p>
+              <p v-else>{{ props.activeConversation.online ? 'Online' : 'Offline' }}</p>
             </div>
           </div>
         </header>
