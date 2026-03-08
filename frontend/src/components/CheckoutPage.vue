@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { apiPost } from "../features/apiClient";
 
@@ -15,6 +15,7 @@ const paymentLogoError = ref({
   wing: false,
   acleda: false,
 });
+const qrCodeImageSrc = `${import.meta.env.BASE_URL}qrcode.jpg`;
 
 const fallback = {
   vendorTitle: "Selected Vendor",
@@ -65,6 +66,7 @@ const remaining = computed(() =>
 const selectedMethod = ref("aba");
 const agreedTerms = ref(false);
 const paymentNotice = ref("");
+const isAwaitingPayment = ref(false);
 const cardForm = ref({
   holderName: "",
   cardNumber: "",
@@ -140,6 +142,12 @@ function saveLocalBooking(user) {
 
 async function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
+  if (selectedMethod.value !== "card" && !isAwaitingPayment.value) {
+    isAwaitingPayment.value = true;
+    paymentNotice.value = "Please scan the QR code and complete payment, then click Complete Payment.";
+    return;
+  }
+
   if (selectedMethod.value === "card") {
     const holder = String(cardForm.value.holderName || "").trim();
     const digits = String(cardForm.value.cardNumber || "").replace(/\D/g, "");
@@ -212,6 +220,11 @@ async function handleConfirmAndPay() {
   sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
   router.push("/checkout/confirmed");
 }
+
+watch(selectedMethod, () => {
+  isAwaitingPayment.value = false;
+  paymentNotice.value = "";
+});
 </script>
 
 <template>
@@ -368,13 +381,7 @@ async function handleConfirmAndPay() {
             <span class="method-radio"></span>
           </button>
 
-          <div v-if="selectedMethod !== 'card'" class="qr-panel">
-            <div class="qr-placeholder" aria-label="Example QR code">
-              <img src="/qrcode.jpg" alt="QR code for payment" loading="lazy" />
-            </div>
-            <p>Scan the QR code within your banking app to authorize the deposit.</p>
-          </div>
-          <div v-else class="card-panel">
+          <div v-if="selectedMethod === 'card'" class="card-panel">
             <label class="card-field">
               <span>Cardholder Name</span>
               <input
@@ -438,6 +445,29 @@ async function handleConfirmAndPay() {
         </article>
       </aside>
     </main>
+
+    <div
+      v-if="selectedMethod !== 'card' && isAwaitingPayment"
+      class="qr-fullscreen-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="QR payment"
+    >
+      <div class="qr-fullscreen-panel">
+        <div class="qr-fullscreen-image-wrap">
+          <img :src="qrCodeImageSrc" alt="QR code for payment" loading="lazy" />
+        </div>
+        <p>Scan this QR code with your banking app to pay the deposit.</p>
+        <div class="qr-fullscreen-actions">
+          <button type="button" class="modal-btn ghost" @click="isAwaitingPayment = false">
+            Back
+          </button>
+          <button type="button" class="modal-btn primary" @click="handleConfirmAndPay">
+            Complete Payment
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -992,6 +1022,74 @@ async function handleConfirmAndPay() {
   text-align: center;
 }
 
+.qr-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: rgba(15, 23, 42, 0.84);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.qr-fullscreen-panel {
+  width: min(560px, 100%);
+  border: 1px solid #d8e2ef;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  text-align: center;
+}
+
+.qr-fullscreen-image-wrap {
+  margin: 0 auto;
+  width: min(86vw, 420px);
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  border: 1px solid #d8e2ef;
+  background: #fff;
+  padding: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.qr-fullscreen-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qr-fullscreen-panel p {
+  margin: 0;
+  color: #475569;
+  font-weight: 600;
+}
+
+.qr-fullscreen-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.modal-btn {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d8e2ef;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modal-btn.primary {
+  background: #f97316;
+  border-color: #f97316;
+  color: #fff;
+}
+
 @media (max-width: 980px) {
   .checkout-header {
     grid-template-columns: auto;
@@ -1049,6 +1147,19 @@ async function handleConfirmAndPay() {
   .deposit-box p,
   .pay-btn {
     font-size: 15px;
+  }
+
+  .qr-fullscreen-overlay {
+    padding: 10px;
+  }
+
+  .qr-fullscreen-panel {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .qr-fullscreen-actions {
+    grid-template-columns: 1fr;
   }
 
   .deposit-box strong {

@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
 import CustomizationPage from "./pages/CustomizationPage.vue";
@@ -332,7 +332,10 @@ const prebookForm = ref({
 });
 const prebookSuccess = ref("");
 const isDetectingPrebookLocation = ref(false);
+const isResolvingTypedPrebookLocation = ref(false);
+const lastResolvedPrebookLocationQuery = ref("");
 const prebookLocationNotice = ref("");
+let typedLocationResolveTimer = null;
 const activePackage = computed(
   () =>
     guestPreviewPackages.value.find(
@@ -399,15 +402,109 @@ function openPrebookForm() {
   };
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
+  isResolvingTypedPrebookLocation.value = false;
+  lastResolvedPrebookLocationQuery.value = "";
   closePackageDetails();
   showPrebookModal.value = true;
 }
 
 function closePrebookModal() {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
   showPrebookModal.value = false;
 }
 
-function submitPrebookForm() {
+function hasValidPrebookCoordinates() {
+  return Number.isFinite(Number(prebookForm.value.latitude)) && Number.isFinite(Number(prebookForm.value.longitude));
+}
+
+async function resolveTypedPrebookLocation() {
+  const query = String(prebookForm.value.location || "").trim();
+  if (!query) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    lastResolvedPrebookLocationQuery.value = "";
+    prebookLocationNotice.value = "Enter a location to pin it on the map.";
+    return false;
+  }
+
+  const normalizedQuery = query.toLowerCase().replace(/\s+/g, " ");
+  if (normalizedQuery === lastResolvedPrebookLocationQuery.value && hasValidPrebookCoordinates()) {
+    return true;
+  }
+
+  isResolvingTypedPrebookLocation.value = true;
+  prebookLocationNotice.value = "Finding your typed location...";
+  prebookForm.value.latitude = null;
+  prebookForm.value.longitude = null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "en",
+      },
+    });
+    if (!response.ok) {
+      throw new Error("geocode failed");
+    }
+    const rows = await response.json();
+    const best = Array.isArray(rows) ? rows[0] : null;
+    const lat = Number(best?.lat);
+    const lng = Number(best?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      prebookLocationNotice.value = "Location not found. Add city or full address.";
+      return false;
+    }
+
+    prebookForm.value.latitude = Number(lat.toFixed(6));
+    prebookForm.value.longitude = Number(lng.toFixed(6));
+    if (String(best?.display_name || "").trim()) {
+      prebookForm.value.location = String(best.display_name).trim();
+    }
+    lastResolvedPrebookLocationQuery.value = normalizedQuery;
+    prebookLocationNotice.value = "Location captured from your address.";
+    return true;
+  } catch {
+    prebookLocationNotice.value = "Could not match this location right now.";
+    return false;
+  } finally {
+    isResolvingTypedPrebookLocation.value = false;
+  }
+}
+
+function scheduleTypedPrebookLocationResolve() {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
+  const query = String(prebookForm.value.location || "").trim();
+  if (!query) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    lastResolvedPrebookLocationQuery.value = "";
+    prebookLocationNotice.value = "";
+    return;
+  }
+  if (query.length < 4) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    prebookLocationNotice.value = "";
+    return;
+  }
+  typedLocationResolveTimer = setTimeout(() => {
+    typedLocationResolveTimer = null;
+    void resolveTypedPrebookLocation();
+  }, 700);
+}
+
+async function submitPrebookForm() {
+  const resolved = await resolveTypedPrebookLocation();
+  if (!resolved) return;
+
   const usingOverallFlow = section.value === "services-overall";
   const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
   const checkoutItems = [];
@@ -532,6 +629,10 @@ function detectPrebookLocation() {
       prebookForm.value.latitude = lat;
       prebookForm.value.longitude = lng;
       prebookForm.value.location = placeName || `${lat}, ${lng}`;
+      lastResolvedPrebookLocationQuery.value = String(prebookForm.value.location || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
       prebookLocationNotice.value = "Current location captured.";
       isDetectingPrebookLocation.value = false;
     },
@@ -786,6 +887,13 @@ onMounted(() => {
   void loadLiveVendorEvents();
 });
 
+onUnmounted(() => {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
+});
+
 function favoriteQtyChanged(e) {
   const val = Number(e.target.value);
   if (Number.isFinite(val) && val >= 1) favoriteBookingQuantity.value = val;
@@ -810,6 +918,8 @@ function openFavoritePrebookForm() {
   };
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
+  isResolvingTypedPrebookLocation.value = false;
+  lastResolvedPrebookLocationQuery.value = "";
   showPrebookModal.value = true;
 }
 
@@ -844,9 +954,9 @@ const selectedAvailabilityDateLabel = computed(() => {
 });
 const availabilitySlotGroups = computed(() => {
   const groups = [
-    { key: "morning", label: "Morning", icon: "â˜€", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
-    { key: "afternoon", label: "Afternoon", icon: "â˜€", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
-    { key: "evening", label: "Evening", icon: "â˜½", slots: ["07:00 PM", "08:30 PM"] },
+    { key: "morning", label: "Morning", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
+    { key: "afternoon", label: "Afternoon", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
+    { key: "evening", label: "Evening", slots: ["07:00 PM", "08:30 PM"] },
   ];
   return groups.map((group) => ({
     ...group,
@@ -1007,7 +1117,7 @@ function noop() {}
                         :class="{ active: isPackageFavorite(item.id) }"
                         @click.stop="toggleFavoritePackage(item.id)"
                       >
-                        {{ isPackageFavorite(item.id) ? "â™¥" : "â™¡" }}
+                        {{ isPackageFavorite(item.id) ? "\u2665" : "\u2661" }}
                       </button>
                       <button
                         type="button"
@@ -1120,7 +1230,7 @@ function noop() {}
               class="availability-period"
             >
               <p class="availability-period-title">
-                <span>{{ group.icon }}</span> {{ group.label }}
+                {{ group.label }}
               </p>
               <div class="availability-slot-grid">
                 <button
@@ -1376,7 +1486,7 @@ function noop() {}
               class="availability-period"
             >
               <p class="availability-period-title">
-                <span>{{ group.icon }}</span> {{ group.label }}
+                {{ group.label }}
               </p>
               <div class="availability-slot-grid">
                 <button
@@ -1572,7 +1682,7 @@ function noop() {}
             class="package-modal-close"
             @click="closePackageDetails"
           >
-            Ã—
+            &times;
           </button>
         </div>
         <img
@@ -1668,18 +1778,18 @@ function noop() {}
               type="text"
               required
               placeholder="City / Venue address"
+              @input="scheduleTypedPrebookLocationResolve"
             />
           </label>
           <div class="prebook-location-tools">
             <button
               type="button"
               class="modal-action-btn modal-action-neutral"
-              :disabled="isDetectingPrebookLocation"
+              :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
               @click="detectPrebookLocation"
             >
               {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
             </button>
-            <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
             <p
               v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
               class="prebook-location-coords"
