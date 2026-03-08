@@ -30,6 +30,7 @@ const localActiveTab = ref(typeof props.activeTab === 'string' ? props.activeTab
 const isCreateServiceModalOpen = ref(false)
 const isDetectingVendorLocation = ref(false)
 const vendorLocationNotice = ref('')
+const incomePeriod = ref('month')
 
 const navItems = [
   { key: 'overview', label: 'Overview', number: '01' },
@@ -46,6 +47,7 @@ const safeIncome = computed(() => ({
   thisMonth: Number(props.vendorIncome?.thisMonth || 0),
   thisYear: Number(props.vendorIncome?.thisYear || 0),
   activeServices: Number(props.vendorIncome?.activeServices || 0),
+  periods: props.vendorIncome?.periods || {},
 }))
 
 const safeMessagesSummary = computed(() => Number(props.messagesSummary || 0))
@@ -69,6 +71,95 @@ const eventOptions = computed(() =>
     ? props.eventTypeOptions.filter((item) => item?.value && item.value !== 'all')
     : [],
 )
+const incomePeriodOptions = [
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year', label: 'Year' },
+]
+const activeIncomePeriod = computed(
+  () => safeIncome.value.periods?.[incomePeriod.value] || { label: 'No data', points: [], total: 0 },
+)
+const activeIncomePoints = computed(() =>
+  Array.isArray(activeIncomePeriod.value.points) ? activeIncomePeriod.value.points : [],
+)
+const incomePeakValue = computed(() =>
+  Math.max(...activeIncomePoints.value.map((item) => Number(item.value || 0)), 0),
+)
+const incomeAverageValue = computed(() =>
+  activeIncomePoints.value.length
+    ? activeIncomePoints.value.reduce((sum, item) => sum + Number(item.value || 0), 0) /
+      activeIncomePoints.value.length
+    : 0,
+)
+const incomeMidValue = computed(() => incomePeakValue.value / 2)
+const topIncomePoint = computed(() => {
+  if (!activeIncomePoints.value.length) return null
+  return activeIncomePoints.value.reduce((best, point) =>
+    Number(point.value || 0) > Number(best.value || 0) ? point : best,
+  )
+})
+const normalizedIncomeChartPoints = computed(() => {
+  const points = activeIncomePoints.value
+  if (!points.length) return []
+
+  const width = 100
+  const height = 100
+  const maxValue = incomePeakValue.value || 1
+
+  return points.map((point, index) => ({
+    x: points.length === 1 ? width / 2 : (index / (points.length - 1)) * width,
+    y: height - (Number(point.value || 0) / maxValue) * 82 - 9,
+    value: Number(point.value || 0),
+    label: point.label,
+    fullLabel: point.fullLabel,
+  }))
+})
+
+function buildSmoothPath(points) {
+  if (!points.length) return ''
+  if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+
+  let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index]
+    const next = points[index + 1]
+    const controlX = (current.x + next.x) / 2
+    path += ` C ${controlX.toFixed(2)} ${current.y.toFixed(2)}, ${controlX.toFixed(2)} ${next.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`
+  }
+
+  return path
+}
+
+const incomeChartPath = computed(() => buildSmoothPath(normalizedIncomeChartPoints.value))
+const incomeLineShadowPath = computed(() => buildSmoothPath(normalizedIncomeChartPoints.value.map((point) => ({
+  ...point,
+  y: point.y + 1.8,
+}))))
+const latestIncomePoint = computed(() =>
+  normalizedIncomeChartPoints.value.length
+    ? normalizedIncomeChartPoints.value[normalizedIncomeChartPoints.value.length - 1]
+    : null,
+)
+const averageLineY = computed(() => {
+  const maxValue = incomePeakValue.value || 1
+  return 100 - (Number(incomeAverageValue.value || 0) / maxValue) * 82 - 9
+})
+const incomeAreaPath = computed(() => {
+  const linePath = incomeChartPath.value
+  const points = normalizedIncomeChartPoints.value
+  if (!linePath || !points.length) return ''
+  const width = 100
+  return `${linePath} L ${width} 100 L 0 100 Z`
+})
+
+function formatCurrency(value) {
+  return `$${Number(value || 0).toLocaleString()}`
+}
+
+function setIncomePeriod(periodKey) {
+  incomePeriod.value = periodKey
+}
 
 function setActiveTab(tabKey) {
   localActiveTab.value = tabKey
@@ -324,39 +415,121 @@ watch(
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'overview'" class="content-grid">
+      <section v-show="localActiveTab === 'overview'" class="content-grid overview-grid">
         <article class="panel panel-wide">
           <div class="panel-head">
             <div>
               <p class="eyebrow">Performance</p>
               <h2>Income Trend Overview</h2>
             </div>
-            <span class="badge">Last 30 days</span>
-          </div>
-          <div class="chart-placeholder">
-            <div class="chart-line chart-line-a"></div>
-            <div class="chart-line chart-line-b"></div>
-            <div class="chart-line chart-line-c"></div>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Quick actions</p>
-              <h2>Service Control</h2>
+            <div class="period-switcher">
+              <button
+                v-for="option in incomePeriodOptions"
+                :key="option.key"
+                type="button"
+                class="period-chip"
+                :class="{ active: incomePeriod === option.key }"
+                @click="setIncomePeriod(option.key)"
+              >
+                {{ option.label }}
+              </button>
             </div>
           </div>
-          <p class="panel-copy">
-            Add a new service now or jump to your customer inbox.
-          </p>
-          <div class="action-row">
-            <button type="button" class="primary-button" @click="openCreateServiceModal">
-              Add Service
-            </button>
-            <button type="button" class="secondary-button" @click="openMessages">
-              Open Messages
-            </button>
+          <div class="income-chart-card">
+            <div class="income-chart-summary">
+              <article class="metric-tile">
+                <small>{{ activeIncomePeriod.label }}</small>
+                <strong>{{ formatCurrency(activeIncomePeriod.total) }}</strong>
+                <span>Confirmed revenue in selected range</span>
+              </article>
+              <article class="metric-tile">
+                <small>Average</small>
+                <strong>{{ formatCurrency(incomeAverageValue) }}</strong>
+                <span>Average per point on the chart</span>
+              </article>
+              <article class="metric-tile">
+                <small>Peak</small>
+                <strong>{{ formatCurrency(incomePeakValue) }}</strong>
+                <span>{{ topIncomePoint?.fullLabel || 'No peak yet' }}</span>
+              </article>
+            </div>
+
+            <div v-if="activeIncomePoints.length" class="income-chart-layout">
+              <div class="chart-scale">
+                <span>{{ formatCurrency(incomePeakValue) }}</span>
+                <span>{{ formatCurrency(incomeMidValue) }}</span>
+                <span>$0</span>
+              </div>
+              <div class="chart-shell">
+                <div class="chart-grid">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <svg viewBox="0 0 100 100" class="income-chart" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="income-area" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.24" />
+                      <stop offset="100%" stop-color="#ea580c" stop-opacity="0.02" />
+                    </linearGradient>
+                    <linearGradient id="income-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#f97316" />
+                      <stop offset="100%" stop-color="#c2410c" />
+                    </linearGradient>
+                  </defs>
+                  <line class="income-average-line" x1="0" :y1="averageLineY" x2="100" :y2="averageLineY" />
+                  <path class="income-area" :d="incomeAreaPath" />
+                  <path class="income-line-shadow" :d="incomeLineShadowPath" />
+                  <path class="income-line" :d="incomeChartPath" />
+                  <circle
+                    v-for="(point, index) in normalizedIncomeChartPoints"
+                    :key="`${incomePeriod}-${index}`"
+                    class="income-dot"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="1.55"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-highlight"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="3.2"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-core"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="1.9"
+                  />
+                </svg>
+                <div class="chart-labels">
+                  <span v-for="(point, index) in activeIncomePoints" :key="`${point.label}-${index}`">
+                    {{ point.label }}
+                  </span>
+                </div>
+              </div>
+              <aside class="chart-insights">
+                <article>
+                  <small>Best period</small>
+                  <strong>{{ topIncomePoint?.label || 'N/A' }}</strong>
+                  <span>{{ formatCurrency(topIncomePoint?.value || 0) }}</span>
+                </article>
+                <article>
+                  <small>Performance</small>
+                  <strong>{{ safeIncome.confirmedCount }}</strong>
+                  <span>Confirmed bookings</span>
+                </article>
+                <article>
+                  <small>Coverage</small>
+                  <strong>{{ safeIncome.activeServices }}</strong>
+                  <span>Active services listed</span>
+                </article>
+              </aside>
+            </div>
+
+            <p v-else class="notice">No confirmed income yet for this period.</p>
           </div>
         </article>
       </section>
@@ -635,22 +808,150 @@ watch(
         <button type="button" class="primary-button" @click="openMessages">Open Messages</button>
       </section>
 
-      <section v-show="localActiveTab === 'income'" class="stats-grid">
-        <article class="stat-card">
-          <small>This Month</small>
-          <strong>${{ safeIncome.thisMonth.toLocaleString() }}</strong>
-          <span>Monthly income estimate</span>
+      <section v-show="localActiveTab === 'income'" class="income-layout">
+        <article class="panel panel-wide">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Analytics</p>
+              <h2>Vendor Income Insights</h2>
+            </div>
+            <div class="period-switcher">
+              <button
+                v-for="option in incomePeriodOptions"
+                :key="`analytics-${option.key}`"
+                type="button"
+                class="period-chip"
+                :class="{ active: incomePeriod === option.key }"
+                @click="setIncomePeriod(option.key)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="income-chart-card">
+            <div class="income-chart-summary income-chart-summary-wide">
+              <article class="metric-tile">
+                <small>Selected period</small>
+                <strong>{{ activeIncomePeriod.label }}</strong>
+                <span>Reporting window</span>
+              </article>
+              <article class="metric-tile">
+                <small>Income</small>
+                <strong>{{ formatCurrency(activeIncomePeriod.total) }}</strong>
+                <span>Confirmed revenue only</span>
+              </article>
+              <article class="metric-tile">
+                <small>Average</small>
+                <strong>{{ formatCurrency(incomeAverageValue) }}</strong>
+                <span>Average per displayed period</span>
+              </article>
+              <article class="metric-tile">
+                <small>Peak</small>
+                <strong>{{ formatCurrency(incomePeakValue) }}</strong>
+                <span>{{ topIncomePoint?.fullLabel || 'No peak yet' }}</span>
+              </article>
+            </div>
+
+            <div v-if="activeIncomePoints.length" class="income-chart-layout analytics-chart-layout">
+              <div class="chart-scale">
+                <span>{{ formatCurrency(incomePeakValue) }}</span>
+                <span>{{ formatCurrency(incomeMidValue) }}</span>
+                <span>$0</span>
+              </div>
+              <div class="chart-shell">
+                <div class="chart-grid">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <svg viewBox="0 0 100 100" class="income-chart" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="income-area-analytics" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.24" />
+                      <stop offset="100%" stop-color="#ea580c" stop-opacity="0.02" />
+                    </linearGradient>
+                    <linearGradient id="income-line-gradient-analytics" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#f97316" />
+                      <stop offset="100%" stop-color="#c2410c" />
+                    </linearGradient>
+                  </defs>
+                  <line class="income-average-line" x1="0" :y1="averageLineY" x2="100" :y2="averageLineY" />
+                  <path class="income-area alt" :d="incomeAreaPath" />
+                  <path class="income-line-shadow" :d="incomeLineShadowPath" />
+                  <path class="income-line" :d="incomeChartPath" />
+                  <circle
+                    v-for="(point, index) in normalizedIncomeChartPoints"
+                    :key="`analytics-${incomePeriod}-${index}`"
+                    class="income-dot"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="1.55"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-highlight"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="3.2"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-core"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="1.9"
+                  />
+                </svg>
+                <div class="chart-labels">
+                  <span v-for="(point, index) in activeIncomePoints" :key="`analytics-${point.label}-${index}`">
+                    {{ point.label }}
+                  </span>
+                </div>
+              </div>
+              <aside class="chart-insights">
+                <article>
+                  <small>Best period</small>
+                  <strong>{{ topIncomePoint?.label || 'N/A' }}</strong>
+                  <span>{{ formatCurrency(topIncomePoint?.value || 0) }}</span>
+                </article>
+                <article>
+                  <small>This month</small>
+                  <strong>{{ formatCurrency(safeIncome.thisMonth) }}</strong>
+                  <span>Current calendar month</span>
+                </article>
+                <article>
+                  <small>This year</small>
+                  <strong>{{ formatCurrency(safeIncome.thisYear) }}</strong>
+                  <span>Current calendar year</span>
+                </article>
+              </aside>
+            </div>
+          </div>
         </article>
-        <article class="stat-card">
-          <small>This Year</small>
-          <strong>${{ safeIncome.thisYear.toLocaleString() }}</strong>
-          <span>Year-to-date income estimate</span>
-        </article>
-        <article class="stat-card">
-          <small>Active Services</small>
-          <strong>{{ safeIncome.activeServices }}</strong>
-          <span>Public listings currently visible</span>
-        </article>
+
+        <section class="stats-grid income-stats-grid">
+          <article class="stat-card">
+            <small>This Month</small>
+            <strong>{{ formatCurrency(safeIncome.thisMonth) }}</strong>
+            <span>Confirmed income this calendar month</span>
+          </article>
+          <article class="stat-card">
+            <small>This Year</small>
+            <strong>{{ formatCurrency(safeIncome.thisYear) }}</strong>
+            <span>Confirmed income this calendar year</span>
+          </article>
+          <article class="stat-card">
+            <small>Active Services</small>
+            <strong>{{ safeIncome.activeServices }}</strong>
+            <span>Public listings currently visible</span>
+          </article>
+          <article class="stat-card accent">
+            <small>Confirmed Bookings</small>
+            <strong>{{ safeIncome.confirmedCount }}</strong>
+            <span>Orders already producing income</span>
+          </article>
+        </section>
       </section>
     </section>
 
@@ -1132,6 +1433,10 @@ watch(
   grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
 }
 
+.overview-grid {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   padding: 26px;
 }
@@ -1157,35 +1462,243 @@ watch(
   font-weight: 700;
 }
 
-.chart-placeholder {
-  height: 250px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(180deg, #fff7ed 0%, #fffbf5 100%);
-}
-
-.chart-line {
-  position: absolute;
-  left: 10%;
-  right: 8%;
-  height: 12px;
+.period-switcher {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ea580c 0%, #f97316 100%);
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
-.chart-line-a {
-  top: 72%;
+.period-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.chart-line-b {
-  top: 62%;
-  width: 78%;
+.period-chip.active {
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
 }
 
-.chart-line-c {
-  top: 52%;
-  width: 62%;
+.metric-tile {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.metric-tile span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.income-chart-layout {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 220px;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.chart-scale {
+  display: grid;
+  align-content: stretch;
+  gap: 0;
+}
+
+.chart-scale span {
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chart-scale span:nth-child(1) {
+  align-items: flex-start;
+}
+
+.chart-scale span:nth-child(2) {
+  align-items: center;
+}
+
+.chart-scale span:nth-child(3) {
+  align-items: flex-end;
+}
+
+.analytics-chart-layout {
+  grid-template-columns: 84px minmax(0, 1fr) 240px;
+}
+
+.chart-insights {
+  display: grid;
+  gap: 12px;
+}
+
+.chart-insights article {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.chart-insights small {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chart-insights strong {
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.chart-insights span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chart-shell {
+  min-height: 248px;
+  padding: 14px 16px 10px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.92) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.chart-grid {
+  inset: 14px 16px 34px;
+}
+
+.chart-grid span {
+  border-top: 1px dashed rgba(148, 163, 184, 0.22);
+}
+
+.income-chart {
+  width: 100%;
+  height: 220px;
+  overflow: visible;
+}
+
+.income-area {
+  fill: url(#income-area);
+}
+
+.income-area.alt {
+  fill: url(#income-area-analytics);
+}
+
+.income-line {
+  fill: none;
+  stroke: url(#income-line-gradient);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.income-line-shadow {
+  fill: none;
+  stroke: rgba(194, 65, 12, 0.14);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.income-average-line {
+  stroke: rgba(148, 163, 184, 0.5);
+  stroke-width: 0.65;
+  stroke-dasharray: 2.5 2.5;
+}
+
+.income-dot {
+  fill: #fff;
+  stroke: #c2410c;
+  stroke-width: 1.25;
+}
+
+.income-dot-highlight {
+  fill: rgba(249, 115, 22, 0.15);
+  stroke: rgba(249, 115, 22, 0.2);
+  stroke-width: 0.6;
+}
+
+.income-dot-core {
+  fill: #f97316;
+  stroke: #ffffff;
+  stroke-width: 0.9;
+}
+
+.chart-labels {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+}
+
+.chart-labels span {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.income-chart-card {
+  display: grid;
+  gap: 18px;
+  min-height: 260px;
+  padding: 22px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.income-chart-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.income-chart-summary-wide {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.income-chart-summary small {
+  display: block;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.income-chart-summary strong {
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.1;
+}
+
+.income-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.income-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .action-row,
@@ -1436,7 +1949,12 @@ watch(
 
   .stats-grid,
   .content-grid,
-  .services-grid {
+  .services-grid,
+  .income-stats-grid,
+  .income-chart-summary,
+  .income-chart-summary-wide,
+  .income-chart-layout,
+  .analytics-chart-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -1447,6 +1965,10 @@ watch(
   }
 
   .hero {
+    flex-direction: column;
+  }
+
+  .panel-head {
     flex-direction: column;
   }
 
@@ -1462,6 +1984,15 @@ watch(
   .service-form,
   .service-item {
     grid-template-columns: 1fr;
+  }
+
+  .chart-labels {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .period-switcher {
+    justify-content: flex-start;
   }
 }
 </style>

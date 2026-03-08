@@ -130,6 +130,7 @@ async function handleConfirmAndPay() {
       customer_email: customerEmail,
       service_name: firstItem.name || booking.vendorTitle || "Service Booking",
       requested_event_type: booking.requestedEventType || "other",
+      requested_event_date: booking.eventDate || null,
       total_amount: bookingTotal.value,
     });
   } catch (error) {

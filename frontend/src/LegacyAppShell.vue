@@ -110,7 +110,7 @@ const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
-const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
@@ -462,24 +462,118 @@ const vendorDisplayName = computed(
 const messagesSummary = computed(
   () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
 )
+function getIncomeDateParts(value) {
+  const date = value ? new Date(value) : null
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
+  return {
+    date,
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+  }
+}
+
+function createDailyIncomeSeries(bookings, days) {
+  const today = new Date()
+  const buckets = Array.from({ length: days }, (_, index) => {
+    const date = new Date(today)
+    date.setHours(0, 0, 0, 0)
+    date.setDate(today.getDate() - (days - index - 1))
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      label: date.toLocaleDateString('en-US', days <= 7 ? { weekday: 'short' } : { month: 'short', day: 'numeric' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createMonthlyIncomeSeries(bookings, months = 12) {
+  const today = new Date()
+  const buckets = Array.from({ length: months }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (months - index - 1), 1)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
 const vendorIncome = computed(() => {
-  const total = vendorBookings.value
-    .filter((item) => String(item.status || '').toLowerCase() === 'confirmed')
-    .reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
-  const confirmedCount = vendorBookings.value.filter(
+  const confirmedBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'confirmed',
-  ).length
+  )
+  const total = confirmedBookings.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
+  const confirmedCount = confirmedBookings.length
   const newBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'pending',
   ).length
   const activeServices = vendorEvents.value.filter((item) => item.isActive).length
+  const now = new Date()
+  const thisMonth = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() && parts.month === now.getMonth()
+      ? sum + Number(item.total_amount || 0)
+      : sum
+  }, 0)
+  const thisYear = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() ? sum + Number(item.total_amount || 0) : sum
+  }, 0)
+  const weekSeries = createDailyIncomeSeries(confirmedBookings, 7)
+  const monthSeries = createDailyIncomeSeries(confirmedBookings, 30)
+  const yearSeries = createMonthlyIncomeSeries(confirmedBookings, 12)
+  const periodTotal = (series) => series.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return {
     total,
     confirmedCount,
     newBookings,
-    thisMonth: total,
-    thisYear: total,
+    thisMonth,
+    thisYear,
     activeServices,
+    periods: {
+      week: {
+        label: 'Last 7 days',
+        points: weekSeries,
+        total: periodTotal(weekSeries),
+      },
+      month: {
+        label: 'Last 30 days',
+        points: monthSeries,
+        total: periodTotal(monthSeries),
+      },
+      year: {
+        label: 'Last 12 months',
+        points: yearSeries,
+        total: periodTotal(yearSeries),
+      },
+    },
   }
 })
 
@@ -851,21 +945,21 @@ async function deleteVendorService(item) {
 
 function mapVendorBookingRow(row) {
   const event = row.event || {}
+  const bookingDate = row.requested_event_date || event.starts_at
   return {
     id: row.id,
     service_name: row.service_name || event.title || 'Service Booking',
     customer_name: row.customer_name || row.user?.name || 'Customer',
-    date_label: event.starts_at
-      ? new Date(event.starts_at).toLocaleString('en-US', {
+    date_label: bookingDate
+      ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
           day: '2-digit',
           year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
         })
       : 'Date TBD',
     status: String(row.status || 'pending'),
     total_amount: Number(row.total_amount || 0),
+    income_date: row.requested_event_date || row.created_at || event.starts_at || row.updated_at || null,
   }
 }
 

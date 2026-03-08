@@ -64,6 +64,7 @@ Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
 Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']);
 Route::get('events/{event}/availability', [BookingController::class, 'availability']);
+Route::get('events/{event}/availability-calendar', [BookingController::class, 'availabilityCalendar']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
 Route::get('notifications/bookings', [NotificationController::class, 'index']);

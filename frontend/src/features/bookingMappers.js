@@ -17,6 +17,7 @@ export function deriveBookingType(status, startsAt) {
 export function mapBooking(apiBooking, options) {
   const { vendorName, eventTypeMap } = options
   const event = apiBooking.event || {}
+  const bookingDate = apiBooking.requested_event_date || event.starts_at
   const status = (apiBooking.status || 'pending').toLowerCase()
 
   const statusText =
@@ -25,13 +26,13 @@ export function mapBooking(apiBooking, options) {
   const statusClass =
     status === 'confirmed' ? 'confirmed' : status === 'cancelled' ? 'done' : 'pending'
 
-  const type = deriveBookingType(status, event.starts_at)
+  const type = deriveBookingType(status, bookingDate)
 
   return {
     id: apiBooking.id,
     vendor: vendorName,
     service: apiBooking.service_name || event.title || 'Service Booking',
-    date: formatDateTime(event.starts_at),
+    date: formatDateTime(bookingDate),
     metaLabel: 'Event Type',
     metaValue: eventTypeMap[apiBooking.requested_event_type || event.event_type] || 'Other',
     placeLabel: 'Total',
