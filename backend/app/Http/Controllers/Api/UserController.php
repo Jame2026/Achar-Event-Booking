@@ -10,7 +10,7 @@ class UserController extends Controller
 {
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user()->load('bookings.event:id,title,starts_at,location');
+        $user = $request->user()->load('bookings.event:id,title,starts_at,location,vendor_id', 'bookings.event.vendor:id,name');
 
         return response()->json($user);
     }
@@ -19,7 +19,7 @@ class UserController extends Controller
     {
         $bookings = $request->user()
             ->bookings()
-            ->with('event:id,title,starts_at,location')
+            ->with('event:id,title,starts_at,location,vendor_id', 'event.vendor:id,name')
             ->latest()
             ->paginate(15);
 

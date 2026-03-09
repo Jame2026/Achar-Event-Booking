@@ -8,6 +8,7 @@ import { useLanguage } from "../features/language";
 const router = useRouter();
 const { language } = useLanguage();
 const showAllEvents = ref(false);
+const showAllVendors = ref(false);
 const currentVendorIndex = ref(0);
 const showBookingModal = ref(false);
 const selectedVendor = ref(null);
@@ -23,6 +24,8 @@ const bookingForm = ref({
 
 const eventRows = ref([]);
 const dataLoadFailed = ref(false);
+const isLoadingHomeData = ref(false);
+const HOME_EVENT_PAGE_SIZE = 24;
 
 const copyByLanguage = {
   en: {
@@ -32,15 +35,18 @@ const copyByLanguage = {
     heroLede:
       "Discover and book trusted vendors, venues, and specialists for both traditional and modern celebrations.",
     exploreServices: "Explore Services & Packages",
-    browseByEvent: "Browse by Event Type",
-    suitedTitle: "Perfectly suited for those extra-special occasions",
-    eventsSubtitle: "Live categories from available events and vendors.",
+    browseByEvent: "Browse Live Services",
+    suitedTitle: "Real vendor services available right now",
+    eventsSubtitle: "Services posted by vendors are shown here.",
     showLess: "Show less",
-    showAllEvents: "Show all events",
-    eventLoadError: "Live data is temporarily unavailable. Showing fallback results.",
+    showAllEvents: "Show all services",
+    eventLoadError: "Live data is temporarily unavailable.",
     exploreStyle: "Explore style >",
     recommendedVendors: "Recommended Vendors",
     handpickedTitle: "Handpicked services, ready to book",
+    showAllServices: "See all services",
+    showLessServices: "Show fewer services",
+    postedServicesSubtitle: "Every service posted by vendors is available here.",
     bookingYouAre: "You are booking",
     bookingRequestSent: "Booking Request Sent",
     bookingRequestBodyA: "Your request to book",
@@ -80,15 +86,18 @@ const copyByLanguage = {
     heroLede:
       "ស្វែងរក និងកក់អ្នកផ្គត់ផ្គង់ទីតាំង និងអ្នកជំនាញដែលទុកចិត្តបាន សម្រាប់ពិធីប្រពៃណី និងទំនើប។",
     exploreServices: "ស្វែងរកសេវាកម្ម និងកញ្ចប់",
-    browseByEvent: "រកមើលតាមប្រភេទព្រឹត្តិការណ៍",
-    suitedTitle: "សមស្របសម្រាប់ឱកាសពិសេសរបស់អ្នក",
-    eventsSubtitle: "ប្រភេទព្រឹត្តិការណ៍ផ្ទាល់ពីអ្នកផ្គត់ផ្គង់ និងកម្មវិធីដែលមាន។",
+    browseByEvent: "រកមើលសេវាកម្មផ្ទាល់",
+    suitedTitle: "សេវាកម្មពិតពីអ្នកផ្គត់ផ្គង់ដែលអាចកក់បានឥឡូវនេះ",
+    eventsSubtitle: "សេវាកម្មដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះត្រូវបានបង្ហាញនៅទីនេះ។",
     showLess: "បង្ហាញតិច",
-    showAllEvents: "បង្ហាញព្រឹត្តិការណ៍ទាំងអស់",
-    eventLoadError: "ទិន្នន័យផ្ទាល់មិនអាចប្រើបានបណ្តោះអាសន្ន។ កំពុងបង្ហាញទិន្នន័យជំនួស។",
+    showAllEvents: "បង្ហាញសេវាកម្មទាំងអស់",
+    eventLoadError: "ទិន្នន័យផ្ទាល់មិនអាចប្រើបានបណ្តោះអាសន្ន។",
     exploreStyle: "មើលរចនាប័ទ្ម >",
     recommendedVendors: "អ្នកផ្គត់ផ្គង់ណែនាំ",
     handpickedTitle: "សេវាកម្មជ្រើសរើសរួច រៀបចំសម្រាប់ការកក់",
+    showAllServices: "មើលសេវាកម្មទាំងអស់",
+    showLessServices: "បង្ហាញសេវាកម្មតិច",
+    postedServicesSubtitle: "សេវាកម្មទាំងអស់ដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះមាននៅទីនេះ។",
     bookingYouAre: "អ្នកកំពុងកក់",
     bookingRequestSent: "សំណើកក់ត្រូវបានផ្ញើ",
     bookingRequestBodyA: "សំណើរបស់អ្នកសម្រាប់កក់",
@@ -127,15 +136,18 @@ const copyByLanguage = {
     heroTitleSuffix: "到位",
     heroLede: "发现并预订值得信赖的供应商、场地和专家，适用于传统与现代庆典。",
     exploreServices: "探索服务与套餐",
-    browseByEvent: "按活动类型浏览",
-    suitedTitle: "为您的特别时刻量身打造",
-    eventsSubtitle: "来自可用活动和供应商的实时分类。",
+    browseByEvent: "浏览实时服务",
+    suitedTitle: "当前可预订的真实商家服务",
+    eventsSubtitle: "这里显示商家发布的真实服务。",
     showLess: "收起",
-    showAllEvents: "显示全部活动",
-    eventLoadError: "实时数据暂不可用，正在显示备用内容。",
+    showAllEvents: "显示全部服务",
+    eventLoadError: "实时数据暂不可用。",
     exploreStyle: "查看风格 >",
     recommendedVendors: "推荐商家",
     handpickedTitle: "精选服务，随时预订",
+    showAllServices: "查看全部服务",
+    showLessServices: "收起服务",
+    postedServicesSubtitle: "这里会显示商家发布的全部服务。",
     bookingYouAre: "您正在预订",
     bookingRequestSent: "预订请求已发送",
     bookingRequestBodyA: "您对",
@@ -292,21 +304,6 @@ const eventFallbackByType = {
   other: "/W3.png",
 };
 
-const eventCatalogKeys = [
-  "wedding",
-  "baby_shower",
-  "house_blessing",
-  "monk_ceremony",
-  "company_party",
-  "engagement",
-  "birthday",
-  "anniversary",
-  "graduation",
-  "school_event",
-  "festival",
-  "other",
-];
-
 function toEventLabel(key) {
   const normalized = String(key || "other").toLowerCase();
   const map = eventTypeLabelsByLanguage[language.value] || eventTypeLabelsByLanguage.en;
@@ -318,111 +315,6 @@ function toEventNote(key) {
   const map = eventTypeNotesByLanguage[language.value] || eventTypeNotesByLanguage.en;
   return map[normalized] || eventTypeNotesByLanguage.en.other;
 }
-
-function withFallbackRows(primaryRows, fallbackRows, minRows, keyBuilder) {
-  const rows = [...primaryRows];
-  const existingKeys = new Set(rows.map((row) => keyBuilder(row)));
-  for (const row of fallbackRows) {
-    if (rows.length >= minRows) break;
-    const key = keyBuilder(row);
-    if (existingKeys.has(key)) continue;
-    existingKeys.add(key);
-    rows.push(row);
-  }
-  return rows;
-}
-
-const fallbackEventTypes = computed(() =>
-  ["wedding", "baby_shower", "house_blessing", "monk_ceremony"].map((key) => ({
-    key,
-    name: toEventLabel(key),
-    note: toEventNote(key),
-    image: eventImageByType[key] || eventImageByType.other,
-    fallback: eventFallbackByType[key] || eventFallbackByType.other,
-  })),
-);
-
-const fullEventCatalog = computed(() =>
-  eventCatalogKeys.map((key) => ({
-    key,
-    name: toEventLabel(key),
-    note: toEventNote(key),
-    image: eventImageByType[key] || eventImageByType.other,
-    fallback: eventFallbackByType[key] || eventFallbackByType.other,
-  })),
-);
-
-const fallbackVendors = computed(() => [
-  {
-    tag: "Top Rated",
-    title: "Skyline Grand Atrium",
-    categories: [toEventLabel("wedding"), "Venue", "Design"],
-    location: "Downtown Manhattan",
-    rating: 4.9,
-    reviews: 2458,
-    price: "$3,500",
-    priceCaption: uiText.value.startsFrom,
-    cta: uiText.value.book,
-    image: "/W2.png",
-  },
-  {
-    tag: "Top Rated",
-    title: "Artisan Palate",
-    categories: ["Catering", "Dining", "Menu"],
-    location: "Upper West Side",
-    rating: 4.8,
-    reviews: 1945,
-    price: "$150/pp",
-    priceCaption: uiText.value.from,
-    cta: uiText.value.book,
-    image: "/W5.png",
-  },
-  {
-    tag: "Top Rated",
-    title: "Lumina Studios",
-    categories: ["Photography", "Video", "Styling"],
-    location: "Brooklyn Heights",
-    rating: 4.9,
-    reviews: 3021,
-    price: "$2,200",
-    priceCaption: uiText.value.startsFrom,
-    cta: uiText.value.book,
-    image: "/w4.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Elegant Events Co",
-    categories: ["Decoration", "Floral", "Coordination"],
-    location: "Queens Center",
-    rating: 4.7,
-    reviews: 1523,
-    price: "$1,200",
-    priceCaption: uiText.value.startsFrom,
-    cta: uiText.value.book,
-    image: "/W1.png",
-  },
-]);
-
-const fallbackTips = computed(() => [
-  {
-    category: toEventNote("wedding"),
-    title: "5 Secrets to a Stress-Free Wedding Ceremony",
-    meta: "By Team Achar | 6 min read",
-    image: "/W1.png",
-  },
-  {
-    category: "Corporate",
-    title: "Choosing the Right Venue for Corporate Galas",
-    meta: "By Team Achar | 4 min read",
-    image: "/p1.png",
-  },
-  {
-    category: "Decor & Styling",
-    title: "Minimalist Tablescapes That Still Feel Luxe",
-    meta: "By Team Achar | 5 min read",
-    image: "/p2.png",
-  },
-]);
 
 const steps = computed(() => [
   {
@@ -473,28 +365,25 @@ const steps = computed(() => [
 ]);
 
 const eventTypes = computed(() => {
-  if (!eventRows.value.length) return fullEventCatalog.value;
-
-  const grouped = new Map();
-  eventRows.value.forEach((item) => {
-    const key = String(item.event_type || "other").toLowerCase();
-    if (!grouped.has(key)) grouped.set(key, item);
+  if (!eventRows.value.length) return [];
+  return eventRows.value.map((item, index) => {
+    const eventTypeKey = String(item.event_type || "other").toLowerCase();
+    const price = Number(item.price || 0);
+    return {
+      id: Number(item.id || index + 1),
+      key: `home-event-${item.id || index + 1}`,
+      eventId: Number(item.id || 0) || null,
+      vendorName: item.vendor?.name || uiText.value.fallbackVendor,
+      requestedEventType: eventTypeKey,
+      name: item.title || "Service Booking",
+      note: toEventLabel(eventTypeKey),
+      description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+      price,
+      priceLabel: price > 0 ? `From $${Math.round(price).toLocaleString()}` : "$0",
+      image: item.image_url || eventImageByType[eventTypeKey] || eventImageByType.other,
+      fallback: eventFallbackByType[eventTypeKey] || eventFallbackByType.other,
+    };
   });
-
-  const liveRows = Array.from(grouped.entries()).map(([key]) => ({
-    key,
-    name: toEventLabel(key),
-    note: toEventNote(key),
-    image: eventImageByType[key] || eventImageByType.other,
-    fallback: eventFallbackByType[key] || eventFallbackByType.other,
-  }));
-
-  return withFallbackRows(
-    liveRows,
-    fullEventCatalog.value,
-    fullEventCatalog.value.length,
-    (row) => row.key,
-  );
 });
 
 const displayedEvents = computed(() => {
@@ -503,65 +392,45 @@ const displayedEvents = computed(() => {
 });
 
 const vendors = computed(() => {
-  if (!eventRows.value.length) return fallbackVendors.value;
-
-  const grouped = new Map();
-
-  eventRows.value.forEach((item) => {
-    const groupKey = item.vendor_id || `event-${item.id}`;
-    if (!grouped.has(groupKey)) {
-      grouped.set(groupKey, {
-        title: item.vendor?.name || item.title || uiText.value.fallbackVendor,
-        location: item.location || uiText.value.fallbackLocation,
-        eventTypes: new Set([String(item.event_type || "other").toLowerCase()]),
-        minPrice: Number(item.price || 0),
-        coverType: String(item.event_type || "other").toLowerCase(),
-        count: 1,
-      });
-      return;
-    }
-
-    const row = grouped.get(groupKey);
-    row.eventTypes.add(String(item.event_type || "other").toLowerCase());
-    row.minPrice = Math.min(row.minPrice, Number(item.price || 0));
-    row.count += 1;
-  });
-
-  const liveRows = Array.from(grouped.values()).map((row, index) => {
-    const categories = Array.from(row.eventTypes).slice(0, 3).map((key) => toEventLabel(key));
-    const rating = Number((4.6 + ((index % 5) * 0.08)).toFixed(1));
-    const reviews = 420 + index * 137;
-    const isPremium = row.minPrice >= 2500;
-
+  if (!eventRows.value.length) return [];
+  return eventRows.value.map((item, index) => {
+    const eventTypeKey = String(item.event_type || "other").toLowerCase();
+    const price = Number(item.price || 0);
     return {
-      tag: isPremium ? "Premium" : "Top Rated",
-      title: row.title,
-      categories,
-      location: row.location,
-      rating,
-      reviews,
-      price: row.minPrice > 0 ? `$${Math.round(row.minPrice).toLocaleString()}` : "$0",
-      priceCaption: "Starts from",
-      cta: "Book",
-      image: eventImageByType[row.coverType] || eventImageByType.other,
+      id: Number(item.id || index + 1),
+      eventId: Number(item.id || 0) || null,
+      vendorId: Number(item.vendor_id || 0) || null,
+      vendorName: item.vendor?.name || uiText.value.fallbackVendor,
+      requestedEventType: eventTypeKey,
+      tag: price >= 2500 ? "Premium" : "Top Rated",
+      title: item.title || "Service Booking",
+      categories: [toEventLabel(eventTypeKey), item.location || uiText.value.fallbackLocation],
+      location: item.location || uiText.value.fallbackLocation,
+      rating: Number((4.6 + ((index % 5) * 0.08)).toFixed(1)),
+      reviews: Number(item.bookings_count || 0),
+      price: price > 0 ? `$${Math.round(price).toLocaleString()}` : "$0",
+      priceCaption: uiText.value.startsFrom,
+      cta: uiText.value.book,
+      image: item.image_url || eventImageByType[eventTypeKey] || eventImageByType.other,
     };
   });
-
-  return withFallbackRows(liveRows, fallbackVendors.value, 4, (row) => row.title);
 });
 
 const VENDOR_PAGE_SIZE = 4;
+const vendorPageCount = computed(() => Math.max(1, Math.ceil(vendors.value.length / VENDOR_PAGE_SIZE)));
+const hasMoreVendors = computed(() => vendors.value.length > VENDOR_PAGE_SIZE);
 const displayedVendors = computed(() => {
   const rows = vendors.value;
+  if (showAllVendors.value) return rows;
   const maxStart = Math.max(0, rows.length - VENDOR_PAGE_SIZE);
   const start = Math.min(currentVendorIndex.value, maxStart);
   return rows.slice(start, start + VENDOR_PAGE_SIZE);
 });
 
 const tips = computed(() => {
-  if (!eventRows.value.length) return fallbackTips.value;
+  if (!eventRows.value.length) return [];
 
-  const liveRows = eventRows.value.slice(0, 3).map((item) => {
+  return eventRows.value.slice(0, 3).map((item) => {
     const key = String(item.event_type || "other").toLowerCase();
     return {
       category: toEventLabel(key),
@@ -570,19 +439,26 @@ const tips = computed(() => {
       image: eventImageByType[key] || eventImageByType.other,
     };
   });
-
-  return withFallbackRows(liveRows, fallbackTips.value, 3, (row) => row.title);
 });
 
 function nextVendors() {
+  if (showAllVendors.value) return;
   if (currentVendorIndex.value + VENDOR_PAGE_SIZE < vendors.value.length) {
     currentVendorIndex.value += VENDOR_PAGE_SIZE;
   }
 }
 
 function prevVendors() {
+  if (showAllVendors.value) return;
   if (currentVendorIndex.value - VENDOR_PAGE_SIZE >= 0) {
     currentVendorIndex.value -= VENDOR_PAGE_SIZE;
+  }
+}
+
+function toggleAllVendors() {
+  showAllVendors.value = !showAllVendors.value;
+  if (!showAllVendors.value) {
+    currentVendorIndex.value = 0;
   }
 }
 
@@ -591,8 +467,18 @@ function onEventCardImageError(event, fallback) {
 }
 
 function goToEvent(event) {
-  const key = event.key || event.name.toLowerCase().replace(/\s+/g, "_");
-  router.push({ path: "/services/packages", query: { event: key } });
+  const query = {};
+  const eventType = String(event.requestedEventType || "").trim();
+  const title = String(event.name || "").trim();
+  const eventId = Number(event.eventId || 0);
+
+  if (eventType && eventType !== "other") query.event = eventType;
+  if (title) query.q = title;
+  if (Number.isFinite(eventId) && eventId > 0) {
+    query.prebookEventId = String(eventId);
+  }
+
+  router.push({ path: "/services/packages", query });
 }
 
 function openBookingModal(vendor) {
@@ -626,8 +512,11 @@ function submitBooking() {
   const itemTotal = Number((unitPrice * quantity).toFixed(2));
 
   const payload = {
-    eventId: null,
-    vendorTitle: selectedVendor.value.title || "Selected Vendor",
+    eventId: selectedVendor.value.eventId || null,
+    vendorTitle:
+      selectedVendor.value.vendorName ||
+      selectedVendor.value.title ||
+      "Selected Vendor",
     fullName: bookingForm.value.fullName || "",
     email: bookingForm.value.email || "",
     phone: "",
@@ -635,7 +524,7 @@ function submitBooking() {
     eventDate: bookingForm.value.eventDate || "",
     guests: quantity,
     notes: bookingForm.value.notes || "",
-    requestedEventType: "other",
+    requestedEventType: selectedVendor.value.requestedEventType || "other",
     items: [
       {
         type: "service",
@@ -654,14 +543,36 @@ function submitBooking() {
 }
 
 async function loadHomeData() {
+  isLoadingHomeData.value = true;
   dataLoadFailed.value = false;
   try {
-    const result = await apiGet("events", { per_page: 80 });
+    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    eventRows.value = rows;
+    if (rows.length) {
+      eventRows.value = rows;
+      return;
+    }
+
+    const fallbackResponse = await fetch(`/api/events?per_page=${HOME_EVENT_PAGE_SIZE}`, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`Home events request failed (${fallbackResponse.status})`);
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    eventRows.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
   } catch (error) {
     dataLoadFailed.value = true;
     eventRows.value = [];
+  } finally {
+    isLoadingHomeData.value = false;
   }
 }
 
@@ -710,8 +621,16 @@ onMounted(loadHomeData);
         {{ uiText.eventLoadError }}
       </div>
 
-      <div class="event-grid">
-        <div
+      <div v-if="isLoadingHomeData" class="event-load-note">
+        Loading live vendor services...
+      </div>
+
+      <div v-else-if="displayedEvents.length === 0" class="event-load-note">
+        No live vendor services available yet.
+      </div>
+
+      <div v-else class="event-grid">
+        <article
           v-for="event in displayedEvents"
           :key="event.key || event.name"
           class="event-card"
@@ -730,11 +649,24 @@ onMounted(loadHomeData);
             />
           </div>
           <div class="event-info">
-            <p class="event-title">{{ event.name }}</p>
-            <p class="event-note">{{ event.note }}</p>
-            <p class="event-cta">{{ uiText.exploreStyle }}</p>
+            <div class="event-copy">
+              <p class="event-type">{{ event.note }}</p>
+              <p class="event-title">{{ event.name }}</p>
+              <p class="event-note">{{ event.vendorName }}</p>
+              <p class="event-desc">{{ event.description }}</p>
+            </div>
+            <div class="event-card-footer">
+              <strong>{{ event.priceLabel }}</strong>
+              <button
+                type="button"
+                class="outline-btn"
+                @click.stop="goToEvent(event)"
+              >
+                View Service
+              </button>
+            </div>
           </div>
-        </div>
+        </article>
       </div>
     </section>
 
@@ -743,15 +675,43 @@ onMounted(loadHomeData);
         <div>
           <p class="eyebrow">{{ uiText.recommendedVendors }}</p>
           <h2>{{ uiText.handpickedTitle }}</h2>
+          <p class="events-subtitle">{{ uiText.postedServicesSubtitle }}</p>
         </div>
         <div class="carousel-nav">
-          <button aria-label="Previous" class="pill-btn" @click="prevVendors">&lt;</button>
-          <button aria-label="Next" class="pill-btn" @click="nextVendors">&gt;</button>
+          <button
+            v-if="hasMoreVendors"
+            type="button"
+            class="link-button event-toggle-btn"
+            @click="toggleAllVendors"
+          >
+            {{ showAllVendors ? uiText.showLessServices : uiText.showAllServices }}
+            <span aria-hidden="true">&gt;</span>
+          </button>
+          <button
+            aria-label="Previous"
+            class="pill-btn"
+            :disabled="showAllVendors || currentVendorIndex === 0"
+            @click="prevVendors"
+          >&lt;</button>
+          <button
+            aria-label="Next"
+            class="pill-btn"
+            :disabled="showAllVendors || currentVendorIndex + VENDOR_PAGE_SIZE >= vendors.length"
+            @click="nextVendors"
+          >&gt;</button>
         </div>
       </div>
 
-      <div class="vendor-grid">
-        <article class="vendor-card" v-for="vendor in displayedVendors" :key="vendor.title">
+      <div v-if="isLoadingHomeData" class="event-load-note">
+        Loading live vendor services...
+      </div>
+
+      <div v-else-if="displayedVendors.length === 0" class="event-load-note">
+        No live vendor services available yet.
+      </div>
+
+      <div v-else class="vendor-grid">
+        <article class="vendor-card" v-for="vendor in displayedVendors" :key="vendor.id || vendor.title">
           <span class="vendor-tag">{{ vendor.tag }}</span>
           <div class="vendor-media">
             <img :src="vendor.image" :alt="vendor.title" />
@@ -759,9 +719,9 @@ onMounted(loadHomeData);
           <div class="vendor-body">
             <div>
               <p class="vendor-title">{{ vendor.title }}</p>
+              <p v-if="vendor.vendorName" class="vendor-subtitle">{{ vendor.vendorName }}</p>
               <p class="vendor-meta">
                 <span class="dot" v-for="category in vendor.categories" :key="category">{{ category }}</span>
-                <span class="location">{{ vendor.location }}</span>
               </p>
             </div>
             <div class="vendor-rating">
@@ -774,13 +734,20 @@ onMounted(loadHomeData);
                 <p class="price-caption">{{ vendor.priceCaption }}</p>
                 <p class="price">{{ vendor.price }}</p>
               </div>
-              <button type="button" class="outline-btn" @click="openBookingModal(vendor)">
+              <button
+                type="button"
+                class="outline-btn"
+                @click="openBookingModal(vendor)"
+              >
                 {{ vendor.cta }}
               </button>
             </div>
           </div>
         </article>
       </div>
+      <p v-if="!showAllVendors && hasMoreVendors" class="vendor-page-indicator">
+        {{ Math.floor(currentVendorIndex / VENDOR_PAGE_SIZE) + 1 }} / {{ vendorPageCount }}
+      </p>
     </section>
 
     <div v-if="showBookingModal" class="booking-modal-overlay" @click="closeBookingModal">
@@ -893,7 +860,11 @@ onMounted(loadHomeData);
         </div>
         <router-link class="link" to="/customization">{{ uiText.readAllArticles }}</router-link>
       </div>
-      <div class="tips-grid">
+      <div v-if="tips.length === 0" class="event-load-note">
+        No live service updates available yet.
+      </div>
+
+      <div v-else class="tips-grid">
         <article class="tip-card" v-for="tip in tips" :key="tip.title">
           <img class="tip-img" :src="tip.image" :alt="tip.title" />
           <div class="tip-body">

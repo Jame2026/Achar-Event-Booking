@@ -16,8 +16,6 @@ import {
   eventTypeMap,
   eventTypeOptions,
   fallbackVendorLocation,
-  packageCatalogByEventType,
-  packageImageByEventType,
   reviews,
   serviceFeeRate,
   stats,
@@ -110,7 +108,7 @@ const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
-const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
@@ -403,33 +401,9 @@ const vendorMapEmbedUrl = computed(
   () => `https://www.google.com/maps?q=${encodeURIComponent(vendorLocationText.value)}&output=embed`,
 )
 
-const vendorFallbackPackages = computed(() => {
-  const packages = []
-  Object.entries(packageCatalogByEventType).forEach(([type, entries]) => {
-    entries.forEach((entry) => {
-      const price = Number(entry.basePrice || 0)
-      packages.push({
-        id: `preview-${type}-${entry.id}`,
-        title: entry.title,
-        eventType: type,
-        eventTypeLabel: eventTypeMap[type] || 'Other',
-        description: entry.description,
-        location: fallbackVendorLocation,
-        date: 'Date TBD',
-        price,
-        priceLabel: `From $${price.toLocaleString()}`,
-        image: packageImageByEventType[type] || packageImageByEventType.other,
-        isPreview: true,
-      })
-    })
-  })
-  return packages
-})
-
 const filteredPackages = computed(() => {
   const q = globalSearch.value.trim().toLowerCase()
-  const sourcePackages = vendorEvents.value.length ? vendorEvents.value : vendorFallbackPackages.value
-  return sourcePackages.filter((item) => {
+  return vendorEvents.value.filter((item) => {
     const matchesType = selectedEventType.value === 'all' || item.eventType === selectedEventType.value
     const matchesSearch = !q || item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     return matchesType && matchesSearch
@@ -462,24 +436,118 @@ const vendorDisplayName = computed(
 const messagesSummary = computed(
   () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
 )
+function getIncomeDateParts(value) {
+  const date = value ? new Date(value) : null
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
+  return {
+    date,
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+  }
+}
+
+function createDailyIncomeSeries(bookings, days) {
+  const today = new Date()
+  const buckets = Array.from({ length: days }, (_, index) => {
+    const date = new Date(today)
+    date.setHours(0, 0, 0, 0)
+    date.setDate(today.getDate() - (days - index - 1))
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      label: date.toLocaleDateString('en-US', days <= 7 ? { weekday: 'short' } : { month: 'short', day: 'numeric' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createMonthlyIncomeSeries(bookings, months = 12) {
+  const today = new Date()
+  const buckets = Array.from({ length: months }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (months - index - 1), 1)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
 const vendorIncome = computed(() => {
-  const total = vendorBookings.value
-    .filter((item) => String(item.status || '').toLowerCase() === 'confirmed')
-    .reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
-  const confirmedCount = vendorBookings.value.filter(
+  const confirmedBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'confirmed',
-  ).length
+  )
+  const total = confirmedBookings.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
+  const confirmedCount = confirmedBookings.length
   const newBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'pending',
   ).length
   const activeServices = vendorEvents.value.filter((item) => item.isActive).length
+  const now = new Date()
+  const thisMonth = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() && parts.month === now.getMonth()
+      ? sum + Number(item.total_amount || 0)
+      : sum
+  }, 0)
+  const thisYear = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() ? sum + Number(item.total_amount || 0) : sum
+  }, 0)
+  const weekSeries = createDailyIncomeSeries(confirmedBookings, 7)
+  const monthSeries = createDailyIncomeSeries(confirmedBookings, 30)
+  const yearSeries = createMonthlyIncomeSeries(confirmedBookings, 12)
+  const periodTotal = (series) => series.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return {
     total,
     confirmedCount,
     newBookings,
-    thisMonth: total,
-    thisYear: total,
+    thisMonth,
+    thisYear,
     activeServices,
+    periods: {
+      week: {
+        label: 'Last 7 days',
+        points: weekSeries,
+        total: periodTotal(weekSeries),
+      },
+      month: {
+        label: 'Last 30 days',
+        points: monthSeries,
+        total: periodTotal(monthSeries),
+      },
+      year: {
+        label: 'Last 12 months',
+        points: yearSeries,
+        total: periodTotal(yearSeries),
+      },
+    },
   }
 })
 
@@ -506,8 +574,9 @@ function getLocalBookingsByEmail(email) {
         statusClass: row.statusClass || 'confirmed',
         type: row.type || 'Upcoming',
         eventType: row.eventType || 'other',
-        eventId: null,
+        eventId: row.eventId || null,
         image:
+          row.image ||
           'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
         primaryBtn: 'View Details',
         secondaryBtn: 'Reschedule',
@@ -518,12 +587,32 @@ function getLocalBookingsByEmail(email) {
   }
 }
 
-function mergeBookingsWithLocal(apiMappedRows, email) {
-  const localRows = getLocalBookingsByEmail(email)
-  if (!localRows.length) return apiMappedRows
-  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
-  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
-  return [...localOnlyRows, ...apiMappedRows]
+function clearLocalBookingsByEmail(email) {
+  if (!email) return
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return
+
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const remainingRows = rows.filter(
+      (row) => String(row?.customerEmail || '').trim().toLowerCase() !== normalizedEmail,
+    )
+
+    if (remainingRows.length === rows.length) return
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY)
+      return
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows))
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
 }
 
 function onBrandLogoError() {
@@ -830,21 +919,21 @@ async function deleteVendorService(item) {
 
 function mapVendorBookingRow(row) {
   const event = row.event || {}
+  const bookingDate = row.requested_event_date || event.starts_at
   return {
     id: row.id,
     service_name: row.service_name || event.title || 'Service Booking',
     customer_name: row.customer_name || row.user?.name || 'Customer',
-    date_label: event.starts_at
-      ? new Date(event.starts_at).toLocaleString('en-US', {
+    date_label: bookingDate
+      ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
           day: '2-digit',
           year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
         })
       : 'Date TBD',
     status: String(row.status || 'pending'),
     total_amount: Number(row.total_amount || 0),
+    income_date: row.requested_event_date || row.created_at || event.starts_at || row.updated_at || null,
   }
 }
 
@@ -922,8 +1011,8 @@ async function loadBookings() {
     const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
-    await loadNotifications({ silent: true })
+    bookings.value = apiMappedRows
+    clearLocalBookingsByEmail(email)
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -942,7 +1031,7 @@ async function bootstrapAuthenticatedShell() {
   try {
     const tasks = [loadEvents(), loadNotifications({ silent: true })]
     if (isVendorAccount.value) tasks.push(loadVendorBookings())
-    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
   } finally {
@@ -963,6 +1052,17 @@ function goToVendor(tab = 'about') {
   const allowedTabs = ['about', 'services', 'reviews']
   currentPage.value = 'vendor'
   activeVendorTab.value = allowedTabs.includes(normalizedTab) ? normalizedTab : 'about'
+}
+
+function openBookedServiceDetails(item) {
+  const eventType = typeof item?.eventType === 'string' && item.eventType ? item.eventType : 'all'
+  const serviceName = typeof item?.service === 'string' ? item.service.trim() : ''
+
+  selectedEventType.value = eventType
+  globalSearch.value = serviceName
+  sessionStorage.setItem(GLOBAL_SEARCH_SESSION_KEY, serviceName)
+  currentPage.value = 'vendor'
+  activeVendorTab.value = 'services'
 }
 
 function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '') {
@@ -1065,7 +1165,7 @@ function bookingPrimaryAction(item) {
     return
   }
   if (item.primaryBtn === 'View Details') {
-    goToVendor()
+    openBookedServiceDetails(item)
   }
 }
 
@@ -1093,7 +1193,7 @@ watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userL
 watch(customerEmail, () => {
   if (!loggedInUser.value || isBootstrappingAuth.value) return
 
-  if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
+  if (!isVendorAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
     loadBookings()
   }
   loadNotifications({ silent: true })

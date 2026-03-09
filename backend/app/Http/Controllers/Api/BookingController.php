@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\Event;
+use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\CarbonPeriod;
 use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
@@ -21,7 +24,7 @@ class BookingController extends Controller
         ]);
 
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,starts_at,location', 'user:id,name,email'])
+            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
             ->when(
                 $validated['customer_email'] ?? null,
                 fn ($query, $email) => $query->where('customer_email', $email)
@@ -46,7 +49,7 @@ class BookingController extends Controller
     public function index(): JsonResponse
     {
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,starts_at,location', 'user:id,name,email'])
+            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
             ->latest()
             ->paginate(15);
 
@@ -63,33 +66,88 @@ class BookingController extends Controller
         return response()->json($bookings);
     }
 
-    public function availability(Event $event): JsonResponse
+    public function availability(Request $request, Event $event): JsonResponse
     {
-        $reserved = Booking::query()
-            ->where('event_id', $event->id)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->sum('quantity');
+        $validated = $request->validate([
+            'requested_date' => ['nullable', 'date'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $requestedDate = $validated['requested_date'] ?? $event->starts_at?->toDateString();
+        $requestedQuantity = (int) ($validated['quantity'] ?? 1);
+
+        $reserved = $this->reservedQuantityForDate($event, $requestedDate);
+        $hasExistingBooking = $this->hasBookingOnDate($event, $requestedDate);
 
         $remainingCapacity = $event->capacity === 0
             ? null
             : max(0, $event->capacity - $reserved);
 
-        $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event);
+        $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $requestedDate);
 
         $serviceAvailable = $event->is_active
-            && ($event->capacity === 0 || $remainingCapacity > 0);
+            && ! $hasExistingBooking
+            && ($event->capacity === 0 || $remainingCapacity >= $requestedQuantity);
 
         return response()->json([
             'event_id' => $event->id,
+            'requested_date' => $requestedDate,
             'service_available' => $serviceAvailable,
             'vendor_available' => ! $hasOtherVendorBooking,
             'is_busy' => ! $serviceAvailable || $hasOtherVendorBooking,
             'has_another_booked' => $hasOtherVendorBooking,
+            'has_existing_booking' => $hasExistingBooking,
             'is_active' => (bool) $event->is_active,
             'capacity' => $event->capacity,
+            'requested_quantity' => $requestedQuantity,
             'reserved' => (int) $reserved,
             'remaining_capacity' => $remainingCapacity,
-            'message' => $this->availabilityMessage($event, $serviceAvailable, $hasOtherVendorBooking, $remainingCapacity),
+            'message' => $this->availabilityMessage($event, $serviceAvailable, $hasOtherVendorBooking, $remainingCapacity, $requestedDate),
+        ]);
+    }
+
+    public function availabilityCalendar(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+        ]);
+
+        $cursor = isset($validated['month'])
+            ? Carbon::createFromFormat('Y-m', $validated['month'])->startOfMonth()
+            : now()->startOfMonth();
+
+        $startOfMonth = $cursor->copy()->startOfMonth();
+        $endOfMonth = $cursor->copy()->endOfMonth();
+        $days = [];
+
+        foreach (CarbonPeriod::create($startOfMonth, $endOfMonth) as $date) {
+            $dateString = $date->toDateString();
+            $reserved = $this->reservedQuantityForDate($event, $dateString);
+            $hasExistingBooking = $this->hasBookingOnDate($event, $dateString);
+            $remainingCapacity = $event->capacity === 0
+                ? null
+                : max(0, $event->capacity - $reserved);
+            $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $dateString);
+            $isAvailable = $event->is_active
+                && ! $hasExistingBooking
+                && ! $hasOtherVendorBooking
+                && ($event->capacity === 0 || $remainingCapacity > 0);
+
+            $days[] = [
+                'date' => $dateString,
+                'status' => $isAvailable ? 'available' : 'booked',
+                'is_available' => $isAvailable,
+                'reserved' => (int) $reserved,
+                'remaining_capacity' => $remainingCapacity,
+                'has_another_booked' => $hasOtherVendorBooking,
+                'has_existing_booking' => $hasExistingBooking,
+            ];
+        }
+
+        return response()->json([
+            'event_id' => $event->id,
+            'month' => $startOfMonth->format('Y-m'),
+            'days' => $days,
         ]);
     }
 
@@ -102,20 +160,30 @@ class BookingController extends Controller
             'customer_email' => ['required', 'email', 'max:255'],
             'service_name' => ['nullable', 'string', 'max:255'],
             'requested_event_type' => ['nullable', 'string', 'max:60'],
+            'requested_event_date' => ['nullable', 'date'],
             'total_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $eventId = $validated['event_id'] ?? null;
         $event = $eventId ? Event::with('vendor:id,name,email')->findOrFail($eventId) : null;
         $totalAmount = 0.0;
+        $requestedDate = $validated['requested_event_date'] ?? $event?->starts_at?->toDateString();
 
         if ($event) {
             if (! $event->is_active) {
                 return response()->json(['message' => 'This event is not available for booking.'], 422);
             }
 
-            if (! $this->hasCapacity($event, $validated['quantity'])) {
+            if ($this->hasBookingOnDate($event, $requestedDate)) {
+                return response()->json(['message' => 'This service is already booked on the selected date.'], 422);
+            }
+
+            if (! $this->hasCapacity($event, $validated['quantity'], null, $requestedDate)) {
                 return response()->json(['message' => 'Not enough seats available for this booking.'], 422);
+            }
+
+            if ($this->vendorHasAnotherBookedEvent($event, $requestedDate)) {
+                return response()->json(['message' => 'Vendor is already booked on the selected date.'], 422);
             }
 
             $totalAmount = $this->calculateTotal($event->price, $validated['quantity']);
@@ -133,18 +201,20 @@ class BookingController extends Controller
             'user_id' => $request->user() ? $request->user()->id : null,
             'status' => 'pending',
             'service_name' => $validated['service_name'] ?? ($event?->title ?? 'Custom Booking'),
+            'requested_event_date' => $requestedDate,
             'total_amount' => $totalAmount,
         ]);
 
         $booking->setRelation('event', $event);
+        $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
-        return response()->json($booking->load('event:id,title,event_type,starts_at,location'), 201);
+        return response()->json($booking->load('event.vendor:id,name'), 201);
     }
 
     public function show(Booking $booking): JsonResponse
     {
-        return response()->json($booking->load(['event', 'user:id,name,email']));
+        return response()->json($booking->load(['event.vendor:id,name', 'user:id,name,email']));
     }
 
     public function update(Request $request, Booking $booking): JsonResponse
@@ -162,8 +232,16 @@ class BookingController extends Controller
         $newQuantity = $validated['quantity'] ?? $booking->quantity;
         $previousStatus = $booking->status;
 
-        if ($event && ! $this->hasCapacity($event, $newQuantity, $booking->id)) {
-            return response()->json(['message' => 'Not enough seats available for this update.'], 422);
+        if ($event) {
+            $requestedDate = $booking->requested_event_date?->toDateString();
+
+            if ($this->hasBookingOnDate($event, $requestedDate, $booking->id)) {
+                return response()->json(['message' => 'This service is already booked on the selected date.'], 422);
+            }
+
+            if (! $this->hasCapacity($event, $newQuantity, $booking->id, $requestedDate)) {
+                return response()->json(['message' => 'Not enough seats available for this update.'], 422);
+            }
         }
 
         $booking->update([
@@ -172,6 +250,7 @@ class BookingController extends Controller
                 ? $this->calculateTotal($event->price, $newQuantity)
                 : $booking->total_amount,
         ]);
+        $this->flushVendorCacheForBooking($booking);
 
         $updatedBooking = $booking->fresh()->load('event.vendor:id,name,email');
 
@@ -179,27 +258,24 @@ class BookingController extends Controller
             $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
         }
 
-        return response()->json($updatedBooking->load('event:id,title,event_type,starts_at,location'));
+        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));
     }
 
     public function destroy(Booking $booking): JsonResponse
     {
+        $this->flushVendorCacheForBooking($booking);
         $booking->delete();
 
         return response()->json(null, 204);
     }
 
-    private function hasCapacity(Event $event, int $requestedQuantity, ?int $ignoreBookingId = null): bool
+    private function hasCapacity(Event $event, int $requestedQuantity, ?int $ignoreBookingId = null, ?string $requestedDate = null): bool
     {
         if ($event->capacity === 0) {
             return true;
         }
 
-        $reserved = Booking::query()
-            ->where('event_id', $event->id)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->when($ignoreBookingId, fn ($query) => $query->where('id', '!=', $ignoreBookingId))
-            ->sum('quantity');
+        $reserved = $this->reservedQuantityForDate($event, $requestedDate, $ignoreBookingId);
 
         return ($reserved + $requestedQuantity) <= $event->capacity;
     }
@@ -209,9 +285,34 @@ class BookingController extends Controller
         return round(((float) $price) * $quantity, 2);
     }
 
-    private function vendorHasAnotherBookedEvent(Event $event): bool
+    private function vendorHasAnotherBookedEvent(Event $event, ?string $requestedDate = null): bool
     {
-        if (! $event->vendor_id || ! $event->starts_at) {
+        if (! $event->vendor_id) {
+            return false;
+        }
+
+        if ($requestedDate) {
+            return Event::query()
+                ->where('vendor_id', $event->vendor_id)
+                ->where('id', '!=', $event->id)
+                ->whereHas(
+                    'bookings',
+                    fn ($query) => $query
+                        ->whereIn('status', ['pending', 'confirmed'])
+                        ->where(function ($dateQuery) use ($requestedDate) {
+                            $dateQuery
+                                ->whereDate('requested_event_date', $requestedDate)
+                                ->orWhere(function ($fallbackQuery) use ($requestedDate) {
+                                    $fallbackQuery
+                                        ->whereNull('requested_event_date')
+                                        ->whereHas('event', fn ($eventQuery) => $eventQuery->whereDate('starts_at', $requestedDate));
+                                });
+                        })
+                )
+                ->exists();
+        }
+
+        if (! $event->starts_at) {
             return false;
         }
 
@@ -236,10 +337,15 @@ class BookingController extends Controller
         Event $event,
         bool $serviceAvailable,
         bool $hasOtherVendorBooking,
-        ?int $remainingCapacity
+        ?int $remainingCapacity,
+        ?string $requestedDate = null
     ): string {
         if (! $event->is_active) {
             return 'Service is not active right now.';
+        }
+
+        if ($this->hasBookingOnDate($event, $requestedDate)) {
+            return 'Service is already booked on that selected date.';
         }
 
         if ($event->capacity > 0 && $remainingCapacity === 0) {
@@ -257,6 +363,52 @@ class BookingController extends Controller
         return 'Service and vendor are available.';
     }
 
+    private function reservedQuantityForDate(Event $event, ?string $requestedDate = null, ?int $ignoreBookingId = null): int
+    {
+        return (int) Booking::query()
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->when($ignoreBookingId, fn ($query) => $query->where('id', '!=', $ignoreBookingId))
+            ->when(
+                $requestedDate,
+                function ($query, $requestedDate) {
+                    $query->where(function ($dateQuery) use ($requestedDate) {
+                        $dateQuery
+                            ->whereDate('requested_event_date', $requestedDate)
+                            ->orWhere(function ($fallbackQuery) use ($requestedDate) {
+                                $fallbackQuery
+                                    ->whereNull('requested_event_date')
+                                    ->whereHas('event', fn ($eventQuery) => $eventQuery->whereDate('starts_at', $requestedDate));
+                            });
+                    });
+                }
+            )
+            ->sum('quantity');
+    }
+
+    private function hasBookingOnDate(Event $event, ?string $requestedDate = null, ?int $ignoreBookingId = null): bool
+    {
+        return Booking::query()
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->when($ignoreBookingId, fn ($query) => $query->where('id', '!=', $ignoreBookingId))
+            ->when(
+                $requestedDate,
+                function ($query, $requestedDate) {
+                    $query->where(function ($dateQuery) use ($requestedDate) {
+                        $dateQuery
+                            ->whereDate('requested_event_date', $requestedDate)
+                            ->orWhere(function ($fallbackQuery) use ($requestedDate) {
+                                $fallbackQuery
+                                    ->whereNull('requested_event_date')
+                                    ->whereHas('event', fn ($eventQuery) => $eventQuery->whereDate('starts_at', $requestedDate));
+                            });
+                    });
+                }
+            )
+            ->exists();
+    }
+
     private function createBookingCreatedNotifications(Booking $booking): void
     {
         $event = $booking->event;
@@ -265,7 +417,9 @@ class BookingController extends Controller
         }
 
         $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
-        $eventDate = $event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date';
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date');
 
         BookingNotification::create([
             'booking_id' => $booking->id,
@@ -301,7 +455,9 @@ class BookingController extends Controller
 
         $statusLabel = ucfirst($nextStatus);
         $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
-        $eventDate = $event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date';
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date');
 
         BookingNotification::create([
             'booking_id' => $booking->id,
@@ -326,5 +482,17 @@ class BookingController extends Controller
             'title' => "Booking {$statusLabel}",
             'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
         ]);
+    }
+
+    private function flushVendorCacheForBooking(Booking $booking): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->select(['id', 'vendor_id'])->first();
+
+        $vendorId = (int) ($event?->vendor_id ?? 0);
+        if ($vendorId > 0) {
+            VendorCache::flushVendor($vendorId);
+        }
     }
 }

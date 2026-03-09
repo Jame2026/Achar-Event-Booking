@@ -43,68 +43,6 @@ export const reviews = [
 export const fallbackVendorLocation = '88 Flower District, New York, NY 10001'
 export const serviceFeeRate = 0.1
 
-export const matchingServicesCatalog = [
-  { id: 'mc-host', name: 'Achar MC', description: 'Traditional ceremony host and flow management.', price: 250, eventTypes: ['wedding', 'engagement', 'anniversary'] },
-  { id: 'monk-set', name: 'Monk Ceremony Set', description: 'Complete ritual setup for monk blessing.', price: 320, eventTypes: ['monk_ceremony', 'house_blessing'] },
-  { id: 'sound-light', name: 'Sound & Lighting', description: 'PA system, DJ support, and stage lighting.', price: 450, eventTypes: ['company_party', 'birthday', 'school_event', 'festival', 'graduation'] },
-  { id: 'photo-video', name: 'Photo & Video', description: 'Event photography and highlight video coverage.', price: 850, eventTypes: ['wedding', 'engagement', 'birthday', 'company_party', 'school_event', 'graduation', 'anniversary'] },
-  { id: 'premium-catering', name: 'Premium Catering', description: 'Buffet and service crew package.', price: 1500, eventTypes: ['wedding', 'company_party', 'birthday', 'festival', 'anniversary'] },
-  { id: 'decor-pack', name: 'Decoration Package', description: 'Theme design, floral setup, and backdrops.', price: 1200, eventTypes: ['wedding', 'engagement', 'baby_shower', 'birthday', 'school_event'] },
-  { id: 'cake-dessert', name: 'Cake & Dessert Bar', description: 'Customized cake and dessert station.', price: 380, eventTypes: ['birthday', 'anniversary', 'baby_shower', 'graduation'] },
-  { id: 'cultural-band', name: 'Khmer Cultural Band', description: 'Live traditional music performance.', price: 600, eventTypes: ['wedding', 'festival', 'engagement', 'other'] },
-]
-
-export const packageCatalogByEventType = {
-  wedding: [
-    { id: 'wed-royal', title: 'Royal Wedding Signature', description: 'Elegant ceremony + reception package.', basePrice: 2800 },
-    { id: 'wed-classic', title: 'Classic Wedding Essentials', description: 'Balanced package for medium-size weddings.', basePrice: 1900 },
-  ],
-  monk_ceremony: [
-    { id: 'monk-blessing', title: 'Monk Blessing Complete', description: 'Full monk ceremony setup and coordination.', basePrice: 1250 },
-    { id: 'monk-traditional', title: 'Traditional Blessing Basic', description: 'Core ritual set with support team.', basePrice: 900 },
-  ],
-  house_blessing: [
-    { id: 'house-premium', title: 'House Blessing Premium', description: 'Blessing flow, altar setup, and host support.', basePrice: 1100 },
-    { id: 'house-basic', title: 'House Blessing Basic', description: 'Essential ceremonial package for new homes.', basePrice: 780 },
-  ],
-  company_party: [
-    { id: 'corp-gala', title: 'Corporate Gala Package', description: 'Production-ready package for company celebrations.', basePrice: 3200 },
-    { id: 'corp-social', title: 'Corporate Social Night', description: 'Smart setup for networking and social events.', basePrice: 2100 },
-  ],
-  birthday: [
-    { id: 'bday-deluxe', title: 'Birthday Deluxe Party', description: 'Fun and vibrant premium birthday setup.', basePrice: 1500 },
-    { id: 'bday-family', title: 'Birthday Family Package', description: 'Budget-friendly birthday arrangement.', basePrice: 980 },
-  ],
-  school_event: [
-    { id: 'school-annual', title: 'School Annual Event', description: 'Stage, sound, and logistics for school functions.', basePrice: 2600 },
-    { id: 'school-ceremony', title: 'School Ceremony Package', description: 'Graduation or ceremony focused setup.', basePrice: 1800 },
-  ],
-  engagement: [
-    { id: 'eng-gold', title: 'Engagement Gold Package', description: 'Elegant engagement decor and hosting support.', basePrice: 1700 },
-    { id: 'eng-intimate', title: 'Engagement Intimate Package', description: 'Compact setup for close-family events.', basePrice: 1200 },
-  ],
-  anniversary: [
-    { id: 'anni-romance', title: 'Anniversary Romance Package', description: 'Decor and ambiance tailored for anniversaries.', basePrice: 1400 },
-    { id: 'anni-family', title: 'Anniversary Family Package', description: 'Warm and simple anniversary celebration setup.', basePrice: 1050 },
-  ],
-  baby_shower: [
-    { id: 'baby-soft', title: 'Baby Shower Soft Theme', description: 'Themed decor and coordinated setup.', basePrice: 1300 },
-    { id: 'baby-classic', title: 'Baby Shower Classic', description: 'Essential baby shower arrangement package.', basePrice: 920 },
-  ],
-  graduation: [
-    { id: 'grad-stage', title: 'Graduation Stage Package', description: 'Photo zone, stage setup, and sound support.', basePrice: 2100 },
-    { id: 'grad-party', title: 'Graduation Party Package', description: 'Post-ceremony celebration package.', basePrice: 1450 },
-  ],
-  festival: [
-    { id: 'fest-premium', title: 'Festival Premium Package', description: 'Large-scale festival production support.', basePrice: 4200 },
-    { id: 'fest-community', title: 'Community Festival Package', description: 'Reliable setup for community events.', basePrice: 2600 },
-  ],
-  other: [
-    { id: 'other-custom', title: 'Custom Event Package', description: 'Flexible package for unique requirements.', basePrice: 1600 },
-    { id: 'other-essentials', title: 'Event Essentials', description: 'Core setup for miscellaneous events.', basePrice: 1100 },
-  ],
-}
-
 export const packageImageByEventType = {
   wedding:
     'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',

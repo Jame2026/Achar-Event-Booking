@@ -17,6 +17,12 @@ export function deriveBookingType(status, startsAt) {
 export function mapBooking(apiBooking, options) {
   const { vendorName, eventTypeMap } = options
   const event = apiBooking.event || {}
+  const resolvedVendorName =
+    event.vendor?.name ||
+    apiBooking.vendor_name ||
+    vendorName ||
+    'Selected Vendor'
+  const bookingDate = apiBooking.requested_event_date || event.starts_at
   const status = (apiBooking.status || 'pending').toLowerCase()
 
   const statusText =
@@ -25,13 +31,13 @@ export function mapBooking(apiBooking, options) {
   const statusClass =
     status === 'confirmed' ? 'confirmed' : status === 'cancelled' ? 'done' : 'pending'
 
-  const type = deriveBookingType(status, event.starts_at)
+  const type = deriveBookingType(status, bookingDate)
 
   return {
     id: apiBooking.id,
-    vendor: vendorName,
+    vendor: resolvedVendorName,
     service: apiBooking.service_name || event.title || 'Service Booking',
-    date: formatDateTime(event.starts_at),
+    date: formatDateTime(bookingDate),
     metaLabel: 'Event Type',
     metaValue: eventTypeMap[apiBooking.requested_event_type || event.event_type] || 'Other',
     placeLabel: 'Total',
@@ -42,6 +48,7 @@ export function mapBooking(apiBooking, options) {
     eventType: event.event_type || apiBooking.requested_event_type || 'other',
     eventId: event.id,
     image:
+      event.image_url ||
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
     primaryBtn: status === 'pending' ? 'Message Vendor' : 'View Details',
     secondaryBtn: 'Reschedule',
