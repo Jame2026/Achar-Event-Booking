@@ -266,6 +266,8 @@ const {
   customerEmail,
   userPhone,
   userLocation,
+  userProfileImageUrl,
+  isSavingProfile,
   userLatitude,
   userLongitude,
   isDetectingLocation,
@@ -275,11 +277,14 @@ const {
   userLocationMapUrl,
   userLocationMapEmbedUrl,
   userLocationMapLinkUrl,
+  loadUserProfile,
+  updateProfileImageFile,
+  removeProfileImage,
   goToProfile: openProfilePage,
   saveUserProfile,
   resetUserProfile,
   detectCurrentLocation,
-} = useProfileFeature(notice)
+} = useProfileFeature(notice, loggedInUser)
 
 const {
   conversationSearch,
@@ -371,7 +376,7 @@ const customizationBindings = {
   customizationQuantity,
 }
 const bookingsBindings = { bookingFilter, bookingEventTypeFilter }
-const profileBindings = { userProfileDraft }
+const profileBindings = { userProfileDraft, userProfileImageUrl, isSavingProfile, updateProfileImageFile, removeProfileImage }
 const messagesBindings = { conversationSearch, selectedConversationId, composerText }
 const availabilityBindings = { selectedAvailabilitySlot }
 const notificationItems = computed(() =>
@@ -1029,7 +1034,7 @@ async function bootstrapAuthenticatedShell() {
 
   isBootstrappingAuth.value = true
   try {
-    const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    const tasks = [loadUserProfile(), loadEvents(), loadNotifications({ silent: true })]
     if (isVendorAccount.value) tasks.push(loadVendorBookings())
     if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
@@ -1181,13 +1186,14 @@ async function confirmCustomization() {
   await loadNotifications({ silent: true })
 }
 
-watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userLongitude], () => {
+watch([customerName, customerEmail, userPhone, userLocation, userProfileImageUrl, userLatitude, userLongitude], () => {
   localStorage.setItem('achar_customer_name', customerName.value)
   localStorage.setItem('achar_customer_email', customerEmail.value)
   localStorage.setItem('achar_user_phone', userPhone.value)
   localStorage.setItem('achar_user_location', userLocation.value)
   localStorage.setItem('achar_user_lat', userLatitude.value === null ? '' : String(userLatitude.value))
   localStorage.setItem('achar_user_lng', userLongitude.value === null ? '' : String(userLongitude.value))
+  localStorage.setItem('achar_user_profile_image', userProfileImageUrl.value || '')
 })
 
 watch(customerEmail, () => {
@@ -1400,6 +1406,7 @@ onBeforeUnmount(() => {
       :detect-current-location="detectCurrentLocation"
       :reset-user-profile="resetUserProfile"
       :save-user-profile="saveUserProfile"
+      :is-saving-profile="isSavingProfile"
       :logout-user="logout"
     />
 

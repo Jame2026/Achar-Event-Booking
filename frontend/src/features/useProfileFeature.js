@@ -1,10 +1,15 @@
 import { computed, ref } from 'vue'
+import { apiGet, apiPost } from './apiClient'
 
-export function useProfileFeature(notice) {
+export function useProfileFeature(notice, loggedInUser) {
+  const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
   const customerName = ref(localStorage.getItem('achar_customer_name') || '')
   const customerEmail = ref(localStorage.getItem('achar_customer_email') || '')
   const userPhone = ref(localStorage.getItem('achar_user_phone') || '')
   const userLocation = ref(localStorage.getItem('achar_user_location') || '')
+  const userProfileImageUrl = ref(localStorage.getItem('achar_user_profile_image') || '')
+  const profileImageFile = ref(null)
+  const isSavingProfile = ref(false)
   const userLatitude = ref(localStorage.getItem('achar_user_lat') ? Number(localStorage.getItem('achar_user_lat')) : null)
   const userLongitude = ref(localStorage.getItem('achar_user_lng') ? Number(localStorage.getItem('achar_user_lng')) : null)
   const isDetectingLocation = ref(false)
@@ -15,6 +20,7 @@ export function useProfileFeature(notice) {
     email: customerEmail.value,
     phone: userPhone.value,
     location: userLocation.value,
+    profile_image_url: userProfileImageUrl.value,
   })
 
   const userAvatarInitial = computed(() => (customerName.value.trim().charAt(0) || 'P').toUpperCase())
@@ -80,16 +86,129 @@ export function useProfileFeature(notice) {
       email: customerEmail.value,
       phone: userPhone.value,
       location: userLocation.value,
+      profile_image_url: userProfileImageUrl.value,
     }
   }
 
-  function saveUserProfile() {
-    customerName.value = userProfileDraft.value.name.trim()
-    customerEmail.value = userProfileDraft.value.email.trim()
-    userPhone.value = userProfileDraft.value.phone.trim()
-    userLocation.value = userProfileDraft.value.location.trim()
-    userProfileNotice.value = 'User profile updated.'
-    notice.value = 'Your profile changes were saved.'
+  function getProfileQuery() {
+    const user = loggedInUser?.value || {}
+    const userId = Number(user.id || 0)
+    const email = String(user.email || '').trim().toLowerCase()
+    if (userId > 0) return { user_id: userId }
+    if (email) return { email }
+    return null
+  }
+
+  function syncLocalAuthUser(patch = {}) {
+    const current = loggedInUser?.value || {}
+    const next = { ...current, ...patch }
+    if (loggedInUser) loggedInUser.value = next
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(next))
+    window.dispatchEvent(new Event('achar:auth-updated'))
+  }
+
+  async function loadUserProfile() {
+    const query = getProfileQuery()
+    if (!query) return
+
+    try {
+      const result = await apiGet('user/profile', query)
+      const user = result?.user || {}
+      customerName.value = String(user.name || '').trim()
+      customerEmail.value = String(user.email || '').trim()
+      userPhone.value = String(user.phone || '').trim()
+      userLocation.value = String(user.location || '').trim()
+      userProfileImageUrl.value = String(user.profile_image_url || '').trim()
+      userProfileDraft.value = {
+        name: customerName.value,
+        email: customerEmail.value,
+        phone: userPhone.value,
+        location: userLocation.value,
+        profile_image_url: userProfileImageUrl.value,
+      }
+      syncLocalAuthUser({
+        id: Number(user.id || loggedInUser?.value?.id || 0),
+        name: customerName.value,
+        email: customerEmail.value,
+        phone: userPhone.value,
+        location: userLocation.value,
+        profile_image_url: userProfileImageUrl.value,
+        role: String(user.role || loggedInUser?.value?.role || 'user'),
+      })
+    } catch (error) {
+      notice.value = error?.message || 'Could not load profile data.'
+    }
+  }
+
+  function updateProfileImageFile(file) {
+    if (!(file instanceof File)) {
+      profileImageFile.value = null
+      return
+    }
+    profileImageFile.value = file
+    const reader = new FileReader()
+    reader.onload = () => {
+      userProfileDraft.value.profile_image_url = typeof reader.result === 'string' ? reader.result : ''
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function removeProfileImage() {
+    profileImageFile.value = null
+    userProfileDraft.value.profile_image_url = ''
+  }
+
+  async function saveUserProfile() {
+    const query = getProfileQuery()
+    if (!query) {
+      notice.value = 'Please sign in again and try updating your profile.'
+      return
+    }
+
+    const payload = new FormData()
+    payload.append('name', userProfileDraft.value.name.trim())
+    payload.append('phone', userProfileDraft.value.phone.trim())
+    payload.append('location', userProfileDraft.value.location.trim())
+    payload.append('user_id', String(query.user_id || ''))
+    payload.append('email', String(query.email || ''))
+    payload.append('remove_image', userProfileDraft.value.profile_image_url ? '0' : '1')
+    if (profileImageFile.value instanceof File) payload.append('profile_image', profileImageFile.value)
+
+    isSavingProfile.value = true
+    try {
+      const result = await apiPost('user/profile', payload)
+      const user = result?.user || {}
+      customerName.value = String(user.name || '').trim()
+      customerEmail.value = String(user.email || '').trim()
+      userPhone.value = String(user.phone || '').trim()
+      userLocation.value = String(user.location || '').trim()
+      userProfileImageUrl.value = String(user.profile_image_url || '').trim()
+      profileImageFile.value = null
+      userProfileDraft.value = {
+        name: customerName.value,
+        email: customerEmail.value,
+        phone: userPhone.value,
+        location: userLocation.value,
+        profile_image_url: userProfileImageUrl.value,
+      }
+      localStorage.setItem('achar_user_profile_image', userProfileImageUrl.value)
+      syncLocalAuthUser({
+        id: Number(user.id || loggedInUser?.value?.id || 0),
+        name: customerName.value,
+        email: customerEmail.value,
+        phone: userPhone.value,
+        location: userLocation.value,
+        profile_image_url: userProfileImageUrl.value,
+        role: String(user.role || loggedInUser?.value?.role || 'user'),
+      })
+      userProfileNotice.value = 'User profile updated.'
+      notice.value = 'Your profile changes were saved.'
+    } catch (error) {
+      userProfileNotice.value = error?.message || 'Could not save profile.'
+      notice.value = userProfileNotice.value
+    } finally {
+      isSavingProfile.value = false
+    }
   }
 
   function resetUserProfile() {
@@ -97,9 +216,11 @@ export function useProfileFeature(notice) {
     customerEmail.value = ''
     userPhone.value = ''
     userLocation.value = ''
+    userProfileImageUrl.value = ''
+    profileImageFile.value = null
     userLatitude.value = null
     userLongitude.value = null
-    userProfileDraft.value = { name: '', email: '', phone: '', location: '' }
+    userProfileDraft.value = { name: '', email: '', phone: '', location: '', profile_image_url: '' }
     userProfileNotice.value = 'User profile reset.'
     notice.value = 'Your profile was reset.'
   }
@@ -141,6 +262,9 @@ export function useProfileFeature(notice) {
     customerEmail,
     userPhone,
     userLocation,
+    userProfileImageUrl,
+    profileImageFile,
+    isSavingProfile,
     userLatitude,
     userLongitude,
     isDetectingLocation,
@@ -150,6 +274,9 @@ export function useProfileFeature(notice) {
     userLocationMapUrl,
     userLocationMapEmbedUrl,
     userLocationMapLinkUrl,
+    loadUserProfile,
+    updateProfileImageFile,
+    removeProfileImage,
     goToProfile,
     saveUserProfile,
     resetUserProfile,
