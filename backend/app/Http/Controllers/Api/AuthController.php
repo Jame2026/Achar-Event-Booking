@@ -46,7 +46,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registration successful.',
-            'user' => $user,
+            'user' => $user->only(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role']),
         ], 201);
     }
 
@@ -68,11 +68,11 @@ class AuthController extends Controller
         $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
         $user = $isEmail
             ? User::query()
-                ->select(['id', 'name', 'email', 'role', 'password'])
+                ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
                 ->where('email', strtolower($identifier))
                 ->first()
             : User::query()
-                ->select(['id', 'name', 'email', 'role', 'password'])
+                ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
                 ->where('phone', $this->normalizePhone($identifier))
                 ->first();
 
@@ -84,7 +84,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => $user->only(['id', 'name', 'email', 'role']),
+            'user' => $user->only(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role']),
         ]);
     }
 
