@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class EventController extends Controller
 {
@@ -19,32 +20,8 @@ class EventController extends Controller
     {
         $perPage = (int) request()->integer('per_page', 15);
         $perPage = max(1, min($perPage, 100));
-        $cacheVersion = (int) Cache::get('public_events_version', 1);
-        $cacheKey = "public_events:v{$cacheVersion}:per_page:{$perPage}";
-        $events = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($perPage) {
-            return Event::query()
-                ->select([
-                    'id',
-                    'vendor_id',
-                    'title',
-                    'event_type',
-                    'description',
-                    'image_url',
-                    'location',
-                    'starts_at',
-                    'ends_at',
-                    'price',
-                    'capacity',
-                    'is_active',
-                    'created_at',
-                    'updated_at',
-                ])
-                ->where('is_active', true)
-                ->with('vendor:id,name')
-                ->withCount('bookings')
-                ->latest('starts_at')
-                ->paginate($perPage);
-        });
+        $includeInactive = request()->boolean('include_inactive', false);
+        $events = $this->getPublicEvents($perPage, $includeInactive);
 
         return response()->json($events);
     }
@@ -305,6 +282,55 @@ class EventController extends Controller
 
     private function invalidatePublicEventCache(): void
     {
-        Cache::forever('public_events_version', (int) Cache::get('public_events_version', 1) + 1);
+        try {
+            Cache::forever('public_events_version', (int) Cache::get('public_events_version', 1) + 1);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function getPublicEvents(int $perPage, bool $includeInactive)
+    {
+        try {
+            $cacheVersion = (int) Cache::get('public_events_version', 1);
+            $inactiveKey = $includeInactive ? 'with_inactive' : 'active_only';
+            $cacheKey = "public_events:v{$cacheVersion}:{$inactiveKey}:per_page:{$perPage}";
+
+            return Cache::remember($cacheKey, now()->addMinutes(5), fn () => $this->queryPublicEvents($perPage, $includeInactive));
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->queryPublicEvents($perPage, $includeInactive);
+        }
+    }
+
+    private function queryPublicEvents(int $perPage, bool $includeInactive)
+    {
+        $query = Event::query()
+            ->select([
+                'id',
+                'vendor_id',
+                'title',
+                'event_type',
+                'description',
+                'image_url',
+                'location',
+                'starts_at',
+                'ends_at',
+                'price',
+                'capacity',
+                'is_active',
+                'created_at',
+                'updated_at',
+            ])
+            ->with('vendor:id,name')
+            ->withCount('bookings')
+            ->latest('starts_at');
+
+        if (! $includeInactive) {
+            $query->where('is_active', true);
+        }
+
+        return $query->paginate($perPage);
     }
 }

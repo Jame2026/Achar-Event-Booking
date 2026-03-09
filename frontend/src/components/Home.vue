@@ -25,7 +25,7 @@ const bookingForm = ref({
 const eventRows = ref([]);
 const dataLoadFailed = ref(false);
 const isLoadingHomeData = ref(false);
-const HOME_EVENT_PAGE_SIZE = 24;
+const HOME_EVENT_PAGE_SIZE = 100;
 
 const copyByLanguage = {
   en: {
@@ -546,14 +546,14 @@ async function loadHomeData() {
   isLoadingHomeData.value = true;
   dataLoadFailed.value = false;
   try {
-    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE });
+    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE, include_inactive: 1 });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
     if (rows.length) {
       eventRows.value = rows;
       return;
     }
 
-    const fallbackResponse = await fetch(`/api/events?per_page=${HOME_EVENT_PAGE_SIZE}`, {
+    const fallbackResponse = await fetch(`/api/events?per_page=${HOME_EVENT_PAGE_SIZE}&include_inactive=1`, {
       headers: {
         Accept: "application/json",
       },

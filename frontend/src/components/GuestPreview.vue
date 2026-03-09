@@ -319,7 +319,7 @@ function mapEventToGuestService(item) {
 
 async function loadLiveVendorEvents() {
   try {
-    const result = await apiGet("events");
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
     liveVendorEvents.value = Array.isArray(result.data) ? result.data : [];
   } catch {
     liveVendorEvents.value = [];
