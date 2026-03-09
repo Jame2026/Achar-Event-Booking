@@ -19,10 +19,7 @@ class EventController extends Controller
         $perPage = max(1, min($perPage, 100));
 
         $events = Event::query()
-<<<<<<< HEAD
-=======
             ->where('is_active', true)
->>>>>>> 63503f0662789d10e8d251f94e2aa105ea2ac22f
             ->with('vendor:id,name')
             ->latest('starts_at')
             ->paginate($perPage);
