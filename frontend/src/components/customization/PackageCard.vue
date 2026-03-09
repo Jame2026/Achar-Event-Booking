@@ -1,4 +1,6 @@
 <script setup>
+import { useLanguageCopy } from '../../features/language'
+
 const props = defineProps({
   item: {
     type: Object,
@@ -23,6 +25,50 @@ const emit = defineEmits(['select', 'toggle-details', 'check-availability', 'mes
 function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`
 }
+
+const copyByLanguage = {
+  en: {
+    selected: 'Selected',
+    selectPackage: 'Select Package',
+    hideDetails: 'Hide Details',
+    viewDetails: 'View Details',
+    checkAvailability: 'Check Availability',
+    messageVendor: 'Message Vendor',
+    eventType: 'Event Type:',
+    location: 'Location:',
+    date: 'Date:',
+    includedServices: 'Included Services',
+    previewPackage: 'Preview package (no live vendor slot yet)',
+  },
+  km: {
+    selected: 'បានជ្រើស',
+    selectPackage: 'ជ្រើសរើសកញ្ចប់',
+    hideDetails: 'លាក់ព័ត៌មានលម្អិត',
+    viewDetails: 'មើលព័ត៌មានលម្អិត',
+    checkAvailability: 'ពិនិត្យមើលពេលទំនេរ',
+    messageVendor: 'ផ្ញើសារទៅអ្នកផ្គត់ផ្គង់',
+    eventType: 'ប្រភេទព្រឹត្តិការណ៍:',
+    location: 'ទីតាំង:',
+    date: 'កាលបរិច្ឆេទ:',
+    includedServices: 'សេវាកម្មដែលរួមបញ្ចូល',
+    previewPackage: 'កញ្ចប់បង្ហាញជាមុន (មិនទាន់មានពេលពីអ្នកផ្គត់ផ្គង់ផ្ទាល់)',
+  },
+  zh: {
+    selected: '已选择',
+    selectPackage: '选择套餐',
+    hideDetails: '隐藏详情',
+    viewDetails: '查看详情',
+    checkAvailability: '查看档期',
+    messageVendor: '联系商家',
+    eventType: '活动类型：',
+    location: '地点：',
+    date: '日期：',
+    includedServices: '包含服务',
+    previewPackage: '预览套餐（暂无实时商家档期）',
+  },
+}
+
+const { uiText } = useLanguageCopy(copyByLanguage)
 </script>
 
 <template>
@@ -55,26 +101,26 @@ function formatCurrency(value) {
 
     <div class="addon-card-actions package-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('select', item.id)">
-        {{ isSelected ? 'Selected' : 'Select Package' }}
+        {{ isSelected ? uiText.selected : uiText.selectPackage }}
       </button>
       <button type="button" class="read-more-btn" @click.stop="emit('toggle-details', item.id)">
-        {{ isExpanded ? 'Hide Details' : 'View Details' }}
+        {{ isExpanded ? uiText.hideDetails : uiText.viewDetails }}
       </button>
       <button type="button" class="check-availability-btn" @click.stop="emit('check-availability', item)">
-        Check Availability
+        {{ uiText.checkAvailability }}
       </button>
       <button type="button" class="message-vendor-btn" @click.stop="emit('message')">
-        Message Vendor
+        {{ uiText.messageVendor }}
       </button>
     </div>
 
     <div v-if="isExpanded" class="package-detail">
-      <small><strong>Event Type:</strong> {{ item.eventTypeLabel }}</small>
-      <small><strong>Location:</strong> {{ item.location }}</small>
-      <small><strong>Date:</strong> {{ item.date }}</small>
+      <small><strong>{{ uiText.eventType }}</strong> {{ item.eventTypeLabel }}</small>
+      <small><strong>{{ uiText.location }}</strong> {{ item.location }}</small>
+      <small><strong>{{ uiText.date }}</strong> {{ item.date }}</small>
 
       <div class="package-service-list">
-        <p>Included Services</p>
+        <p>{{ uiText.includedServices }}</p>
         <ul>
           <li v-for="service in item.services" :key="`${item.id}-${service.name}`">
             <strong>{{ service.name }}:</strong> {{ service.detail }}
@@ -82,7 +128,7 @@ function formatCurrency(value) {
         </ul>
       </div>
 
-      <small v-if="!item.backingEventId">Preview package (no live vendor slot yet)</small>
+      <small v-if="!item.backingEventId">{{ uiText.previewPackage }}</small>
     </div>
   </article>
 </template>

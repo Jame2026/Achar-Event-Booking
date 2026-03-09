@@ -41,6 +41,8 @@ const copyByLanguage = {
     showLess: "Show less",
     showAllEvents: "Show all services",
     eventLoadError: "Live data is temporarily unavailable.",
+    eventLoading: "Loading live vendor services...",
+    noLiveServices: "No live vendor services available yet.",
     exploreStyle: "Explore style >",
     recommendedVendors: "Recommended Vendors",
     handpickedTitle: "Handpicked services, ready to book",
@@ -78,6 +80,19 @@ const copyByLanguage = {
     startsFrom: "Starts from",
     from: "From",
     book: "Book",
+    serviceBooking: "Service Booking",
+    professionalServiceReady: "Professional vendor service ready for booking.",
+    premium: "Premium",
+    topRated: "Top Rated",
+    reviews: "reviews",
+    previous: "Previous",
+    next: "Next",
+    viewService: "View Service",
+    noServiceUpdates: "No live service updates available yet.",
+    howToPlanPrefix: "How to plan a great",
+    howToPlanSuffix: "experience",
+    fromVendor: "From",
+    planner: "Planner",
   },
   km: {
     heroTitlePrefix: "ព្រឹត្តិការណ៍ដ៏ល្អឥតខ្ចោះរបស់អ្នក,",
@@ -92,6 +107,8 @@ const copyByLanguage = {
     showLess: "បង្ហាញតិច",
     showAllEvents: "បង្ហាញសេវាកម្មទាំងអស់",
     eventLoadError: "ទិន្នន័យផ្ទាល់មិនអាចប្រើបានបណ្តោះអាសន្ន។",
+    eventLoading: "កំពុងផ្ទុកសេវាកម្មផ្ទាល់ពីអ្នកផ្គត់ផ្គង់...",
+    noLiveServices: "មិនទាន់មានសេវាកម្មផ្ទាល់ពីអ្នកផ្គត់ផ្គង់ទេ។",
     exploreStyle: "មើលរចនាប័ទ្ម >",
     recommendedVendors: "អ្នកផ្គត់ផ្គង់ណែនាំ",
     handpickedTitle: "សេវាកម្មជ្រើសរើសរួច រៀបចំសម្រាប់ការកក់",
@@ -129,6 +146,19 @@ const copyByLanguage = {
     startsFrom: "ចាប់ពី",
     from: "ពី",
     book: "កក់",
+    serviceBooking: "ការកក់សេវាកម្ម",
+    professionalServiceReady: "សេវាកម្មអ្នកផ្គត់ផ្គង់ដែលត្រៀមសម្រាប់ការកក់។",
+    premium: "ពិសេស",
+    topRated: "ពេញនិយម",
+    reviews: "ការវាយតម្លៃ",
+    previous: "មុន",
+    next: "បន្ទាប់",
+    viewService: "មើលសេវាកម្ម",
+    noServiceUpdates: "មិនទាន់មានព័ត៌មានសេវាកម្មថ្មីទេ។",
+    howToPlanPrefix: "របៀបរៀបចំ",
+    howToPlanSuffix: "ឱ្យល្អ",
+    fromVendor: "ពី",
+    planner: "អ្នករៀបចំ",
   },
   zh: {
     heroTitlePrefix: "您的完美活动，",
@@ -142,6 +172,8 @@ const copyByLanguage = {
     showLess: "收起",
     showAllEvents: "显示全部服务",
     eventLoadError: "实时数据暂不可用。",
+    eventLoading: "正在加载实时商家服务...",
+    noLiveServices: "暂无实时商家服务。",
     exploreStyle: "查看风格 >",
     recommendedVendors: "推荐商家",
     handpickedTitle: "精选服务，随时预订",
@@ -179,6 +211,19 @@ const copyByLanguage = {
     startsFrom: "起价",
     from: "起",
     book: "预订",
+    serviceBooking: "服务预订",
+    professionalServiceReady: "可立即预订的专业商家服务。",
+    premium: "精选",
+    topRated: "高评分",
+    reviews: "条评价",
+    previous: "上一项",
+    next: "下一项",
+    viewService: "查看服务",
+    noServiceUpdates: "暂无最新服务动态。",
+    howToPlanPrefix: "如何策划出色的",
+    howToPlanSuffix: "体验",
+    fromVendor: "来自",
+    planner: "策划人",
   },
 };
 
@@ -375,11 +420,11 @@ const eventTypes = computed(() => {
       eventId: Number(item.id || 0) || null,
       vendorName: item.vendor?.name || uiText.value.fallbackVendor,
       requestedEventType: eventTypeKey,
-      name: item.title || "Service Booking",
+      name: item.title || uiText.value.serviceBooking,
       note: toEventLabel(eventTypeKey),
-      description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+      description: String(item.description || "").trim() || uiText.value.professionalServiceReady,
       price,
-      priceLabel: price > 0 ? `From $${Math.round(price).toLocaleString()}` : "$0",
+      priceLabel: price > 0 ? `${uiText.value.from} $${Math.round(price).toLocaleString()}` : "$0",
       image: item.image_url || eventImageByType[eventTypeKey] || eventImageByType.other,
       fallback: eventFallbackByType[eventTypeKey] || eventFallbackByType.other,
     };
@@ -402,8 +447,8 @@ const vendors = computed(() => {
       vendorId: Number(item.vendor_id || 0) || null,
       vendorName: item.vendor?.name || uiText.value.fallbackVendor,
       requestedEventType: eventTypeKey,
-      tag: price >= 2500 ? "Premium" : "Top Rated",
-      title: item.title || "Service Booking",
+      tag: price >= 2500 ? uiText.value.premium : uiText.value.topRated,
+      title: item.title || uiText.value.serviceBooking,
       categories: [toEventLabel(eventTypeKey), item.location || uiText.value.fallbackLocation],
       location: item.location || uiText.value.fallbackLocation,
       rating: Number((4.6 + ((index % 5) * 0.08)).toFixed(1)),
@@ -434,8 +479,8 @@ const tips = computed(() => {
     const key = String(item.event_type || "other").toLowerCase();
     return {
       category: toEventLabel(key),
-      title: `How to plan a great ${toEventLabel(key).toLowerCase()} experience`,
-      meta: `From ${item.title || "Achar vendor"}`,
+      title: `${uiText.value.howToPlanPrefix} ${toEventLabel(key).toLowerCase()} ${uiText.value.howToPlanSuffix}`,
+      meta: `${uiText.value.fromVendor} ${item.title || uiText.value.fallbackVendor}`,
       image: eventImageByType[key] || eventImageByType.other,
     };
   });
@@ -516,11 +561,11 @@ function submitBooking() {
     vendorTitle:
       selectedVendor.value.vendorName ||
       selectedVendor.value.title ||
-      "Selected Vendor",
+      uiText.value.fallbackVendor,
     fullName: bookingForm.value.fullName || "",
     email: bookingForm.value.email || "",
     phone: "",
-    location: selectedVendor.value.location || "Location TBD",
+    location: selectedVendor.value.location || uiText.value.fallbackLocation,
     eventDate: bookingForm.value.eventDate || "",
     guests: quantity,
     notes: bookingForm.value.notes || "",
@@ -528,7 +573,7 @@ function submitBooking() {
     items: [
       {
         type: "service",
-        name: selectedVendor.value.title || "Selected Vendor",
+        name: selectedVendor.value.title || uiText.value.fallbackVendor,
         description: bookingForm.value.notes || uiText.value.bookingRequestFromHome,
         qty: quantity,
         unitPrice,
@@ -622,11 +667,11 @@ onMounted(loadHomeData);
       </div>
 
       <div v-if="isLoadingHomeData" class="event-load-note">
-        Loading live vendor services...
+        {{ uiText.eventLoading }}
       </div>
 
       <div v-else-if="displayedEvents.length === 0" class="event-load-note">
-        No live vendor services available yet.
+        {{ uiText.noLiveServices }}
       </div>
 
       <div v-else class="event-grid">
@@ -662,7 +707,7 @@ onMounted(loadHomeData);
                 class="outline-btn"
                 @click.stop="goToEvent(event)"
               >
-                View Service
+                {{ uiText.viewService }}
               </button>
             </div>
           </div>
@@ -688,13 +733,13 @@ onMounted(loadHomeData);
             <span aria-hidden="true">&gt;</span>
           </button>
           <button
-            aria-label="Previous"
+            :aria-label="uiText.previous"
             class="pill-btn"
             :disabled="showAllVendors || currentVendorIndex === 0"
             @click="prevVendors"
           >&lt;</button>
           <button
-            aria-label="Next"
+            :aria-label="uiText.next"
             class="pill-btn"
             :disabled="showAllVendors || currentVendorIndex + VENDOR_PAGE_SIZE >= vendors.length"
             @click="nextVendors"
@@ -703,11 +748,11 @@ onMounted(loadHomeData);
       </div>
 
       <div v-if="isLoadingHomeData" class="event-load-note">
-        Loading live vendor services...
+        {{ uiText.eventLoading }}
       </div>
 
       <div v-else-if="displayedVendors.length === 0" class="event-load-note">
-        No live vendor services available yet.
+        {{ uiText.noLiveServices }}
       </div>
 
       <div v-else class="vendor-grid">
@@ -727,7 +772,7 @@ onMounted(loadHomeData);
             <div class="vendor-rating">
               <span class="star">*</span>
               <strong>{{ vendor.rating }}</strong>
-              <span class="reviews">{{ vendor.reviews?.toLocaleString() || "0" }} reviews</span>
+              <span class="reviews">{{ vendor.reviews?.toLocaleString() || "0" }} {{ uiText.reviews }}</span>
             </div>
             <div class="vendor-footer">
               <div class="pricing">
@@ -763,7 +808,7 @@ onMounted(loadHomeData);
               <div class="vendor-rating">
                 <span class="star">*</span>
                 <strong>{{ selectedVendor.rating }}</strong>
-                <span class="reviews">({{ selectedVendor.reviews?.toLocaleString() }} reviews)</span>
+                <span class="reviews">({{ selectedVendor.reviews?.toLocaleString() }} {{ uiText.reviews }})</span>
               </div>
             </div>
           </div>
@@ -861,7 +906,7 @@ onMounted(loadHomeData);
         <router-link class="link" to="/customization">{{ uiText.readAllArticles }}</router-link>
       </div>
       <div v-if="tips.length === 0" class="event-load-note">
-        No live service updates available yet.
+        {{ uiText.noServiceUpdates }}
       </div>
 
       <div v-else class="tips-grid">
