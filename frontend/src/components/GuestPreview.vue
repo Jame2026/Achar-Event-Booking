@@ -12,8 +12,6 @@ import {
   buildPackageServiceDescriptions,
   eventTypeMap,
   eventTypeOptions,
-  matchingServicesCatalog,
-  packageCatalogByEventType,
   packageImageByEventType,
   serviceFeeRate,
   vendorProfile,
@@ -214,6 +212,13 @@ watch(
   },
   { immediate: true },
 );
+const selectedPrebookEventId = computed(() => {
+  const raw = Array.isArray(route.query.prebookEventId)
+    ? route.query.prebookEventId[0]
+    : route.query.prebookEventId;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+});
 
 watch(
   selectedEventFilter,
@@ -322,37 +327,11 @@ async function loadLiveVendorEvents() {
 }
 
 const guestPreviewPackages = computed(() => {
-  if (liveVendorEvents.value.length) {
-    return liveVendorEvents.value.map(mapEventToGuestPackage);
-  }
-
-  const rows = [];
-  Object.entries(packageCatalogByEventType).forEach(([eventType, entries]) => {
-    entries.forEach((entry) => {
-      const price = Number(entry.basePrice || 0);
-      rows.push({
-        id: `guest-${eventType}-${entry.id}`,
-        title: entry.title,
-        eventType,
-        eventTypeLabel: eventTypeMap[eventType] || "Other",
-        description: entry.description,
-        location: "Location available after sign in",
-        date: "Date TBD",
-        price,
-        priceLabel: `From $${price.toLocaleString()}`,
-        image:
-          packageImageByEventType[eventType] || packageImageByEventType.other,
-        services: buildPackageServiceDescriptions(eventType, entry.title),
-        isPreview: true,
-      });
-    });
-  });
-  return rows;
+  return liveVendorEvents.value.map(mapEventToGuestPackage);
 });
 
 const servicesCatalog = computed(() => {
-  const liveRows = liveVendorEvents.value.map(mapEventToGuestService);
-  return liveRows.length ? [...liveRows, ...matchingServicesCatalog] : matchingServicesCatalog;
+  return liveVendorEvents.value.map(mapEventToGuestService);
 });
 
 const selectedPackage = computed(
@@ -385,23 +364,33 @@ const activePackageId = ref(null);
 const showPrebookModal = ref(false);
 const prebookTargetTitle = ref("");
 const prebookTargetPackageId = ref(null);
-const prebookForm = ref({
-  fullName: "",
-  email: "",
-  phone: "",
-  location: "",
-  latitude: null,
-  longitude: null,
-  eventDate: "",
-  guests: 50,
-  notes: "",
-});
+function createEmptyPrebookForm() {
+  return {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    latitude: null,
+    longitude: null,
+    eventDate: "",
+    guests: 50,
+    notes: "",
+  };
+}
+const prebookForm = ref(createEmptyPrebookForm());
 const prebookSuccess = ref("");
 const isDetectingPrebookLocation = ref(false);
 const isResolvingTypedPrebookLocation = ref(false);
 const lastResolvedPrebookLocationQuery = ref("");
 const prebookLocationNotice = ref("");
 let typedLocationResolveTimer = null;
+const prebookAvailability = ref(null);
+const isCheckingPrebookAvailability = ref(false);
+const showPrebookCalendar = ref(false);
+const prebookCalendarCursor = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+const prebookCalendarAvailability = ref({});
+const isLoadingPrebookCalendar = ref(false);
+const lastHandledPrebookEventId = ref(null);
 const activePackage = computed(
   () =>
     guestPreviewPackages.value.find(
@@ -457,21 +446,13 @@ function openPrebookForm() {
   const targetPackage = activePackage.value || selectedPackage.value;
   prebookTargetPackageId.value = targetPackage?.id || null;
   prebookTargetTitle.value = targetPackage?.title || "Selected Vendor";
-  prebookForm.value = {
-    fullName: "",
-    email: "",
-    phone: "",
-    location: "",
-    latitude: null,
-    longitude: null,
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
+  prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
   isResolvingTypedPrebookLocation.value = false;
   lastResolvedPrebookLocationQuery.value = "";
+  prebookAvailability.value = null;
+  showPrebookCalendar.value = false;
   closePackageDetails();
   showPrebookModal.value = true;
 }
@@ -482,6 +463,8 @@ function closePrebookModal() {
     typedLocationResolveTimer = null;
   }
   showPrebookModal.value = false;
+  prebookAvailability.value = null;
+  showPrebookCalendar.value = false;
 }
 
 function hasValidPrebookCoordinates() {
@@ -570,6 +553,11 @@ function scheduleTypedPrebookLocationResolve() {
 }
 
 async function submitPrebookForm() {
+  if (activePrebookEventId.value && !canSubmitPrebook.value) {
+    prebookSuccess.value = prebookAvailabilityLabel.value;
+    return;
+  }
+
   const resolved = await resolveTypedPrebookLocation();
   if (!resolved) return;
 
@@ -608,6 +596,21 @@ async function submitPrebookForm() {
 
   const payload = {
     vendorTitle: prebookTargetTitle.value || "Selected Vendor",
+    vendorName:
+      selectedPackage.value?.vendorName ||
+      activePackage.value?.vendorName ||
+      "Selected Vendor",
+    eventId:
+      selectedPackage.value?.backingEventId ||
+      activePackage.value?.backingEventId ||
+      null,
+    image:
+      selectedPackage.value?.image ||
+      activePackage.value?.image ||
+      packageImageByEventType[
+        selectedPackage.value?.eventType || activePackage.value?.eventType || "other"
+      ] ||
+      packageImageByEventType.other,
     fullName: prebookForm.value.fullName,
     email: prebookForm.value.email,
     phone: prebookForm.value.phone,
@@ -649,6 +652,168 @@ const prebookLocationMapLinkUrl = computed(() => {
   const safeLng = Number(lng.toFixed(6));
   return `https://www.openstreetmap.org/?mlat=${safeLat}&mlon=${safeLng}#map=14/${safeLat}/${safeLng}`;
 });
+
+const prebookCalendarMonthLabel = computed(() =>
+  prebookCalendarCursor.value.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+);
+
+const prebookCalendarSelectedLabel = computed(() => {
+  if (!prebookForm.value.eventDate) return "No date selected";
+  const date = new Date(prebookForm.value.eventDate);
+  if (Number.isNaN(date.getTime())) return "No date selected";
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+});
+
+const prebookCalendarCells = computed(() => {
+  const year = prebookCalendarCursor.value.getFullYear();
+  const month = prebookCalendarCursor.value.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const firstWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const cells = [];
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    cells.push({ id: `blank-${index}`, day: null, date: "", inMonth: false, disabled: true });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month, day);
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    cells.push({
+      id: iso,
+      day,
+      date: iso,
+      inMonth: true,
+      booked: prebookCalendarAvailability.value[iso] === "booked",
+      available: prebookCalendarAvailability.value[iso] === "available",
+      disabled: date < today,
+    });
+  }
+
+  return cells;
+});
+
+const activePrebookEventId = computed(
+  () => selectedPackage.value?.backingEventId || activePackage.value?.backingEventId || null,
+);
+
+const prebookAvailabilityTone = computed(() => {
+  if (!activePrebookEventId.value || !prebookForm.value.eventDate) return "neutral";
+  if (isCheckingPrebookAvailability.value) return "neutral";
+  if (!prebookAvailability.value) return "neutral";
+  if (!prebookAvailability.value.is_active || !prebookAvailability.value.service_available) return "booked";
+  if (!prebookAvailability.value.vendor_available) return "booked";
+  return "available";
+});
+
+const prebookAvailabilityLabel = computed(() => {
+  if (!activePrebookEventId.value) return "Select a live vendor service to check date availability.";
+  if (!prebookForm.value.eventDate) return "Choose your event date to check if this vendor is free.";
+  if (isCheckingPrebookAvailability.value) return "Checking selected date...";
+  return prebookAvailability.value?.message || "Choose your event date to check if this vendor is free.";
+});
+
+const canSubmitPrebook = computed(() => {
+  if (!activePrebookEventId.value) return true;
+  if (isCheckingPrebookAvailability.value || !prebookForm.value.eventDate || !prebookAvailability.value) {
+    return false;
+  }
+
+  return Boolean(prebookAvailability.value.service_available && prebookAvailability.value.vendor_available);
+});
+
+async function checkPrebookAvailability() {
+  if (!activePrebookEventId.value || !prebookForm.value.eventDate) {
+    prebookAvailability.value = null;
+    return;
+  }
+
+  isCheckingPrebookAvailability.value = true;
+  try {
+    prebookAvailability.value = await apiGet(`events/${activePrebookEventId.value}/availability`, {
+      requested_date: prebookForm.value.eventDate,
+      quantity: Number(prebookForm.value.guests || 1),
+    });
+  } catch (error) {
+    prebookAvailability.value = {
+      service_available: false,
+      vendor_available: false,
+      is_active: true,
+      message: error?.message || "Could not check availability for the selected date.",
+    };
+  } finally {
+    isCheckingPrebookAvailability.value = false;
+  }
+}
+
+async function loadPrebookCalendarAvailability() {
+  if (!activePrebookEventId.value) {
+    prebookCalendarAvailability.value = {};
+    return;
+  }
+
+  isLoadingPrebookCalendar.value = true;
+  try {
+    const month = `${prebookCalendarCursor.value.getFullYear()}-${String(prebookCalendarCursor.value.getMonth() + 1).padStart(2, "0")}`;
+    const result = await apiGet(`events/${activePrebookEventId.value}/availability-calendar`, { month });
+    const days = Array.isArray(result.days) ? result.days : [];
+    prebookCalendarAvailability.value = Object.fromEntries(
+      days.map((item) => [String(item.date), String(item.status || "available")]),
+    );
+  } catch {
+    prebookCalendarAvailability.value = {};
+  } finally {
+    isLoadingPrebookCalendar.value = false;
+  }
+}
+
+function openPrebookCalendar() {
+  const sourceDate = prebookForm.value.eventDate ? new Date(prebookForm.value.eventDate) : new Date();
+  const safeDate = Number.isNaN(sourceDate.getTime()) ? new Date() : sourceDate;
+  prebookCalendarCursor.value = new Date(safeDate.getFullYear(), safeDate.getMonth(), 1);
+  showPrebookCalendar.value = true;
+  void loadPrebookCalendarAvailability();
+}
+
+function closePrebookCalendar() {
+  showPrebookCalendar.value = false;
+}
+
+function previousPrebookCalendarMonth() {
+  prebookCalendarCursor.value = new Date(
+    prebookCalendarCursor.value.getFullYear(),
+    prebookCalendarCursor.value.getMonth() - 1,
+    1,
+  );
+  void loadPrebookCalendarAvailability();
+}
+
+function nextPrebookCalendarMonth() {
+  prebookCalendarCursor.value = new Date(
+    prebookCalendarCursor.value.getFullYear(),
+    prebookCalendarCursor.value.getMonth() + 1,
+    1,
+  );
+  void loadPrebookCalendarAvailability();
+}
+
+function isPrebookCalendarCellSelected(cell) {
+  return cell.inMonth && cell.date === prebookForm.value.eventDate;
+}
+
+function selectPrebookCalendarDate(cell) {
+  if (!cell?.inMonth || cell.disabled || cell.booked) return;
+  prebookForm.value.eventDate = cell.date;
+  showPrebookCalendar.value = false;
+}
 
 function detectPrebookLocation() {
   if (!navigator.geolocation) {
@@ -775,8 +940,8 @@ function findServiceByName(name) {
   const target = normalizeText(name);
   if (!target) return null;
   return (
-    matchingServicesCatalog.find((service) => normalizeText(service.name) === target) ||
-    matchingServicesCatalog.find((service) => normalizeText(service.name).includes(target)) ||
+    servicesCatalog.value.find((service) => normalizeText(service.name) === target) ||
+    servicesCatalog.value.find((service) => normalizeText(service.name).includes(target)) ||
     null
   );
 }
@@ -914,6 +1079,19 @@ const favoriteTotal = computed(() =>
 );
 
 watch(
+  () => [prebookForm.value.eventDate, prebookForm.value.guests, activePrebookEventId.value],
+  ([eventDate, guests, eventId]) => {
+    prebookSuccess.value = "";
+    if (!eventId || !eventDate || !Number.isFinite(Number(guests)) || Number(guests) < 1) {
+      prebookAvailability.value = null;
+      return;
+    }
+
+    void checkPrebookAvailability();
+  },
+);
+
+watch(
   favoritePackages,
   (rows) => {
     if (!rows.length) {
@@ -953,6 +1131,30 @@ watch(
   },
   { immediate: true },
 );
+watch(
+  [selectedPrebookEventId, guestPreviewPackages, section],
+  ([eventId, packages, currentSection]) => {
+    if (currentSection !== "services-packages" || !eventId) return;
+    if (lastHandledPrebookEventId.value === eventId) return;
+
+    const targetPackage = packages.find((item) => Number(item.backingEventId || 0) === eventId);
+    if (!targetPackage) return;
+
+    selectedPackageId.value = targetPackage.id;
+    packageQuantity.value = 1;
+    prebookTargetTitle.value = targetPackage.title || "Selected Vendor";
+    prebookForm.value = createEmptyPrebookForm();
+    prebookSuccess.value = "";
+    prebookLocationNotice.value = "";
+    showPrebookModal.value = true;
+    lastHandledPrebookEventId.value = eventId;
+
+    const nextQuery = { ...route.query };
+    delete nextQuery.prebookEventId;
+    router.replace({ path: route.path, query: nextQuery }).catch(() => {});
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   void loadLiveVendorEvents();
@@ -977,21 +1179,12 @@ function openFavoritePrebookForm() {
   packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
   prebookTargetPackageId.value = favoriteSelectedPackage.value?.id || null;
   prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
-  prebookForm.value = {
-    fullName: "",
-    email: "",
-    phone: "",
-    location: "",
-    latitude: null,
-    longitude: null,
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
+  prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
   isResolvingTypedPrebookLocation.value = false;
   lastResolvedPrebookLocationQuery.value = "";
+  prebookAvailability.value = null;
   showPrebookModal.value = true;
 }
 
@@ -1888,8 +2081,69 @@ function noop() {}
 
           <label>
             <span>Event date</span>
-            <input v-model="prebookForm.eventDate" type="date" required />
+            <div class="prebook-date-picker">
+              <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
+                <span>{{ prebookForm.eventDate || "Select event date" }}</span>
+                <span class="prebook-date-icon">[ ]</span>
+              </button>
+
+              <div v-if="showPrebookCalendar" class="prebook-calendar">
+                <div class="prebook-calendar-head">
+                  <div>
+                    <strong>{{ prebookCalendarMonthLabel }}</strong>
+                    <small>{{ prebookCalendarSelectedLabel }}</small>
+                  </div>
+                  <div class="prebook-calendar-nav">
+                    <button type="button" @click="previousPrebookCalendarMonth">&lt;</button>
+                    <button type="button" @click="nextPrebookCalendarMonth">&gt;</button>
+                    <button type="button" class="prebook-calendar-close" @click="closePrebookCalendar">x</button>
+                  </div>
+                </div>
+
+                <div class="prebook-calendar-weekdays">
+                  <span v-for="label in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="label">
+                    {{ label }}
+                  </span>
+                </div>
+
+                <div class="prebook-calendar-grid">
+                  <button
+                    v-for="cell in prebookCalendarCells"
+                    :key="cell.id"
+                    type="button"
+                    class="prebook-calendar-day"
+                    :class="{
+                      muted: !cell.inMonth,
+                      booked: cell.booked && cell.inMonth,
+                      available: cell.available && cell.inMonth,
+                      selected: isPrebookCalendarCellSelected(cell),
+                    }"
+                    :disabled="!cell.inMonth || cell.disabled || cell.booked"
+                    @click="selectPrebookCalendarDate(cell)"
+                  >
+                    {{ cell.day || '' }}
+                  </button>
+                </div>
+
+                <div class="prebook-calendar-legend">
+                  <span><i class="dot available"></i> Available</span>
+                  <span><i class="dot booked"></i> Booked</span>
+                  <span><i class="dot selected"></i> Selected</span>
+                </div>
+                <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
+              </div>
+            </div>
           </label>
+
+          <div
+            class="prebook-availability-state"
+            :class="{
+              available: prebookAvailabilityTone === 'available',
+              booked: prebookAvailabilityTone === 'booked',
+            }"
+          >
+            {{ prebookAvailabilityLabel }}
+          </div>
 
           <label>
             <span>Number of guests</span>
@@ -1908,8 +2162,12 @@ function noop() {}
           <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
 
           <div class="prebook-actions">
-            <button type="submit" class="modal-action-btn modal-action-primary">
-              Confirm Booking
+            <button
+              type="submit"
+              class="modal-action-btn modal-action-primary"
+              :disabled="activePrebookEventId && !canSubmitPrebook"
+            >
+              {{ isCheckingPrebookAvailability ? "Checking..." : "Confirm Booking" }}
             </button>
           </div>
         </form>
@@ -2578,6 +2836,212 @@ function noop() {}
   gap: 6px;
 }
 
+.prebook-date-picker {
+  position: relative;
+}
+
+.prebook-date-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d7e1ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.prebook-date-trigger span:first-child {
+  text-align: left;
+}
+
+.prebook-date-icon {
+  color: #64748b;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.prebook-calendar {
+  margin-top: 10px;
+  border: 1px solid #dbe4f2;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.prebook-calendar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prebook-calendar-head strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.prebook-calendar-head small {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.prebook-calendar-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.prebook-calendar-nav button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d7e1ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.prebook-calendar-close {
+  font-size: 14px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.prebook-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prebook-calendar-weekdays span {
+  text-align: center;
+  color: #b07a56;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.prebook-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prebook-calendar-day {
+  min-height: 56px;
+  border: 1px solid #d7e1ee;
+  border-radius: 14px;
+  background: #fff;
+  color: #1f2937;
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.prebook-calendar-day.muted {
+  background: #f8fafc;
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.prebook-calendar-day:disabled {
+  background: #f8fafc;
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.prebook-calendar-day.selected {
+  border-color: #ff8a3d;
+  background: #ff7a12;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+  color: #fff;
+}
+
+.prebook-calendar-day.available {
+  border-color: #d7e1ee;
+  box-shadow: inset 0 -3px 0 #22c55e;
+}
+
+.prebook-calendar-day.booked {
+  background: #f8fafc;
+  color: #94a3b8;
+  box-shadow: inset 0 -3px 0 #cbd5e1;
+}
+
+.prebook-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.prebook-calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prebook-calendar-legend .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.prebook-calendar-legend .dot.available {
+  background: #22c55e;
+}
+
+.prebook-calendar-legend .dot.booked {
+  background: #cbd5e1;
+}
+
+.prebook-calendar-legend .dot.selected {
+  background: #f97316;
+}
+
+.prebook-calendar-loading {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.prebook-availability-state {
+  border-radius: 12px;
+  border: 1px solid #dbe4f1;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.prebook-availability-state.available {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.prebook-availability-state.booked {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .prebook-location-tools {
   display: grid;
   gap: 8px;
@@ -2749,6 +3213,11 @@ function noop() {}
   text-align: center;
 }
 
+.modal-action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .modal-action-secondary {
   background: #fff;
   border-color: #ffc7a3;
@@ -2911,6 +3380,20 @@ function noop() {}
   .prebook-form input,
   .prebook-form textarea {
     padding: 10px 11px;
+  }
+
+  .prebook-calendar-head {
+    flex-direction: column;
+  }
+
+  .prebook-calendar-weekdays,
+  .prebook-calendar-grid {
+    gap: 6px;
+  }
+
+  .prebook-calendar-day {
+    min-height: 48px;
+    font-size: 18px;
   }
 
   .overall-toolbar {
