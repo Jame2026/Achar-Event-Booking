@@ -1,4 +1,6 @@
-﻿<script setup>
+<script setup>
+import { useLanguageCopy } from '../../features/language'
+
 const props = defineProps([
   'bindings',
   'filteredConversations',
@@ -13,22 +15,81 @@ const props = defineProps([
   'isLoadingMessages',
   'messagesError',
 ])
+
+const copyByLanguage = {
+  en: {
+    messages: 'Messages',
+    searchPlaceholder: 'Search conversations...',
+    loading: 'Loading conversations...',
+    noConversations: 'No conversations yet.',
+    online: 'Online',
+    offline: 'Offline',
+    today: 'Today',
+    openDocument: 'Open document',
+    save: 'Save',
+    delete: 'Delete',
+    location: 'Location',
+    open: 'Open',
+    locating: 'Locating...',
+    locationBtn: 'Location',
+    typeMessage: 'Type your message...',
+    send: 'Send',
+  },
+  km: {
+    messages: 'សារ',
+    searchPlaceholder: 'ស្វែងរកការសន្ទនា...',
+    loading: 'កំពុងផ្ទុកការសន្ទនា...',
+    noConversations: 'មិនទាន់មានការសន្ទនាទេ។',
+    online: 'អនឡាញ',
+    offline: 'ក្រៅបណ្ដាញ',
+    today: 'ថ្ងៃនេះ',
+    openDocument: 'បើកឯកសារ',
+    save: 'រក្សាទុក',
+    delete: 'លុប',
+    location: 'ទីតាំង',
+    open: 'បើក',
+    locating: 'កំពុងស្វែងរក...',
+    locationBtn: 'ទីតាំង',
+    typeMessage: 'វាយសាររបស់អ្នក...',
+    send: 'ផ្ញើ',
+  },
+  zh: {
+    messages: '消息',
+    searchPlaceholder: '搜索会话...',
+    loading: '正在加载会话...',
+    noConversations: '暂无会话。',
+    online: '在线',
+    offline: '离线',
+    today: '今天',
+    openDocument: '打开文档',
+    save: '保存',
+    delete: '删除',
+    location: '位置',
+    open: '打开',
+    locating: '定位中...',
+    locationBtn: '位置',
+    typeMessage: '输入您的消息...',
+    send: '发送',
+  },
+}
+
+const { uiText } = useLanguageCopy(copyByLanguage)
 </script>
 
 <template>
   <main class="messages-page">
     <section class="messages-layout">
       <aside class="messages-sidebar">
-        <h2>Messages</h2>
+        <h2>{{ uiText.messages }}</h2>
         <input
           type="search"
-          placeholder="Search conversations..."
+          :placeholder="uiText.searchPlaceholder"
           :value="props.bindings.conversationSearch.value"
           @input="props.bindings.conversationSearch.value = $event.target.value"
         />
 
         <p v-if="props.messagesError" class="notice">{{ props.messagesError }}</p>
-        <p v-else-if="props.isLoadingMessages" class="notice">Loading conversations...</p>
+        <p v-else-if="props.isLoadingMessages" class="notice">{{ uiText.loading }}</p>
 
         <div class="conversation-list">
           <article
@@ -48,7 +109,7 @@ const props = defineProps([
             </div>
           </article>
           <p v-if="!props.isLoadingMessages && props.filteredConversations.length === 0" class="notice">
-            No conversations yet.
+            {{ uiText.noConversations }}
           </p>
         </div>
       </aside>
@@ -62,13 +123,13 @@ const props = defineProps([
               <p v-if="props.activeConversation.serviceName">
                 Booking #{{ props.activeConversation.bookingId || '-' }} · {{ props.activeConversation.serviceName }}
               </p>
-              <p v-else>{{ props.activeConversation.online ? 'Online' : 'Offline' }}</p>
+              <p v-else>{{ props.activeConversation.online ? uiText.online : uiText.offline }}</p>
             </div>
           </div>
         </header>
 
         <div class="chat-stream">
-          <span class="chat-day">Today</span>
+          <span class="chat-day">{{ uiText.today }}</span>
 
           <div
             v-for="msg in props.activeConversation.messages"
@@ -86,15 +147,15 @@ const props = defineProps([
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {{ msg.documentName || 'Open document' }}
+                  {{ msg.documentName || uiText.openDocument }}
                 </a>
                 <div class="doc-actions">
-                  <button type="button" class="msg-action save" @click="props.saveDocument(msg)">Save</button>
-                  <button type="button" class="msg-action delete" @click="props.deleteMessage(msg.id)">Delete</button>
+                  <button type="button" class="msg-action save" @click="props.saveDocument(msg)">{{ uiText.save }}</button>
+                  <button type="button" class="msg-action delete" @click="props.deleteMessage(msg.id)">{{ uiText.delete }}</button>
                 </div>
               </div>
               <div v-if="msg.locationUrl" class="attachment-card location-attachment">
-                <div class="location-title">Location</div>
+                <div class="location-title">{{ uiText.location }}</div>
                 <small v-if="msg.locationLabel">{{ msg.locationLabel }}</small>
                 <div class="doc-actions">
                   <a
@@ -103,9 +164,9 @@ const props = defineProps([
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Open
+                    {{ uiText.open }}
                   </a>
-                  <button type="button" class="msg-action delete" @click="props.deleteMessage(msg.id)">Delete</button>
+                  <button type="button" class="msg-action delete" @click="props.deleteMessage(msg.id)">{{ uiText.delete }}</button>
                 </div>
               </div>
             </div>
@@ -123,16 +184,16 @@ const props = defineProps([
             />
           </label>
           <button type="button" class="composer-location" :disabled="props.isSharingLocation" @click="props.sendLocation">
-            {{ props.isSharingLocation ? 'Locating...' : 'Location' }}
+            {{ props.isSharingLocation ? uiText.locating : uiText.locationBtn }}
           </button>
           <input
             type="text"
-            placeholder="Type your message..."
+            :placeholder="uiText.typeMessage"
             :value="props.bindings.composerText.value"
             @input="props.bindings.composerText.value = $event.target.value"
             @keyup.enter="props.sendMessage"
           />
-          <button type="button" class="composer-send" :disabled="!props.bindings.composerText.value.trim()" @click="props.sendMessage">Send</button>
+          <button type="button" class="composer-send" :disabled="!props.bindings.composerText.value.trim()" @click="props.sendMessage">{{ uiText.send }}</button>
         </footer>
       </section>
     </section>

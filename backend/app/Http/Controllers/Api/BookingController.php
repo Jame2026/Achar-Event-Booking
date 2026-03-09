@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\Event;
+use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -430,6 +431,7 @@ class BookingController extends Controller
             'title' => 'Booking request received',
             'message' => "Your booking for {$serviceName} on {$eventDate} is pending approval.",
         ]);
+        $this->flushNotificationCache('user', $booking->user_id, strtolower((string) $booking->customer_email));
 
         if (! $event->vendor_id) {
             return;
@@ -444,6 +446,11 @@ class BookingController extends Controller
             'title' => 'New booking request',
             'message' => "{$booking->customer_name} requested {$booking->quantity} seat(s) for {$serviceName}.",
         ]);
+        $this->flushNotificationCache(
+            'vendor',
+            $event->vendor_id,
+            $event->vendor ? strtolower((string) $event->vendor->email) : null
+        );
     }
 
     private function createBookingStatusNotifications(Booking $booking, string $nextStatus): void
@@ -468,6 +475,7 @@ class BookingController extends Controller
             'title' => "Booking {$statusLabel}",
             'message' => "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.",
         ]);
+        $this->flushNotificationCache('user', $booking->user_id, strtolower((string) $booking->customer_email));
 
         if (! $event->vendor_id) {
             return;
@@ -482,6 +490,11 @@ class BookingController extends Controller
             'title' => "Booking {$statusLabel}",
             'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
         ]);
+        $this->flushNotificationCache(
+            'vendor',
+            $event->vendor_id,
+            $event->vendor ? strtolower((string) $event->vendor->email) : null
+        );
     }
 
     private function flushVendorCacheForBooking(Booking $booking): void
@@ -493,6 +506,19 @@ class BookingController extends Controller
         $vendorId = (int) ($event?->vendor_id ?? 0);
         if ($vendorId > 0) {
             VendorCache::flushVendor($vendorId);
+        }
+    }
+
+    private function flushNotificationCache(string $role, ?int $userId, ?string $email): void
+    {
+        NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, $email));
+
+        if ($userId) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, null));
+        }
+
+        if ($email) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, null, $email));
         }
     }
 }

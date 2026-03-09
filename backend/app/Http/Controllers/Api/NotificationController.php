@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookingNotification;
+use App\Support\NotificationCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,20 +16,37 @@ class NotificationController extends Controller
     {
         $validated = $this->validateRecipientRequest($request, true);
         $limit = (int) ($validated['limit'] ?? 12);
+        $scopeKey = $this->notificationScopeKey($validated);
 
-        $query = BookingNotification::query()
-            ->with('booking.event:id,title,event_type,starts_at,location')
-            ->latest();
+        $payload = NotificationCache::rememberIndex($scopeKey, $limit, function () use ($validated, $limit) {
+            $query = BookingNotification::query()
+                ->select([
+                    'id',
+                    'booking_id',
+                    'recipient_type',
+                    'recipient_user_id',
+                    'recipient_email',
+                    'kind',
+                    'title',
+                    'message',
+                    'is_read',
+                    'created_at',
+                ])
+                ->with('booking.event:id,title,event_type,starts_at,location')
+                ->latest();
 
-        $this->applyRecipientFilters($query, $validated);
+            $this->applyRecipientFilters($query, $validated);
 
-        $unreadCountQuery = BookingNotification::query()->where('is_read', false);
-        $this->applyRecipientFilters($unreadCountQuery, $validated);
+            $unreadCountQuery = BookingNotification::query()->where('is_read', false);
+            $this->applyRecipientFilters($unreadCountQuery, $validated);
 
-        return response()->json([
-            'data' => $query->take($limit)->get(),
-            'unread_count' => $unreadCountQuery->count(),
-        ]);
+            return [
+                'data' => $query->take($limit)->get(),
+                'unread_count' => $unreadCountQuery->count(),
+            ];
+        });
+
+        return response()->json($payload);
     }
 
     public function markRead(Request $request, BookingNotification $notification): JsonResponse
@@ -40,6 +58,7 @@ class NotificationController extends Controller
         }
 
         $notification->update(['is_read' => true]);
+        $this->flushNotificationScopes($notification);
 
         return response()->json([
             'message' => 'Notification marked as read.',
@@ -55,6 +74,7 @@ class NotificationController extends Controller
         $this->applyRecipientFilters($query, $validated);
 
         $updated = $query->update(['is_read' => true]);
+        $this->flushNotificationScopeByRecipient($validated);
 
         return response()->json([
             'message' => 'Notifications marked as read.',
@@ -132,5 +152,48 @@ class NotificationController extends Controller
         }
 
         return false;
+    }
+
+    private function notificationScopeKey(array $validated): string
+    {
+        $role = isset($validated['role']) ? (string) $validated['role'] : null;
+        $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+        $email = isset($validated['email']) ? (string) $validated['email'] : null;
+
+        return NotificationCache::scopeKey($role, $userId, $email);
+    }
+
+    private function flushNotificationScopes(BookingNotification $notification): void
+    {
+        $recipientType = $notification->recipient_type ? (string) $notification->recipient_type : null;
+        $recipientUserId = $notification->recipient_user_id ? (int) $notification->recipient_user_id : null;
+        $recipientEmail = $notification->recipient_email ? (string) $notification->recipient_email : null;
+
+        if ($recipientUserId !== null) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($recipientType, $recipientUserId, null));
+        }
+
+        if ($recipientEmail !== null) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($recipientType, null, $recipientEmail));
+        }
+
+        NotificationCache::flushScope(NotificationCache::scopeKey($recipientType, $recipientUserId, $recipientEmail));
+    }
+
+    private function flushNotificationScopeByRecipient(array $validated): void
+    {
+        NotificationCache::flushScope($this->notificationScopeKey($validated));
+
+        $role = isset($validated['role']) ? (string) $validated['role'] : null;
+        $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+        $email = isset($validated['email']) ? (string) $validated['email'] : null;
+
+        if ($userId !== null) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, null));
+        }
+
+        if ($email !== null) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, null, $email));
+        }
     }
 }

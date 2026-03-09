@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 export const LANGUAGE_STORAGE_KEY = "achar_language";
 export const LANGUAGE_CHANGED_EVENT = "achar:language-updated";
@@ -52,5 +52,16 @@ export function useLanguage() {
   return {
     language,
     updateLanguage,
+  };
+}
+
+export function useLanguageCopy(copyByLanguage) {
+  const { language, updateLanguage } = useLanguage();
+  const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en || {});
+
+  return {
+    language,
+    updateLanguage,
+    uiText,
   };
 }
