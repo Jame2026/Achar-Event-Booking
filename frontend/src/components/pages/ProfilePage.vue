@@ -188,22 +188,37 @@ const props = defineProps([
   font-weight: 700;
   padding: 0.62rem 0.78rem;
 }
-
 .profile-identity-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin: 1rem 0 1.2rem;
-  padding: 0.95rem 1.05rem;
-  border: 1px solid #ecd1bc;
-  border-radius: 20px;
+
+  margin: 1.2rem 0 1.4rem;
+  padding: 1.1rem 1.2rem;
+
+  border: 1px solid #f1d5c4;
+  border-radius: 18px;
+
   background:
-    radial-gradient(circle at 100% 0%, rgba(234, 88, 12, 0.12) 0%, rgba(234, 88, 12, 0) 45%),
-    linear-gradient(180deg, #fffefd 0%, #fff6ee 100%);
-  box-shadow: 0 12px 24px rgba(124, 45, 18, 0.08);
+    radial-gradient(circle at top right, rgba(234, 88, 12, 0.10), transparent 45%),
+    linear-gradient(180deg, #ffffff 0%, #fff7f0 100%);
+
+  box-shadow: 
+    0 6px 16px rgba(0,0,0,0.05),
+    0 12px 28px rgba(124, 45, 18, 0.08);
+
+  transition: all 0.25s ease;
 }
 
+.profile-identity-card:hover {
+  transform: translateY(-3px);
+  border-color: #ea580c;
+
+  box-shadow: 
+    0 10px 22px rgba(0,0,0,0.08),
+    0 18px 36px rgba(234, 88, 12, 0.15);
+}
 .profile-avatar-main {
   display: flex;
   align-items: center;
@@ -214,17 +229,30 @@ const props = defineProps([
 .profile-avatar-preview {
   width: 94px;
   height: 94px;
-  border-radius: 999px;
-  border: 4px solid #efc8aa;
-  background: #fff6ee;
+  border-radius: 50%;
+  border: 4px solid #f3cdb3;
+
+  background: linear-gradient(135deg, #fff7f1, #ffe8d9);
   color: #9a3412;
+
   font-size: 1.9rem;
   font-weight: 800;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   overflow: hidden;
   flex-shrink: 0;
+
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  transition: all 0.25s ease;
+}
+
+.profile-avatar-preview:hover {
+  transform: scale(1.05);
+  border-color: #ea580c;
+  box-shadow: 0 10px 20px rgba(234, 88, 12, 0.2);
 }
 
 .profile-avatar-preview img {
@@ -264,20 +292,37 @@ const props = defineProps([
 }
 
 .profile-section-title {
-  margin: 1.1rem 0 0.55rem;
+  margin: 1.2rem 0 0.6rem;
   color: #9a3412;
-  font-size: 0.94rem;
-  letter-spacing: 0.04em;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.profile-section-title::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  background: #ea580c;
+  border-radius: 4px;
+}
 .profile-grid {
   margin-top: 0.3rem;
 }
 
 .profile-grid label {
   color: #6b4a2b;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+
+  /* display: block; */
+  margin-bottom: 4px;
 }
 
 .profile-grid input {
@@ -308,20 +353,28 @@ const props = defineProps([
 
 .btn-light {
   border: 1px solid #f0ceaf;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff1e3 100%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff2e4 100%);
   color: #9a3412;
-  font-weight: 800;
-  padding: 0.6rem 0.95rem;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.65rem 1rem;
+  
   display: inline-flex;
   align-items: center;
-  gap: 0.44rem;
+  justify-content: center;
+  gap: 0.5rem;
+
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
 .btn-light:hover {
   border-color: #e5b88e;
-  background: linear-gradient(180deg, #ffffff 0%, #ffe8d0 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #ffe6cc 100%);
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.15);
+  transform: translateY(-2px);
 }
 
 .btn-accent {
@@ -356,49 +409,73 @@ const props = defineProps([
   width: 16px;
   height: 16px;
 }
-
+/* Danger / Error Button */
 .is-danger {
-  border-color: #f4c7c7;
-  background: linear-gradient(180deg, #fff 0%, #fff1f1 100%);
+  border: 1px solid #f4c7c7;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff4f4 100%);
   color: #b42318;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
 .is-danger:hover {
   border-color: #eca3a3;
   background: linear-gradient(180deg, #fff 0%, #ffe7e7 100%);
+  box-shadow: 0 4px 12px rgba(180, 35, 24, 0.15);
+  transform: translateY(-2px);
 }
 
+/* Logout Button */
 .btn-logout {
   border: 1px solid #fecaca;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fef2f2;
   color: #b91c1c;
   font: inherit;
   font-weight: 700;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1.1rem;
   cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
 .btn-logout:hover {
   background: #fee2e2;
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.15);
+  transform: translateY(-2px);
 }
 
+/* Map Link */
 .map-open-link {
   display: inline-block;
-  font-size: 0.92rem;
+  font-size: 0.93rem;
   font-weight: 600;
   color: #c25c13;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .map-open-link:hover {
   text-decoration: underline;
+  color: #a3470f;
 }
 
+/* Map Frame */
 .map-frame {
   height: 280px;
   border: 1px solid #f0d8c1;
-  border-radius: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(124, 72, 18, 0.08);
+  transition: box-shadow 0.25s ease;
+}
+
+.map-frame:hover {
+  box-shadow: 0 6px 20px rgba(124, 72, 18, 0.15);
 }
 
 @media (max-width: 860px) {

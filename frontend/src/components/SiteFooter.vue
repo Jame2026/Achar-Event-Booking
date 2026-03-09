@@ -18,6 +18,9 @@ const bankPartners = [
     name: 'ACLEDA Bank',
     logo: '/Ac.png',
   },
+  { name: 'Visa card',
+    logo: '/visa card.png',
+  }
 ]
 
 function onAppLogoError() {
@@ -219,14 +222,31 @@ function onBankLogoError(name) {
 
 .payment-card {
   border: 1px solid #d9e2ef;
-  border-radius: 8px;
-  background: #fff;
-  padding: 2px 0px;
-  min-height: 24px;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px 16px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: 10px;
+
+  /* smooth effect */
+  transition: all 0.25s ease;
+
+  /* light shadow */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+
+  cursor: pointer;
 }
+
+.payment-card:hover {
+  border-color: #c2410c;
+  background-color: #fff7ed;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
 
 .payment-link {
   width: 100%;
