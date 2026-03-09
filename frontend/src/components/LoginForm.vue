@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useLanguageCopy } from '../features/language'
 
 const emit = defineEmits<{
   switch: []
@@ -19,6 +20,57 @@ const form = reactive({
 
 const submitting = ref(false)
 const errorMessage = ref('')
+const copyByLanguage = {
+  en: {
+    backHome: 'Back to Home',
+    title: 'Sign in to your account',
+    subtitle: 'Use your email and password to continue.',
+    emailOrPhone: 'Email or Phone',
+    emailOrPhonePlaceholder: 'you@example.com or +85512345678',
+    password: 'Password',
+    passwordPlaceholder: 'Enter your password',
+    remember: 'Remember this device',
+    forgotPassword: 'Forgot password?',
+    signingIn: 'Signing in...',
+    login: 'Login',
+    orContinueWith: 'or continue with',
+    noAccount: 'No account yet?',
+    registerNow: 'Register now',
+  },
+  km: {
+    backHome: 'ត្រឡប់ទៅទំព័រដើម',
+    title: 'ចូលគណនីរបស់អ្នក',
+    subtitle: 'ប្រើអ៊ីមែល និងពាក្យសម្ងាត់របស់អ្នកដើម្បីបន្ត។',
+    emailOrPhone: 'អ៊ីមែល ឬទូរស័ព្ទ',
+    emailOrPhonePlaceholder: 'you@example.com ឬ +85512345678',
+    password: 'ពាក្យសម្ងាត់',
+    passwordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់របស់អ្នក',
+    remember: 'ចងចាំឧបករណ៍នេះ',
+    forgotPassword: 'ភ្លេចពាក្យសម្ងាត់?',
+    signingIn: 'កំពុងចូល...',
+    login: 'ចូល',
+    orContinueWith: 'ឬបន្តជាមួយ',
+    noAccount: 'មិនទាន់មានគណនីមែនទេ?',
+    registerNow: 'ចុះឈ្មោះឥឡូវ',
+  },
+  zh: {
+    backHome: '返回首页',
+    title: '登录您的账户',
+    subtitle: '使用您的邮箱和密码继续。',
+    emailOrPhone: '邮箱或手机号',
+    emailOrPhonePlaceholder: 'you@example.com 或 +85512345678',
+    password: '密码',
+    passwordPlaceholder: '输入您的密码',
+    remember: '记住此设备',
+    forgotPassword: '忘记密码？',
+    signingIn: '登录中...',
+    login: '登录',
+    orContinueWith: '或使用以下方式继续',
+    noAccount: '还没有账户？',
+    registerNow: '立即注册',
+  },
+}
+const { uiText } = useLanguageCopy(copyByLanguage)
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
@@ -79,30 +131,30 @@ const submitLogin = async () => {
 
     <main class="auth-panel">
       <section class="auth-card">
-        <router-link class="auth-back-home" to="/">← Back to Home</router-link>
+        <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
 
         <div class="brand-row auth-logo-only">
           <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
         </div>
 
         <div class="form-head">
-          <h2>Sign in to your account</h2>
-          <p>Use your email and password to continue.</p>
+          <h2>{{ uiText.title }}</h2>
+          <p>{{ uiText.subtitle }}</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-            <span>Email or Phone</span>
-            <input v-model="form.login" type="text" placeholder="you@example.com or +85512345678" required />
+            <span>{{ uiText.emailOrPhone }}</span>
+            <input v-model="form.login" type="text" :placeholder="uiText.emailOrPhonePlaceholder" required />
           </label>
 
           <label class="field">
-            <span>Password</span>
+            <span>{{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="Enter your password"
+                :placeholder="uiText.passwordPlaceholder"
                 required
               />
               <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
@@ -123,20 +175,20 @@ const submitLogin = async () => {
           <div class="auth-help-row">
             <label class="check-row">
               <input v-model="form.remember" type="checkbox" />
-              <span>Remember this device</span>
+              <span>{{ uiText.remember }}</span>
             </label>
-            <router-link class="link-btn" to="/forgot-password">Forgot password?</router-link>
+            <router-link class="link-btn" to="/forgot-password">{{ uiText.forgotPassword }}</router-link>
           </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Signing in...' : 'Login' }}
+            {{ submitting ? uiText.signingIn : uiText.login }}
           </button>
         </form>
 
         <div class="auth-divider">
-          <span>or continue with</span>
+          <span>{{ uiText.orContinueWith }}</span>
         </div>
 
         <div class="social-grid">
@@ -147,8 +199,8 @@ const submitLogin = async () => {
         </div>
 
         <p class="switch-row">
-          No account yet?
-          <button type="button" class="link-btn" @click="emit('switch')">Register now</button>
+          {{ uiText.noAccount }}
+          <button type="button" class="link-btn" @click="emit('switch')">{{ uiText.registerNow }}</button>
         </p>
       </section>
     </main>
