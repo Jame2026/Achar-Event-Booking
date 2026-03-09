@@ -38,9 +38,13 @@ const copyByLanguage = {
     notificationsAria: 'Open booking notifications',
     bookingNotifications: 'Booking Notifications',
     markAll: 'Mark all',
+    refresh: 'Refresh',
+    close: 'Close',
     loadingNotifications: 'Loading notifications...',
     notificationsError: 'Could not load notifications right now.',
     noNotifications: 'No notifications yet.',
+    open: 'Open',
+    markRead: 'Mark read',
     signIn: 'Sign in',
     justNow: 'Just now',
     minAgo: 'm ago',
@@ -282,6 +286,10 @@ async function markAllNotificationsAsRead() {
   }
 }
 
+function refreshNotifications() {
+  loadNotifications()
+}
+
 async function openNotification(notification) {
   await markNotificationAsRead(notification, { silent: true })
   closeNotificationDropdown()
@@ -418,38 +426,68 @@ const bookingLink = computed(() => {
           <section v-if="notificationDropdownOpen" class="notification-panel" @click.stop>
             <div class="notification-head">
               <strong>{{ uiText.bookingNotifications }}</strong>
-              <button
-                v-if="unreadNotificationCount > 0"
-                type="button"
-                class="notification-mark-all"
-                @click="markAllNotificationsAsRead"
-              >
-                {{ uiText.markAll }}
-              </button>
+              <div class="notification-actions">
+                <button type="button" class="notification-action-btn" @click="refreshNotifications">
+                  {{ uiText.refresh || 'Refresh' }}
+                </button>
+                <button
+                  v-if="unreadNotificationCount > 0"
+                  type="button"
+                  class="notification-action-btn"
+                  @click="markAllNotificationsAsRead"
+                >
+                  {{ uiText.markAll }}
+                </button>
+                <button type="button" class="notification-action-btn is-muted" @click="closeNotificationDropdown">
+                  {{ uiText.close || 'Close' }}
+                </button>
+              </div>
             </div>
             <p v-if="isLoadingNotifications" class="notification-empty">{{ uiText.loadingNotifications }}</p>
             <p v-else-if="notificationsError" class="notification-empty">{{ notificationsError }}</p>
             <p v-else-if="notificationItems.length === 0" class="notification-empty">{{ uiText.noNotifications }}</p>
             <ul v-else class="notification-list">
               <li v-for="item in notificationItems" :key="item.id">
-                <button
-                  type="button"
-                  class="notification-item"
-                  :class="{ unread: !item.is_read }"
-                  @click="openNotification(item)"
-                >
+                <article class="notification-item" :class="{ unread: !item.is_read }">
                   <div class="notification-item-top">
                     <span>{{ item.title }}</span>
                     <small>{{ item.createdLabel }}</small>
                   </div>
                   <p>{{ item.message }}</p>
-                </button>
+                  <div class="notification-item-actions">
+                    <button
+                      v-if="!item.is_read"
+                      type="button"
+                      class="notification-inline-btn is-muted"
+                      @click="markNotificationAsRead(item)"
+                    >
+                      {{ uiText.markRead || 'Mark read' }}
+                    </button>
+                    <button type="button" class="notification-inline-btn" @click="openNotification(item)">
+                      {{ uiText.open || 'Open' }}
+                    </button>
+                  </div>
+                </article>
               </li>
             </ul>
           </section>
         </div>
-        <button v-if="isLoggedIn" type="button" class="profile-btn" @click="openProfile">
-          {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
+        <button
+          v-if="isLoggedIn"
+          type="button"
+          class="profile-btn"
+          :title="String(currentUser?.name || 'Profile')"
+          @click="openProfile"
+        >
+          <img
+            v-if="String(currentUser?.profile_image_url || '').trim()"
+            class="profile-btn-img"
+            :src="currentUser.profile_image_url"
+            :alt="String(currentUser?.name || 'Profile image')"
+          />
+          <span v-else>
+            {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
+          </span>
         </button>
         <RouterLink v-else class="signin-btn" to="/legacy-app">{{ uiText.signIn }}</RouterLink>
       </div>
@@ -637,14 +675,21 @@ const bookingLink = computed(() => {
   position: relative;
   width: 42px;
   height: 42px;
-  border: 1px solid #d6dde9;
+  border: 1px solid #f1c9a8;
   border-radius: 14px;
-  background: #f9fafc;
-  color: #334155;
+  background: linear-gradient(145deg, #fff7ef 0%, #ffeeda 100%);
+  color: #b45309;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-btn:hover {
+  border-color: #e4b892;
+  background: linear-gradient(145deg, #ffffff 0%, #fff0df 100%);
+  box-shadow: 0 12px 26px rgba(212, 102, 19, 0.2);
 }
 
 .notification-icon svg {
@@ -659,7 +704,7 @@ const bookingLink = computed(() => {
   min-width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #e11d48;
+  background: linear-gradient(135deg, #ef4444 0%, #be123c 100%);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 800;
@@ -674,39 +719,66 @@ const bookingLink = computed(() => {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: min(360px, 90vw);
-  max-height: 420px;
+  width: min(420px, 92vw);
+  max-height: 520px;
   overflow: auto;
-  border: 1px solid #dde3ee;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(10, 28, 34, 0.1);
-  padding: 8px;
+  border: 1px solid #f1d0b5;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(212, 102, 19, 0.14) 0%, rgba(212, 102, 19, 0) 44%),
+    linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
+  box-shadow: 0 18px 42px rgba(146, 64, 14, 0.18);
+  padding: 10px;
   z-index: 90;
 }
 
 .notification-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 4px 8px;
+  gap: 10px;
+  padding: 4px 4px 10px;
+  border-bottom: 1px solid #f3dcc8;
+  margin-bottom: 4px;
 }
 
-.notification-mark-all {
-  border: 1px solid #d6dde9;
-  border-radius: 8px;
-  background: #fff;
-  color: #334155;
+.notification-head strong {
+  color: #b45309;
+  font-size: 0.95rem;
+}
+
+.notification-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.notification-action-btn {
+  border: 1px solid #f0cfb3;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff3e6 100%);
+  color: #9a3412;
   font-size: 0.8rem;
-  font-weight: 700;
-  padding: 4px 8px;
+  font-weight: 800;
+  padding: 5px 9px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-action-btn:hover {
+  border-color: #e2b88f;
+  background: linear-gradient(180deg, #ffffff 0%, #ffe9d2 100%);
+}
+
+.notification-action-btn.is-muted {
+  color: #7c5b40;
 }
 
 .notification-empty {
   margin: 0;
-  color: #64748b;
+  color: #7c5f46;
   font-size: 0.9rem;
   padding: 8px 6px;
 }
@@ -716,22 +788,23 @@ const bookingLink = computed(() => {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .notification-item {
-  width: 100%;
-  border: 1px solid #e2e8f3;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid #f1deca;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
   text-align: left;
-  padding: 8px;
-  cursor: pointer;
+  padding: 10px;
+  box-shadow: 0 8px 18px rgba(146, 64, 14, 0.08);
 }
 
 .notification-item.unread {
-  border-color: #f3c29d;
-  background: #fff8f1;
+  border-color: #e7b88f;
+  background:
+    linear-gradient(90deg, rgba(212, 102, 19, 0.2) 0 4px, transparent 4px),
+    linear-gradient(180deg, #fff8f2 0%, #ffffff 100%);
 }
 
 .notification-item-top {
@@ -741,22 +814,67 @@ const bookingLink = computed(() => {
 }
 
 .notification-item p {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-  color: #475569;
+  margin: 5px 0 0;
+  font-size: 0.86rem;
+  color: #6c5a48;
+}
+
+.notification-item-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.notification-inline-btn {
+  border: 1px solid #efcfb2;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fff8f1 0%, #ffefd9 100%);
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-inline-btn:hover {
+  border-color: #e2b98f;
+  background: linear-gradient(180deg, #ffffff 0%, #ffe7ce 100%);
+}
+
+.notification-inline-btn.is-muted {
+  background: #ffffff;
+  color: #7c5b40;
 }
 
 .profile-btn {
-  width: 42px;
-  height: 42px;
-  border: none;
+  width: 46px;
+  height: 46px;
+  border: 2px solid #efc7a8;
   border-radius: 999px;
-  background: #e79c53;
+  background: linear-gradient(180deg, #fff8f1 0%, #ffe9d2 100%);
   color: #fff;
   font: inherit;
   font-size: 1.15rem;
   font-weight: 800;
   cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(146, 64, 14, 0.18);
+  transition: all 0.2s ease;
+}
+
+.profile-btn:hover {
+  transform: translateY(-1px);
+  border-color: #e2ae82;
+  box-shadow: 0 12px 26px rgba(146, 64, 14, 0.24);
+}
+
+.profile-btn-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .signin-btn {
@@ -796,5 +914,6 @@ const bookingLink = computed(() => {
   .nav-search {
     width: min(100%, 520px);
   }
+
 }
 </style>
