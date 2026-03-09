@@ -65,6 +65,21 @@ class User extends Authenticatable
         return $this->hasMany(BookingNotification::class, 'recipient_user_id');
     }
 
+    public function vendorConversations(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class, 'vendor_user_id');
+    }
+
+    public function customerConversations(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class, 'customer_user_id');
+    }
+
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

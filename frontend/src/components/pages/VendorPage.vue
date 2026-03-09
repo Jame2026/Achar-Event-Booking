@@ -2,6 +2,10 @@
 const props = defineProps([
   'vendorProfile',
   'bindings',
+  'isVendorAccount',
+  'vendorServiceForm',
+  'isSubmittingVendorService',
+  'vendorServiceNotice',
   'stats',
   'reviews',
   'eventTypeOptions',
@@ -20,6 +24,7 @@ const props = defineProps([
   'getAvailabilityTone',
   'getAvailabilityLabel',
   'getAvailability',
+  'submitVendorService',
 ])
 </script>
 
@@ -78,6 +83,89 @@ const props = defineProps([
 
         <article v-else-if="props.bindings.activeVendorTab.value === 'services'" class="card services">
           <h2>Packages & Services</h2>
+
+          <form
+            v-if="props.isVendorAccount"
+            class="booking-inline-form"
+            style="grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px"
+            @submit.prevent="props.submitVendorService"
+          >
+            <input
+              :value="props.vendorServiceForm.value.title"
+              type="text"
+              placeholder="Service title"
+              @input="props.vendorServiceForm.value.title = $event.target.value"
+            />
+            <select
+              :value="props.vendorServiceForm.value.event_type"
+              @change="props.vendorServiceForm.value.event_type = $event.target.value"
+            >
+              <option
+                v-for="option in props.eventTypeOptions.filter((item) => item.value !== 'all')"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <input
+              :value="props.vendorServiceForm.value.location"
+              type="text"
+              placeholder="Location"
+              @input="props.vendorServiceForm.value.location = $event.target.value"
+            />
+            <input
+              :value="props.vendorServiceForm.value.starts_at"
+              type="datetime-local"
+              @input="props.vendorServiceForm.value.starts_at = $event.target.value"
+            />
+            <input
+              :value="props.vendorServiceForm.value.ends_at"
+              type="datetime-local"
+              @input="props.vendorServiceForm.value.ends_at = $event.target.value"
+            />
+            <input
+              :value="props.vendorServiceForm.value.price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Price"
+              @input="props.vendorServiceForm.value.price = Number($event.target.value)"
+            />
+            <input
+              :value="props.vendorServiceForm.value.capacity"
+              type="number"
+              min="0"
+              placeholder="Capacity (0 = unlimited)"
+              @input="props.vendorServiceForm.value.capacity = Number($event.target.value)"
+            />
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px">
+              <input
+                :checked="props.vendorServiceForm.value.is_active"
+                type="checkbox"
+                @change="props.vendorServiceForm.value.is_active = $event.target.checked"
+              />
+              Active
+            </label>
+            <textarea
+              :value="props.vendorServiceForm.value.description"
+              placeholder="Short service description"
+              style="grid-column: 1 / -1; min-height: 90px"
+              @input="props.vendorServiceForm.value.description = $event.target.value"
+            ></textarea>
+            <button
+              type="submit"
+              class="btn-light"
+              style="grid-column: 1 / -1"
+              :disabled="props.isSubmittingVendorService"
+            >
+              {{ props.isSubmittingVendorService ? "Saving service..." : "Add Service" }}
+            </button>
+          </form>
+
+          <p v-if="props.isVendorAccount && props.vendorServiceNotice" class="notice">
+            {{ props.vendorServiceNotice }}
+          </p>
 
           <div class="booking-inline-form">
             <input

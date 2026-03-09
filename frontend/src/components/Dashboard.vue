@@ -10,15 +10,17 @@
 
     <nav class="crumbs" aria-label="Breadcrumb">
       <router-link to="/">Home</router-link>
-      <span aria-hidden="true">›</span>
+      <span aria-hidden="true">ï¿½</span>
       <span class="current">Dashboard</span>
-      <span aria-hidden="true">›</span>
+      <span aria-hidden="true">ï¿½</span>
       <router-link to="/services">Services</router-link>
     </nav>
 
     <div class="header">
       <h1>Dashboard</h1>
-      <p class="subtitle">Manage your services and track your business performance.</p>
+      <p class="subtitle">
+        Manage your services and track your business performance.
+      </p>
     </div>
 
     <div class="dashboard-content">
@@ -38,15 +40,18 @@
       </div>
 
       <div class="actions">
-        <router-link to="/services" class="btn-primary">Manage Services</router-link>
-        <router-link to="/booking" class="btn-secondary">Add New Service</router-link>
+        <router-link to="/services" class="btn-primary"
+          >Manage Services</router-link
+        >
+        <router-link to="/booking" class="btn-secondary"
+          >Add New Service</router-link
+        >
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-</script>
+<script setup></script>
 
 <style scoped>
 .feature-nav {
@@ -124,4 +129,3 @@
   color: var(--color-text);
 }
 </style>
-

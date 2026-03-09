@@ -1,46 +1,99 @@
-const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/api\/?$/, '').replace(/\/$/, '')
-const API_BASE = `${API_ORIGIN}/api`
+function buildApiPath(path, query = {}) {
+  if (typeof path !== 'string' || !path.trim()) {
+    throw new Error(`Invalid API path: ${String(path)}`)
+  }
 
-export async function apiGet(path, query = {}) {
-  const url = new URL(`${API_BASE}/${path.replace(/^\//, '')}`)
+  const normalizedPath = path.replace(/^\/+/, '')
+  const params = new URLSearchParams()
+
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, value)
+      params.set(key, String(value))
     }
   })
-  const response = await fetch(url.toString())
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`)
+
+  const queryString = params.toString()
+  return `/api/${normalizedPath}${queryString ? `?${queryString}` : ''}`
+}
+
+async function readErrorMessage(response) {
+  const contentType = response.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    const errorBody = await response.json().catch(() => ({}))
+    const validationErrors = errorBody?.errors
+    if (validationErrors && typeof validationErrors === 'object') {
+      const firstMessage = Object.values(validationErrors).flat().find(Boolean)
+      if (firstMessage) return String(firstMessage)
+    }
+    if (errorBody?.message) return String(errorBody.message)
+  } else {
+    const text = await response.text().catch(() => '')
+    if (text.trim()) return text.trim()
   }
+
+  return `Request failed (${response.status})`
+}
+
+async function readJsonResponse(response, requestPath) {
+  const contentType = response.headers.get('content-type') || ''
+
+  if (!contentType.includes('application/json')) {
+    const text = await response.text().catch(() => '')
+    const sample = text.trim().slice(0, 120)
+    const responseUrl = response.url || 'unknown URL'
+    const statusLabel = `${response.status} ${response.statusText}`.trim()
+
+    throw new Error(
+      sample.startsWith('<')
+        ? `API returned HTML instead of JSON for ${requestPath}; response URL was ${responseUrl} (${statusLabel}).`
+        : `API returned an unexpected response format for ${requestPath}; response URL was ${responseUrl} (${statusLabel}, content-type: ${contentType || 'unknown'}).`,
+    )
+  }
+
   return response.json()
+}
+
+async function requestApi(method, path, { payload, query } = {}) {
+  const requestPath = buildApiPath(path, query)
+  const isFormData = payload instanceof FormData
+  const headers = {
+    Accept: 'application/json',
+  }
+
+  if (!isFormData && payload !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  const response = await fetch(requestPath, {
+    method,
+    headers,
+    body: payload === undefined ? undefined : isFormData ? payload : JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response))
+  }
+
+  if (method === 'DELETE') {
+    return null
+  }
+
+  return readJsonResponse(response, requestPath)
+}
+
+export async function apiGet(path, query = {}) {
+  return requestApi('GET', path, { query })
 }
 
 export async function apiPost(path, payload) {
-  const response = await fetch(`${API_BASE}/${path.replace(/^\//, '')}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.message || 'Request failed')
-  }
-
-  return response.json()
+  return requestApi('POST', path, { payload })
 }
 
 export async function apiPatch(path, payload = {}) {
-  const response = await fetch(`${API_BASE}/${path.replace(/^\//, '')}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+  return requestApi('PATCH', path, { payload })
+}
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.message || 'Request failed')
-  }
-
-  return response.json()
+export async function apiDelete(path, query = {}) {
+  return requestApi('DELETE', path, { query })
 }

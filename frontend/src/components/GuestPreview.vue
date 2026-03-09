@@ -1,11 +1,13 @@
-<script setup>
-import { computed, ref, watch } from "vue";
+﻿<script setup>
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
 import CustomizationPage from "./pages/CustomizationPage.vue";
 import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
+import { apiGet } from "../features/apiClient";
+import { useLanguage } from "../features/language";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -27,52 +29,117 @@ const props = defineProps({
 });
 const section = computed(() => props.section);
 const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
+const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+const { language } = useLanguage();
+const copyByLanguage = {
+  en: {
+    favorite: "Favorite",
+    favoriteSub: "Your saved packages and services.",
+    favoriteText: "Favorites are saved on this device. Sign in to sync across your account.",
+    myBooking: "My Booking",
+    bookingSub: "No booking data yet.",
+    bookingText: "Sign in to view your booking history, upcoming events, and confirmations.",
+    servicePackages: "Service Packages",
+    packageSub: "Browse available packages by event type.",
+    packageText: "Click any package card to see full details and included services.",
+    overallService: "Overall Service",
+    overallSub: "No overall service data yet.",
+    overallText: "Sign in to select multiple services and packages for pre-booking.",
+    customization: "Customization",
+    customSub: "No customization data yet.",
+    customText: "Sign in to customize your package and save your selected services.",
+    dashboard: "Dashboard",
+    dashboardSub: "No dashboard data yet.",
+    dashboardText: "Sign in to view your dashboard, activity, and quick actions.",
+  },
+  km: {
+    favorite: "ចូលចិត្ត",
+    favoriteSub: "កញ្ចប់ និងសេវាកម្មដែលបានរក្សាទុក។",
+    favoriteText: "ចំណូលចិត្តត្រូវបានរក្សាទុកលើឧបករណ៍នេះ។ សូមចូលប្រើ ដើម្បីសមកាលកម្មគណនី។",
+    myBooking: "ការកក់របស់ខ្ញុំ",
+    bookingSub: "មិនទាន់មានទិន្នន័យកក់ទេ។",
+    bookingText: "សូមចូលប្រើ ដើម្បីមើលប្រវត្តិ និងការកក់ខាងមុខ។",
+    servicePackages: "កញ្ចប់សេវាកម្ម",
+    packageSub: "រកមើលកញ្ចប់តាមប្រភេទព្រឹត្តិការណ៍។",
+    packageText: "ចុចកាតណាមួយ ដើម្បីមើលលម្អិត និងសេវាកម្មរួម។",
+    overallService: "សេវាកម្មទូទៅ",
+    overallSub: "មិនទាន់មានទិន្នន័យសេវាទូទៅ។",
+    overallText: "សូមចូលប្រើ ដើម្បីជ្រើសសេវាកម្មជាច្រើនសម្រាប់ការកក់ជាមុន។",
+    customization: "កែតម្រូវ",
+    customSub: "មិនទាន់មានទិន្នន័យកែតម្រូវ។",
+    customText: "សូមចូលប្រើ ដើម្បីកែតម្រូវកញ្ចប់ និងរក្សាទុកជម្រើស។",
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    dashboardSub: "មិនទាន់មានទិន្នន័យផ្ទាំងគ្រប់គ្រង។",
+    dashboardText: "សូមចូលប្រើ ដើម្បីមើលសកម្មភាព និងមុខងាររហ័ស។",
+  },
+  zh: {
+    favorite: "收藏",
+    favoriteSub: "您保存的套餐与服务。",
+    favoriteText: "收藏保存在当前设备。登录后可与账户同步。",
+    myBooking: "我的预订",
+    bookingSub: "暂无预订数据。",
+    bookingText: "登录后可查看历史、即将到来的活动与确认信息。",
+    servicePackages: "服务套餐",
+    packageSub: "按活动类型浏览可用套餐。",
+    packageText: "点击任意套餐卡片可查看详细内容与包含服务。",
+    overallService: "综合服务",
+    overallSub: "暂无综合服务数据。",
+    overallText: "登录后可选择多个服务与套餐进行预订。",
+    customization: "定制",
+    customSub: "暂无定制数据。",
+    customText: "登录后可定制套餐并保存所选服务。",
+    dashboard: "控制台",
+    dashboardSub: "暂无控制台数据。",
+    dashboardText: "登录后可查看您的控制台、活动与快捷操作。",
+  },
+};
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 
 const pageContent = computed(() => {
   if (props.section === "favorite") {
     return {
-      title: "Favorite",
-      subtitle: "Your saved packages and services.",
-      text: "Favorites are saved on this device. Sign in to sync across your account.",
+      title: uiText.value.favorite,
+      subtitle: uiText.value.favoriteSub,
+      text: uiText.value.favoriteText,
     };
   }
 
   if (props.section === "bookings") {
     return {
-      title: "My Booking",
-      subtitle: "No booking data yet.",
-      text: "Sign in to view your booking history, upcoming events, and confirmations.",
+      title: uiText.value.myBooking,
+      subtitle: uiText.value.bookingSub,
+      text: uiText.value.bookingText,
     };
   }
 
   if (props.section === "services-packages") {
     return {
-      title: "Service Packages",
-      subtitle: "Browse available packages by event type.",
-      text: "Click any package card to see full details and included services.",
+      title: uiText.value.servicePackages,
+      subtitle: uiText.value.packageSub,
+      text: uiText.value.packageText,
     };
   }
 
   if (props.section === "services-overall") {
     return {
-      title: "Overall Service",
-      subtitle: "No overall service data yet.",
-      text: "Sign in to select multiple services and packages for pre-booking.",
+      title: uiText.value.overallService,
+      subtitle: uiText.value.overallSub,
+      text: uiText.value.overallText,
     };
   }
 
   if (props.section === "customization") {
     return {
-      title: "Customization",
-      subtitle: "No customization data yet.",
-      text: "Sign in to customize your package and save your selected services.",
+      title: uiText.value.customization,
+      subtitle: uiText.value.customSub,
+      text: uiText.value.customText,
     };
   }
 
   return {
-    title: "Dashboard",
-    subtitle: "No dashboard data yet.",
-    text: "Sign in to view your dashboard, activity, and quick actions.",
+    title: uiText.value.dashboard,
+    subtitle: uiText.value.dashboardSub,
+    text: uiText.value.dashboardText,
   };
 });
 
@@ -87,6 +154,7 @@ const customizationQuantity = ref(1);
 const selectedPackageId = ref(null);
 const packageQuantity = ref(1);
 const selectedServiceIds = ref([]);
+const expandedServiceId = ref(null);
 const packageEventType = ref("all");
 const packageSearch = ref("");
 const overallQuantity = ref(1);
@@ -117,6 +185,35 @@ const selectedSearchQuery = computed(() => {
   const val = route.query.q;
   return typeof val === "string" ? val : "";
 });
+const selectedPackageQuery = computed(() => {
+  const val = route.query.package;
+  return typeof val === "string" ? val.trim() : "";
+});
+const selectedServiceQuery = computed(() => {
+  const val = route.query.service;
+  return typeof val === "string" ? val.trim() : "";
+});
+const isFromCheckout = ref(
+  route.query.from === "checkout" ||
+    sessionStorage.getItem(CHECKOUT_FLOW_FLAG_KEY) === "1",
+);
+const focusedCardKey = ref("");
+let focusedCardTimer = null;
+
+watch(
+  () => route.query.from,
+  (value) => {
+    if (value === "checkout") {
+      isFromCheckout.value = true;
+      sessionStorage.setItem(CHECKOUT_FLOW_FLAG_KEY, "1");
+      return;
+    }
+    if (sessionStorage.getItem(CHECKOUT_FLOW_FLAG_KEY) === "1") {
+      isFromCheckout.value = true;
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   selectedEventFilter,
@@ -166,8 +263,69 @@ const savedFavorites = (() => {
 })();
 const favoritePackageIds = ref(savedFavorites.packageIds);
 const favoriteServiceIds = ref(savedFavorites.serviceIds);
+const liveVendorEvents = ref([]);
+
+function formatEventDateLabel(value) {
+  if (!value) return "Date TBD";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Date TBD";
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function mapEventToGuestPackage(item) {
+  const eventType = String(item.event_type || "other");
+  const price = Number(item.price || 0);
+  const vendorName = String(item.vendor?.name || "Verified Vendor");
+  return {
+    id: `live-package-${item.id}`,
+    title: String(item.title || "Service Booking"),
+    eventType,
+    eventTypeLabel: eventTypeMap[eventType] || "Other",
+    description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+    location: item.location || "Location TBD",
+    date: formatEventDateLabel(item.starts_at),
+    price,
+    priceLabel: `From $${price.toLocaleString()}`,
+    image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
+    services: buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
+    isPreview: false,
+    backingEventId: Number(item.id || 0) || null,
+    vendorName,
+  };
+}
+
+function mapEventToGuestService(item) {
+  const eventType = String(item.event_type || "other");
+  return {
+    id: `live-service-${item.id}`,
+    name: String(item.title || "Service Booking"),
+    description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
+    price: Number(item.price || 0),
+    eventTypes: [eventType],
+    backingEventId: Number(item.id || 0) || null,
+    vendorName: String(item.vendor?.name || "Verified Vendor"),
+    location: item.location || "Location TBD",
+  };
+}
+
+async function loadLiveVendorEvents() {
+  try {
+    const result = await apiGet("events");
+    liveVendorEvents.value = Array.isArray(result.data) ? result.data : [];
+  } catch {
+    liveVendorEvents.value = [];
+  }
+}
 
 const guestPreviewPackages = computed(() => {
+  if (liveVendorEvents.value.length) {
+    return liveVendorEvents.value.map(mapEventToGuestPackage);
+  }
+
   const rows = [];
   Object.entries(packageCatalogByEventType).forEach(([eventType, entries]) => {
     entries.forEach((entry) => {
@@ -192,6 +350,11 @@ const guestPreviewPackages = computed(() => {
   return rows;
 });
 
+const servicesCatalog = computed(() => {
+  const liveRows = liveVendorEvents.value.map(mapEventToGuestService);
+  return liveRows.length ? [...liveRows, ...matchingServicesCatalog] : matchingServicesCatalog;
+});
+
 const selectedPackage = computed(
   () =>
     guestPreviewPackages.value.find((item) => item.id === selectedPackageId.value) ||
@@ -199,7 +362,7 @@ const selectedPackage = computed(
 );
 
 const selectedServices = computed(() =>
-  matchingServicesCatalog.filter((service) => selectedServiceIds.value.includes(service.id)),
+  servicesCatalog.value.filter((service) => selectedServiceIds.value.includes(service.id)),
 );
 
 const packagePrice = computed(() => {
@@ -232,6 +395,7 @@ function toggleServiceDetails(id) {
 const activePackageId = ref(null);
 const showPrebookModal = ref(false);
 const prebookTargetTitle = ref("");
+const prebookTargetPackageId = ref(null);
 const prebookForm = ref({
   fullName: "",
   email: "",
@@ -245,7 +409,10 @@ const prebookForm = ref({
 });
 const prebookSuccess = ref("");
 const isDetectingPrebookLocation = ref(false);
+const isResolvingTypedPrebookLocation = ref(false);
+const lastResolvedPrebookLocationQuery = ref("");
 const prebookLocationNotice = ref("");
+let typedLocationResolveTimer = null;
 const activePackage = computed(
   () =>
     guestPreviewPackages.value.find(
@@ -276,7 +443,7 @@ const matchingServicesFiltered = computed(() => {
       ? packageSearch.value.trim().toLowerCase()
       : customizationSearch.value.trim().toLowerCase();
   const filter = customizationEventType.value;
-  return matchingServicesCatalog.filter((s) => {
+  return servicesCatalog.value.filter((s) => {
     const matchesType =
       !filter ||
       filter === "all" ||
@@ -298,7 +465,9 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
-  prebookTargetTitle.value = activePackage.value?.title || "Selected Vendor";
+  const targetPackage = activePackage.value || selectedPackage.value;
+  prebookTargetPackageId.value = targetPackage?.id || null;
+  prebookTargetTitle.value = targetPackage?.title || "Selected Vendor";
   prebookForm.value = {
     fullName: "",
     email: "",
@@ -312,21 +481,119 @@ function openPrebookForm() {
   };
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
+  isResolvingTypedPrebookLocation.value = false;
+  lastResolvedPrebookLocationQuery.value = "";
   closePackageDetails();
   showPrebookModal.value = true;
 }
 
 function closePrebookModal() {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
   showPrebookModal.value = false;
 }
 
-function submitPrebookForm() {
+function hasValidPrebookCoordinates() {
+  return Number.isFinite(Number(prebookForm.value.latitude)) && Number.isFinite(Number(prebookForm.value.longitude));
+}
+
+async function resolveTypedPrebookLocation() {
+  const query = String(prebookForm.value.location || "").trim();
+  if (!query) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    lastResolvedPrebookLocationQuery.value = "";
+    prebookLocationNotice.value = "Enter a location to pin it on the map.";
+    return false;
+  }
+
+  const normalizedQuery = query.toLowerCase().replace(/\s+/g, " ");
+  if (normalizedQuery === lastResolvedPrebookLocationQuery.value && hasValidPrebookCoordinates()) {
+    return true;
+  }
+
+  isResolvingTypedPrebookLocation.value = true;
+  prebookLocationNotice.value = "Finding your typed location...";
+  prebookForm.value.latitude = null;
+  prebookForm.value.longitude = null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "en",
+      },
+    });
+    if (!response.ok) {
+      throw new Error("geocode failed");
+    }
+    const rows = await response.json();
+    const best = Array.isArray(rows) ? rows[0] : null;
+    const lat = Number(best?.lat);
+    const lng = Number(best?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      prebookLocationNotice.value = "Location not found. Add city or full address.";
+      return false;
+    }
+
+    prebookForm.value.latitude = Number(lat.toFixed(6));
+    prebookForm.value.longitude = Number(lng.toFixed(6));
+    if (String(best?.display_name || "").trim()) {
+      prebookForm.value.location = String(best.display_name).trim();
+    }
+    lastResolvedPrebookLocationQuery.value = normalizedQuery;
+    prebookLocationNotice.value = "Location captured from your address.";
+    return true;
+  } catch {
+    prebookLocationNotice.value = "Could not match this location right now.";
+    return false;
+  } finally {
+    isResolvingTypedPrebookLocation.value = false;
+  }
+}
+
+function scheduleTypedPrebookLocationResolve() {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
+  const query = String(prebookForm.value.location || "").trim();
+  if (!query) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    lastResolvedPrebookLocationQuery.value = "";
+    prebookLocationNotice.value = "";
+    return;
+  }
+  if (query.length < 4) {
+    prebookForm.value.latitude = null;
+    prebookForm.value.longitude = null;
+    prebookLocationNotice.value = "";
+    return;
+  }
+  typedLocationResolveTimer = setTimeout(() => {
+    typedLocationResolveTimer = null;
+    void resolveTypedPrebookLocation();
+  }, 700);
+}
+
+async function submitPrebookForm() {
+  const resolved = await resolveTypedPrebookLocation();
+  if (!resolved) return;
+
   const usingOverallFlow = section.value === "services-overall";
   const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
   const checkoutItems = [];
+  const targetPackage =
+    guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) ||
+    selectedPackage.value ||
+    activePackage.value;
 
   if (!usingOverallFlow) {
-    const pkg = selectedPackage.value || activePackage.value;
+    const pkg = targetPackage;
     if (pkg) {
       checkoutItems.push({
         type: "package",
@@ -361,10 +628,9 @@ function submitPrebookForm() {
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
-    requestedEventType:
-      selectedPackage.value?.eventType ||
-      activePackage.value?.eventType ||
-      (usingOverallFlow ? customizationEventType.value : "other"),
+    requestedEventType: usingOverallFlow
+      ? customizationEventType.value
+      : targetPackage?.eventType || "other",
     items: checkoutItems,
   };
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
@@ -445,6 +711,10 @@ function detectPrebookLocation() {
       prebookForm.value.latitude = lat;
       prebookForm.value.longitude = lng;
       prebookForm.value.location = placeName || `${lat}, ${lng}`;
+      lastResolvedPrebookLocationQuery.value = String(prebookForm.value.location || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
       prebookLocationNotice.value = "Current location captured.";
       isDetectingPrebookLocation.value = false;
     },
@@ -472,6 +742,92 @@ function toggleService(id) {
   } else {
     selectedServiceIds.value.splice(idx, 1);
   }
+}
+
+function toggleServiceDetails(id) {
+  expandedServiceId.value = expandedServiceId.value === id ? null : id;
+}
+
+function clearFocusedCard() {
+  if (focusedCardTimer) {
+    clearTimeout(focusedCardTimer);
+    focusedCardTimer = null;
+  }
+  focusedCardKey.value = "";
+}
+
+function markFocusedCard(key) {
+  clearFocusedCard();
+  focusedCardKey.value = key;
+  focusedCardTimer = setTimeout(() => {
+    focusedCardKey.value = "";
+    focusedCardTimer = null;
+  }, 1800);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findPackageByTitle(title) {
+  const target = normalizeText(title);
+  if (!target) return null;
+  return (
+    guestPreviewPackages.value.find((pkg) => normalizeText(pkg.title) === target) ||
+    guestPreviewPackages.value.find((pkg) => normalizeText(pkg.title).includes(target)) ||
+    null
+  );
+}
+
+function findServiceByName(name) {
+  const target = normalizeText(name);
+  if (!target) return null;
+  return (
+    matchingServicesCatalog.find((service) => normalizeText(service.name) === target) ||
+    matchingServicesCatalog.find((service) => normalizeText(service.name).includes(target)) ||
+    null
+  );
+}
+
+async function focusPackageFromCheckout(targetName) {
+  const pkg = findPackageByTitle(targetName);
+  if (!pkg) return;
+
+  packageEventType.value = pkg.eventType || "all";
+  packageSearch.value = pkg.title;
+  selectedPackageId.value = pkg.id;
+
+  await nextTick();
+  const cardId = `package-card-${pkg.id}`;
+  const el = document.getElementById(cardId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  markFocusedCard(cardId);
+}
+
+async function focusServiceFromCheckout(targetName) {
+  const svc = findServiceByName(targetName);
+  if (!svc) return;
+
+  const firstEventType = Array.isArray(svc.eventTypes) && svc.eventTypes.length
+    ? svc.eventTypes[0]
+    : "all";
+  customizationEventType.value = firstEventType || "all";
+  customizationSearch.value = svc.name;
+  if (!selectedServiceIds.value.includes(svc.id)) {
+    selectedServiceIds.value.push(svc.id);
+  }
+  expandedServiceId.value = svc.id;
+
+  await nextTick();
+  const cardId = `service-card-${svc.id}`;
+  const el = document.getElementById(cardId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  markFocusedCard(cardId);
 }
 
 function packageQtyChanged(e) {
@@ -542,7 +898,7 @@ const favoritePackages = computed(() =>
 );
 
 const favoriteServices = computed(() =>
-  matchingServicesCatalog.filter((service) =>
+  servicesCatalog.value.filter((service) =>
     favoriteServiceIds.value.includes(service.id),
   ),
 );
@@ -592,6 +948,33 @@ watch(
   },
   { immediate: true },
 );
+watch(
+  [() => section.value, () => route.query.from, selectedPackageQuery, guestPreviewPackages],
+  async ([currentSection, from, targetPackage]) => {
+    if (currentSection !== "services-packages" || from !== "checkout" || !targetPackage) return;
+    await focusPackageFromCheckout(targetPackage);
+  },
+  { immediate: true },
+);
+watch(
+  [() => section.value, () => route.query.from, selectedServiceQuery, matchingServicesFiltered],
+  async ([currentSection, from, targetService]) => {
+    if (currentSection !== "services-overall" || from !== "checkout" || !targetService) return;
+    await focusServiceFromCheckout(targetService);
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  void loadLiveVendorEvents();
+});
+
+onUnmounted(() => {
+  if (typedLocationResolveTimer) {
+    clearTimeout(typedLocationResolveTimer);
+    typedLocationResolveTimer = null;
+  }
+});
 
 function favoriteQtyChanged(e) {
   const val = Number(e.target.value);
@@ -603,6 +986,7 @@ function openFavoritePrebookForm() {
   selectedPackageId.value = favoriteSelectedPackage.value?.id || null;
   selectedServiceIds.value = [...favoriteSelectedServiceIds.value];
   packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
+  prebookTargetPackageId.value = favoriteSelectedPackage.value?.id || null;
   prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
   prebookForm.value = {
     fullName: "",
@@ -617,6 +1001,8 @@ function openFavoritePrebookForm() {
   };
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
+  isResolvingTypedPrebookLocation.value = false;
+  lastResolvedPrebookLocationQuery.value = "";
   showPrebookModal.value = true;
 }
 
@@ -637,6 +1023,31 @@ const overallSlotItems = computed(() =>
     booked: overallDateBooked.value || isSlotLikelyBooked(overallAvailabilityDate.value, value),
   })),
 );
+const selectedAvailabilityDateLabel = computed(() => {
+  const value = String(overallAvailabilityDate.value || "").trim();
+  if (!value) return "No date selected";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+});
+const availabilitySlotGroups = computed(() => {
+  const groups = [
+    { key: "morning", label: "Morning", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
+    { key: "afternoon", label: "Afternoon", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
+    { key: "evening", label: "Evening", slots: ["07:00 PM", "08:30 PM"] },
+  ];
+  return groups.map((group) => ({
+    ...group,
+    items: group.slots
+      .map((value) => overallSlotItems.value.find((slot) => slot.value === value))
+      .filter(Boolean),
+  }));
+});
 const overallAvailabilityState = computed(() => {
   if (!overallAvailabilityDate.value) return { label: "Pick a date", tone: "neutral" };
   if (overallDateBooked.value) return { label: "Booked on selected date", tone: "booked" };
@@ -699,56 +1110,64 @@ function noop() {}
         v-else-if="section === 'services-packages'"
         class="package-layout"
       >
-        <div class="package-layout-main">
-          <section class="package-head card">
-            <div class="package-head-main">
+        <section class="package-head card">
+          <div class="package-head-main">
+            <div class="flow-head-row">
               <h1>Service Packages</h1>
-              <p>
-                Browse available packages by event type. Search quickly and
-                choose the best fit for your event.
-              </p>
-              <div class="package-toolbar">
-                <label class="filter-field">
-                  <span>Event type</span>
-                  <select
-                    class="event-type-select"
-                    :value="packageEventType"
-                    @change="packageEventType = $event.target.value"
-                  >
-                    <option
-                      v-for="option in eventTypeOptions"
-                      :key="`pkg-${option.value}`"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </label>
-                <label class="filter-field">
-                  <span>Search</span>
-                  <input
-                    class="customization-search"
-                    type="search"
-                    placeholder="Search packages..."
-                    :value="packageSearch"
-                    @input="packageSearch = $event.target.value"
-                  />
-                </label>
-                <div class="package-count">
-                  {{ guestPreviewPackagesFiltered.length }} package{{
-                    guestPreviewPackagesFiltered.length === 1 ? "" : "s"
-                  }}
-                </div>
+              <div v-if="isFromCheckout" class="checkout-flow-steps">
+                <RouterLink
+                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+                  class="step-link active"
+                >
+                  1 Services
+                </RouterLink>
+                <RouterLink to="/checkout" class="step-link">
+                  2 Review &amp; Payment
+                </RouterLink>
               </div>
             </div>
-          </section>
-
-          <div class="package-catalog">
-            <div class="package-catalog-head">
-              <p class="event-filter-note">
-                {{ packageEventType === "all" ? "Showing all packages" : `Showing packages for ${eventTypeMap[packageEventType] || packageEventType}` }}
-              </p>
+            <p>
+              Browse available packages by event type. Search quickly and
+              choose the best fit for your event.
+            </p>
+            <div class="package-toolbar">
+              <label class="filter-field">
+                <span>Event type</span>
+                <select
+                  class="event-type-select"
+                  :value="packageEventType"
+                  @change="packageEventType = $event.target.value"
+                >
+                  <option
+                    v-for="option in eventTypeOptions"
+                    :key="`pkg-${option.value}`"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Search</span>
+                <input
+                  class="customization-search"
+                  type="search"
+                  placeholder="Search packages..."
+                  :value="packageSearch"
+                  @input="packageSearch = $event.target.value"
+                />
+              </label>
+              <div class="package-count">
+                {{ guestPreviewPackagesFiltered.length }} package{{
+                  guestPreviewPackagesFiltered.length === 1 ? "" : "s"
+                }}
+              </div>
             </div>
+          </div>
+        </section>
+
+        <div class="package-layout-main">
+          <div class="package-catalog">
             <div class="package-grid">
               <p
                 v-if="guestPreviewPackagesFiltered.length === 0"
@@ -760,6 +1179,8 @@ function noop() {}
                 v-for="item in guestPreviewPackagesFiltered"
                 :key="item.id"
                 class="package-product-card"
+                :id="`package-card-${item.id}`"
+                :class="{ 'focused-target-card': focusedCardKey === `package-card-${item.id}` }"
                 role="button"
                 tabindex="0"
                 @click="openPackageDetails(item.id)"
@@ -779,7 +1200,7 @@ function noop() {}
                         :class="{ active: isPackageFavorite(item.id) }"
                         @click.stop="toggleFavoritePackage(item.id)"
                       >
-                        {{ isPackageFavorite(item.id) ? "♥" : "♡" }}
+                        {{ isPackageFavorite(item.id) ? "\u2665" : "\u2661" }}
                       </button>
                       <button
                         type="button"
@@ -803,31 +1224,6 @@ function noop() {}
               </article>
             </div>
             <!-- services below packages on the same page -->
-            <div class="service-section">
-              <h2>Matching Services</h2>
-              <div
-                v-if="matchingServicesFiltered.length === 0"
-                class="card empty-state"
-              >
-                No matching services for this event type.
-              </div>
-              <div class="addon-grid">
-                <ServiceCard
-                  v-for="service in matchingServicesFiltered"
-                  :key="service.id"
-                  :service="service"
-                  :is-selected="selectedServiceIds.includes(service.id)"
-                  :is-expanded="expandedServiceIds.includes(service.id)"
-                  :is-favorite="isServiceFavorite(service.id)"
-                  :event-type-map="eventTypeMap"
-                  :service-fee-rate="serviceFeeRate"
-                  @toggle-service="toggleService(service.id)"
-                  @toggle-details="toggleServiceDetails"
-                  @message="goToSignIn"
-                  @toggle-favorite="toggleFavoriteService"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -889,6 +1285,73 @@ function noop() {}
             <strong>${{ totalPrice.toLocaleString() }}</strong>
           </div>
 
+          <div class="overall-availability-check">
+            <h3>Check Availability</h3>
+            <div class="availability-intro">
+              <h4>Select an Event Date</h4>
+              <p>Please pick your preferred date to see available time slots.</p>
+            </div>
+            <label class="availability-date-field">
+              <span>Event date</span>
+              <input
+                type="date"
+                :value="overallAvailabilityDate"
+                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
+                @input="overallDateChanged"
+              />
+            </label>
+
+            <div class="availability-legend">
+              <span><i class="availability-dot availability-dot-available"></i>Available</span>
+              <span><i class="availability-dot availability-dot-booked"></i>Booked</span>
+              <span><i class="availability-dot availability-dot-selected"></i>Selected</span>
+            </div>
+
+            <div class="availability-time-head">
+              <h4>Available Time Slots</h4>
+              <span>{{ selectedAvailabilityDateLabel }}</span>
+            </div>
+            <div
+              v-for="group in availabilitySlotGroups"
+              :key="group.key"
+              class="availability-period"
+            >
+              <p class="availability-period-title">
+                {{ group.label }}
+              </p>
+              <div class="availability-slot-grid">
+                <button
+                  v-for="slot in group.items"
+                  :key="slot.value"
+                  type="button"
+                  class="availability-slot-btn"
+                  :class="{
+                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
+                    booked: slot.booked,
+                  }"
+                  :disabled="slot.booked"
+                  @click="selectOverallSlot(slot.value)"
+                >
+                  {{ slot.booked ? "Booked" : slot.value }}
+                </button>
+              </div>
+            </div>
+
+            <div class="availability-selection">
+              <span>Selected Date</span>
+              <strong>{{ selectedAvailabilityDateLabel }}</strong>
+            </div>
+            <div
+              class="availability-state"
+              :class="{
+                available: overallAvailabilityState.tone === 'available',
+                booked: overallAvailabilityState.tone === 'booked',
+              }"
+            >
+              {{ overallAvailabilityState.label }}
+            </div>
+          </div>
+
           <button type="button" class="confirm-selection" @click="openPrebookForm">
             Pre-book Now
           </button>
@@ -935,7 +1398,20 @@ function noop() {}
       >
         <section class="overall-head card">
           <div class="overall-head-main">
-            <h1>General Services</h1>
+            <div class="flow-head-row">
+              <h1>General Services</h1>
+              <div v-if="isFromCheckout" class="checkout-flow-steps">
+                <RouterLink
+                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+                  class="step-link active"
+                >
+                  1 Services
+                </RouterLink>
+                <RouterLink to="/checkout" class="step-link">
+                  2 Review &amp; Payment
+                </RouterLink>
+              </div>
+            </div>
             <p>
               Browse all available add-on services. Filter by event type, then
               save favorites before signing in.
@@ -991,20 +1467,26 @@ function noop() {}
               </div>
 
               <div class="addon-grid">
-                <ServiceCard
+                <div
                   v-for="service in matchingServicesFiltered"
                   :key="service.id"
-                  :service="service"
-                  :is-selected="selectedServiceIds.includes(service.id)"
-                  :is-expanded="expandedServiceIds.includes(service.id)"
-                  :is-favorite="isServiceFavorite(service.id)"
-                  :event-type-map="eventTypeMap"
-                  :service-fee-rate="serviceFeeRate"
-                  @toggle-service="toggleService(service.id)"
-                  @toggle-details="toggleServiceDetails"
-                  @message="goToSignIn"
-                  @toggle-favorite="toggleFavoriteService"
-                />
+                  :id="`service-card-${service.id}`"
+                  class="service-card-anchor"
+                  :class="{ 'focused-target-card': focusedCardKey === `service-card-${service.id}` }"
+                >
+                  <ServiceCard
+                    :service="service"
+                    :is-selected="selectedServiceIds.includes(service.id)"
+                    :is-expanded="expandedServiceId === service.id"
+                    :is-favorite="isServiceFavorite(service.id)"
+                    :event-type-map="eventTypeMap"
+                    :service-fee-rate="serviceFeeRate"
+                    @toggle-service="toggleService(service.id)"
+                    @toggle-details="toggleServiceDetails"
+                    @message="goToSignIn"
+                    @toggle-favorite="toggleFavoriteService"
+                  />
+                </div>
               </div>
             </article>
           </div>
@@ -1061,6 +1543,10 @@ function noop() {}
 
           <div class="overall-availability-check">
             <h3>Check Availability</h3>
+            <div class="availability-intro">
+              <h4>Select an Event Date</h4>
+              <p>Please pick your preferred date to see available time slots.</p>
+            </div>
             <label class="availability-date-field">
               <span>Event date</span>
               <input
@@ -1070,21 +1556,46 @@ function noop() {}
                 @input="overallDateChanged"
               />
             </label>
-            <div class="availability-slot-grid">
-              <button
-                v-for="slot in overallSlotItems"
-                :key="slot.value"
-                type="button"
-                class="availability-slot-btn"
-                :class="{
-                  selected: overallAvailabilitySlot === slot.value && !slot.booked,
-                  booked: slot.booked,
-                }"
-                :disabled="slot.booked"
-                @click="selectOverallSlot(slot.value)"
-              >
-                {{ slot.booked ? "Booked" : slot.value }}
-              </button>
+
+            <div class="availability-legend">
+              <span><i class="availability-dot availability-dot-available"></i>Available</span>
+              <span><i class="availability-dot availability-dot-booked"></i>Booked</span>
+              <span><i class="availability-dot availability-dot-selected"></i>Selected</span>
+            </div>
+
+            <div class="availability-time-head">
+              <h4>Available Time Slots</h4>
+              <span>{{ selectedAvailabilityDateLabel }}</span>
+            </div>
+            <div
+              v-for="group in availabilitySlotGroups"
+              :key="group.key"
+              class="availability-period"
+            >
+              <p class="availability-period-title">
+                {{ group.label }}
+              </p>
+              <div class="availability-slot-grid">
+                <button
+                  v-for="slot in group.items"
+                  :key="slot.value"
+                  type="button"
+                  class="availability-slot-btn"
+                  :class="{
+                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
+                    booked: slot.booked,
+                  }"
+                  :disabled="slot.booked"
+                  @click="selectOverallSlot(slot.value)"
+                >
+                  {{ slot.booked ? "Booked" : slot.value }}
+                </button>
+              </div>
+            </div>
+
+            <div class="availability-selection">
+              <span>Selected Date</span>
+              <strong>{{ selectedAvailabilityDateLabel }}</strong>
             </div>
             <div
               class="availability-state"
@@ -1258,7 +1769,7 @@ function noop() {}
             class="package-modal-close"
             @click="closePackageDetails"
           >
-            ×
+            &times;
           </button>
         </div>
         <img
@@ -1354,18 +1865,18 @@ function noop() {}
               type="text"
               required
               placeholder="City / Venue address"
+              @input="scheduleTypedPrebookLocationResolve"
             />
           </label>
           <div class="prebook-location-tools">
             <button
               type="button"
               class="modal-action-btn modal-action-neutral"
-              :disabled="isDetectingPrebookLocation"
+              :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
               @click="detectPrebookLocation"
             >
               {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
             </button>
-            <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
             <p
               v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
               class="prebook-location-coords"
@@ -1453,6 +1964,13 @@ function noop() {}
   line-height: 1.02;
 }
 
+.flow-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .overall-head-main p {
   margin: 12px 0 0;
   color: #64748b;
@@ -1503,9 +2021,18 @@ function noop() {}
   align-items: start;
 }
 
+.overall-list {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .overall-summary {
   position: sticky;
   top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   height: fit-content;
   border-radius: 24px;
 }
@@ -1547,6 +2074,18 @@ function noop() {}
   font-size: 17px;
 }
 
+.availability-intro h4 {
+  margin: 0;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.availability-intro p {
+  margin: 4px 0 0;
+  color: #9a4b2f;
+  font-size: 14px;
+}
+
 .availability-date-field {
   display: grid;
   gap: 6px;
@@ -1564,31 +2103,104 @@ function noop() {}
   border: 1px solid #d7e4f3;
   border-radius: 10px;
   background: #fff;
-  padding: 9px 10px;
+  padding: 10px 12px;
   font: inherit;
+}
+
+.availability-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.availability-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #7c3f2b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.availability-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.availability-dot-available {
+  background: #22c55e;
+}
+
+.availability-dot-booked {
+  background: #cbd5e1;
+}
+
+.availability-dot-selected {
+  background: #f97316;
+}
+
+.availability-time-head {
+  margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.availability-time-head h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.availability-time-head span {
+  color: #ea580c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.availability-period {
+  display: grid;
+  gap: 8px;
+}
+
+.availability-period-title {
+  margin: 0;
+  color: #9a4b2f;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .availability-slot-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .availability-slot-btn {
-  border: 1px solid #dbe4f1;
+  border: 1px solid #ffd4bc;
   border-radius: 10px;
   background: #fff;
-  color: #334155;
-  font-size: 12px;
+  color: #374151;
+  font-size: 13px;
   font-weight: 700;
-  padding: 8px 6px;
+  padding: 10px 8px;
   cursor: pointer;
 }
 
 .availability-slot-btn.selected {
-  border-color: #ff9d63;
-  background: #fff3ea;
-  color: #c2410c;
+  border-color: #f97316;
+  background: #f97316;
+  color: #fff;
 }
 
 .availability-slot-btn.booked {
@@ -1606,6 +2218,28 @@ function noop() {}
   font-size: 13px;
   font-weight: 700;
   padding: 8px 10px;
+}
+
+.availability-selection {
+  border: 1px solid #fee2d3;
+  background: #fff7f2;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.availability-selection span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #9a4b2f;
+  font-weight: 700;
+}
+
+.availability-selection strong {
+  color: #0f172a;
+  font-size: 14px;
 }
 
 .availability-state.available {
@@ -1649,7 +2283,7 @@ function noop() {}
 }
 
 .package-catalog {
-  margin-top: 6px;
+  margin-top: 0;
 }
 
 .package-head {
@@ -1680,6 +2314,45 @@ function noop() {}
   grid-template-columns: 260px minmax(0, 1fr) 170px;
   gap: 10px;
   align-items: end;
+}
+
+.checkout-flow-steps {
+  margin-top: 2px;
+  color: #7c8ca2;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 8px;
+  font-size: 13px;
+  background: #f8fbff;
+  border: 1px solid #dbe4f1;
+  border-radius: 999px;
+  padding: 6px;
+  width: fit-content;
+}
+
+.checkout-flow-steps .step-link {
+  color: #7c8ca2;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.checkout-flow-steps .step-link.active {
+  color: #fff;
+  background: linear-gradient(120deg, #ff6a00, #fb923c);
+  border-radius: 999px;
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.24);
+}
+
+.checkout-flow-steps .step-link:not(.active):hover {
+  color: #475569;
+  background: #eef4fb;
+}
+
+.checkout-flow-steps .step-link.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(249, 115, 22, 0.28);
 }
 
 .package-catalog-head {
@@ -1729,6 +2402,7 @@ function noop() {}
   border-radius: 16px;
   background: linear-gradient(180deg, #fff, #fcfdff);
   overflow: hidden;
+  scroll-margin-top: 120px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
   cursor: pointer;
   transition:
@@ -1819,18 +2493,32 @@ function noop() {}
   border-color: #efb183;
 }
 
+.service-card-anchor {
+  scroll-margin-top: 120px;
+}
+
+.focused-target-card {
+  animation: targetFocusPulse 1.2s ease;
+}
+
+@keyframes targetFocusPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 92, 5, 0.35);
+    border-color: #f8b182;
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(242, 92, 5, 0);
+    border-color: #f29957;
+  }
+  100% {
+    box-shadow: none;
+    border-color: #dbe4f1;
+  }
+}
+
 .package-product-actions .favorite-btn {
   width: 34px;
   height: 34px;
-}
-
-.service-section {
-  margin-top: 22px;
-}
-
-.service-section h2 {
-  margin: 0 0 10px;
-  font-size: 20px;
 }
 
 .package-modal-overlay {
@@ -2190,6 +2878,15 @@ function noop() {}
 }
 
 @media (max-width: 720px) {
+  .flow-head-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .checkout-flow-steps {
+    margin-top: 6px;
+  }
+
   .package-toolbar {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -2284,13 +2981,24 @@ function noop() {}
   align-items: start;
 }
 
+.package-layout > .package-head {
+  grid-column: 1 / -1;
+}
+
 .package-layout-main {
   min-width: 0;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .package-summary {
   position: sticky;
   top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 0;
   height: fit-content;
 }
 
@@ -2300,7 +3008,16 @@ function noop() {}
   }
   .package-summary {
     position: static;
+    max-height: none;
+    overflow: visible;
     margin-top: 14px;
+  }
+
+  .package-layout-main,
+  .overall-list,
+  .overall-summary {
+    max-height: none;
+    overflow: visible;
   }
 }
 </style>

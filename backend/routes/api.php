@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
@@ -33,6 +34,17 @@ Route::apiResource('bookings', BookingController::class)->only(['store']);
 Route::get('notifications/bookings', [NotificationController::class, 'index']);
 Route::patch('notifications/bookings/read-all', [NotificationController::class, 'markAllRead']);
 Route::patch('notifications/bookings/{notification}/read', [NotificationController::class, 'markRead']);
+Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
+Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
+Route::patch('vendor/services/{event}', [VendorController::class, 'updateServiceByVendorId']);
+Route::delete('vendor/services/{event}', [VendorController::class, 'destroyServiceByVendorId']);
+Route::get('vendor/bookings', [VendorController::class, 'bookingsByVendorId']);
+Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'updateBookingStatusByVendorId']);
+
+Route::prefix('vendor')->group(function () {
+    Route::get('/chats', [ChatController::class, 'vendorIndex']);
+    Route::post('/chats/{conversation}/messages', [ChatController::class, 'vendorSendMessage']);
+});
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);

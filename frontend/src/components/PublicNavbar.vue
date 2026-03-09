@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { apiGet, apiPatch } from '../features/apiClient'
+import { useLanguage } from '../features/language'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,7 +20,79 @@ const notifications = ref([])
 const notificationsUnreadCount = ref(0)
 const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
+const { language, updateLanguage } = useLanguage()
 let notificationPollTimer = null
+
+const copyByLanguage = {
+  en: {
+    home: 'Home',
+    about: 'About',
+    service: 'Service',
+    packages: 'Packages',
+    overallService: 'Overall Service',
+    dashboard: 'Dashboard',
+    myBooking: 'My Booking',
+    favorite: 'Favorite',
+    contact: 'Contact',
+    searchPlaceholder: 'Search bookings...',
+    notificationsAria: 'Open booking notifications',
+    bookingNotifications: 'Booking Notifications',
+    markAll: 'Mark all',
+    loadingNotifications: 'Loading notifications...',
+    notificationsError: 'Could not load notifications right now.',
+    noNotifications: 'No notifications yet.',
+    signIn: 'Sign in',
+    justNow: 'Just now',
+    minAgo: 'm ago',
+    hourAgo: 'h ago',
+  },
+  km: {
+    home: 'ទំព័រដើម',
+    about: 'អំពីយើង',
+    service: 'សេវាកម្ម',
+    packages: 'កញ្ចប់សេវាកម្ម',
+    overallService: 'សេវាកម្មទូទៅ',
+    dashboard: 'ផ្ទាំងគ្រប់គ្រង',
+    myBooking: 'ការកក់របស់ខ្ញុំ',
+    favorite: 'ចូលចិត្ត',
+    contact: 'ទំនាក់ទំនង',
+    searchPlaceholder: 'ស្វែងរកការកក់...',
+    notificationsAria: 'បើកការជូនដំណឹងការកក់',
+    bookingNotifications: 'ការជូនដំណឹងការកក់',
+    markAll: 'សម្គាល់អានទាំងអស់',
+    loadingNotifications: 'កំពុងផ្ទុកការជូនដំណឹង...',
+    notificationsError: 'មិនអាចផ្ទុកការជូនដំណឹងឥឡូវនេះបានទេ។',
+    noNotifications: 'មិនទាន់មានការជូនដំណឹងទេ។',
+    signIn: 'ចូលប្រព័ន្ធ',
+    justNow: 'ឥឡូវនេះ',
+    minAgo: 'នាទីមុន',
+    hourAgo: 'ម៉ោងមុន',
+  },
+  zh: {
+    home: '首页',
+    about: '关于',
+    service: '服务',
+    packages: '套餐',
+    overallService: '综合服务',
+    dashboard: '控制台',
+    myBooking: '我的预订',
+    favorite: '收藏',
+    contact: '联系',
+    searchPlaceholder: '搜索预订...',
+    notificationsAria: '打开预订通知',
+    bookingNotifications: '预订通知',
+    markAll: '全部已读',
+    loadingNotifications: '正在加载通知...',
+    notificationsError: '暂时无法加载通知。',
+    noNotifications: '暂无通知。',
+    signIn: '登录',
+    justNow: '刚刚',
+    minAgo: '分钟前',
+    hourAgo: '小时前',
+  },
+}
+
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en)
 
 function onLogoError() {
   appLogoSrc.value = '/favicon.ico'
@@ -45,7 +118,8 @@ function runSearch() {
   }
   window.dispatchEvent(new Event('achar:global-search-updated'))
   if (route.path !== '/legacy-app') {
-    router.push('/legacy-app?page=bookings').catch(() => {})
+    const role = String(currentUser.value?.role || '').trim().toLowerCase()
+    router.push(role === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
   }
 }
 
@@ -117,14 +191,14 @@ function refreshFavoriteCount() {
 }
 
 function formatNotificationTime(value) {
-  if (!value) return 'Just now'
+  if (!value) return uiText.value.justNow
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return 'Just now'
+  if (Number.isNaN(parsed.getTime())) return uiText.value.justNow
 
   const diffMinutes = Math.floor((Date.now() - parsed.getTime()) / 60000)
-  if (diffMinutes < 1) return 'Just now'
-  if (diffMinutes < 60) return `${diffMinutes}m ago`
-  if (diffMinutes < 24 * 60) return `${Math.floor(diffMinutes / 60)}h ago`
+  if (diffMinutes < 1) return uiText.value.justNow
+  if (diffMinutes < 60) return `${diffMinutes}${uiText.value.minAgo}`
+  if (diffMinutes < 24 * 60) return `${Math.floor(diffMinutes / 60)}${uiText.value.hourAgo}`
 
   return parsed.toLocaleDateString('en-US', {
     month: 'short',
@@ -162,7 +236,7 @@ async function loadNotifications(options = {}) {
     notifications.value = rows
     notificationsUnreadCount.value = Number(result.unread_count || 0)
   } catch (error) {
-    notificationsError.value = 'Could not load notifications right now.'
+    notificationsError.value = uiText.value.notificationsError
   } finally {
     if (!silent) isLoadingNotifications.value = false
   }
@@ -187,7 +261,7 @@ async function markNotificationAsRead(notification, options = {}) {
   try {
     await apiPatch(`notifications/bookings/${notification.id}/read`, query)
   } catch (error) {
-    if (!silent) notificationsError.value = 'Could not mark notification as read.'
+    if (!silent) notificationsError.value = uiText.value.notificationsError
     await loadNotifications({ silent: true })
   }
 }
@@ -203,7 +277,7 @@ async function markAllNotificationsAsRead() {
     notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }))
     notificationsUnreadCount.value = 0
   } catch (error) {
-    notificationsError.value = 'Could not mark all notifications as read.'
+    notificationsError.value = uiText.value.notificationsError
     await loadNotifications({ silent: true })
   }
 }
@@ -211,7 +285,8 @@ async function markAllNotificationsAsRead() {
 async function openNotification(notification) {
   await markNotificationAsRead(notification, { silent: true })
   closeNotificationDropdown()
-  router.push('/legacy-app?page=bookings').catch(() => {})
+  const role = String(currentUser.value?.role || '').trim().toLowerCase()
+  router.push(role === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
 }
 
 const isHomeActive = computed(() => route.path === '/' || route.path === '/home')
@@ -219,10 +294,14 @@ const isAboutActive = computed(() => route.path === '/about')
 const isServiceActive = computed(() => route.path.startsWith('/services'))
 const isServicePackagesActive = computed(() => route.path === '/services/packages')
 const isServiceOverallActive = computed(() => route.path === '/services/overall')
+const isVendorRole = computed(() => String(currentUser.value?.role || '').trim().toLowerCase() === 'vendor')
 const legacyPage = computed(() => {
   const page = route.query?.page
   return typeof page === 'string' ? page : 'bookings'
 })
+const isVendorDashboardActive = computed(
+  () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isVendorRole.value,
+)
 const isProfileActive = computed(() => route.path === '/legacy-app' && legacyPage.value === 'profile')
 const isBookingActive = computed(
   () =>
@@ -253,7 +332,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
-const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=bookings' : '/booking'))
+const bookingLink = computed(() => {
+  if (!isLoggedIn.value) return '/booking'
+  const role = String(currentUser.value?.role || '').trim().toLowerCase()
+  return role === 'vendor' ? '/legacy-app?page=dashboard&vtab=bookings' : '/legacy-app?page=bookings'
+})
 </script>
 
 <template>
@@ -265,43 +348,62 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
       </RouterLink>
 
       <nav class="nav-links">
-        <RouterLink to="/" :class="{ active: isHomeActive }">Home</RouterLink>
-        <RouterLink to="/about" :class="{ active: isAboutActive }">About</RouterLink>
+        <RouterLink to="/" :class="{ active: isHomeActive }">{{ uiText.home }}</RouterLink>
+        <RouterLink to="/about" :class="{ active: isAboutActive }">{{ uiText.about }}</RouterLink>
 
         <div class="nav-dropdown">
           <RouterLink class="nav-drop-trigger" to="/services/packages" :class="{ active: isServiceActive }">
-            Service
+            {{ uiText.service }}
           </RouterLink>
           <div class="nav-drop-menu">
-            <RouterLink to="/services/packages" :class="{ active: isServicePackagesActive }">Packages</RouterLink>
-            <RouterLink to="/services/overall" :class="{ active: isServiceOverallActive }">Overall Service</RouterLink>
+            <RouterLink to="/services/packages" :class="{ active: isServicePackagesActive }">{{ uiText.packages }}</RouterLink>
+            <RouterLink to="/services/overall" :class="{ active: isServiceOverallActive }">{{ uiText.overallService }}</RouterLink>
           </div>
         </div>
 
-        <RouterLink :to="bookingLink" :class="{ active: isBookingActive }">My Booking</RouterLink>
+        <RouterLink
+          v-if="isLoggedIn && isVendorRole"
+          to="/legacy-app?page=dashboard"
+          :class="{ active: isVendorDashboardActive }"
+        >
+          {{ uiText.dashboard }}
+        </RouterLink>
+        <RouterLink v-if="!isVendorRole" :to="bookingLink" :class="{ active: isBookingActive }">{{ uiText.myBooking }}</RouterLink>
         <RouterLink to="/favorite" :class="{ active: isFavoriteActive }" class="favorite-link">
-          <span>Favorite</span>
+          <span>{{ uiText.favorite }}</span>
           <span v-if="favoriteCount > 0" class="fav-badge">
             {{ favoriteCount > 99 ? '99+' : favoriteCount }}
           </span>
         </RouterLink>
-        <RouterLink to="/contact" :class="{ active: isContactActive }">Contact</RouterLink>
+        <RouterLink to="/contact" :class="{ active: isContactActive }">{{ uiText.contact }}</RouterLink>
       </nav>
 
       <div class="nav-actions">
+        <label class="lang-switch" for="language-select">
+          <select
+            id="language-select"
+            class="lang-select"
+            :value="language"
+            @change="updateLanguage($event.target.value)"
+          >
+            <option value="en">English</option>
+            <option value="km">Khmer</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
         <input
           v-if="isLoggedIn"
           v-model="navSearch"
           type="search"
           class="nav-search"
-          placeholder="Search bookings..."
+          :placeholder="uiText.searchPlaceholder"
           @keyup.enter="runSearch"
         />
         <div v-if="isLoggedIn" ref="notificationMenuRef" class="notification-wrap">
           <button
             type="button"
             class="notification-btn"
-            aria-label="Open booking notifications"
+            :aria-label="uiText.notificationsAria"
             :aria-expanded="notificationDropdownOpen ? 'true' : 'false'"
             @click.stop="toggleNotificationDropdown"
           >
@@ -318,19 +420,19 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
 
           <section v-if="notificationDropdownOpen" class="notification-panel" @click.stop>
             <div class="notification-head">
-              <strong>Booking Notifications</strong>
+              <strong>{{ uiText.bookingNotifications }}</strong>
               <button
                 v-if="unreadNotificationCount > 0"
                 type="button"
                 class="notification-mark-all"
                 @click="markAllNotificationsAsRead"
               >
-                Mark all
+                {{ uiText.markAll }}
               </button>
             </div>
-            <p v-if="isLoadingNotifications" class="notification-empty">Loading notifications...</p>
+            <p v-if="isLoadingNotifications" class="notification-empty">{{ uiText.loadingNotifications }}</p>
             <p v-else-if="notificationsError" class="notification-empty">{{ notificationsError }}</p>
-            <p v-else-if="notificationItems.length === 0" class="notification-empty">No notifications yet.</p>
+            <p v-else-if="notificationItems.length === 0" class="notification-empty">{{ uiText.noNotifications }}</p>
             <ul v-else class="notification-list">
               <li v-for="item in notificationItems" :key="item.id">
                 <button
@@ -352,10 +454,7 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
         <button v-if="isLoggedIn" type="button" class="profile-btn" @click="openProfile">
           {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
         </button>
-        <template v-else>
-          <RouterLink class="register-btn" :class="{ active: isRegisterActive }" to="/register">Register</RouterLink>
-          <RouterLink class="signin-btn" to="/legacy-app">Sign in</RouterLink>
-        </template>
+        <RouterLink v-else class="signin-btn" to="/legacy-app">{{ uiText.signIn }}</RouterLink>
       </div>
     </div>
   </header>
@@ -502,6 +601,22 @@ const bookingLink = computed(() => (isLoggedIn.value ? '/legacy-app?page=booking
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
+}
+
+.lang-switch {
+  display: inline-flex;
+}
+
+.lang-select {
+  border: 1px solid #d6dde9;
+  border-radius: 12px;
+  background: #f9fafc;
+  color: #334155;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.48rem 0.7rem;
+  cursor: pointer;
 }
 
 .nav-search {

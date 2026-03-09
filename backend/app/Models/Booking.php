@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Booking extends Model
 {
@@ -43,5 +44,10 @@ class Booking extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(BookingNotification::class);
+    }
+
+    public function conversation(): HasOne
+    {
+        return $this->hasOne(ChatConversation::class, 'booking_id');
     }
 }
