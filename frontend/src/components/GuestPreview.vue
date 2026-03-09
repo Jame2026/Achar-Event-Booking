@@ -1015,6 +1015,23 @@ function persistFavorites() {
   window.dispatchEvent(new Event("achar:favorites-updated"));
 }
 
+function syncFavoritesWithLiveCatalog() {
+  const validPackageIds = new Set(guestPreviewPackages.value.map((item) => item.id));
+  const validServiceIds = new Set(servicesCatalog.value.map((service) => service.id));
+  const nextPackageIds = favoritePackageIds.value.filter((id) => validPackageIds.has(id));
+  const nextServiceIds = favoriteServiceIds.value.filter((id) => validServiceIds.has(id));
+  const packagesChanged = nextPackageIds.length !== favoritePackageIds.value.length;
+  const servicesChanged = nextServiceIds.length !== favoriteServiceIds.value.length;
+
+  if (!packagesChanged && !servicesChanged) {
+    return;
+  }
+
+  favoritePackageIds.value = nextPackageIds;
+  favoriteServiceIds.value = nextServiceIds;
+  persistFavorites();
+}
+
 function toggleFavoritePackage(id) {
   if (favoritePackageIds.value.includes(id)) {
     favoritePackageIds.value = favoritePackageIds.value.filter(
@@ -1077,6 +1094,10 @@ const favoriteServiceFee = computed(() =>
 const favoriteTotal = computed(() =>
   Number((favoritePackageSubtotal.value + favoriteServicesSubtotal.value + favoriteServiceFee.value).toFixed(2)),
 );
+
+watch([guestPreviewPackages, servicesCatalog], () => {
+  syncFavoritesWithLiveCatalog();
+}, { immediate: true });
 
 watch(
   () => [prebookForm.value.eventDate, prebookForm.value.guests, activePrebookEventId.value],
