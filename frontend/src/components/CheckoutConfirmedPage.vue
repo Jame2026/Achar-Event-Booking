@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useLanguage } from "../features/language";
 
 const router = useRouter();
+const { language } = useLanguage();
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 function onLogoError() {
@@ -41,6 +43,61 @@ function goDashboard() {
 function goReceipt() {
   router.push("/checkout/receipt");
 }
+
+const copyByLanguage = {
+  en: {
+    title: "Your Celebration is Set!",
+    subtitle: "Your booking has been confirmed. A copy of the receipt has been sent to your email.",
+    digitalReceipt: "Digital Receipt",
+    bookingId: "Booking ID",
+    eventDate: "Event Date",
+    depositPaid: "Deposit Paid",
+    serviceItem: "Service item",
+    totalBooking: "Total Booking Value",
+    processingFees: "Processing Fees",
+    deposit30: "Deposit Paid (30%)",
+    remaining: "Remaining Balance",
+    secured: "Secured by Achar Protection",
+    issuedOn: "Issued on",
+    downloadPdf: "Download PDF Receipt",
+    dashboard: "Go to My Event Dashboard",
+  },
+  km: {
+    title: "ព្រឹត្តិការណ៍របស់អ្នករួចរាល់ហើយ!",
+    subtitle: "ការកក់របស់អ្នកត្រូវបានបញ្ជាក់។ ច្បាប់ចម្លងបង្កាន់ដៃត្រូវបានផ្ញើទៅអ៊ីមែលរបស់អ្នក។",
+    digitalReceipt: "បង្កាន់ដៃឌីជីថល",
+    bookingId: "លេខកក់",
+    eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+    depositPaid: "បានបង់ប្រាក់កក់",
+    serviceItem: "ធាតុសេវាកម្ម",
+    totalBooking: "តម្លៃសរុបការកក់",
+    processingFees: "កម្រៃដំណើរការ",
+    deposit30: "ប្រាក់កក់បានបង់ (30%)",
+    remaining: "សមតុល្យនៅសល់",
+    secured: "ការពារដោយ Achar",
+    issuedOn: "ចេញនៅ",
+    downloadPdf: "ទាញយកបង្កាន់ដៃ PDF",
+    dashboard: "ទៅផ្ទាំងគ្រប់គ្រងព្រឹត្តិការណ៍របស់ខ្ញុំ",
+  },
+  zh: {
+    title: "您的庆典已安排完成！",
+    subtitle: "您的预订已确认，收据副本已发送到您的邮箱。",
+    digitalReceipt: "电子收据",
+    bookingId: "预订编号",
+    eventDate: "活动日期",
+    depositPaid: "定金已支付",
+    serviceItem: "服务项目",
+    totalBooking: "订单总额",
+    processingFees: "手续费",
+    deposit30: "已付定金 (30%)",
+    remaining: "剩余尾款",
+    secured: "由 Achar 提供保障",
+    issuedOn: "签发时间",
+    downloadPdf: "下载 PDF 收据",
+    dashboard: "前往我的活动控制台",
+  },
+};
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 </script>
 
 <template>
@@ -48,17 +105,17 @@ function goReceipt() {
       <div class="status-wrap">
         <div class="status-icon">&#10003;</div>
       </div>
-      <h1>Your Celebration is Set!</h1>
-      <p class="subtitle">Your booking has been confirmed. A copy of the receipt has been sent to your email.</p>
+      <h1>{{ uiText.title }}</h1>
+      <p class="subtitle">{{ uiText.subtitle }}</p>
 
       <section class="receipt-card">
         <div class="receipt-head">
           <div>
-            <small>Digital Receipt</small>
+            <small>{{ uiText.digitalReceipt }}</small>
             <strong>Achar Event Planning</strong>
           </div>
           <div class="receipt-id">
-            <small>Booking ID</small>
+            <small>{{ uiText.bookingId }}</small>
             <strong>{{ bookingId }}</strong>
           </div>
         </div>
@@ -66,39 +123,39 @@ function goReceipt() {
         <div class="receipt-body">
           <div class="receipt-meta">
             <div>
-              <small>Event Date</small>
+              <small>{{ uiText.eventDate }}</small>
               <strong>{{ booking.eventDate || "TBD" }}</strong>
             </div>
-            <div class="paid-pill">Deposit Paid</div>
+            <div class="paid-pill">{{ uiText.depositPaid }}</div>
           </div>
 
           <div class="service-list">
             <article v-for="item in items" :key="`${item.type}-${item.name}`">
               <div>
                 <strong>{{ item.name }}</strong>
-                <p>{{ item.description || "Service item" }}</p>
+                <p>{{ item.description || uiText.serviceItem }}</p>
               </div>
               <span>${{ Number(item.totalPrice || 0).toLocaleString() }}</span>
             </article>
           </div>
 
           <div class="totals-box">
-            <div><span>Total Booking Value</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
-            <div><span>Processing Fees</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
-            <div class="deposit-row"><span>Deposit Paid (30%)</span><strong>${{ deposit.toLocaleString() }}</strong></div>
-            <div><small>Remaining Balance</small><strong>${{ remaining.toLocaleString() }}</strong></div>
+            <div><span>{{ uiText.totalBooking }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
+            <div><span>{{ uiText.processingFees }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
+            <div class="deposit-row"><span>{{ uiText.deposit30 }}</span><strong>${{ deposit.toLocaleString() }}</strong></div>
+            <div><small>{{ uiText.remaining }}</small><strong>${{ remaining.toLocaleString() }}</strong></div>
           </div>
         </div>
 
         <footer class="receipt-foot">
-          <span>Secured by Achar Protection</span>
-          <span>Issued on {{ paidDateLabel }}</span>
+          <span>{{ uiText.secured }}</span>
+          <span>{{ uiText.issuedOn }} {{ paidDateLabel }}</span>
         </footer>
       </section>
 
       <div class="confirmed-actions">
-        <button type="button" class="btn-light" @click="goReceipt">Download PDF Receipt</button>
-        <button type="button" class="btn-primary" @click="goDashboard">Go to My Event Dashboard</button>
+        <button type="button" class="btn-light" @click="goReceipt">{{ uiText.downloadPdf }}</button>
+        <button type="button" class="btn-primary" @click="goDashboard">{{ uiText.dashboard }}</button>
       </div>
     </main>
   </div>
@@ -106,59 +163,20 @@ function goReceipt() {
 
 <style scoped>
 .confirmed-page {
+  --flow-bg: #eef2f8;
+  --flow-border: #d8e2ef;
+  --flow-muted: #64748b;
+  --flow-accent: #f97316;
   min-height: 100vh;
-  background: #eff2f7;
-}
-
-.confirmed-header {
-  height: 66px;
-  background: #fff;
-  border-bottom: 1px solid #d9e1ee;
-  padding: 0 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid #f2d2bb;
-  padding: 2px;
-  background: #fff;
-  object-fit: contain;
-}
-
-.brand strong {
-  display: block;
-  font-size: 26px;
-  line-height: 1;
-  color: #111827;
-}
-
-.brand p {
-  margin: 1px 0 0;
-  color: #7185a1;
-  font-size: 13px;
-}
-
-.confirmed-header a {
-  color: #1f2937;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 13px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.12), transparent 36%),
+    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.12), transparent 32%),
+    var(--flow-bg);
 }
 
 .confirmed-shell {
-  width: min(680px, calc(100% - 1.25rem));
-  margin: 22px auto 14px;
+  width: min(760px, calc(100% - 1.25rem));
+  margin: 28px auto 18px;
   text-align: center;
 }
 
@@ -168,43 +186,45 @@ function goReceipt() {
 }
 
 .status-icon {
-  width: 50px;
-  height: 50px;
+  width: 64px;
+  height: 64px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 700;
   background: linear-gradient(135deg, #f59e0b, #f97316);
-  box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 10px rgba(245, 158, 11, 0.14);
 }
 
 .confirmed-shell h1 {
-  margin: 12px 0 6px;
+  margin: 14px 0 6px;
   color: #0f172a;
-  font-size: clamp(1.55rem, 2.6vw, 2.2rem);
+  font-size: clamp(2rem, 3vw, 2.8rem);
   line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
   margin: 0;
   color: #5f728d;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .receipt-card {
-  margin-top: 10px;
+  margin-top: 16px;
   background: #fff;
-  border: 1px solid #d6deea;
-  border-radius: 14px;
+  border: 1px solid var(--flow-border);
+  border-radius: 18px;
   overflow: hidden;
   text-align: left;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
 }
 
 .receipt-head {
-  padding: 12px 14px;
-  background: linear-gradient(120deg,  #f59e0b 0%, #f97316 100%);
+  padding: 14px 16px;
+  background: linear-gradient(120deg, #f59e0b 0%, #f97316 100%);
   color: #fff;
   display: flex;
   justify-content: space-between;
@@ -223,8 +243,9 @@ function goReceipt() {
 .receipt-head strong {
   display: block;
   margin-top: 3px;
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .receipt-id {
@@ -237,7 +258,7 @@ function goReceipt() {
 }
 
 .receipt-body {
-  padding: 10px 14px 12px;
+  padding: 14px 16px;
 }
 
 .receipt-meta {
@@ -258,7 +279,7 @@ function goReceipt() {
 .receipt-meta strong {
   display: block;
   margin-top: 2px;
-  font-size: 18px;
+  font-size: 20px;
   color: #0f172a;
 }
 
@@ -272,11 +293,11 @@ function goReceipt() {
 }
 
 .service-list {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #dce3ef;
   display: grid;
-  gap: 7px;
+  gap: 10px;
 }
 
 .service-list article {
@@ -287,7 +308,7 @@ function goReceipt() {
 
 .service-list strong {
   color: #0f172a;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .service-list p {
@@ -298,18 +319,18 @@ function goReceipt() {
 
 .service-list span {
   color: #334155;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
 }
 
 .totals-box {
-  margin-top: 10px;
+  margin-top: 12px;
   border: 1px solid #d6dfee;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px;
   background: #f6f9fd;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .totals-box div {
@@ -325,12 +346,12 @@ function goReceipt() {
 
 .totals-box strong {
   color: #0f172a;
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .totals-box .deposit-row strong {
   color: #f97316;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .totals-box small {
@@ -341,16 +362,16 @@ function goReceipt() {
 
 .receipt-foot {
   border-top: 1px solid #dce3ef;
-  padding: 8px 16px;
+  padding: 10px 16px;
   color: #8da0bb;
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
 
 .confirmed-actions {
-  margin-top: 10px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -358,12 +379,16 @@ function goReceipt() {
 
 .btn-light,
 .btn-primary {
-  min-height: 40px;
-  border-radius: 11px;
+  min-height: 44px;
+  border-radius: 12px;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .btn-light {
@@ -379,37 +404,29 @@ function goReceipt() {
   box-shadow: 0 6px 12px rgba(234, 88, 12, 0.22);
 }
 
+.btn-light:hover,
+.btn-primary:hover {
+  transform: translateY(-1px);
+}
+
 @media (max-width: 760px) {
-  .confirmed-header {
-    height: 50px;
-    padding: 0 12px;
-  }
-
-  .brand strong {
-    font-size: 16px;
-  }
-
-  .brand p {
-    font-size: 11px;
-  }
-
   .confirmed-shell {
     width: calc(100% - 1rem);
     margin-top: 10px;
   }
 
   .status-icon {
-    width: 52px;
-    height: 52px;
-    font-size: 28px;
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
   }
 
   .confirmed-shell h1 {
-    font-size: 24px;
+    font-size: 30px;
   }
 
   .subtitle {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .receipt-head {
@@ -421,41 +438,13 @@ function goReceipt() {
     text-align: left;
   }
 
-  .receipt-head strong {
-    font-size: 38px;
-  }
-
-  .receipt-id strong {
-    font-size: 28px;
-  }
-
   .receipt-meta {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .receipt-meta strong {
-    font-size: 30px;
-  }
-
   .service-list article {
     flex-direction: column;
-  }
-
-  .service-list strong {
-    font-size: 24px;
-  }
-
-  .service-list span {
-    font-size: 20px;
-  }
-
-  .totals-box strong {
-    font-size: 26px;
-  }
-
-  .totals-box .deposit-row strong {
-    font-size: 30px;
   }
 
   .receipt-foot {
