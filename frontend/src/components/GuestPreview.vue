@@ -16,7 +16,6 @@ import {
   serviceFeeRate,
   vendorProfile,
 } from "../features/appData";
-import { isDateLikelyBooked, isSlotLikelyBooked } from "../features/availabilityUtils";
 import { useRouter } from "vue-router";
 
 const props = defineProps({
@@ -312,11 +311,6 @@ const expandedServiceId = ref(null);
 const packageEventType = ref("all");
 const packageSearch = ref("");
 const overallQuantity = ref(1);
-const overallAvailabilityDate = ref(
-  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
-);
-const overallAvailabilitySlot = ref("");
-const overallSlotOptions = ["08:00 AM", "09:30 AM", "11:00 AM", "01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM", "07:00 PM", "08:30 PM"];
 
 const lastQty = ref(1);
 
@@ -466,17 +460,39 @@ function mapEventToGuestService(item) {
     name: String(item.title || "Service Booking"),
     description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
     price: Number(item.price || 0),
+    eventType,
     eventTypes: [eventType],
     backingEventId: Number(item.id || 0) || null,
     vendorName: String(item.vendor?.name || "Verified Vendor"),
     location: item.location || "Location TBD",
+    image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
   };
 }
 
 async function loadLiveVendorEvents() {
   try {
     const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
-    liveVendorEvents.value = Array.isArray(result.data) ? result.data : [];
+    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+    if (rows.length) {
+      liveVendorEvents.value = rows;
+      return;
+    }
+
+    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
   } catch {
     liveVendorEvents.value = [];
   }
@@ -499,6 +515,7 @@ const selectedPackage = computed(
 const selectedServices = computed(() =>
   servicesCatalog.value.filter((service) => selectedServiceIds.value.includes(service.id)),
 );
+const primarySelectedService = computed(() => selectedServices.value[0] || null);
 
 const packagePrice = computed(() => {
   if (!selectedPackage.value) return 0;
@@ -599,9 +616,14 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
+  const usingOverallFlow = section.value === "services-overall";
   const targetPackage = activePackage.value || selectedPackage.value;
+  const targetService = usingOverallFlow ? primarySelectedService.value : null;
+
+  if (!targetPackage && !targetService) return;
+
   prebookTargetPackageId.value = targetPackage?.id || null;
-  prebookTargetTitle.value = targetPackage?.title || "Selected Vendor";
+  prebookTargetTitle.value = targetPackage?.title || targetService?.name || "Selected Vendor";
   prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
@@ -720,6 +742,7 @@ async function submitPrebookForm() {
   const usingOverallFlow = section.value === "services-overall";
   const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
   const checkoutItems = [];
+  const primaryService = usingOverallFlow ? primarySelectedService.value : null;
   const targetPackage =
     guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) ||
     selectedPackage.value ||
@@ -751,20 +774,23 @@ async function submitPrebookForm() {
   });
 
   const payload = {
-    vendorTitle: prebookTargetTitle.value || "Selected Vendor",
+    vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
     vendorName:
       selectedPackage.value?.vendorName ||
       activePackage.value?.vendorName ||
+      primaryService?.vendorName ||
       "Selected Vendor",
     eventId:
       selectedPackage.value?.backingEventId ||
       activePackage.value?.backingEventId ||
+      primaryService?.backingEventId ||
       null,
     image:
       selectedPackage.value?.image ||
       activePackage.value?.image ||
+      primaryService?.image ||
       packageImageByEventType[
-        selectedPackage.value?.eventType || activePackage.value?.eventType || "other"
+        selectedPackage.value?.eventType || activePackage.value?.eventType || primaryService?.eventType || "other"
       ] ||
       packageImageByEventType.other,
     fullName: prebookForm.value.fullName,
@@ -858,7 +884,11 @@ const prebookCalendarCells = computed(() => {
 });
 
 const activePrebookEventId = computed(
-  () => selectedPackage.value?.backingEventId || activePackage.value?.backingEventId || null,
+  () =>
+    selectedPackage.value?.backingEventId ||
+    activePackage.value?.backingEventId ||
+    primarySelectedService.value?.backingEventId ||
+    null,
 );
 
 const prebookAvailabilityTone = computed(() => {
@@ -1150,16 +1180,6 @@ function overallQtyChanged(e) {
   if (Number.isFinite(val) && val >= 1) overallQuantity.value = val;
 }
 
-function overallDateChanged(e) {
-  overallAvailabilityDate.value = e.target.value;
-  overallAvailabilitySlot.value = "";
-}
-
-function selectOverallSlot(slot) {
-  if (isSlotLikelyBooked(overallAvailabilityDate.value, slot)) return;
-  overallAvailabilitySlot.value = slot;
-}
-
 function persistFavorites() {
   localStorage.setItem(
     FAVORITES_STORAGE_KEY,
@@ -1375,47 +1395,6 @@ const overallServiceFeeAmount = computed(() =>
 );
 
 const overallTotalPrice = computed(() => overallServicesSubtotal.value + overallServiceFeeAmount.value);
-const overallDateBooked = computed(() => isDateLikelyBooked(overallAvailabilityDate.value));
-const overallSlotItems = computed(() =>
-  overallSlotOptions.map((value) => ({
-    value,
-    booked: overallDateBooked.value || isSlotLikelyBooked(overallAvailabilityDate.value, value),
-  })),
-);
-const selectedAvailabilityDateLabel = computed(() => {
-  const value = String(overallAvailabilityDate.value || "").trim();
-  if (!value) return "No date selected";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-});
-const availabilitySlotGroups = computed(() => {
-  const groups = [
-    { key: "morning", label: uiText.value.morning, slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
-    { key: "afternoon", label: uiText.value.afternoon, slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
-    { key: "evening", label: uiText.value.evening, slots: ["07:00 PM", "08:30 PM"] },
-  ];
-  return groups.map((group) => ({
-    ...group,
-    items: group.slots
-      .map((value) => overallSlotItems.value.find((slot) => slot.value === value))
-      .filter(Boolean),
-  }));
-});
-const overallAvailabilityState = computed(() => {
-  if (!overallAvailabilityDate.value) return { label: uiText.value.pickDate, tone: "neutral" };
-  if (overallDateBooked.value) return { label: uiText.value.bookedOnSelectedDate, tone: "booked" };
-  if (!overallAvailabilitySlot.value) return { label: uiText.value.pickTimeSlot, tone: "neutral" };
-  const booked = isSlotLikelyBooked(overallAvailabilityDate.value, overallAvailabilitySlot.value);
-  return booked
-    ? { label: uiText.value.selectedSlotBooked, tone: "booked" }
-    : { label: uiText.value.selectedSlotAvailable, tone: "available" };
-});
 
 function goToSignIn() {
   router.push("/legacy-app");
@@ -1638,74 +1617,12 @@ function noop() {}
             <strong>${{ totalPrice.toLocaleString() }}</strong>
           </div>
 
-          <div class="overall-availability-check">
-            <h3>{{ uiText.checkAvailability }}</h3>
-            <div class="availability-intro">
-              <h4>{{ uiText.selectEventDate }}</h4>
-              <p>{{ uiText.pickDateText }}</p>
-            </div>
-            <label class="availability-date-field">
-              <span>{{ uiText.eventDate }}</span>
-              <input
-                type="date"
-                :value="overallAvailabilityDate"
-                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
-                @input="overallDateChanged"
-              />
-            </label>
-
-            <div class="availability-legend">
-              <span><i class="availability-dot availability-dot-available"></i>{{ uiText.available }}</span>
-              <span><i class="availability-dot availability-dot-booked"></i>{{ uiText.booked }}</span>
-              <span><i class="availability-dot availability-dot-selected"></i>{{ uiText.selected }}</span>
-            </div>
-
-            <div class="availability-time-head">
-              <h4>{{ uiText.availableTimeSlots }}</h4>
-              <span>{{ selectedAvailabilityDateLabel }}</span>
-            </div>
-            <div
-              v-for="group in availabilitySlotGroups"
-              :key="group.key"
-              class="availability-period"
-            >
-              <p class="availability-period-title">
-                {{ group.label }}
-              </p>
-              <div class="availability-slot-grid">
-                <button
-                  v-for="slot in group.items"
-                  :key="slot.value"
-                  type="button"
-                  class="availability-slot-btn"
-                  :class="{
-                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
-                    booked: slot.booked,
-                  }"
-                  :disabled="slot.booked"
-                  @click="selectOverallSlot(slot.value)"
-                >
-                  {{ slot.booked ? uiText.booked : slot.value }}
-                </button>
-              </div>
-            </div>
-
-            <div class="availability-selection">
-              <span>{{ uiText.selectedDate }}</span>
-              <strong>{{ selectedAvailabilityDateLabel }}</strong>
-            </div>
-            <div
-              class="availability-state"
-              :class="{
-                available: overallAvailabilityState.tone === 'available',
-                booked: overallAvailabilityState.tone === 'booked',
-              }"
-            >
-              {{ overallAvailabilityState.label }}
-            </div>
-          </div>
-
-          <button type="button" class="confirm-selection" @click="openPrebookForm">
+          <button
+            type="button"
+            class="confirm-selection"
+            :disabled="selectedServices.length === 0"
+            @click="openPrebookForm"
+          >
             {{ uiText.prebookNow }}
           </button>
         </aside>
@@ -1892,73 +1809,6 @@ function noop() {}
           <div class="summary-total">
             <span>{{ uiText.totalPrice }}</span>
             <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
-          </div>
-
-          <div class="overall-availability-check">
-            <h3>{{ uiText.checkAvailability }}</h3>
-            <div class="availability-intro">
-              <h4>{{ uiText.selectEventDate }}</h4>
-              <p>{{ uiText.pickDateText }}</p>
-            </div>
-            <label class="availability-date-field">
-              <span>{{ uiText.eventDate }}</span>
-              <input
-                type="date"
-                :value="overallAvailabilityDate"
-                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
-                @input="overallDateChanged"
-              />
-            </label>
-
-            <div class="availability-legend">
-              <span><i class="availability-dot availability-dot-available"></i>{{ uiText.available }}</span>
-              <span><i class="availability-dot availability-dot-booked"></i>{{ uiText.booked }}</span>
-              <span><i class="availability-dot availability-dot-selected"></i>{{ uiText.selected }}</span>
-            </div>
-
-            <div class="availability-time-head">
-              <h4>{{ uiText.availableTimeSlots }}</h4>
-              <span>{{ selectedAvailabilityDateLabel }}</span>
-            </div>
-            <div
-              v-for="group in availabilitySlotGroups"
-              :key="group.key"
-              class="availability-period"
-            >
-              <p class="availability-period-title">
-                {{ group.label }}
-              </p>
-              <div class="availability-slot-grid">
-                <button
-                  v-for="slot in group.items"
-                  :key="slot.value"
-                  type="button"
-                  class="availability-slot-btn"
-                  :class="{
-                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
-                    booked: slot.booked,
-                  }"
-                  :disabled="slot.booked"
-                  @click="selectOverallSlot(slot.value)"
-                >
-                  {{ slot.booked ? uiText.booked : slot.value }}
-                </button>
-              </div>
-            </div>
-
-            <div class="availability-selection">
-              <span>{{ uiText.selectedDate }}</span>
-              <strong>{{ selectedAvailabilityDateLabel }}</strong>
-            </div>
-            <div
-              class="availability-state"
-              :class="{
-                available: overallAvailabilityState.tone === 'available',
-                booked: overallAvailabilityState.tone === 'booked',
-              }"
-            >
-              {{ overallAvailabilityState.label }}
-            </div>
           </div>
 
           <button type="button" class="confirm-selection" @click="openPrebookForm">
@@ -2477,199 +2327,6 @@ function noop() {}
 
 .overall-list .customization-section-head h2 {
   font-size: 26px;
-}
-
-.overall-availability-check {
-  margin-top: 14px;
-  border-top: 1px solid #e3e9f2;
-  padding-top: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.overall-availability-check h3 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.availability-intro h4 {
-  margin: 0;
-  font-size: 20px;
-  color: #0f172a;
-}
-
-.availability-intro p {
-  margin: 4px 0 0;
-  color: #9a4b2f;
-  font-size: 14px;
-}
-
-.availability-date-field {
-  display: grid;
-  gap: 6px;
-}
-
-.availability-date-field span {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.availability-date-field input {
-  width: 100%;
-  border: 1px solid #d7e4f3;
-  border-radius: 10px;
-  background: #fff;
-  padding: 10px 12px;
-  font: inherit;
-}
-
-.availability-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  padding-top: 2px;
-}
-
-.availability-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #7c3f2b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.availability-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-.availability-dot-available {
-  background: #22c55e;
-}
-
-.availability-dot-booked {
-  background: #cbd5e1;
-}
-
-.availability-dot-selected {
-  background: #f97316;
-}
-
-.availability-time-head {
-  margin-top: 4px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.availability-time-head h4 {
-  margin: 0;
-  font-size: 18px;
-  color: #0f172a;
-}
-
-.availability-time-head span {
-  color: #ea580c;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.availability-period {
-  display: grid;
-  gap: 8px;
-}
-
-.availability-period-title {
-  margin: 0;
-  color: #9a4b2f;
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.availability-slot-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.availability-slot-btn {
-  border: 1px solid #ffd4bc;
-  border-radius: 10px;
-  background: #fff;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 10px 8px;
-  cursor: pointer;
-}
-
-.availability-slot-btn.selected {
-  border-color: #f97316;
-  background: #f97316;
-  color: #fff;
-}
-
-.availability-slot-btn.booked {
-  border-color: #e2e8f0;
-  background: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-.availability-state {
-  border-radius: 10px;
-  border: 1px solid #dbe4f1;
-  background: #f8fbff;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 8px 10px;
-}
-
-.availability-selection {
-  border: 1px solid #fee2d3;
-  background: #fff7f2;
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: grid;
-  gap: 2px;
-}
-
-.availability-selection span {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #9a4b2f;
-  font-weight: 700;
-}
-
-.availability-selection strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.availability-state.available {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.availability-state.booked {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
 }
 
 .guest-panel {
@@ -3589,10 +3246,6 @@ function noop() {}
   .overall-summary {
     position: static;
     margin-top: 14px;
-  }
-
-  .availability-slot-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .favorite-layout {

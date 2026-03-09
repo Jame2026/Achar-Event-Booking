@@ -10,17 +10,6 @@ const { language } = useLanguage();
 const showAllEvents = ref(false);
 const showAllVendors = ref(false);
 const currentVendorIndex = ref(0);
-const showBookingModal = ref(false);
-const selectedVendor = ref(null);
-const bookingSuccess = ref(false);
-
-const bookingForm = ref({
-  fullName: "",
-  email: "",
-  eventDate: "",
-  guests: 50,
-  notes: "",
-});
 
 const eventRows = ref([]);
 const dataLoadFailed = ref(false);
@@ -526,79 +515,18 @@ function goToEvent(event) {
   router.push({ path: "/services/packages", query });
 }
 
-function openBookingModal(vendor) {
-  selectedVendor.value = vendor;
-  bookingSuccess.value = false;
-  showBookingModal.value = true;
-  bookingForm.value = {
-    fullName: "",
-    email: "",
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
-}
-
-function closeBookingModal() {
-  showBookingModal.value = false;
-}
-
-function toNumberPrice(value) {
-  const raw = String(value || "").replace(/[^0-9.]/g, "");
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function submitBooking() {
-  if (!selectedVendor.value) return;
-
-  const unitPrice = toNumberPrice(selectedVendor.value.price);
-  const quantity = Math.max(1, Number(bookingForm.value.guests || 1));
-  const itemTotal = Number((unitPrice * quantity).toFixed(2));
-
-  const payload = {
-    eventId: selectedVendor.value.eventId || null,
-    vendorTitle:
-      selectedVendor.value.vendorName ||
-      selectedVendor.value.title ||
-      uiText.value.fallbackVendor,
-    fullName: bookingForm.value.fullName || "",
-    email: bookingForm.value.email || "",
-    phone: "",
-    location: selectedVendor.value.location || uiText.value.fallbackLocation,
-    eventDate: bookingForm.value.eventDate || "",
-    guests: quantity,
-    notes: bookingForm.value.notes || "",
-    requestedEventType: selectedVendor.value.requestedEventType || "other",
-    items: [
-      {
-        type: "service",
-        name: selectedVendor.value.title || uiText.value.fallbackVendor,
-        description: bookingForm.value.notes || uiText.value.bookingRequestFromHome,
-        qty: quantity,
-        unitPrice,
-        totalPrice: itemTotal,
-      },
-    ],
-  };
-
-  sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
-  showBookingModal.value = false;
-  router.push("/checkout");
-}
-
 async function loadHomeData() {
   isLoadingHomeData.value = true;
   dataLoadFailed.value = false;
   try {
-    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE, include_inactive: 1 });
+    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
     if (rows.length) {
       eventRows.value = rows;
       return;
     }
 
-    const fallbackResponse = await fetch(`/api/events?per_page=${HOME_EVENT_PAGE_SIZE}&include_inactive=1`, {
+    const fallbackResponse = await fetch(`/api/events?per_page=${HOME_EVENT_PAGE_SIZE}`, {
       headers: {
         Accept: "application/json",
       },
@@ -782,7 +710,7 @@ onMounted(loadHomeData);
               <button
                 type="button"
                 class="outline-btn"
-                @click="openBookingModal(vendor)"
+                @click="goToEvent(vendor)"
               >
                 {{ vendor.cta }}
               </button>
@@ -794,93 +722,6 @@ onMounted(loadHomeData);
         {{ Math.floor(currentVendorIndex / VENDOR_PAGE_SIZE) + 1 }} / {{ vendorPageCount }}
       </p>
     </section>
-
-    <div v-if="showBookingModal" class="booking-modal-overlay" @click="closeBookingModal">
-      <div v-if="selectedVendor" class="booking-modal" @click.stop>
-        <button type="button" class="booking-close" @click="closeBookingModal">&times;</button>
-        <div class="booking-modal-layout">
-          <div class="booking-vendor-preview">
-            <img :src="selectedVendor.image" :alt="selectedVendor.title" class="vendor-preview-image" />
-            <div class="vendor-preview-info">
-              <p class="eyebrow">{{ uiText.bookingYouAre }}</p>
-              <h4>{{ selectedVendor.title }}</h4>
-              <p class="vendor-location">{{ selectedVendor.location }}</p>
-              <div class="vendor-rating">
-                <span class="star">*</span>
-                <strong>{{ selectedVendor.rating }}</strong>
-                <span class="reviews">({{ selectedVendor.reviews?.toLocaleString() }} {{ uiText.reviews }})</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="booking-form-section">
-            <div v-if="bookingSuccess" class="booking-success-state">
-              <h3>{{ uiText.bookingRequestSent }}</h3>
-              <p>
-                {{ uiText.bookingRequestBodyA }} <strong>{{ selectedVendor.title }}</strong>
-                {{ uiText.bookingRequestBodyB }}
-              </p>
-              <button type="button" class="primary-btn" @click="closeBookingModal">{{ uiText.done }}</button>
-            </div>
-
-            <form
-              v-else
-              id="bookingRequestForm"
-              class="booking-modal-form"
-              @submit.prevent="submitBooking"
-            >
-              <div class="booking-modal-header">
-                <h3>{{ uiText.confirmDetails }}</h3>
-                <p>{{ uiText.fillForm }}</p>
-              </div>
-
-              <div class="form-group">
-                <label for="fullName">{{ uiText.fullName }}</label>
-                <input id="fullName" v-model.trim="bookingForm.fullName" type="text" required />
-              </div>
-
-              <div class="form-group">
-                <label for="email">{{ uiText.emailAddress }}</label>
-                <input id="email" v-model.trim="bookingForm.email" type="email" required />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="eventDate">{{ uiText.eventDate }}</label>
-                  <input id="eventDate" v-model="bookingForm.eventDate" type="date" required />
-                </div>
-                <div class="form-group">
-                  <label for="guests">{{ uiText.numberOfGuests }}</label>
-                  <input id="guests" v-model.number="bookingForm.guests" type="number" min="1" required />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="notes">{{ uiText.additionalNotes }}</label>
-                <textarea id="notes" v-model.trim="bookingForm.notes" rows="3"></textarea>
-              </div>
-
-            </form>
-            <div class="booking-modal-actions">
-              <button
-                type="submit"
-                form="bookingRequestForm"
-                class="primary-btn booking-submit-btn"
-              >
-                {{ uiText.sendBookingRequest }}
-              </button>
-              <button
-                type="button"
-                class="ghost-btn booking-cancel-btn"
-                @click="closeBookingModal"
-              >
-                {{ uiText.cancel }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <section class="section steps">
       <div class="section__header center">

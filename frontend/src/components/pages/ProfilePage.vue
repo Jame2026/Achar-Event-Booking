@@ -79,9 +79,8 @@ const { uiText } = useLanguageCopy(copyByLanguage)
     <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
 
     <section class="card services profile-form">
-      <h2>{{ uiText.title }}</h2>
       <div class="profile-head">
-        <h2>Edit My Profile</h2>
+        <h2>{{ uiText.title }}</h2>
         <p>Manage your account details and profile photo shown across the platform.</p>
       </div>
       <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
@@ -199,17 +198,11 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       </div>
 
       <div class="profile-actions">
-<<<<<<< HEAD
         <button type="button" class="btn-logout" @click="props.logoutUser">{{ uiText.logout }}</button>
         <button type="button" class="btn-light" @click="props.resetUserProfile">{{ uiText.reset }}</button>
-        <button type="button" class="btn-accent" @click="props.saveUserProfile">{{ uiText.saveProfile }}</button>
-=======
-        <button type="button" class="btn-logout" @click="props.logoutUser">Logout</button>
-        <button type="button" class="btn-light" @click="props.resetUserProfile">Reset</button>
         <button type="button" class="btn-accent" :disabled="props.isSavingProfile" @click="props.saveUserProfile">
-          {{ props.isSavingProfile ? 'Saving...' : 'Save Profile' }}
+          {{ props.isSavingProfile ? 'Saving...' : uiText.saveProfile }}
         </button>
->>>>>>> Vendor-info
       </div>
     </section>
   </main>
