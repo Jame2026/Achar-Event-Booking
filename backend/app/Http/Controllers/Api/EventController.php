@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Support\PublicEventCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,9 +19,7 @@ class EventController extends Controller
     {
         $perPage = (int) request()->integer('per_page', 15);
         $perPage = max(1, min($perPage, 100));
-        $cacheVersion = (int) Cache::get('public_events_version', 1);
-        $cacheKey = "public_events:v{$cacheVersion}:per_page:{$perPage}";
-        $events = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($perPage) {
+        $events = PublicEventCache::rememberIndex($perPage, function () use ($perPage) {
             return Event::query()
                 ->select([
                     'id',
@@ -77,7 +75,7 @@ class EventController extends Controller
         unset($validated['image']);
 
         $event = Event::create($validated);
-        $this->invalidatePublicEventCache();
+        PublicEventCache::invalidate();
 
         return response()->json($event, 201);
     }
@@ -127,7 +125,7 @@ class EventController extends Controller
         }
 
         $event->update($validated);
-        $this->invalidatePublicEventCache();
+        PublicEventCache::invalidate();
 
         return response()->json($event->fresh());
     }
@@ -136,7 +134,7 @@ class EventController extends Controller
     {
         $this->deleteStoredEventImage($event->image_url);
         $event->delete();
-        $this->invalidatePublicEventCache();
+        PublicEventCache::invalidate();
 
         return response()->json(null, 204);
     }
@@ -301,10 +299,5 @@ class EventController extends Controller
         }
 
         return null;
-    }
-
-    private function invalidatePublicEventCache(): void
-    {
-        Cache::forever('public_events_version', (int) Cache::get('public_events_version', 1) + 1);
     }
 }

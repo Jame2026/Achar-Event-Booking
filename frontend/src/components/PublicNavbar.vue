@@ -22,6 +22,7 @@ const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
 const { language, updateLanguage } = useLanguage()
 let notificationPollTimer = null
+const NOTIFICATION_POLL_INTERVAL_MS = 60000
 
 const copyByLanguage = {
   en: {
@@ -152,9 +153,10 @@ function stopNotificationPolling() {
 
 function startNotificationPolling() {
   stopNotificationPolling()
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
   notificationPollTimer = setInterval(() => {
     loadNotifications({ silent: true })
-  }, 30000)
+  }, NOTIFICATION_POLL_INTERVAL_MS)
 }
 
 function closeNotificationDropdown() {
@@ -167,6 +169,19 @@ function handleDocumentClick(event) {
   if (!notificationMenuRef.value.contains(event.target)) {
     closeNotificationDropdown()
   }
+}
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined') return
+  if (document.visibilityState === 'visible') {
+    if (isLoggedIn.value) {
+      loadNotifications({ silent: true })
+      startNotificationPolling()
+    }
+    return
+  }
+
+  stopNotificationPolling()
 }
 
 function openProfile() {
@@ -319,6 +334,7 @@ onMounted(() => {
     startNotificationPolling()
   }
   document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   window.addEventListener('storage', refreshFavoriteCount)
   window.addEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
@@ -326,6 +342,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopNotificationPolling()
   document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
