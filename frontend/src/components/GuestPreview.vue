@@ -28,6 +28,7 @@ const props = defineProps({
 const section = computed(() => props.section);
 const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
@@ -61,7 +62,7 @@ const copyByLanguage = {
     quantity: "Quantity",
     packageSubtotal: "Package Subtotal",
     servicesSubtotal: "Services Subtotal",
-    serviceFee: "Service Fee (10%)",
+    serviceFee: "Service Fee (3.5%)",
     totalPrice: "Total Price",
     prebookFavoriteItems: "Pre-book Favorite Items",
     favoriteBundle: "Favorite Services Bundle",
@@ -133,7 +134,7 @@ const copyByLanguage = {
     quantity: "ចំនួន",
     packageSubtotal: "សរុបកញ្ចប់",
     servicesSubtotal: "សរុបសេវាកម្ម",
-    serviceFee: "ថ្លៃសេវា (10%)",
+    serviceFee: "ថ្លៃសេវា (3.5%)",
     totalPrice: "តម្លៃសរុប",
     prebookFavoriteItems: "កក់ជាមុនរបស់ដែលចូលចិត្ត",
     favoriteBundle: "កញ្ចប់សេវាកម្មដែលចូលចិត្ត",
@@ -205,7 +206,7 @@ const copyByLanguage = {
     quantity: "数量",
     packageSubtotal: "套餐小计",
     servicesSubtotal: "服务小计",
-    serviceFee: "服务费 (10%)",
+    serviceFee: "服务费 (3.5%)",
     totalPrice: "总价",
     prebookFavoriteItems: "预订收藏项目",
     favoriteBundle: "收藏服务组合",
@@ -515,10 +516,27 @@ async function loadLiveVendorEvents() {
 }
 
 async function loadGuestBookings() {
-  const customerEmail = String(localStorage.getItem("achar_customer_email") || "").trim().toLowerCase();
+  const authRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  let authUser = null;
+
+  if (authRaw) {
+    try {
+      authUser = JSON.parse(authRaw);
+    } catch {
+      authUser = null;
+    }
+  }
+
+  if (!authUser) {
+    guestBookings.value = [];
+    bookingPageNotice.value = uiText.value.bookingText;
+    return;
+  }
+
+  const customerEmail = String(authUser?.email || "").trim().toLowerCase();
   if (!customerEmail) {
     guestBookings.value = [];
-    bookingPageNotice.value = "Please add your email before loading bookings.";
+    bookingPageNotice.value = uiText.value.bookingText;
     return;
   }
 
@@ -1933,7 +1951,8 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
-                <div>
+                <img class="favorite-thumb" :src="item.image" :alt="item.title" loading="lazy" />
+                <div class="favorite-text">
                   <strong>{{ item.title }}</strong>
                   <small
                     >{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small
@@ -1957,7 +1976,8 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
-                <div>
+                <img class="favorite-thumb" :src="service.image" :alt="service.name" loading="lazy" />
+                <div class="favorite-text">
                   <strong>{{ service.name }}</strong>
                   <small
                     >${{ Number(service.price || 0).toLocaleString() }}</small
@@ -2192,7 +2212,7 @@ function noop() {}
     >
       <div class="prebook-modal" @click.stop>
         <div class="prebook-head">
-          <h3>Book {{ prebookTargetTitle }}</h3>
+          <h3>📘 Book {{ prebookTargetTitle }}</h3>
           <button type="button" class="prebook-close" @click="closePrebookModal">
             x
           </button>
@@ -2200,17 +2220,17 @@ function noop() {}
 
         <form class="prebook-form" @submit.prevent="submitPrebookForm">
           <label>
-            <span>Full name</span>
+            <span>👤 Full name</span>
             <input v-model.trim="prebookForm.fullName" type="text" required />
           </label>
 
           <label>
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model.trim="prebookForm.email" type="email" required />
           </label>
 
           <label>
-            <span>Phone number</span>
+            <span>📱 Phone number</span>
             <input
               v-model.trim="prebookForm.phone"
               type="tel"
@@ -2220,7 +2240,7 @@ function noop() {}
           </label>
 
           <label>
-            <span>Location</span>
+            <span>📍 Location</span>
             <input
               v-model.trim="prebookForm.location"
               type="text"
@@ -2236,7 +2256,7 @@ function noop() {}
               :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
               @click="detectPrebookLocation"
             >
-              {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+              {{ isDetectingPrebookLocation ? "Detecting location..." : "📡 Use Current Location" }}
             </button>
             <p
               v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
@@ -2263,11 +2283,11 @@ function noop() {}
           </div>
 
           <label>
-            <span>Event date</span>
+            <span>📅 Event date</span>
             <div class="prebook-date-picker">
               <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
                 <span>{{ prebookForm.eventDate || "Select event date" }}</span>
-                <span class="prebook-date-icon">[ ]</span>
+                <span class="prebook-date-icon">📆</span>
               </button>
 
               <div v-if="showPrebookCalendar" class="prebook-calendar">
@@ -2330,12 +2350,12 @@ function noop() {}
           </div>
 
           <label>
-            <span>Number of guests</span>
+            <span>👥 Number of guests</span>
             <input v-model.number="prebookForm.guests" type="number" min="1" required />
           </label>
 
           <label>
-            <span>Notes</span>
+            <span>📝 Notes</span>
             <textarea
               v-model.trim="prebookForm.notes"
               rows="3"
@@ -2351,7 +2371,7 @@ function noop() {}
               class="modal-action-btn modal-action-primary"
               :disabled="activePrebookEventId && !canSubmitPrebook"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "Confirm Booking" }}
+              {{ isCheckingPrebookAvailability ? "Checking..." : "✅ Confirm Booking" }}
             </button>
           </div>
         </form>
@@ -3256,18 +3276,23 @@ function noop() {}
 .favorite-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 20px;
+  align-items: start;
 }
 
 .favorite-card {
-  border: 1px solid #e2e8f3;
-  border-radius: 14px;
-  background: #fbfdff;
-  padding: 12px;
+  position: relative;
+  border: 1px solid #e4ecf8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f7faff);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  padding: 16px 18px;
 }
 
 .favorite-card h3 {
-  margin: 0;
+  margin: 0 0 6px;
+  font-size: 18px;
+  letter-spacing: -0.01em;
 }
 
 .favorite-list {
@@ -3275,23 +3300,46 @@ function noop() {}
   margin: 10px 0 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .favorite-list li {
-  border: 1px solid #e2e8f3;
-  border-radius: 10px;
-  padding: 9px 10px;
+  border: 1px solid #e6eef9;
+  border-radius: 12px;
+  padding: 12px 14px;
   background: #fff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.favorite-list li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.favorite-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f8fafc;
+  border: 1px solid #e2e8f3;
+  flex-shrink: 0;
+}
+
+.favorite-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .favorite-list strong {
   display: block;
   font-size: 14px;
+  color: #0f172a;
 }
 
 .favorite-list small {
@@ -3299,18 +3347,20 @@ function noop() {}
 }
 
 .favorite-remove {
-  border: 1px solid #d6e0ef;
-  border-radius: 8px;
-  background: #fff;
-  color: #475569;
+  border: 1px solid #f9d9c0;
+  border-radius: 999px;
+  background: #fff7f1;
+  color: #d9480f;
   font-size: 12px;
   font-weight: 700;
-  padding: 6px 8px;
+  padding: 8px 12px;
   cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
 }
 
 .favorite-remove:hover {
-  background: #f8fafc;
+  background: #ffe9dc;
+  box-shadow: 0 6px 12px rgba(217, 72, 15, 0.12);
 }
 
 .booking-details-modal {
@@ -3421,22 +3471,39 @@ function noop() {}
 
 .favorite-booking-card {
   margin-top: 12px;
+  border: 1px solid #f5d5bd;
+  background: radial-gradient(circle at 20% 20%, #fff6ec, #ffffff);
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(242, 92, 5, 0.08);
 }
 
 .favorite-booking-grid {
-  margin-top: 10px;
+  margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 14px;
 }
 
 .favorite-booking-grid input {
   width: 100%;
+  height: 44px;
   border: 1px solid #d7e4f3;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
-  padding: 9px 10px;
+  padding: 10px 12px;
   font: inherit;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.favorite-booking-grid select {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d7e4f3;
+  background: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 @media (max-width: 720px) {

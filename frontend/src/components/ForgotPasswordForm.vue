@@ -90,21 +90,21 @@ async function submitForgotPassword() {
         </div>
 
         <div class="form-head">
-          <h2>{{ uiText.title }}</h2>
-          <p>{{ uiText.subtitle }}</p>
+          <h2>Forgot password</h2>
+          <p>Enter your email and we will send you a password reset link.</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitForgotPassword">
           <label class="field">
-            <span>{{ uiText.email }}</span>
-            <input v-model.trim="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
+            <span>Email</span>
+            <input v-model.trim="form.email" type="email" placeholder="you@example.com" required />
           </label>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? uiText.sending : uiText.sendResetLink }}
+            {{ submitting ? 'Sending...' : 'Send Reset Link' }}
           </button>
         </form>
       </section>

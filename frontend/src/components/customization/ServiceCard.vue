@@ -83,6 +83,8 @@ const serviceFeePrice = computed(() =>
   Number((props.service.price * props.serviceFeeRate).toFixed(2)),
 )
 
+const serviceFeePercentLabel = computed(() => `${(props.serviceFeeRate * 100).toFixed(1)}%`)
+
 const serviceEstimatedTotal = computed(() =>
   Number((props.service.price + serviceFeePrice.value).toFixed(2)),
 )
@@ -132,7 +134,7 @@ function formatCurrency(value) {
 
     <div v-if="isExpanded" class="service-detail">
       <small><strong>{{ uiText.recommendedFor }}</strong> {{ serviceEventTypesLabel }}</small>
-      <small><strong>{{ uiText.serviceFee }}</strong> {{ formatCurrency(serviceFeePrice) }} (10%)</small>
+      <small><strong>{{ uiText.serviceFee }}</strong> {{ formatCurrency(serviceFeePrice) }} ({{ serviceFeePercentLabel }})</small>
       <small><strong>{{ uiText.estimatedTotal }}</strong> {{ formatCurrency(serviceEstimatedTotal) }}</small>
       <small><strong>{{ uiText.preBooking }}</strong> {{ uiText.preBookingValue }}</small>
     </div>

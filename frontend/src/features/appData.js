@@ -41,7 +41,7 @@ export const reviews = [
 ]
 
 export const fallbackVendorLocation = '88 Flower District, New York, NY 10001'
-export const serviceFeeRate = 0.1
+export const serviceFeeRate = 0.035
 
 export const packageImageByEventType = {
   wedding:
