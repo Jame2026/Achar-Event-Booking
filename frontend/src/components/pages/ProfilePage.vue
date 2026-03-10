@@ -22,7 +22,7 @@ const props = defineProps([
 
     <section class="card services profile-form">
       <div class="profile-head">
-        <h2>Edit My Profile</h2>
+        <h2>🧑‍💼 Edit My Profile</h2>
         <p>Manage your account details and profile photo shown across the platform.</p>
       </div>
       <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
@@ -76,7 +76,7 @@ const props = defineProps([
       <h3 class="profile-section-title">Account Information</h3>
       <div class="profile-grid">
         <label>
-          Full Name
+          👤 Full Name
           <input
             type="text"
             placeholder="Your full name"
@@ -85,7 +85,7 @@ const props = defineProps([
           />
         </label>
         <label>
-          Email
+          📧 Email
           <input
             type="email"
             placeholder="you@example.com"
@@ -94,7 +94,7 @@ const props = defineProps([
           />
         </label>
         <label>
-          Phone
+          📱 Phone
           <input
             type="text"
             placeholder="+1 (555) 123-4567"
@@ -103,7 +103,7 @@ const props = defineProps([
           />
         </label>
         <label>
-          Location
+          📍 Location
           <input
             type="text"
             placeholder="City, State"
@@ -113,10 +113,10 @@ const props = defineProps([
         </label>
       </div>
 
-      <h3 class="profile-section-title">Location</h3>
+      <h3 class="profile-section-title">🗺️ Location</h3>
       <div class="profile-location-tools">
         <button type="button" class="btn-light" :disabled="props.isDetectingLocation" @click="props.detectCurrentLocation">
-          {{ props.isDetectingLocation ? 'Detecting location...' : 'Use Current Location' }}
+          {{ props.isDetectingLocation ? 'Detecting location...' : '📡 Use Current Location' }}
         </button>
         <p v-if="props.userLatitude !== null && props.userLongitude !== null" class="location-coords">
           Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
@@ -140,10 +140,10 @@ const props = defineProps([
       </div>
 
       <div class="profile-actions">
-        <button type="button" class="btn-logout" @click="props.logoutUser">Logout</button>
-        <button type="button" class="btn-light" @click="props.resetUserProfile">Reset</button>
+        <button type="button" class="btn-logout" @click="props.logoutUser">🚪 Logout</button>
+        <button type="button" class="btn-light" @click="props.resetUserProfile">♻️ Reset</button>
         <button type="button" class="btn-accent" :disabled="props.isSavingProfile" @click="props.saveUserProfile">
-          {{ props.isSavingProfile ? 'Saving...' : 'Save Profile' }}
+          {{ props.isSavingProfile ? 'Saving...' : '💾 Save Profile' }}
         </button>
       </div>
     </section>

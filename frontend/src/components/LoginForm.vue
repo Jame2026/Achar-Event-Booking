@@ -86,18 +86,18 @@ const submitLogin = async () => {
         </div>
 
         <div class="form-head">
-          <h2>Sign in to your account</h2>
+          <h2><span aria-hidden="true">🔐</span> Sign in to your account</h2>
           <p>Use your email and password to continue.</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-            <span>Email or Phone</span>
+            <span>📧 Email or Phone</span>
             <input v-model="form.login" type="text" placeholder="you@example.com or +85512345678" required />
           </label>
 
           <label class="field">
-            <span>Password</span>
+            <span>🔑 Password</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -123,15 +123,15 @@ const submitLogin = async () => {
           <div class="auth-help-row">
             <label class="check-row">
               <input v-model="form.remember" type="checkbox" />
-              <span>Remember this device</span>
+              <span>🛡️ Remember this device</span>
             </label>
-            <router-link class="link-btn" to="/forgot-password">Forgot password?</router-link>
+            <router-link class="link-btn" to="/forgot-password">🔄 Forgot password?</router-link>
           </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Signing in...' : 'Login' }}
+            {{ submitting ? 'Signing in...' : '🚀 Login' }}
           </button>
         </form>
 

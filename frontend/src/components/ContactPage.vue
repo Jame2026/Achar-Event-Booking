@@ -107,7 +107,7 @@ function submitContactForm() {
 
     <main class="shell contact-content">
       <section class="card contact-hero">
-        <p class="contact-chip">{{ uiText.chip }}</p>
+        <p class="contact-chip">💬 {{ uiText.chip }}</p>
         <h1>{{ uiText.title }}</h1>
         <p>
           {{ uiText.intro }}
@@ -116,40 +116,40 @@ function submitContactForm() {
 
       <section class="contact-layout">
         <article class="card contact-info">
-          <h2>{{ uiText.supportTitle }}</h2>
+          <h2>🛎️ {{ uiText.supportTitle }}</h2>
           <p>{{ uiText.supportText }}</p>
 
           <div class="contact-item">
-            <small>{{ uiText.email }}</small>
+            <small>📧 {{ uiText.email }}</small>
             <strong>support@acharbooking.com</strong>
           </div>
           <div class="contact-item">
-            <small>{{ uiText.phone }}</small>
+            <small>📞 {{ uiText.phone }}</small>
             <strong>+1 (555) 123-4588</strong>
           </div>
           <div class="contact-item">
-            <small>{{ uiText.hours }}</small>
+            <small>🕒 {{ uiText.hours }}</small>
             <strong>Monday - Friday, 9:00 AM - 6:00 PM</strong>
           </div>
           <div class="contact-item">
-            <small>{{ uiText.address }}</small>
+            <small>📍 {{ uiText.address }}</small>
             <strong>1200 Market Street, Suite 410, San Francisco, CA</strong>
           </div>
         </article>
 
         <article class="card contact-form-card">
-          <h2>{{ uiText.sendMessage }}</h2>
+          <h2>✉️ {{ uiText.sendMessage }}</h2>
           <form class="contact-form" @submit.prevent="submitContactForm">
             <label>
-              {{ uiText.fullName }}
+              👤 {{ uiText.fullName }}
               <input v-model.trim="form.name" type="text" required />
             </label>
             <label>
-              {{ uiText.emailAddress }}
+              📧 {{ uiText.emailAddress }}
               <input v-model.trim="form.email" type="email" required />
             </label>
             <label>
-              {{ uiText.topic }}
+              🗂️ {{ uiText.topic }}
               <select v-model="form.topic">
                 <option>{{ uiText.inquiry }}</option>
                 <option>{{ uiText.bookingSupport }}</option>
@@ -158,7 +158,7 @@ function submitContactForm() {
               </select>
             </label>
             <label>
-              {{ uiText.message }}
+              💬 {{ uiText.message }}
               <textarea
                 v-model.trim="form.message"
                 rows="5"
@@ -166,7 +166,7 @@ function submitContactForm() {
                 :placeholder="uiText.placeholder"
               ></textarea>
             </label>
-            <button type="submit" class="contact-submit">{{ uiText.submit }}</button>
+            <button type="submit" class="contact-submit">🚀 {{ uiText.submit }}</button>
             <p v-if="successMessage" class="contact-success">{{ successMessage }}</p>
           </form>
         </article>

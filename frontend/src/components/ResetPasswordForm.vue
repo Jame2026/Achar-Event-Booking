@@ -84,23 +84,23 @@ async function submitResetPassword() {
         </div>
 
         <div class="form-head">
-          <h2>Reset password</h2>
+          <h2><span aria-hidden="true">🔁</span> Reset password</h2>
           <p>Set a new password for your account.</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitResetPassword">
           <label class="field">
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model.trim="form.email" type="email" placeholder="you@example.com" required />
           </label>
 
           <label class="field">
-            <span>Reset Token</span>
+            <span>🧾 Reset Token</span>
             <input v-model.trim="form.token" type="text" placeholder="Reset token" required />
           </label>
 
           <label class="field">
-            <span>New Password</span>
+            <span>🔐 New Password</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -125,7 +125,7 @@ async function submitResetPassword() {
           </label>
 
           <label class="field">
-            <span>Confirm New Password</span>
+            <span>✅ Confirm New Password</span>
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -153,7 +153,7 @@ async function submitResetPassword() {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Resetting...' : 'Reset Password' }}
+            {{ submitting ? 'Resetting...' : '🔄 Reset Password' }}
           </button>
         </form>
       </section>

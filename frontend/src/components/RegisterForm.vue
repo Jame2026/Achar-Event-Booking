@@ -125,13 +125,13 @@ const submitRegister = async () => {
         </div>
 
         <div class="form-head">
-          <h2>Create your account</h2>
+          <h2><span aria-hidden="true">📝</span> Create your account</h2>
           <p>Set up your profile and choose your account profession.</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitRegister">
           <label class="field">
-            <span>Register With</span>
+            <span>🧾 Register With</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: registerMethod === 'email' }">
                 <input v-model="registerMethod" type="radio" value="email" name="register_method" />
@@ -148,17 +148,17 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>Full Name</span>
+            <span>👤 Full Name</span>
             <input v-model="form.name" type="text" placeholder="Your full name" required />
           </label>
 
           <label v-if="registerMethod === 'email'" class="field">
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model="form.email" type="email" placeholder="you@example.com" required />
           </label>
 
           <label v-else class="field">
-            <span>Phone Number</span>
+            <span>📱 Phone Number</span>
             <input
               v-model="form.phone"
               type="tel"
@@ -170,7 +170,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>Profession</span>
+            <span>💼 Profession</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: form.role === 'user' }">
                 <input v-model="form.role" type="radio" value="user" name="role" />
@@ -187,7 +187,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>Password</span>
+            <span>🔑 Password</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -212,7 +212,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>Confirm Password</span>
+            <span>✅ Confirm Password</span>
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -240,7 +240,7 @@ const submitRegister = async () => {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Creating...' : 'Create Account' }}
+            {{ submitting ? 'Creating...' : '✨ Create Account' }}
           </button>
         </form>
 

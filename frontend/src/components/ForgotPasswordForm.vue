@@ -59,13 +59,13 @@ async function submitForgotPassword() {
         </div>
 
         <div class="form-head">
-          <h2>Forgot password</h2>
+          <h2><span aria-hidden="true">🔒</span> Forgot password</h2>
           <p>Enter your email and we will send you a password reset link.</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitForgotPassword">
           <label class="field">
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model.trim="form.email" type="email" placeholder="you@example.com" required />
           </label>
 
@@ -73,7 +73,7 @@ async function submitForgotPassword() {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Sending...' : 'Send Reset Link' }}
+            {{ submitting ? 'Sending...' : '📩 Send Reset Link' }}
           </button>
         </form>
       </section>
