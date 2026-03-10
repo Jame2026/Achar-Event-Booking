@@ -203,13 +203,22 @@ const localizedJourneyCards = computed(() => {
         <img class="about-banner-watermark" :src="appLogoSrc" alt="Achar emblem" @error="onLogoError" />
         <div class="about-banner-content">
           <p class="about-chip">{{ uiText.chip }}</p>
-          <h1>
-            {{ uiText.titleA }}
-            <span>{{ uiText.titleB }}</span> {{ uiText.titleC }}
+          <h1 class="about-banner-title">
+            <span class="about-banner-line">
+              {{ uiText.titleA }}
+            </span>
+            <span class="about-banner-line">
+              <span>{{ uiText.titleB }}</span> {{ uiText.titleC }}
+            </span>
           </h1>
-          <p>
+          <p class="about-banner-lede">
             {{ uiText.intro }}
           </p>
+          <div class="about-banner-signals" aria-label="Platform strengths">
+            <span>{{ uiText.t2 }}</span>
+            <span>{{ uiText.t1 }}</span>
+            <span>{{ uiText.t3 }}</span>
+          </div>
           <RouterLink to="/services/packages" class="about-banner-cta">
             {{ uiText.cta }}
           </RouterLink>
@@ -232,15 +241,40 @@ const localizedJourneyCards = computed(() => {
         </article>
       </section>
 
-      <section class="about-hero card">
-        <p class="about-hero-kicker">{{ uiText.why }}</p>
-        <h2>{{ uiText.modernPlatform }}</h2>
-        <p>
-          {{ uiText.heroText }}
-        </p>
+      <section class="about-story card">
+        <div class="about-story-copy">
+          <p class="about-hero-kicker">{{ uiText.why }}</p>
+          <h2>{{ uiText.modernPlatform }}</h2>
+          <p>
+            {{ uiText.heroText }}
+          </p>
+          <div class="about-story-tags">
+            <span>{{ uiText.t1 }}</span>
+            <span>{{ uiText.t2 }}</span>
+            <span>{{ uiText.t3 }}</span>
+            <span>{{ uiText.t4 }}</span>
+          </div>
+        </div>
+
+        <aside class="about-story-panel">
+          <div class="about-story-orbit">
+            <span></span>
+            <span></span>
+            <img class="about-story-banner-logo" :src="appLogoSrc" alt="" @error="onLogoError" />
+          </div>
+          <div class="about-story-badge">
+            <strong>{{ highlights[0].value }}</strong>
+            <p>{{ highlights[0].label }}</p>
+          </div>
+          <div class="about-story-note">
+            <p>{{ uiText.missionTitle }}</p>
+            <strong>{{ uiText.t2 }}</strong>
+            <span>{{ uiText.t4 }}</span>
+          </div>
+        </aside>
       </section>
 
-      <section class="about-grid">
+      <section class="about-grid about-grid-elevated">
         <article
           class="card about-block"
           v-for="(pillar, index) in localizedPillars"
@@ -252,15 +286,24 @@ const localizedJourneyCards = computed(() => {
         </article>
       </section>
       <section class="card about-mission">
-        <h2>{{ uiText.missionTitle }}</h2>
-        <p>
-          {{ uiText.missionText }}
-        </p>
-        <div class="about-mission-tags">
-          <span>{{ uiText.t1 }}</span>
-          <span>{{ uiText.t2 }}</span>
-          <span>{{ uiText.t3 }}</span>
-          <span>{{ uiText.t4 }}</span>
+        <div class="about-mission-copy">
+          <h2>{{ uiText.missionTitle }}</h2>
+          <p>
+            {{ uiText.missionText }}
+          </p>
+          <div class="about-mission-tags">
+            <span>{{ uiText.t1 }}</span>
+            <span>{{ uiText.t2 }}</span>
+            <span>{{ uiText.t3 }}</span>
+            <span>{{ uiText.t4 }}</span>
+          </div>
+        </div>
+        <div class="about-mission-accent" aria-hidden="true">
+          <div class="about-mission-ring"></div>
+          <div class="about-mission-ring"></div>
+          <div class="about-mission-core">
+            <img :src="appLogoSrc" alt="" @error="onLogoError" />
+          </div>
         </div>
       </section>
       <section class="about-stats">
@@ -269,6 +312,7 @@ const localizedJourneyCards = computed(() => {
           v-for="item in highlights"
           :key="item.label"
         >
+          <span class="stat-line"></span>
           <strong>{{ item.value }}</strong>
           <p>{{ item.label }}</p>
         </article>
@@ -302,12 +346,14 @@ const localizedJourneyCards = computed(() => {
 .about-banner {
   position: relative;
   overflow: hidden;
-  padding: 2.4rem 2rem 2.2rem;
-  border-radius: 30px;
+  padding: 3.4rem 2rem 3.5rem;
+  border-radius: 38px;
   background:
-    radial-gradient(circle at 12% 0%, rgba(255, 106, 0, 0.12), transparent 34%),
-    radial-gradient(circle at 86% 0%, rgba(255, 173, 112, 0.18), transparent 36%),
-    linear-gradient(180deg, #fffefc, #fff8f2);
+    radial-gradient(circle at 50% 18%, rgba(244, 189, 116, 0.08), transparent 22%),
+    linear-gradient(180deg, #fbf6f1, #f9f4ee);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 10px 30px rgba(92, 72, 49, 0.04);
   animation: aboutFadeUp 0.55s ease both;
 }
 
@@ -315,10 +361,10 @@ const localizedJourneyCards = computed(() => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(460px, 70%);
+  width: min(440px, 42%);
   transform: translate(-50%, -50%);
-  opacity: 0.16;
-  filter: saturate(1.2);
+  opacity: 0.18;
+  filter: saturate(1.08) contrast(1.02);
   pointer-events: none;
 }
 
@@ -326,16 +372,10 @@ const localizedJourneyCards = computed(() => {
   position: relative;
   z-index: 1;
   max-width: 980px;
-}
-
-.about-hero {
-  margin-top: 1rem;
-  padding: 1.35rem 1.4rem;
-  border-radius: 22px;
-  border: 1px solid #dde7f6;
-  background:
-    radial-gradient(circle at 95% 0%, rgba(255, 106, 0, 0.14), transparent 42%),
-    linear-gradient(180deg, #ffffff, #f8fbff);
+  margin: 0 auto;
+  display: grid;
+  justify-items: center;
+  text-align: center;
 }
 
 .about-hero-kicker {
@@ -355,51 +395,91 @@ const localizedJourneyCards = computed(() => {
 .about-chip {
   width: fit-content;
   margin: 0;
-  border: 1px solid #ffd3b1;
+  border: 1px solid #f6caa7;
   border-radius: 999px;
-  padding: 0.2rem 0.6rem;
-  background: #fff4ea;
-  color: #c2410c;
-  font-size: 0.76rem;
+  padding: 0.3rem 0.82rem;
+  background: rgba(255, 244, 234, 0.92);
+  color: #c45a12;
+  font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.about-banner h1 {
-  margin: 0.8rem 0 0;
-  font-size: clamp(2.4rem, 5vw, 5.15rem);
+.about-banner-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.4rem, 5.2vw, 4.7rem);
   line-height: 0.98;
-  letter-spacing: -0.02em;
-  max-width: 980px;
+  letter-spacing: -0.03em;
+  max-width: 16ch;
   color: #0f172a;
+  display: grid;
+  justify-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
 }
 
-.about-banner h1 span {
+.about-banner-line {
+  display: block;
+  white-space: nowrap;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.about-banner-line + .about-banner-line {
+  margin-top: -0.03em;
+}
+
+.about-banner-title span span {
   color: #ff6a00;
   font-style: italic;
-  text-shadow: 0 8px 24px rgba(255, 106, 0, 0.2);
+  text-shadow: 0 10px 24px rgba(255, 106, 0, 0.16);
 }
 
-.about-banner p {
-  margin: 1rem 0 0;
-  max-width: 720px;
-  color: #475569;
-  font-size: clamp(1rem, 2vw, 1.15rem);
-  line-height: 1.6;
+.about-banner-lede {
+  margin: 1.35rem 0 0;
+  max-width: 640px;
+  color: #66748b;
+  font-size: clamp(1.02rem, 1.6vw, 1.2rem);
+  line-height: 1.5;
+}
+
+.about-banner-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  justify-content: center;
+}
+
+.about-banner-signals span {
+  border: 1px solid rgba(196, 90, 18, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #9a5d28;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.32rem 0.68rem;
 }
 
 .about-banner-cta {
-  margin-top: 1.2rem;
+  margin-top: 1.7rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 50px;
-  padding: 0 1.5rem;
+  gap: 0.8rem;
+  min-height: 64px;
+  padding: 0 1rem 0 1.9rem;
   border-radius: 999px;
   background: linear-gradient(145deg, #ff8a2b, #ff6a00);
   color: #fff;
   font-weight: 800;
-  box-shadow: 0 14px 30px rgba(255, 106, 0, 0.28);
+  font-size: 1.02rem;
+  box-shadow: 0 18px 36px rgba(255, 106, 0, 0.22);
   position: relative;
   overflow: hidden;
 }
@@ -407,6 +487,19 @@ const localizedJourneyCards = computed(() => {
 .about-banner-cta:hover {
   transform: translateY(-1px);
   box-shadow: 0 18px 34px rgba(255, 106, 0, 0.34);
+}
+
+.about-banner-cta::before {
+  content: '›';
+  order: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .about-banner-cta::after {
@@ -425,17 +518,184 @@ const localizedJourneyCards = computed(() => {
   left: 140%;
 }
 
-.about-hero h2 {
-  margin: 0;
-  font-size: clamp(1.6rem, 2.6vw, 2.3rem);
-  line-height: 1.15;
+.about-story {
+  position: relative;
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr);
+  align-items: start;
+  gap: 1rem;
+  padding: 1.45rem 1.45rem 1.2rem;
+  border-radius: 32px;
+  border: 1px solid #dde7f6;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.16), transparent 32%),
+    radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.09), transparent 26%),
+    linear-gradient(135deg, #ffffff, #f7fbff 58%, #fff6ee 100%);
+  overflow: hidden;
 }
 
-.about-hero p {
+.about-story::before {
+  content: '';
+  position: absolute;
+  inset: auto auto -110px -70px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 106, 0, 0.1), transparent 68%);
+  pointer-events: none;
+}
+
+.about-story::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 28%;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(148, 163, 184, 0.25), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.about-story-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  padding-right: 0.8rem;
+}
+
+.about-story h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.9rem);
+  line-height: 1.15;
+  max-width: 14ch;
+}
+
+.about-story p {
   margin: 0.65rem 0 0;
-  max-width: 940px;
+  max-width: 62ch;
   color: #475569;
   line-height: 1.64;
+}
+
+.about-story-tags {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.about-story-tags span {
+  border: 1px solid rgba(255, 106, 0, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #9a4f11;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.75rem;
+}
+
+.about-story-panel {
+  position: relative;
+  border-radius: 28px;
+  padding: 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
+    #0f172a;
+  color: #fff;
+  display: grid;
+  align-content: space-between;
+  gap: 0.8rem;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.about-story-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 122, 38, 0.12), transparent 12%),
+    repeating-radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 44px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.about-story-orbit {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 170px;
+}
+
+.about-story-orbit span {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.about-story-orbit span:nth-child(1) {
+  width: 164px;
+  height: 164px;
+}
+
+.about-story-orbit span:nth-child(2) {
+  width: 122px;
+  height: 122px;
+  border-color: rgba(255, 166, 102, 0.34);
+}
+
+.about-story-banner-logo {
+  position: relative;
+  z-index: 1;
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.99), rgba(250, 244, 238, 0.95));
+  padding: 12px;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.22),
+    0 0 0 12px rgba(255, 255, 255, 0.04);
+  filter: saturate(1.04) contrast(1.02);
+}
+
+.about-story-badge,
+.about-story-note {
+  position: relative;
+  z-index: 1;
+  border-radius: 18px;
+  padding: 0.8rem 0.9rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.about-story-badge strong {
+  display: block;
+  font-size: 2rem;
+  line-height: 1;
+  color: #fff5eb;
+}
+
+.about-story-badge p,
+.about-story-note p,
+.about-story-note span {
+  margin: 0.35rem 0 0;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.about-story-note p {
+  margin-top: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.about-story-note strong {
+  display: block;
+  margin-top: 0.3rem;
+  color: #fff;
+  font-size: 1.1rem;
 }
 
 .about-visuals {
@@ -503,17 +763,57 @@ const localizedJourneyCards = computed(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.8rem;
+  align-items: stretch;
 }
+
+.about-grid-elevated {
+  margin-top: 0.55rem;
+  position: relative;
+  z-index: 1;
+}
+
 .about-block {
-  padding: 1.1rem;
-  border-radius: 20px;
-  border: 1px solid #dde7f6;
+  position: relative;
+  overflow: hidden;
+  min-height: 230px;
+  padding: 1.2rem;
+  border-radius: 24px;
+  border: 1px solid rgba(221, 231, 246, 0.9);
   background:
-    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.08), transparent 35%),
-    linear-gradient(180deg, #ffffff, #f9fcff);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.1), transparent 35%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.94));
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   animation: aboutFadeUp 0.55s ease both;
+}
+
+.about-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.2rem;
+  width: 52px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff9a3a, #ff6a00);
+}
+
+.about-block:nth-child(1) {
+  padding-top: 1.5rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.14), transparent 34%),
+    linear-gradient(180deg, #fffdf9, #fff7ef);
+}
+
+.about-block:nth-child(2) {
+  transform: none;
+}
+
+.about-block:nth-child(3) {
+  transform: none;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.12), transparent 34%),
+    linear-gradient(180deg, #fdfefe, #f4f9ff);
 }
 
 .about-block-index {
@@ -543,18 +843,39 @@ const localizedJourneyCards = computed(() => {
 }
 .about-mission {
   margin-top: 0.9rem;
-  padding: 1.25rem;
-  border-radius: 22px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.7fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1.35rem;
+  border-radius: 26px;
   border: 1px solid #dde7f6;
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.12), transparent 32%),
-    linear-gradient(180deg, #ffffff, #f9fcff);
+    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.14), transparent 28%),
+    linear-gradient(135deg, #ffffff, #f9fcff 58%, #fff8f1);
   animation: aboutFadeUp 0.55s ease both;
+  overflow: hidden;
+}
+
+.about-mission::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.55) 34%, rgba(255, 255, 255, 0) 68%);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.about-mission-copy {
+  position: relative;
+  z-index: 1;
 }
 
 .about-mission h2 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: clamp(1.7rem, 2.6vw, 2.2rem);
 }
 
 .about-mission p {
@@ -579,22 +900,114 @@ const localizedJourneyCards = computed(() => {
   font-weight: 700;
   padding: 0.22rem 0.62rem;
 }
+
+.about-mission-accent {
+  position: relative;
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+}
+
+.about-mission-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 106, 0, 0.15);
+}
+
+.about-mission-ring:nth-child(1) {
+  width: 210px;
+  height: 210px;
+}
+
+.about-mission-ring:nth-child(2) {
+  width: 138px;
+  height: 138px;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.about-mission-core {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.98), rgba(255, 247, 239, 0.92));
+  box-shadow: 0 18px 38px rgba(255, 106, 0, 0.24);
+  overflow: hidden;
+}
+
+.about-mission-core img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  filter: saturate(1.08);
+}
+
 .about-stats {
   margin-top: 0.9rem;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
+  align-items: start;
 }
 .stat-item {
-  padding: 1.05rem 0.85rem;
+  position: relative;
+  padding: 1.15rem 0.85rem;
   text-align: center;
-  border-radius: 18px;
+  border-radius: 22px;
   border: 1px solid #dce7f5;
   background:
-    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 42%),
-    #fff;
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.1), transparent 42%),
+    linear-gradient(180deg, #ffffff, #f8fbff);
   transition: transform 0.22s ease, box-shadow 0.22s ease;
   animation: aboutFadeUp 0.55s ease both;
+  overflow: hidden;
+}
+
+.stat-item:nth-child(2) {
+  transform: translateY(10px);
+}
+
+.stat-item:nth-child(3) {
+  transform: translateY(20px);
+}
+
+.stat-item:nth-child(4) {
+  transform: translateY(10px);
+}
+
+.stat-item:nth-child(1) {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, 0.14), transparent 42%),
+    linear-gradient(180deg, #ffffff, #fff9f3);
+}
+
+.stat-item:nth-child(2) {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12), transparent 42%),
+    linear-gradient(180deg, #ffffff, #f6fbff);
+}
+
+.stat-item:nth-child(3) {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.12), transparent 42%),
+    linear-gradient(180deg, #ffffff, #f5fcff);
+}
+
+.stat-item:nth-child(4) {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.14), transparent 42%),
+    linear-gradient(180deg, #ffffff, #fffbf3);
+}
+
+.stat-line {
+  display: block;
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 0.8rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff9a3a, #ff6a00);
 }
 
 .stat-item strong {
@@ -675,6 +1088,26 @@ const localizedJourneyCards = computed(() => {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
 }
 
+.about-block:nth-child(2):hover {
+  transform: translateY(-3px);
+}
+
+.about-block:nth-child(3):hover {
+  transform: translateY(-3px);
+}
+
+.stat-item:nth-child(2):hover {
+  transform: translateY(6px);
+}
+
+.stat-item:nth-child(3):hover {
+  transform: translateY(16px);
+}
+
+.stat-item:nth-child(4):hover {
+  transform: translateY(6px);
+}
+
 .about-journey-card:hover img {
   transform: scale(1.03);
 }
@@ -717,7 +1150,12 @@ const localizedJourneyCards = computed(() => {
 
 @media (max-width: 980px) {
   .about-banner {
-    padding: 1.8rem 1.2rem;
+    padding: 2.5rem 1.2rem 2.6rem;
+  }
+
+  .about-story,
+  .about-mission {
+    grid-template-columns: 1fr;
   }
 
   .about-visuals {
@@ -737,6 +1175,22 @@ const localizedJourneyCards = computed(() => {
     grid-template-columns: 1fr;
   }
 
+  .about-grid-elevated {
+    margin-top: 0.9rem;
+  }
+
+  .about-block,
+  .about-block:nth-child(1),
+  .about-block:nth-child(2),
+  .about-block:nth-child(3),
+  .stat-item,
+  .stat-item:nth-child(2),
+  .stat-item:nth-child(3),
+  .stat-item:nth-child(4) {
+    transform: none;
+    min-height: auto;
+  }
+
   .about-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -748,12 +1202,17 @@ const localizedJourneyCards = computed(() => {
 
 @media (max-width: 680px) {
   .about-banner-watermark {
-    width: min(360px, 84%);
-    opacity: 0.12;
+    width: min(320px, 82%);
+    opacity: 0.18;
   }
 
-  .about-banner h1 {
+  .about-banner-title {
     line-height: 1.02;
+    max-width: none;
+  }
+
+  .about-banner-signals {
+    display: none;
   }
 
   .about-stats {

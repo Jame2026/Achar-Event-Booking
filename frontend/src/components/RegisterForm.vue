@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useLanguageCopy } from '../features/language'
 
 const emit = defineEmits<{
   switch: []
@@ -21,6 +22,84 @@ const showConfirmPassword = ref(false)
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const copyByLanguage = {
+  en: {
+    backHome: 'Back to Home',
+    title: 'Create your account',
+    subtitle: 'Set up your profile and choose your account profession.',
+    registerWith: 'Register With',
+    email: 'Email',
+    phone: 'Phone',
+    fullName: 'Full Name',
+    fullNamePlaceholder: 'Your full name',
+    emailLabel: 'Email',
+    emailPlaceholder: 'you@example.com',
+    phoneNumber: 'Phone Number',
+    profession: 'Profession',
+    planner: 'Planner',
+    vendor: 'Vendor',
+    password: 'Password',
+    passwordPlaceholder: 'At least 8 characters',
+    confirmPassword: 'Confirm Password',
+    confirmPasswordPlaceholder: 'Repeat password',
+    creating: 'Creating...',
+    createAccount: 'Create Account',
+    orSignUpWith: 'or sign up with',
+    alreadyRegistered: 'Already registered?',
+    signIn: 'Sign in',
+  },
+  km: {
+    backHome: 'ត្រឡប់ទៅទំព័រដើម',
+    title: 'បង្កើតគណនីរបស់អ្នក',
+    subtitle: 'រៀបចំព័ត៌មានរបស់អ្នក ហើយជ្រើសរើសប្រភេទគណនី។',
+    registerWith: 'ចុះឈ្មោះដោយ',
+    email: 'អ៊ីមែល',
+    phone: 'ទូរស័ព្ទ',
+    fullName: 'ឈ្មោះពេញ',
+    fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
+    emailLabel: 'អ៊ីមែល',
+    emailPlaceholder: 'you@example.com',
+    phoneNumber: 'លេខទូរស័ព្ទ',
+    profession: 'វិជ្ជាជីវៈ',
+    planner: 'អ្នករៀបចំ',
+    vendor: 'អ្នកផ្គត់ផ្គង់',
+    password: 'ពាក្យសម្ងាត់',
+    passwordPlaceholder: 'យ៉ាងហោចណាស់ 8 តួអក្សរ',
+    confirmPassword: 'បញ្ជាក់ពាក្យសម្ងាត់',
+    confirmPasswordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់ម្តងទៀត',
+    creating: 'កំពុងបង្កើត...',
+    createAccount: 'បង្កើតគណនី',
+    orSignUpWith: 'ឬចុះឈ្មោះជាមួយ',
+    alreadyRegistered: 'បានចុះឈ្មោះរួចហើយ?',
+    signIn: 'ចូល',
+  },
+  zh: {
+    backHome: '返回首页',
+    title: '创建您的账户',
+    subtitle: '设置您的资料并选择账户身份。',
+    registerWith: '注册方式',
+    email: '邮箱',
+    phone: '手机',
+    fullName: '姓名',
+    fullNamePlaceholder: '您的姓名',
+    emailLabel: '邮箱',
+    emailPlaceholder: 'you@example.com',
+    phoneNumber: '手机号',
+    profession: '身份',
+    planner: '策划人',
+    vendor: '商家',
+    password: '密码',
+    passwordPlaceholder: '至少 8 个字符',
+    confirmPassword: '确认密码',
+    confirmPasswordPlaceholder: '再次输入密码',
+    creating: '创建中...',
+    createAccount: '创建账户',
+    orSignUpWith: '或使用以下方式注册',
+    alreadyRegistered: '已经注册？',
+    signIn: '登录',
+  },
+}
+const { uiText } = useLanguageCopy(copyByLanguage)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
 const apiBaseUrl = `${apiOrigin}/api`
@@ -118,36 +197,46 @@ const submitRegister = async () => {
 
     <main class="auth-panel">
       <section class="auth-card">
-        <router-link class="auth-back-home" to="/">← Back to Home</router-link>
+        <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
 
         <div class="brand-row auth-logo-only">
           <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
         </div>
 
         <div class="form-head">
+<<<<<<< HEAD
           <h2><span aria-hidden="true">📝</span> Create your account</h2>
           <p>Set up your profile and choose your account profession.</p>
+=======
+          <h2>{{ uiText.title }}</h2>
+          <p>{{ uiText.subtitle }}</p>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
         </div>
 
         <form class="auth-form" @submit.prevent="submitRegister">
           <label class="field">
+<<<<<<< HEAD
             <span>🧾 Register With</span>
+=======
+            <span>{{ uiText.registerWith }}</span>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="role-grid">
               <label class="role-card" :class="{ active: registerMethod === 'email' }">
                 <input v-model="registerMethod" type="radio" value="email" name="register_method" />
                 <span class="role-icon">&#x2709;&#xFE0F;</span>
-                <span class="role-name">Email</span>
+                <span class="role-name">{{ uiText.email }}</span>
               </label>
 
               <label class="role-card" :class="{ active: registerMethod === 'phone' }">
                 <input v-model="registerMethod" type="radio" value="phone" name="register_method" />
                 <span class="role-icon">&#x1F4F1;</span>
-                <span class="role-name">Phone</span>
+                <span class="role-name">{{ uiText.phone }}</span>
               </label>
             </div>
           </label>
 
           <label class="field">
+<<<<<<< HEAD
             <span>👤 Full Name</span>
             <input v-model="form.name" type="text" placeholder="Your full name" required />
           </label>
@@ -159,6 +248,19 @@ const submitRegister = async () => {
 
           <label v-else class="field">
             <span>📱 Phone Number</span>
+=======
+            <span>{{ uiText.fullName }}</span>
+            <input v-model="form.name" type="text" :placeholder="uiText.fullNamePlaceholder" required />
+          </label>
+
+          <label v-if="registerMethod === 'email'" class="field">
+            <span>{{ uiText.emailLabel }}</span>
+            <input v-model="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
+          </label>
+
+          <label v-else class="field">
+            <span>{{ uiText.phoneNumber }}</span>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <input
               v-model="form.phone"
               type="tel"
@@ -170,29 +272,37 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
+<<<<<<< HEAD
             <span>💼 Profession</span>
+=======
+            <span>{{ uiText.profession }}</span>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="role-grid">
               <label class="role-card" :class="{ active: form.role === 'user' }">
                 <input v-model="form.role" type="radio" value="user" name="role" />
                 <span class="role-icon">&#x1F4C5;</span>
-                <span class="role-name">Planner</span>
+                <span class="role-name">{{ uiText.planner }}</span>
               </label>
 
               <label class="role-card" :class="{ active: form.role === 'vendor' }">
                 <input v-model="form.role" type="radio" value="vendor" name="role" />
                 <span class="role-icon">&#x1F3EA;</span>
-                <span class="role-name">Vendor</span>
+                <span class="role-name">{{ uiText.vendor }}</span>
               </label>
             </div>
           </label>
 
           <label class="field">
+<<<<<<< HEAD
             <span>🔑 Password</span>
+=======
+            <span>{{ uiText.password }}</span>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="password-wrap">
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="At least 8 characters"
+                :placeholder="uiText.passwordPlaceholder"
                 minlength="8"
                 required
               />
@@ -212,12 +322,16 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
+<<<<<<< HEAD
             <span>✅ Confirm Password</span>
+=======
+            <span>{{ uiText.confirmPassword }}</span>
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
                 :type="showConfirmPassword ? 'text' : 'password'"
-                placeholder="Repeat password"
+                :placeholder="uiText.confirmPasswordPlaceholder"
                 minlength="8"
                 required
               />
@@ -240,12 +354,16 @@ const submitRegister = async () => {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
+<<<<<<< HEAD
             {{ submitting ? 'Creating...' : '✨ Create Account' }}
+=======
+            {{ submitting ? uiText.creating : uiText.createAccount }}
+>>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
           </button>
         </form>
 
         <div class="auth-divider">
-          <span>or sign up with</span>
+          <span>{{ uiText.orSignUpWith }}</span>
         </div>
 
         <div class="social-grid">
@@ -256,8 +374,8 @@ const submitRegister = async () => {
         </div>
 
         <p class="switch-row">
-          Already registered?
-          <button type="button" class="link-btn" @click="emit('switch')">Sign in</button>
+          {{ uiText.alreadyRegistered }}
+          <button type="button" class="link-btn" @click="emit('switch')">{{ uiText.signIn }}</button>
         </p>
       </section>
     </main>

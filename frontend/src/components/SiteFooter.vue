@@ -1,6 +1,7 @@
 ﻿<script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useLanguage } from '../features/language'
 
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const bankLogoError = ref({})
@@ -23,6 +24,82 @@ const bankPartners = [
   }
 ]
 
+const { language } = useLanguage()
+
+const copyByLanguage = {
+  en: {
+    brandTitle: 'Achar Event Booking',
+    brandSub: 'Plan with confidence',
+    brandBody: 'A trusted platform for planning, customizing, and booking event services with verified vendors.',
+    verifiedVendors: 'Verified Vendors',
+    secureBooking: 'Secure Booking',
+    navigation: 'Navigation',
+    home: 'Home',
+    about: 'About',
+    service: 'Service',
+    myBooking: 'My Booking',
+    favorite: 'Favorite',
+    contact: 'Contact',
+    paymentPartners: 'Payment Partners',
+    paymentBody: 'Supported by trusted banking partners in Cambodia.',
+    vendorPartnership: 'Vendor Partnership',
+    vendorBody: 'We collaborate with professional service providers to ensure reliable quality and responsive support for every booking.',
+    exploreServices: 'Explore Services',
+    rightsReserved: 'All rights reserved.',
+    privacyPolicy: 'Privacy Policy',
+    termsOfService: 'Terms of Service',
+    support: 'Support',
+  },
+  km: {
+    brandTitle: 'Achar Event Booking',
+    brandSub: 'រៀបចំដោយទំនុកចិត្ត',
+    brandBody: 'វេទិកាដែលអាចទុកចិត្តបានសម្រាប់រៀបចំ ប្ដូរតាមតម្រូវការ និងកក់សេវាកម្មព្រឹត្តិការណ៍ជាមួយអ្នកផ្គត់ផ្គង់ដែលបានផ្ទៀងផ្ទាត់។',
+    verifiedVendors: 'អ្នកផ្គត់ផ្គង់ដែលបានផ្ទៀងផ្ទាត់',
+    secureBooking: 'ការកក់មានសុវត្ថិភាព',
+    navigation: 'ការរុករក',
+    home: 'ទំព័រដើម',
+    about: 'អំពី',
+    service: 'សេវាកម្ម',
+    myBooking: 'ការកក់របស់ខ្ញុំ',
+    favorite: 'ចូលចិត្ត',
+    contact: 'ទាក់ទង',
+    paymentPartners: 'ដៃគូទូទាត់ប្រាក់',
+    paymentBody: 'គាំទ្រដោយដៃគូធនាគារដែលអាចទុកចិត្តបាននៅកម្ពុជា។',
+    vendorPartnership: 'ភាពជាដៃគូអ្នកផ្គត់ផ្គង់',
+    vendorBody: 'យើងសហការជាមួយអ្នកផ្តល់សេវាជំនាញ ដើម្បីធានាគុណភាពដែលអាចទុកចិត្តបាន និងការគាំទ្រឆាប់រហ័សសម្រាប់គ្រប់ការកក់។',
+    exploreServices: 'ស្វែងរកសេវាកម្ម',
+    rightsReserved: 'រក្សាសិទ្ធិគ្រប់យ៉ាង។',
+    privacyPolicy: 'គោលការណ៍ឯកជនភាព',
+    termsOfService: 'លក្ខខណ្ឌសេវាកម្ម',
+    support: 'ជំនួយ',
+  },
+  zh: {
+    brandTitle: 'Achar Event Booking',
+    brandSub: '安心策划',
+    brandBody: '一个值得信赖的平台，帮助您与已验证商家一起策划、定制并预订活动服务。',
+    verifiedVendors: '认证商家',
+    secureBooking: '安全预订',
+    navigation: '导航',
+    home: '首页',
+    about: '关于',
+    service: '服务',
+    myBooking: '我的预订',
+    favorite: '收藏',
+    contact: '联系',
+    paymentPartners: '支付合作伙伴',
+    paymentBody: '由柬埔寨值得信赖的银行合作伙伴提供支持。',
+    vendorPartnership: '商家合作',
+    vendorBody: '我们与专业服务提供商合作，确保每一笔预订都具备可靠品质与及时支持。',
+    exploreServices: '探索服务',
+    rightsReserved: '保留所有权利。',
+    privacyPolicy: '隐私政策',
+    termsOfService: '服务条款',
+    support: '支持',
+  },
+}
+
+const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en)
+
 function onAppLogoError() {
   appLogoSrc.value = '/favicon.ico'
 }
@@ -42,35 +119,32 @@ function onBankLogoError(name) {
         <div class="brand-head">
           <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onAppLogoError" />
           <div>
-            <h3>Achar Event Booking</h3>
-            <p class="brand-sub">Plan with confidence</p>
+            <h3>{{ uiText.brandTitle }}</h3>
+            <p class="brand-sub">{{ uiText.brandSub }}</p>
           </div>
         </div>
-        <p>
-          A trusted platform for planning, customizing, and booking event
-          services with verified vendors.
-        </p>
+        <p>{{ uiText.brandBody }}</p>
         <div class="trust-row">
-          <span class="pill">Verified Vendors</span>
-          <span class="pill">Secure Booking</span>
+          <span class="pill">{{ uiText.verifiedVendors }}</span>
+          <span class="pill">{{ uiText.secureBooking }}</span>
         </div>
       </div>
 
       <div class="links-col">
-        <h4>Navigation</h4>
+        <h4>{{ uiText.navigation }}</h4>
         <nav class="nav-links">
-          <RouterLink to="/">Home</RouterLink>
-          <RouterLink to="/about">About</RouterLink>
-          <RouterLink to="/services/packages">Service</RouterLink>
-          <RouterLink to="/booking">My Booking</RouterLink>
-          <RouterLink to="/favorite">Favorite</RouterLink>
-          <RouterLink to="/contact">Contact</RouterLink>
+          <RouterLink to="/">{{ uiText.home }}</RouterLink>
+          <RouterLink to="/about">{{ uiText.about }}</RouterLink>
+          <RouterLink to="/services/packages">{{ uiText.service }}</RouterLink>
+          <RouterLink to="/booking">{{ uiText.myBooking }}</RouterLink>
+          <RouterLink to="/favorite">{{ uiText.favorite }}</RouterLink>
+          <RouterLink to="/contact">{{ uiText.contact }}</RouterLink>
         </nav>
       </div>
 
       <div class="links-col">
-        <h4>Payment Partners</h4>
-        <p class="muted">Supported by trusted banking partners in Cambodia.</p>
+        <h4>{{ uiText.paymentPartners }}</h4>
+        <p class="muted">{{ uiText.paymentBody }}</p>
         <div class="payments">
           <div v-for="bank in bankPartners" :key="bank.name" class="payment-card">
             <div class="payment-link">
@@ -90,24 +164,20 @@ function onBankLogoError(name) {
       </div>
 
       <div class="links-col">
-        <h4>Vendor Partnership</h4>
-        <p class="muted">
-          We collaborate with professional service providers to ensure reliable
-          quality and responsive support for every booking.
-        </p>
-        <RouterLink class="partner-link" to="/services/packages">Explore Services</RouterLink>
+        <h4>{{ uiText.vendorPartnership }}</h4>
+        <p class="muted">{{ uiText.vendorBody }}</p>
+        <RouterLink class="partner-link" to="/services/packages">{{ uiText.exploreServices }}</RouterLink>
       </div>
     </div>
 
     <div class="shell footer-bottom">
       <span class="copyright">
-        &copy; {{ new Date().getFullYear() }} Achar Event Booking. All rights
-        reserved.
+        &copy; {{ new Date().getFullYear() }} {{ uiText.brandTitle }}. {{ uiText.rightsReserved }}
       </span>
       <div class="legal-links">
-        <RouterLink to="/about">Privacy Policy</RouterLink>
-        <RouterLink to="/about">Terms of Service</RouterLink>
-        <RouterLink to="/contact">Support</RouterLink>
+        <RouterLink to="/about">{{ uiText.privacyPolicy }}</RouterLink>
+        <RouterLink to="/about">{{ uiText.termsOfService }}</RouterLink>
+        <RouterLink to="/contact">{{ uiText.support }}</RouterLink>
       </div>
     </div>
   </footer>

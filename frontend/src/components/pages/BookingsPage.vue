@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from 'vue'
+import { useLanguageCopy } from '../../features/language'
+
 const props = defineProps([
   'bindings',
   'eventTypeOptions',
@@ -12,27 +15,70 @@ const props = defineProps([
   'bookingSecondaryAction',
   'bookingPrimaryAction',
 ])
+
+const copyByLanguage = {
+  en: {
+    breadcrumbs: 'Home > My Bookings',
+    title: 'My Bookings',
+    subtitle: 'Manage your upcoming and past event services.',
+    upcoming: 'Upcoming',
+    completed: 'Completed',
+    drafts: 'Drafts',
+    loading: 'Loading bookings from API...',
+    empty: 'No bookings found for this filter. Use your email on vendor page and click "Load My Bookings".',
+    date: 'Date',
+  },
+  km: {
+    breadcrumbs: 'ទំព័រដើម > ការកក់របស់ខ្ញុំ',
+    title: 'ការកក់របស់ខ្ញុំ',
+    subtitle: 'គ្រប់គ្រងសេវាព្រឹត្តិការណ៍នាពេលខាងមុខ និងកន្លងមករបស់អ្នក។',
+    upcoming: 'នាពេលខាងមុខ',
+    completed: 'បានបញ្ចប់',
+    drafts: 'ព្រាង',
+    loading: 'កំពុងផ្ទុកការកក់ពី API...',
+    empty: 'រកមិនឃើញការកក់សម្រាប់តម្រងនេះទេ។ ប្រើអ៊ីមែលរបស់អ្នកនៅទំព័រអ្នកផ្គត់ផ្គង់ ហើយចុច "ផ្ទុកការកក់របស់ខ្ញុំ"។',
+    date: 'កាលបរិច្ឆេទ',
+  },
+  zh: {
+    breadcrumbs: '首页 > 我的预订',
+    title: '我的预订',
+    subtitle: '管理您即将开始和过去的活动服务。',
+    upcoming: '即将开始',
+    completed: '已完成',
+    drafts: '草稿',
+    loading: '正在从 API 加载预订...',
+    empty: '当前筛选条件下没有预订。请在商家页面使用您的邮箱并点击“加载我的预订”。',
+    date: '日期',
+  },
+}
+
+const { uiText } = useLanguageCopy(copyByLanguage)
+const filterTabs = computed(() => [
+  { value: 'Upcoming', label: uiText.value.upcoming },
+  { value: 'Completed', label: uiText.value.completed },
+  { value: 'Drafts', label: uiText.value.drafts },
+])
 </script>
 
 <template>
   <main class="shell bookings-page">
-    <div class="breadcrumbs">Home > My Bookings</div>
+    <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
 
     <section class="bookings-head">
       <div>
-        <h1>My Bookings</h1>
-        <p>Manage your upcoming and past event services.</p>
+        <h1>{{ uiText.title }}</h1>
+        <p>{{ uiText.subtitle }}</p>
       </div>
       <div class="booking-filter-wrap">
         <div class="booking-filter">
           <button
-            v-for="tab in ['Upcoming', 'Completed', 'Drafts']"
-            :key="tab"
+            v-for="tab in filterTabs"
+            :key="tab.value"
             type="button"
-            :class="{ active: props.bindings.bookingFilter.value === tab }"
-            @click="props.bindings.bookingFilter.value = tab"
+            :class="{ active: props.bindings.bookingFilter.value === tab.value }"
+            @click="props.bindings.bookingFilter.value = tab.value"
           >
-            {{ tab }}
+            {{ tab.label }}
           </button>
         </div>
         <select
@@ -51,9 +97,9 @@ const props = defineProps([
 
     <section>
       <div class="booking-list">
-        <div v-if="props.isLoadingBookings" class="card empty-state">Loading bookings from API...</div>
+        <div v-if="props.isLoadingBookings" class="card empty-state">{{ uiText.loading }}</div>
         <div v-else-if="props.filteredBookings.length === 0" class="card empty-state">
-          No bookings found for this filter. Use your email on vendor page and click "Load My Bookings".
+          {{ uiText.empty }}
         </div>
 
         <article v-for="item in props.filteredBookings" :key="item.id" class="booking-card card">
@@ -69,7 +115,7 @@ const props = defineProps([
 
             <div class="booking-meta">
               <div>
-                <small>Date</small>
+                <small>{{ uiText.date }}</small>
                 <strong>{{ item.date }}</strong>
               </div>
               <div>

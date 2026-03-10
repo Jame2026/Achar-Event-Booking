@@ -1,4 +1,6 @@
 <script setup>
+import { useLanguageCopy } from '../../features/language'
+
 const props = defineProps([
   'bindings',
   'userProfileNotice',
@@ -14,15 +16,71 @@ const props = defineProps([
   'isSavingProfile',
   'logoutUser',
 ])
+
+const copyByLanguage = {
+  en: {
+    breadcrumbs: 'Dashboard > My Profile',
+    title: 'Edit My Profile',
+    fullName: 'Full Name',
+    fullNamePlaceholder: 'Your full name',
+    email: 'Email',
+    emailPlaceholder: 'you@example.com',
+    phone: 'Phone',
+    location: 'Location',
+    locationPlaceholder: 'City, State',
+    detectingLocation: 'Detecting location...',
+    useCurrentLocation: 'Use Current Location',
+    openInMap: 'Open current location in map',
+    logout: 'Logout',
+    reset: 'Reset',
+    saveProfile: 'Save Profile',
+  },
+  km: {
+    breadcrumbs: 'ផ្ទាំងគ្រប់គ្រង > ប្រវត្តិរូបរបស់ខ្ញុំ',
+    title: 'កែប្រែប្រវត្តិរូបរបស់ខ្ញុំ',
+    fullName: 'ឈ្មោះពេញ',
+    fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
+    email: 'អ៊ីមែល',
+    emailPlaceholder: 'you@example.com',
+    phone: 'ទូរស័ព្ទ',
+    location: 'ទីតាំង',
+    locationPlaceholder: 'ទីក្រុង, ខេត្ត',
+    detectingLocation: 'កំពុងស្វែងរកទីតាំង...',
+    useCurrentLocation: 'ប្រើទីតាំងបច្ចុប្បន្ន',
+    openInMap: 'បើកទីតាំងបច្ចុប្បន្នក្នុងផែនទី',
+    logout: 'ចាកចេញ',
+    reset: 'កំណត់ឡើងវិញ',
+    saveProfile: 'រក្សាទុកប្រវត្តិរូប',
+  },
+  zh: {
+    breadcrumbs: '仪表盘 > 我的资料',
+    title: '编辑我的资料',
+    fullName: '姓名',
+    fullNamePlaceholder: '您的姓名',
+    email: '邮箱',
+    emailPlaceholder: 'you@example.com',
+    phone: '电话',
+    location: '位置',
+    locationPlaceholder: '城市，省份',
+    detectingLocation: '正在定位...',
+    useCurrentLocation: '使用当前位置',
+    openInMap: '在地图中打开当前位置',
+    logout: '退出登录',
+    reset: '重置',
+    saveProfile: '保存资料',
+  },
+}
+
+const { uiText } = useLanguageCopy(copyByLanguage)
 </script>
 
 <template>
   <main class="shell profile-page">
-    <div class="breadcrumbs">Dashboard > My Profile</div>
+    <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
 
     <section class="card services profile-form">
       <div class="profile-head">
-        <h2>🧑‍💼 Edit My Profile</h2>
+        <h2>Edit My Profile</h2>
         <p>Manage your account details and profile photo shown across the platform.</p>
       </div>
       <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
@@ -76,25 +134,25 @@ const props = defineProps([
       <h3 class="profile-section-title">Account Information</h3>
       <div class="profile-grid">
         <label>
-          👤 Full Name
+          Full Name
           <input
             type="text"
-            placeholder="Your full name"
+            :placeholder="uiText.fullNamePlaceholder"
             :value="props.bindings.userProfileDraft.value.name"
             @input="props.bindings.userProfileDraft.value.name = $event.target.value"
           />
         </label>
         <label>
-          📧 Email
+          Email
           <input
             type="email"
-            placeholder="you@example.com"
+            :placeholder="uiText.emailPlaceholder"
             :value="props.bindings.userProfileDraft.value.email"
             @input="props.bindings.userProfileDraft.value.email = $event.target.value"
           />
         </label>
         <label>
-          📱 Phone
+          Phone
           <input
             type="text"
             placeholder="+1 (555) 123-4567"
@@ -103,10 +161,10 @@ const props = defineProps([
           />
         </label>
         <label>
-          📍 Location
+          Location
           <input
             type="text"
-            placeholder="City, State"
+            :placeholder="uiText.locationPlaceholder"
             :value="props.bindings.userProfileDraft.value.location"
             @input="props.bindings.userProfileDraft.value.location = $event.target.value"
           />
@@ -116,7 +174,7 @@ const props = defineProps([
       <h3 class="profile-section-title">🗺️ Location</h3>
       <div class="profile-location-tools">
         <button type="button" class="btn-light" :disabled="props.isDetectingLocation" @click="props.detectCurrentLocation">
-          {{ props.isDetectingLocation ? 'Detecting location...' : '📡 Use Current Location' }}
+          {{ props.isDetectingLocation ? 'Detecting location...' : 'Use Current Location' }}
         </button>
         <p v-if="props.userLatitude !== null && props.userLongitude !== null" class="location-coords">
           Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
@@ -135,15 +193,15 @@ const props = defineProps([
           target="_blank"
           rel="noopener noreferrer"
         >
-          Open current location in map
+          {{ uiText.openInMap }}
         </a>
       </div>
 
       <div class="profile-actions">
-        <button type="button" class="btn-logout" @click="props.logoutUser">🚪 Logout</button>
-        <button type="button" class="btn-light" @click="props.resetUserProfile">♻️ Reset</button>
+        <button type="button" class="btn-logout" @click="props.logoutUser">Logout</button>
+        <button type="button" class="btn-light" @click="props.resetUserProfile">Reset</button>
         <button type="button" class="btn-accent" :disabled="props.isSavingProfile" @click="props.saveUserProfile">
-          {{ props.isSavingProfile ? 'Saving...' : '💾 Save Profile' }}
+          {{ props.isSavingProfile ? 'Saving...' : 'Save Profile' }}
         </button>
       </div>
     </section>

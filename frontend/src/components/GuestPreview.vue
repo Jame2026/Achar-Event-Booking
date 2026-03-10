@@ -16,7 +16,6 @@ import {
   serviceFeeRate,
   vendorProfile,
 } from "../features/appData";
-import { isDateLikelyBooked, isSlotLikelyBooked } from "../features/availabilityUtils";
 import { useRouter } from "vue-router";
 
 const props = defineProps({
@@ -49,6 +48,58 @@ const copyByLanguage = {
     dashboard: "Dashboard",
     dashboardSub: "No dashboard data yet.",
     dashboardText: "Sign in to view your dashboard, activity, and quick actions.",
+    favoritePackages: "Favorite Packages",
+    favoritePackagesEmpty: "No packages added yet.",
+    favoriteServices: "Favorite Services",
+    favoriteServicesEmpty: "No services added yet.",
+    remove: "Remove",
+    bookFavorites: "Book Favorites",
+    bookFavoritesText: "Select package and quantity, include your favorite services, then pre-book with total calculation.",
+    favoritePackageLabel: "Favorite Package",
+    noPackage: "No package",
+    quantity: "Quantity",
+    packageSubtotal: "Package Subtotal",
+    servicesSubtotal: "Services Subtotal",
+    serviceFee: "Service Fee (10%)",
+    totalPrice: "Total Price",
+    prebookFavoriteItems: "Pre-book Favorite Items",
+    favoriteBundle: "Favorite Services Bundle",
+    noPackagesForEvent: "No packages available for this event.",
+    signInLoadDashboard: "Sign in to load your dashboard data.",
+    packagePageTitle: "Service Packages",
+    packagePageText: "Browse available packages by event type. Search quickly and choose the best fit for your event.",
+    eventType: "Event type",
+    search: "Search",
+    searchPackages: "Search packages...",
+    selected: "Selected",
+    selectPackage: "Select Package",
+    viewDetails: "View Details",
+    bookingSummary: "Booking Summary",
+    selectedPackage: "Selected Package",
+    choosePackage: "Choose one package from the list.",
+    packagePrice: "Package Price",
+    selectedServices: "Selected Services",
+    noAdditionalServices: "No additional services selected.",
+    checkAvailability: "Check Availability",
+    selectEventDate: "Select an Event Date",
+    pickDateText: "Please pick your preferred date to see available time slots.",
+    eventDate: "Event date",
+    pickDate: "Pick a date",
+    bookedOnSelectedDate: "Booked on selected date",
+    available: "Available",
+    booked: "Booked",
+    availableTimeSlots: "Available Time Slots",
+    selectedDate: "Selected Date",
+    prebookNow: "Pre-book Now",
+    noMatchingServicesFilter: "No matching services for this filter.",
+    morning: "Morning",
+    afternoon: "Afternoon",
+    evening: "Evening",
+    pickTimeSlot: "Pick a time slot",
+    selectedSlotBooked: "Selected slot is booked",
+    selectedSlotAvailable: "Selected slot is available",
+    packageCount: "packages",
+    packageCountSingle: "package",
   },
   km: {
     favorite: "ចូលចិត្ត",
@@ -69,6 +120,58 @@ const copyByLanguage = {
     dashboard: "ផ្ទាំងគ្រប់គ្រង",
     dashboardSub: "មិនទាន់មានទិន្នន័យផ្ទាំងគ្រប់គ្រង។",
     dashboardText: "សូមចូលប្រើ ដើម្បីមើលសកម្មភាព និងមុខងាររហ័ស។",
+    favoritePackages: "កញ្ចប់ដែលចូលចិត្ត",
+    favoritePackagesEmpty: "មិនទាន់បានបន្ថែមកញ្ចប់ទេ។",
+    favoriteServices: "សេវាកម្មដែលចូលចិត្ត",
+    favoriteServicesEmpty: "មិនទាន់បានបន្ថែមសេវាកម្មទេ។",
+    remove: "ដកចេញ",
+    bookFavorites: "កក់របស់ដែលចូលចិត្ត",
+    bookFavoritesText: "ជ្រើសរើសកញ្ចប់ និងចំនួន បញ្ចូលសេវាកម្មដែលចូលចិត្ត រួចកក់ជាមុនជាមួយការគណនាតម្លៃសរុប។",
+    favoritePackageLabel: "កញ្ចប់ដែលចូលចិត្ត",
+    noPackage: "គ្មានកញ្ចប់",
+    quantity: "ចំនួន",
+    packageSubtotal: "សរុបកញ្ចប់",
+    servicesSubtotal: "សរុបសេវាកម្ម",
+    serviceFee: "ថ្លៃសេវា (10%)",
+    totalPrice: "តម្លៃសរុប",
+    prebookFavoriteItems: "កក់ជាមុនរបស់ដែលចូលចិត្ត",
+    favoriteBundle: "កញ្ចប់សេវាកម្មដែលចូលចិត្ត",
+    noPackagesForEvent: "មិនមានកញ្ចប់សម្រាប់ព្រឹត្តិការណ៍នេះទេ។",
+    signInLoadDashboard: "សូមចូលគណនីដើម្បីផ្ទុកទិន្នន័យផ្ទាំងគ្រប់គ្រងរបស់អ្នក។",
+    packagePageTitle: "កញ្ចប់សេវាកម្ម",
+    packagePageText: "រកមើលកញ្ចប់ដែលមានតាមប្រភេទព្រឹត្តិការណ៍។ ស្វែងរកយ៉ាងរហ័ស ហើយជ្រើសរើសអ្វីដែលសមបំផុតសម្រាប់ព្រឹត្តិការណ៍របស់អ្នក។",
+    eventType: "ប្រភេទព្រឹត្តិការណ៍",
+    search: "ស្វែងរក",
+    searchPackages: "ស្វែងរកកញ្ចប់...",
+    selected: "បានជ្រើស",
+    selectPackage: "ជ្រើសរើសកញ្ចប់",
+    viewDetails: "មើលព័ត៌មានលម្អិត",
+    bookingSummary: "សេចក្តីសង្ខេបការកក់",
+    selectedPackage: "កញ្ចប់ដែលបានជ្រើស",
+    choosePackage: "ជ្រើសរើសកញ្ចប់មួយពីបញ្ជី។",
+    packagePrice: "តម្លៃកញ្ចប់",
+    selectedServices: "សេវាកម្មដែលបានជ្រើស",
+    noAdditionalServices: "មិនមានសេវាកម្មបន្ថែមដែលបានជ្រើសទេ។",
+    checkAvailability: "ពិនិត្យមើលពេលទំនេរ",
+    selectEventDate: "ជ្រើសរើសកាលបរិច្ឆេទព្រឹត្តិការណ៍",
+    pickDateText: "សូមជ្រើសរើសកាលបរិច្ឆេទដែលអ្នកពេញចិត្ត ដើម្បីមើលម៉ោងទំនេរ។",
+    eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+    pickDate: "ជ្រើសរើសកាលបរិច្ឆេទ",
+    bookedOnSelectedDate: "បានកក់នៅកាលបរិច្ឆេទដែលបានជ្រើស",
+    available: "ទំនេរ",
+    booked: "បានកក់",
+    availableTimeSlots: "ម៉ោងទំនេរ",
+    selectedDate: "កាលបរិច្ឆេទដែលបានជ្រើស",
+    prebookNow: "កក់ជាមុនឥឡូវ",
+    noMatchingServicesFilter: "មិនមានសេវាកម្មដែលត្រូវនឹងតម្រងនេះទេ។",
+    morning: "ព្រឹក",
+    afternoon: "រសៀល",
+    evening: "ល្ងាច",
+    pickTimeSlot: "ជ្រើសរើសម៉ោង",
+    selectedSlotBooked: "ម៉ោងដែលបានជ្រើសត្រូវបានកក់",
+    selectedSlotAvailable: "ម៉ោងដែលបានជ្រើសអាចកក់បាន",
+    packageCount: "កញ្ចប់",
+    packageCountSingle: "កញ្ចប់",
   },
   zh: {
     favorite: "收藏",
@@ -89,6 +192,58 @@ const copyByLanguage = {
     dashboard: "控制台",
     dashboardSub: "暂无控制台数据。",
     dashboardText: "登录后可查看您的控制台、活动与快捷操作。",
+    favoritePackages: "收藏套餐",
+    favoritePackagesEmpty: "还没有添加套餐。",
+    favoriteServices: "收藏服务",
+    favoriteServicesEmpty: "还没有添加服务。",
+    remove: "移除",
+    bookFavorites: "预订收藏",
+    bookFavoritesText: "选择套餐和数量，包含您收藏的服务，然后按总价进行预订。",
+    favoritePackageLabel: "收藏套餐",
+    noPackage: "无套餐",
+    quantity: "数量",
+    packageSubtotal: "套餐小计",
+    servicesSubtotal: "服务小计",
+    serviceFee: "服务费 (10%)",
+    totalPrice: "总价",
+    prebookFavoriteItems: "预订收藏项目",
+    favoriteBundle: "收藏服务组合",
+    noPackagesForEvent: "当前活动没有可用套餐。",
+    signInLoadDashboard: "请登录以加载您的仪表盘数据。",
+    packagePageTitle: "服务套餐",
+    packagePageText: "按活动类型浏览可用套餐。快速搜索并选择最适合您活动的方案。",
+    eventType: "活动类型",
+    search: "搜索",
+    searchPackages: "搜索套餐...",
+    selected: "已选择",
+    selectPackage: "选择套餐",
+    viewDetails: "查看详情",
+    bookingSummary: "预订摘要",
+    selectedPackage: "已选套餐",
+    choosePackage: "请从列表中选择一个套餐。",
+    packagePrice: "套餐价格",
+    selectedServices: "已选服务",
+    noAdditionalServices: "未选择额外服务。",
+    checkAvailability: "查看档期",
+    selectEventDate: "选择活动日期",
+    pickDateText: "请选择您偏好的日期以查看可用时间段。",
+    eventDate: "活动日期",
+    pickDate: "选择日期",
+    bookedOnSelectedDate: "所选日期已被预订",
+    available: "可用",
+    booked: "已预订",
+    availableTimeSlots: "可用时间段",
+    selectedDate: "已选日期",
+    prebookNow: "立即预订",
+    noMatchingServicesFilter: "没有符合此筛选条件的服务。",
+    morning: "早晨",
+    afternoon: "下午",
+    evening: "晚上",
+    pickTimeSlot: "选择时间段",
+    selectedSlotBooked: "所选时间段已被预订",
+    selectedSlotAvailable: "所选时间段可用",
+    packageCount: "个套餐",
+    packageCountSingle: "个套餐",
   },
 };
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
@@ -156,11 +311,6 @@ const expandedServiceId = ref(null);
 const packageEventType = ref("all");
 const packageSearch = ref("");
 const overallQuantity = ref(1);
-const overallAvailabilityDate = ref(
-  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
-);
-const overallAvailabilitySlot = ref("");
-const overallSlotOptions = ["08:00 AM", "09:30 AM", "11:00 AM", "01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM", "07:00 PM", "08:30 PM"];
 
 const lastQty = ref(1);
 
@@ -310,17 +460,39 @@ function mapEventToGuestService(item) {
     name: String(item.title || "Service Booking"),
     description: String(item.description || "").trim() || "Professional vendor service ready for booking.",
     price: Number(item.price || 0),
+    eventType,
     eventTypes: [eventType],
     backingEventId: Number(item.id || 0) || null,
     vendorName: String(item.vendor?.name || "Verified Vendor"),
     location: item.location || "Location TBD",
+    image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
   };
 }
 
 async function loadLiveVendorEvents() {
   try {
     const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
-    liveVendorEvents.value = Array.isArray(result.data) ? result.data : [];
+    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+    if (rows.length) {
+      liveVendorEvents.value = rows;
+      return;
+    }
+
+    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
   } catch {
     liveVendorEvents.value = [];
   }
@@ -343,6 +515,7 @@ const selectedPackage = computed(
 const selectedServices = computed(() =>
   servicesCatalog.value.filter((service) => selectedServiceIds.value.includes(service.id)),
 );
+const primarySelectedService = computed(() => selectedServices.value[0] || null);
 
 const packagePrice = computed(() => {
   if (!selectedPackage.value) return 0;
@@ -443,9 +616,14 @@ function closePackageDetails() {
 }
 
 function openPrebookForm() {
+  const usingOverallFlow = section.value === "services-overall";
   const targetPackage = activePackage.value || selectedPackage.value;
+  const targetService = usingOverallFlow ? primarySelectedService.value : null;
+
+  if (!targetPackage && !targetService) return;
+
   prebookTargetPackageId.value = targetPackage?.id || null;
-  prebookTargetTitle.value = targetPackage?.title || "Selected Vendor";
+  prebookTargetTitle.value = targetPackage?.title || targetService?.name || "Selected Vendor";
   prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
@@ -564,6 +742,7 @@ async function submitPrebookForm() {
   const usingOverallFlow = section.value === "services-overall";
   const quantity = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
   const checkoutItems = [];
+  const primaryService = usingOverallFlow ? primarySelectedService.value : null;
   const targetPackage =
     guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) ||
     selectedPackage.value ||
@@ -595,20 +774,23 @@ async function submitPrebookForm() {
   });
 
   const payload = {
-    vendorTitle: prebookTargetTitle.value || "Selected Vendor",
+    vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
     vendorName:
       selectedPackage.value?.vendorName ||
       activePackage.value?.vendorName ||
+      primaryService?.vendorName ||
       "Selected Vendor",
     eventId:
       selectedPackage.value?.backingEventId ||
       activePackage.value?.backingEventId ||
+      primaryService?.backingEventId ||
       null,
     image:
       selectedPackage.value?.image ||
       activePackage.value?.image ||
+      primaryService?.image ||
       packageImageByEventType[
-        selectedPackage.value?.eventType || activePackage.value?.eventType || "other"
+        selectedPackage.value?.eventType || activePackage.value?.eventType || primaryService?.eventType || "other"
       ] ||
       packageImageByEventType.other,
     fullName: prebookForm.value.fullName,
@@ -702,7 +884,11 @@ const prebookCalendarCells = computed(() => {
 });
 
 const activePrebookEventId = computed(
-  () => selectedPackage.value?.backingEventId || activePackage.value?.backingEventId || null,
+  () =>
+    selectedPackage.value?.backingEventId ||
+    activePackage.value?.backingEventId ||
+    primarySelectedService.value?.backingEventId ||
+    null,
 );
 
 const prebookAvailabilityTone = computed(() => {
@@ -994,16 +1180,6 @@ function overallQtyChanged(e) {
   if (Number.isFinite(val) && val >= 1) overallQuantity.value = val;
 }
 
-function overallDateChanged(e) {
-  overallAvailabilityDate.value = e.target.value;
-  overallAvailabilitySlot.value = "";
-}
-
-function selectOverallSlot(slot) {
-  if (isSlotLikelyBooked(overallAvailabilityDate.value, slot)) return;
-  overallAvailabilitySlot.value = slot;
-}
-
 function persistFavorites() {
   localStorage.setItem(
     FAVORITES_STORAGE_KEY,
@@ -1199,7 +1375,7 @@ function openFavoritePrebookForm() {
   selectedServiceIds.value = [...favoriteSelectedServiceIds.value];
   packageQuantity.value = Number(favoriteBookingQuantity.value || 1);
   prebookTargetPackageId.value = favoriteSelectedPackage.value?.id || null;
-  prebookTargetTitle.value = favoriteSelectedPackage.value?.title || "Favorite Services Bundle";
+  prebookTargetTitle.value = favoriteSelectedPackage.value?.title || uiText.value.favoriteBundle;
   prebookForm.value = createEmptyPrebookForm();
   prebookSuccess.value = "";
   prebookLocationNotice.value = "";
@@ -1219,47 +1395,6 @@ const overallServiceFeeAmount = computed(() =>
 );
 
 const overallTotalPrice = computed(() => overallServicesSubtotal.value + overallServiceFeeAmount.value);
-const overallDateBooked = computed(() => isDateLikelyBooked(overallAvailabilityDate.value));
-const overallSlotItems = computed(() =>
-  overallSlotOptions.map((value) => ({
-    value,
-    booked: overallDateBooked.value || isSlotLikelyBooked(overallAvailabilityDate.value, value),
-  })),
-);
-const selectedAvailabilityDateLabel = computed(() => {
-  const value = String(overallAvailabilityDate.value || "").trim();
-  if (!value) return "No date selected";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-});
-const availabilitySlotGroups = computed(() => {
-  const groups = [
-    { key: "morning", label: "Morning", slots: ["08:00 AM", "09:30 AM", "11:00 AM"] },
-    { key: "afternoon", label: "Afternoon", slots: ["01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"] },
-    { key: "evening", label: "Evening", slots: ["07:00 PM", "08:30 PM"] },
-  ];
-  return groups.map((group) => ({
-    ...group,
-    items: group.slots
-      .map((value) => overallSlotItems.value.find((slot) => slot.value === value))
-      .filter(Boolean),
-  }));
-});
-const overallAvailabilityState = computed(() => {
-  if (!overallAvailabilityDate.value) return { label: "Pick a date", tone: "neutral" };
-  if (overallDateBooked.value) return { label: "Booked on selected date", tone: "booked" };
-  if (!overallAvailabilitySlot.value) return { label: "Pick a time slot", tone: "neutral" };
-  const booked = isSlotLikelyBooked(overallAvailabilityDate.value, overallAvailabilitySlot.value);
-  return booked
-    ? { label: "Selected slot is booked", tone: "booked" }
-    : { label: "Selected slot is available", tone: "available" };
-});
 
 function goToSignIn() {
   router.push("/legacy-app");
@@ -1297,7 +1432,7 @@ function noop() {}
 
       <DashboardPage
         v-if="section === 'dashboard'"
-        :notice="'Sign in to load your dashboard data.'"
+        :notice="uiText.signInLoadDashboard"
         :customer-name="''"
         :dashboard-stats="emptyDashboardStats"
         :recent-bookings="[]"
@@ -1316,26 +1451,25 @@ function noop() {}
         <section class="package-head card">
           <div class="package-head-main">
             <div class="flow-head-row">
-              <h1>Service Packages</h1>
+              <h1>{{ uiText.packagePageTitle }}</h1>
               <div v-if="isFromCheckout" class="checkout-flow-steps">
                 <RouterLink
                   :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
                   class="step-link active"
                 >
-                  1 Services
+                  {{ uiText.servicesStep || '1 Services' }}
                 </RouterLink>
                 <RouterLink to="/checkout" class="step-link">
-                  2 Review &amp; Payment
+                  {{ uiText.reviewStep || '2 Review & Payment' }}
                 </RouterLink>
               </div>
             </div>
             <p>
-              Browse available packages by event type. Search quickly and
-              choose the best fit for your event.
+              {{ uiText.packagePageText }}
             </p>
             <div class="package-toolbar">
               <label class="filter-field">
-                <span>Event type</span>
+                <span>{{ uiText.eventType }}</span>
                 <select
                   class="event-type-select"
                   :value="packageEventType"
@@ -1351,19 +1485,18 @@ function noop() {}
                 </select>
               </label>
               <label class="filter-field">
-                <span>Search</span>
+                <span>{{ uiText.search }}</span>
                 <input
                   class="customization-search"
                   type="search"
-                  placeholder="Search packages..."
+                  :placeholder="uiText.searchPackages"
                   :value="packageSearch"
                   @input="packageSearch = $event.target.value"
                 />
               </label>
               <div class="package-count">
-                {{ guestPreviewPackagesFiltered.length }} package{{
-                  guestPreviewPackagesFiltered.length === 1 ? "" : "s"
-                }}
+                {{ guestPreviewPackagesFiltered.length }}
+                {{ guestPreviewPackagesFiltered.length === 1 ? uiText.packageCountSingle : uiText.packageCount }}
               </div>
             </div>
           </div>
@@ -1376,7 +1509,7 @@ function noop() {}
                 v-if="guestPreviewPackagesFiltered.length === 0"
                 class="guest-text package-empty"
               >
-                No packages available for this event.
+                {{ uiText.noPackagesForEvent }}
               </p>
               <article
                 v-for="item in guestPreviewPackagesFiltered"
@@ -1412,11 +1545,11 @@ function noop() {}
                       >
                         {{
                           selectedPackageId === item.id
-                            ? "Selected"
-                            : "Select Package"
+                            ? uiText.selected
+                            : uiText.selectPackage
                         }}
                       </button>
-                      <span>View Details</span>
+                      <span>{{ uiText.viewDetails }}</span>
                     </div>
                   </div>
                 </div>
@@ -1427,10 +1560,10 @@ function noop() {}
         </div>
 
         <aside class="card customization-summary package-summary">
-          <h2>Booking Summary</h2>
+          <h2>{{ uiText.bookingSummary }}</h2>
           <div class="summary-items">
-            <h3>Selected Package</h3>
-            <p v-if="!selectedPackage">Choose one package from the list.</p>
+            <h3>{{ uiText.selectedPackage }}</h3>
+            <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
             <div v-else class="summary-package">
               <strong>{{ selectedPackage.title }}</strong>
               <p>
@@ -1441,7 +1574,7 @@ function noop() {}
           </div>
 
           <div class="summary-row">
-            <span>Quantity</span>
+            <span>{{ uiText.quantity }}</span>
             <input
               type="number"
               min="1"
@@ -1451,13 +1584,13 @@ function noop() {}
             />
           </div>
           <div class="summary-row">
-            <span>Package Price</span>
+            <span>{{ uiText.packagePrice }}</span>
             <strong>${{ packagePrice.toLocaleString() }}</strong>
           </div>
           <div class="summary-items">
-            <h3>Selected Services</h3>
+            <h3>{{ uiText.selectedServices }}</h3>
             <p v-if="selectedServices.length === 0">
-              No additional services selected.
+              {{ uiText.noAdditionalServices }}
             </p>
             <div v-else>
               <div
@@ -1471,88 +1604,26 @@ function noop() {}
             </div>
           </div>
           <div class="summary-row">
-            <span>Services Subtotal</span>
+            <span>{{ uiText.servicesSubtotal }}</span>
             <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
           </div>
           <div class="summary-row muted">
-            <span>Service Fee (10%)</span>
+            <span>{{ uiText.serviceFee }}</span>
             <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
           </div>
 
           <div class="summary-total">
-            <span>Total Price</span>
+            <span>{{ uiText.totalPrice }}</span>
             <strong>${{ totalPrice.toLocaleString() }}</strong>
           </div>
 
-          <div class="overall-availability-check">
-            <h3>Check Availability</h3>
-            <div class="availability-intro">
-              <h4>Select an Event Date</h4>
-              <p>Please pick your preferred date to see available time slots.</p>
-            </div>
-            <label class="availability-date-field">
-              <span>Event date</span>
-              <input
-                type="date"
-                :value="overallAvailabilityDate"
-                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
-                @input="overallDateChanged"
-              />
-            </label>
-
-            <div class="availability-legend">
-              <span><i class="availability-dot availability-dot-available"></i>Available</span>
-              <span><i class="availability-dot availability-dot-booked"></i>Booked</span>
-              <span><i class="availability-dot availability-dot-selected"></i>Selected</span>
-            </div>
-
-            <div class="availability-time-head">
-              <h4>Available Time Slots</h4>
-              <span>{{ selectedAvailabilityDateLabel }}</span>
-            </div>
-            <div
-              v-for="group in availabilitySlotGroups"
-              :key="group.key"
-              class="availability-period"
-            >
-              <p class="availability-period-title">
-                {{ group.label }}
-              </p>
-              <div class="availability-slot-grid">
-                <button
-                  v-for="slot in group.items"
-                  :key="slot.value"
-                  type="button"
-                  class="availability-slot-btn"
-                  :class="{
-                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
-                    booked: slot.booked,
-                  }"
-                  :disabled="slot.booked"
-                  @click="selectOverallSlot(slot.value)"
-                >
-                  {{ slot.booked ? "Booked" : slot.value }}
-                </button>
-              </div>
-            </div>
-
-            <div class="availability-selection">
-              <span>Selected Date</span>
-              <strong>{{ selectedAvailabilityDateLabel }}</strong>
-            </div>
-            <div
-              class="availability-state"
-              :class="{
-                available: overallAvailabilityState.tone === 'available',
-                booked: overallAvailabilityState.tone === 'booked',
-              }"
-            >
-              {{ overallAvailabilityState.label }}
-            </div>
-          </div>
-
-          <button type="button" class="confirm-selection" @click="openPrebookForm">
-            Pre-book Now
+          <button
+            type="button"
+            class="confirm-selection"
+            :disabled="selectedServices.length === 0"
+            @click="openPrebookForm"
+          >
+            {{ uiText.prebookNow }}
           </button>
         </aside>
       </section>
@@ -1662,7 +1733,7 @@ function noop() {}
                 v-if="matchingServicesFiltered.length === 0"
                 class="card empty-state"
               >
-                No matching services for this filter.
+                {{ uiText.noMatchingServicesFilter }}
               </div>
 
               <div class="addon-grid">
@@ -1691,13 +1762,13 @@ function noop() {}
           </div>
 
           <aside class="card customization-summary overall-summary">
-            <h2>Booking Summary</h2>
+            <h2>{{ uiText.bookingSummary }}</h2>
             <div class="summary-items">
-              <h3>Selected Package</h3>
-              <p>Choose one package from the list.</p>
+              <h3>{{ uiText.selectedPackage }}</h3>
+              <p>{{ uiText.choosePackage }}</p>
             </div>
             <div class="summary-row">
-              <span>Quantity</span>
+              <span>{{ uiText.quantity }}</span>
               <input
                 type="number"
                 min="1"
@@ -1707,13 +1778,13 @@ function noop() {}
               />
             </div>
             <div class="summary-row">
-              <span>Package Price</span>
+              <span>{{ uiText.packagePrice }}</span>
               <strong>$0</strong>
             </div>
             <div class="summary-items">
-              <h3>Selected Services</h3>
+              <h3>{{ uiText.selectedServices }}</h3>
               <p v-if="selectedServices.length === 0">
-                No additional services selected.
+                {{ uiText.noAdditionalServices }}
               </p>
               <div v-else>
                 <div
@@ -1727,88 +1798,21 @@ function noop() {}
               </div>
             </div>
             <div class="summary-row">
-              <span>Services Subtotal</span>
+              <span>{{ uiText.servicesSubtotal }}</span>
               <strong>${{ overallServicesSubtotal.toLocaleString() }}</strong>
             </div>
             <div class="summary-row muted">
-              <span>Service Fee (10%)</span>
+              <span>{{ uiText.serviceFee }}</span>
               <strong>${{ overallServiceFeeAmount.toLocaleString() }}</strong>
             </div>
 
           <div class="summary-total">
-            <span>Total Price</span>
+            <span>{{ uiText.totalPrice }}</span>
             <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
           </div>
 
-          <div class="overall-availability-check">
-            <h3>Check Availability</h3>
-            <div class="availability-intro">
-              <h4>Select an Event Date</h4>
-              <p>Please pick your preferred date to see available time slots.</p>
-            </div>
-            <label class="availability-date-field">
-              <span>Event date</span>
-              <input
-                type="date"
-                :value="overallAvailabilityDate"
-                :min="`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`"
-                @input="overallDateChanged"
-              />
-            </label>
-
-            <div class="availability-legend">
-              <span><i class="availability-dot availability-dot-available"></i>Available</span>
-              <span><i class="availability-dot availability-dot-booked"></i>Booked</span>
-              <span><i class="availability-dot availability-dot-selected"></i>Selected</span>
-            </div>
-
-            <div class="availability-time-head">
-              <h4>Available Time Slots</h4>
-              <span>{{ selectedAvailabilityDateLabel }}</span>
-            </div>
-            <div
-              v-for="group in availabilitySlotGroups"
-              :key="group.key"
-              class="availability-period"
-            >
-              <p class="availability-period-title">
-                {{ group.label }}
-              </p>
-              <div class="availability-slot-grid">
-                <button
-                  v-for="slot in group.items"
-                  :key="slot.value"
-                  type="button"
-                  class="availability-slot-btn"
-                  :class="{
-                    selected: overallAvailabilitySlot === slot.value && !slot.booked,
-                    booked: slot.booked,
-                  }"
-                  :disabled="slot.booked"
-                  @click="selectOverallSlot(slot.value)"
-                >
-                  {{ slot.booked ? "Booked" : slot.value }}
-                </button>
-              </div>
-            </div>
-
-            <div class="availability-selection">
-              <span>Selected Date</span>
-              <strong>{{ selectedAvailabilityDateLabel }}</strong>
-            </div>
-            <div
-              class="availability-state"
-              :class="{
-                available: overallAvailabilityState.tone === 'available',
-                booked: overallAvailabilityState.tone === 'booked',
-              }"
-            >
-              {{ overallAvailabilityState.label }}
-            </div>
-          </div>
-
           <button type="button" class="confirm-selection" @click="openPrebookForm">
-            Pre-book Now
+            {{ uiText.prebookNow }}
           </button>
         </aside>
         </section>
@@ -1820,9 +1824,9 @@ function noop() {}
       >
         <div class="favorite-layout">
           <article class="favorite-card">
-            <h3>Favorite Packages</h3>
+            <h3>{{ uiText.favoritePackages }}</h3>
             <p v-if="favoritePackages.length === 0" class="guest-text">
-              No packages added yet.
+              {{ uiText.favoritePackagesEmpty }}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
@@ -1837,16 +1841,16 @@ function noop() {}
                   class="favorite-remove"
                   @click="toggleFavoritePackage(item.id)"
                 >
-                  Remove
+                  {{ uiText.remove }}
                 </button>
               </li>
             </ul>
           </article>
 
           <article class="favorite-card">
-            <h3>Favorite Services</h3>
+            <h3>{{ uiText.favoriteServices }}</h3>
             <p v-if="favoriteServices.length === 0" class="guest-text">
-              No services added yet.
+              {{ uiText.favoriteServicesEmpty }}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
@@ -1861,7 +1865,7 @@ function noop() {}
                   class="favorite-remove"
                   @click="toggleFavoriteService(service.id)"
                 >
-                  Remove
+                  {{ uiText.remove }}
                 </button>
               </li>
             </ul>
@@ -1869,20 +1873,20 @@ function noop() {}
         </div>
 
         <article class="favorite-card favorite-booking-card">
-          <h3>Book Favorites</h3>
+          <h3>{{ uiText.bookFavorites }}</h3>
           <p class="guest-text">
-            Select package and quantity, include your favorite services, then pre-book with total calculation.
+            {{ uiText.bookFavoritesText }}
           </p>
 
           <div class="favorite-booking-grid">
             <label class="filter-field">
-              <span>Favorite Package</span>
+              <span>{{ uiText.favoritePackageLabel }}</span>
               <select
                 class="event-type-select"
                 :value="favoriteBookingPackageId || ''"
                 @change="favoriteBookingPackageId = $event.target.value || null"
               >
-                <option value="">No package</option>
+                <option value="">{{ uiText.noPackage }}</option>
                 <option
                   v-for="item in favoritePackages"
                   :key="`fav-pkg-${item.id}`"
@@ -1894,7 +1898,7 @@ function noop() {}
             </label>
 
             <label class="filter-field">
-              <span>Quantity</span>
+              <span>{{ uiText.quantity }}</span>
               <input
                 type="number"
                 min="1"
@@ -1906,20 +1910,20 @@ function noop() {}
           </div>
 
           <div class="summary-row">
-            <span>Package Subtotal</span>
+            <span>{{ uiText.packageSubtotal }}</span>
             <strong>${{ favoritePackageSubtotal.toLocaleString() }}</strong>
           </div>
           <div class="summary-row">
-            <span>Services Subtotal</span>
+            <span>{{ uiText.servicesSubtotal }}</span>
             <strong>${{ favoriteServicesSubtotal.toLocaleString() }}</strong>
           </div>
           <div class="summary-row muted">
-            <span>Service Fee (10%)</span>
+            <span>{{ uiText.serviceFee }}</span>
             <strong>${{ favoriteServiceFee.toLocaleString() }}</strong>
           </div>
 
           <div class="summary-total">
-            <span>Total Price</span>
+            <span>{{ uiText.totalPrice }}</span>
             <strong>${{ favoriteTotal.toLocaleString() }}</strong>
           </div>
 
@@ -1929,7 +1933,7 @@ function noop() {}
             :disabled="!favoriteSelectedPackage && favoriteServices.length === 0"
             @click="openFavoritePrebookForm"
           >
-            Pre-book Favorite Items
+            {{ uiText.prebookFavoriteItems }}
           </button>
         </article>
       </section>
@@ -2323,199 +2327,6 @@ function noop() {}
 
 .overall-list .customization-section-head h2 {
   font-size: 26px;
-}
-
-.overall-availability-check {
-  margin-top: 14px;
-  border-top: 1px solid #e3e9f2;
-  padding-top: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.overall-availability-check h3 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.availability-intro h4 {
-  margin: 0;
-  font-size: 20px;
-  color: #0f172a;
-}
-
-.availability-intro p {
-  margin: 4px 0 0;
-  color: #9a4b2f;
-  font-size: 14px;
-}
-
-.availability-date-field {
-  display: grid;
-  gap: 6px;
-}
-
-.availability-date-field span {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.availability-date-field input {
-  width: 100%;
-  border: 1px solid #d7e4f3;
-  border-radius: 10px;
-  background: #fff;
-  padding: 10px 12px;
-  font: inherit;
-}
-
-.availability-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  padding-top: 2px;
-}
-
-.availability-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #7c3f2b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.availability-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-.availability-dot-available {
-  background: #22c55e;
-}
-
-.availability-dot-booked {
-  background: #cbd5e1;
-}
-
-.availability-dot-selected {
-  background: #f97316;
-}
-
-.availability-time-head {
-  margin-top: 4px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.availability-time-head h4 {
-  margin: 0;
-  font-size: 18px;
-  color: #0f172a;
-}
-
-.availability-time-head span {
-  color: #ea580c;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.availability-period {
-  display: grid;
-  gap: 8px;
-}
-
-.availability-period-title {
-  margin: 0;
-  color: #9a4b2f;
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.availability-slot-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.availability-slot-btn {
-  border: 1px solid #ffd4bc;
-  border-radius: 10px;
-  background: #fff;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 10px 8px;
-  cursor: pointer;
-}
-
-.availability-slot-btn.selected {
-  border-color: #f97316;
-  background: #f97316;
-  color: #fff;
-}
-
-.availability-slot-btn.booked {
-  border-color: #e2e8f0;
-  background: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-.availability-state {
-  border-radius: 10px;
-  border: 1px solid #dbe4f1;
-  background: #f8fbff;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 8px 10px;
-}
-
-.availability-selection {
-  border: 1px solid #fee2d3;
-  background: #fff7f2;
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: grid;
-  gap: 2px;
-}
-
-.availability-selection span {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #9a4b2f;
-  font-weight: 700;
-}
-
-.availability-selection strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.availability-state.available {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.availability-state.booked {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
 }
 
 .guest-panel {
@@ -3435,10 +3246,6 @@ function noop() {}
   .overall-summary {
     position: static;
     margin-top: 14px;
-  }
-
-  .availability-slot-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .favorite-layout {
