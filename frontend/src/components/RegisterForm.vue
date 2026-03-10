@@ -204,22 +204,13 @@ const submitRegister = async () => {
         </div>
 
         <div class="form-head">
-<<<<<<< HEAD
-          <h2><span aria-hidden="true">📝</span> Create your account</h2>
-          <p>Set up your profile and choose your account profession.</p>
-=======
-          <h2>{{ uiText.title }}</h2>
+          <h2>📝 {{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
         </div>
 
         <form class="auth-form" @submit.prevent="submitRegister">
           <label class="field">
-<<<<<<< HEAD
-            <span>🧾 Register With</span>
-=======
-            <span>{{ uiText.registerWith }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>🧾 {{ uiText.registerWith }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: registerMethod === 'email' }">
                 <input v-model="registerMethod" type="radio" value="email" name="register_method" />
@@ -236,31 +227,17 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-<<<<<<< HEAD
-            <span>👤 Full Name</span>
-            <input v-model="form.name" type="text" placeholder="Your full name" required />
-          </label>
-
-          <label v-if="registerMethod === 'email'" class="field">
-            <span>📧 Email</span>
-            <input v-model="form.email" type="email" placeholder="you@example.com" required />
-          </label>
-
-          <label v-else class="field">
-            <span>📱 Phone Number</span>
-=======
-            <span>{{ uiText.fullName }}</span>
+            <span>👤 {{ uiText.fullName }}</span>
             <input v-model="form.name" type="text" :placeholder="uiText.fullNamePlaceholder" required />
           </label>
 
           <label v-if="registerMethod === 'email'" class="field">
-            <span>{{ uiText.emailLabel }}</span>
+            <span>📧 {{ uiText.emailLabel }}</span>
             <input v-model="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
           </label>
 
           <label v-else class="field">
-            <span>{{ uiText.phoneNumber }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>📱 {{ uiText.phoneNumber }}</span>
             <input
               v-model="form.phone"
               type="tel"
@@ -272,11 +249,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-<<<<<<< HEAD
-            <span>💼 Profession</span>
-=======
-            <span>{{ uiText.profession }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>💼 {{ uiText.profession }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: form.role === 'user' }">
                 <input v-model="form.role" type="radio" value="user" name="role" />
@@ -293,11 +266,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-<<<<<<< HEAD
-            <span>🔑 Password</span>
-=======
-            <span>{{ uiText.password }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>🔑 {{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -322,11 +291,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-<<<<<<< HEAD
-            <span>✅ Confirm Password</span>
-=======
-            <span>{{ uiText.confirmPassword }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>✅ {{ uiText.confirmPassword }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -354,11 +319,7 @@ const submitRegister = async () => {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-<<<<<<< HEAD
-            {{ submitting ? 'Creating...' : '✨ Create Account' }}
-=======
-            {{ submitting ? uiText.creating : uiText.createAccount }}
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            {{ submitting ? uiText.creating : `✨ ${uiText.createAccount}` }}
           </button>
         </form>
 

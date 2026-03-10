@@ -2034,7 +2034,7 @@ function noop() {}
     >
       <div class="prebook-modal" @click.stop>
         <div class="prebook-head">
-          <h3>Book {{ prebookTargetTitle }}</h3>
+          <h3>📘 Book {{ prebookTargetTitle }}</h3>
           <button type="button" class="prebook-close" @click="closePrebookModal">
             x
           </button>
@@ -2042,17 +2042,17 @@ function noop() {}
 
         <form class="prebook-form" @submit.prevent="submitPrebookForm">
           <label>
-            <span>Full name</span>
+            <span>👤 Full name</span>
             <input v-model.trim="prebookForm.fullName" type="text" required />
           </label>
 
           <label>
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model.trim="prebookForm.email" type="email" required />
           </label>
 
           <label>
-            <span>Phone number</span>
+            <span>📱 Phone number</span>
             <input
               v-model.trim="prebookForm.phone"
               type="tel"
@@ -2062,7 +2062,7 @@ function noop() {}
           </label>
 
           <label>
-            <span>Location</span>
+            <span>📍 Location</span>
             <input
               v-model.trim="prebookForm.location"
               type="text"
@@ -2078,7 +2078,7 @@ function noop() {}
               :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
               @click="detectPrebookLocation"
             >
-              {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+              {{ isDetectingPrebookLocation ? "Detecting location..." : "📡 Use Current Location" }}
             </button>
             <p
               v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
@@ -2105,11 +2105,11 @@ function noop() {}
           </div>
 
           <label>
-            <span>Event date</span>
+            <span>📅 Event date</span>
             <div class="prebook-date-picker">
               <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
                 <span>{{ prebookForm.eventDate || "Select event date" }}</span>
-                <span class="prebook-date-icon">[ ]</span>
+                <span class="prebook-date-icon">📆</span>
               </button>
 
               <div v-if="showPrebookCalendar" class="prebook-calendar">
@@ -2171,12 +2171,12 @@ function noop() {}
           </div>
 
           <label>
-            <span>Number of guests</span>
+            <span>👥 Number of guests</span>
             <input v-model.number="prebookForm.guests" type="number" min="1" required />
           </label>
 
           <label>
-            <span>Notes</span>
+            <span>📝 Notes</span>
             <textarea
               v-model.trim="prebookForm.notes"
               rows="3"
@@ -2192,7 +2192,7 @@ function noop() {}
               class="modal-action-btn modal-action-primary"
               :disabled="activePrebookEventId && !canSubmitPrebook"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "Confirm Booking" }}
+              {{ isCheckingPrebookAvailability ? "Checking..." : "✅ Confirm Booking" }}
             </button>
           </div>
         </form>

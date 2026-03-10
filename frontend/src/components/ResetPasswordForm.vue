@@ -133,30 +133,12 @@ async function submitResetPassword() {
         </div>
 
         <div class="form-head">
-<<<<<<< HEAD
-          <h2><span aria-hidden="true">🔁</span> Reset password</h2>
-          <p>Set a new password for your account.</p>
-=======
           <h2>{{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
         </div>
 
         <form class="auth-form" @submit.prevent="submitResetPassword">
           <label class="field">
-<<<<<<< HEAD
-            <span>📧 Email</span>
-            <input v-model.trim="form.email" type="email" placeholder="you@example.com" required />
-          </label>
-
-          <label class="field">
-            <span>🧾 Reset Token</span>
-            <input v-model.trim="form.token" type="text" placeholder="Reset token" required />
-          </label>
-
-          <label class="field">
-            <span>🔐 New Password</span>
-=======
             <span>{{ uiText.email }}</span>
             <input v-model.trim="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
           </label>
@@ -168,7 +150,6 @@ async function submitResetPassword() {
 
           <label class="field">
             <span>{{ uiText.newPassword }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -193,11 +174,7 @@ async function submitResetPassword() {
           </label>
 
           <label class="field">
-<<<<<<< HEAD
-            <span>✅ Confirm New Password</span>
-=======
             <span>{{ uiText.confirmNewPassword }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -225,11 +202,7 @@ async function submitResetPassword() {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-<<<<<<< HEAD
-            {{ submitting ? 'Resetting...' : '🔄 Reset Password' }}
-=======
             {{ submitting ? uiText.resetting : uiText.resetPassword }}
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
           </button>
         </form>
       </section>

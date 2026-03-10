@@ -138,32 +138,18 @@ const submitLogin = async () => {
         </div>
 
         <div class="form-head">
-<<<<<<< HEAD
-          <h2><span aria-hidden="true">🔐</span> Sign in to your account</h2>
-          <p>Use your email and password to continue.</p>
-=======
-          <h2>{{ uiText.title }}</h2>
+          <h2>🔐 {{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
         </div>
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-<<<<<<< HEAD
-            <span>📧 Email or Phone</span>
-            <input v-model="form.login" type="text" placeholder="you@example.com or +85512345678" required />
-          </label>
-
-          <label class="field">
-            <span>🔑 Password</span>
-=======
-            <span>{{ uiText.emailOrPhone }}</span>
+            <span>📧 {{ uiText.emailOrPhone }}</span>
             <input v-model="form.login" type="text" :placeholder="uiText.emailOrPhonePlaceholder" required />
           </label>
 
           <label class="field">
-            <span>{{ uiText.password }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <span>🔑 {{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -189,25 +175,15 @@ const submitLogin = async () => {
           <div class="auth-help-row">
             <label class="check-row">
               <input v-model="form.remember" type="checkbox" />
-<<<<<<< HEAD
-              <span>🛡️ Remember this device</span>
+              <span>🛡️ {{ uiText.remember }}</span>
             </label>
-            <router-link class="link-btn" to="/forgot-password">🔄 Forgot password?</router-link>
-=======
-              <span>{{ uiText.remember }}</span>
-            </label>
-            <router-link class="link-btn" to="/forgot-password">{{ uiText.forgotPassword }}</router-link>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            <router-link class="link-btn" to="/forgot-password">🔄 {{ uiText.forgotPassword }}</router-link>
           </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-<<<<<<< HEAD
-            {{ submitting ? 'Signing in...' : '🚀 Login' }}
-=======
-            {{ submitting ? uiText.signingIn : uiText.login }}
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+            {{ submitting ? uiText.signingIn : `🚀 ${uiText.login}` }}
           </button>
         </form>
 
