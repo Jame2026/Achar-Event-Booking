@@ -1643,35 +1643,45 @@ function noop() {}
                 @click="openPackageDetails(item.id)"
                 @keyup.enter="openPackageDetails(item.id)"
               >
-                <img :src="item.image" :alt="item.title" />
+                <div class="package-card-image-wrap">
+                  <img class="package-card-image" :src="item.image" :alt="item.title" />
+                  <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
+                  <button
+                    type="button"
+                    class="package-fav-badge"
+                    :class="{ active: isPackageFavorite(item.id) }"
+                    @click.stop="toggleFavoritePackage(item.id)"
+                    :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
+                  >
+                    {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
+                  </button>
+                </div>
+
                 <div class="package-product-body">
-                  <p class="package-product-type">{{ item.eventTypeLabel }}</p>
                   <h3>{{ item.title }}</h3>
-                  <p class="package-product-desc">{{ item.description }}</p>
-                  <div class="package-product-footer">
-                    <strong>{{ item.priceLabel }}</strong>
-                    <div class="package-product-actions">
-                      <button
-                        type="button"
-                        class="favorite-btn"
-                        :class="{ active: isPackageFavorite(item.id) }"
-                        @click.stop="toggleFavoritePackage(item.id)"
-                      >
-                        {{ isPackageFavorite(item.id) ? "\u2665" : "\u2661" }}
-                      </button>
-                      <button
-                        type="button"
-                        class="choice-indicator"
-                        @click.stop="selectPackage(item.id)"
-                      >
-                        {{
-                          selectedPackageId === item.id
-                            ? uiText.selected
-                            : uiText.selectPackage
-                        }}
-                      </button>
-                      <span>{{ uiText.viewDetails }}</span>
+                  <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
+                  <div class="package-rating">
+                    <span class="star">★</span>
+                    <strong>{{ (item.rating || 4.7).toFixed ? (item.rating || 4.7).toFixed(1) : '4.7' }}</strong>
+                    <small>{{ uiText.reviewsLabel || '0 reviews' }}</small>
+                  </div>
+
+                  <div class="package-bottom">
+                    <div class="package-price-stack">
+                      <small>{{ uiText.startsFrom || 'Starts from' }}</small>
+                      <strong class="package-price">{{ item.priceLabel }}</strong>
                     </div>
+                    <button
+                      type="button"
+                      class="choice-indicator package-book-btn"
+                      @click.stop="selectPackage(item.id)"
+                    >
+                      {{
+                        selectedPackageId === item.id
+                          ? uiText.selected
+                          : uiText.selectPackage
+                      }}
+                    </button>
                   </div>
                 </div>
               </article>
@@ -2428,7 +2438,7 @@ function noop() {}
 .overall-toolbar {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 170px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -2463,7 +2473,7 @@ function noop() {}
 
 .overall-layout {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -2565,7 +2575,7 @@ function noop() {}
 .package-toolbar {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 170px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   align-items: end;
 }
@@ -2619,7 +2629,7 @@ function noop() {}
 
 .package-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
 }
 
@@ -2654,33 +2664,105 @@ function noop() {}
 .package-product-card {
   border: 1px solid #dbe4f1;
   border-radius: 16px;
-  background: linear-gradient(180deg, #fff, #fcfdff);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
   overflow: hidden;
   scroll-margin-top: 120px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 14px rgba(15, 23, 42, 0.06);
   cursor: pointer;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.2s ease;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  padding: 0;
 }
 
 .package-product-card:hover {
   transform: translateY(-2px);
   border-color: #c6d5ea;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
 }
 
 .package-product-card img {
   width: 100%;
-  height: 172px;
+  height: 268px;
   object-fit: cover;
 }
 
+.package-card-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 268px;
+  overflow: hidden;
+}
+
+.package-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.package-card-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: capitalize;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.package-fav-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #f0d7c2;
+  background: #fffaf5;
+  color: #d4580a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.package-fav-badge.active {
+  background: #ffe9d7;
+  border-color: #f2b88f;
+}
+
+.package-fav-badge:hover {
+  transform: translateY(-1px);
+}
+
 .package-product-body {
-  padding: 13px;
+  padding: 8px 14px 12px;
   display: grid;
-  gap: 7px;
+  gap: 6px;
+}
+
+.package-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.package-head h3 {
+  margin: 2px 0 0;
 }
 
 .package-product-type {
@@ -2695,20 +2777,73 @@ function noop() {}
 .package-product-body h3 {
   margin: 0;
   font-size: 18px;
+  line-height: 1.2;
+}
+
+.package-vendor {
+  margin: 0;
+  color: #556173;
+  font-weight: 700;
   line-height: 1.25;
+}
+
+.package-location {
+  margin: 0;
+  color: #7687a0;
+  line-height: 1.3;
+}
+
+.package-price {
+  font-size: 17px;
+  color: #d4580a;
+  white-space: nowrap;
 }
 
 .package-product-desc {
   margin: 0;
   color: #64748b;
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.35;
+}
+
+.package-price {
+  display: block;
+}
+
+.package-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.package-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.package-price-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.package-price-stack small {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8a94a8;
+  font-size: 11px;
 }
 
 .package-product-footer {
   margin-top: 4px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
@@ -2717,7 +2852,29 @@ function noop() {}
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.package-product-actions .view-details-btn {
+  border: 1px solid #d7e4f3;
+  background: #f5f8ff;
+  color: #1e293b;
+}
+
+.package-product-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.package-product-actions .favorite-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid #f0d7c2;
+  color: #d4580a;
+  background: #fffaf5;
 }
 
 .package-product-footer strong {
@@ -2733,7 +2890,7 @@ function noop() {}
 }
 
 .package-product-actions .choice-indicator {
-  width: auto;
+  width: 100%;
   min-height: 34px;
   padding: 7px 11px;
   border-radius: 10px;
@@ -2745,6 +2902,12 @@ function noop() {}
 .package-product-actions .choice-indicator:hover {
   background: #fff1e8;
   border-color: #efb183;
+}
+
+.package-product-actions .favorite-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
 }
 
 .service-card-anchor {
@@ -2773,6 +2936,13 @@ function noop() {}
 .package-product-actions .favorite-btn {
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
+}
+
+.package-product-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .package-modal-overlay {
@@ -3275,7 +3445,7 @@ function noop() {}
 
 .favorite-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
   align-items: start;
 }
@@ -3313,6 +3483,7 @@ function noop() {}
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
@@ -3324,6 +3495,7 @@ function noop() {}
 .favorite-thumb {
   width: 56px;
   height: 56px;
+  aspect-ratio: 1;
   border-radius: 12px;
   object-fit: cover;
   background: #f8fafc;
@@ -3356,6 +3528,7 @@ function noop() {}
   padding: 8px 12px;
   cursor: pointer;
   transition: background 160ms ease, box-shadow 160ms ease;
+  flex-shrink: 0;
 }
 
 .favorite-remove:hover {
@@ -3480,7 +3653,7 @@ function noop() {}
 .favorite-booking-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -3504,6 +3677,16 @@ function noop() {}
   padding: 10px 12px;
   font: inherit;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+@media (min-width: 1024px) {
+  .overall-layout {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+
+  .package-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -3616,10 +3799,25 @@ function noop() {}
   }
 }
 
+@media (max-width: 480px) {
+  .favorite-card {
+    padding: 14px 14px;
+  }
+
+  .favorite-thumb {
+    width: 48px;
+    height: 48px;
+  }
+
+  .favorite-list li {
+    gap: 10px;
+  }
+}
+
 /* Packages page layout with right-hand booking summary */
 .package-layout {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
 }

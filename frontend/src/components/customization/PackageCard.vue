@@ -80,8 +80,6 @@ const { uiText } = useLanguageCopy(copyByLanguage)
     @click="emit('toggle-details', item.id)"
     @keyup.enter="emit('toggle-details', item.id)"
   >
-    <img class="addon-card-image" :src="item.image" :alt="`${item.title} package`" loading="lazy" />
-
     <div class="addon-card-row">
       <strong>{{ item.title }}</strong>
       <div class="addon-card-meta">
@@ -132,3 +130,37 @@ const { uiText } = useLanguageCopy(copyByLanguage)
     </div>
   </article>
 </template>
+
+<style scoped>
+.package-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.package-card .addon-card-image {
+  display: none;
+}
+
+.package-card .addon-card-row {
+  align-items: center;
+}
+
+.package-card .addon-card-meta {
+  gap: 10px;
+}
+
+.package-card .addon-card-meta span {
+  color: #d46613;
+  font-weight: 800;
+}
+
+.package-card .addon-card-actions {
+  flex-wrap: nowrap;
+}
+
+.package-card .addon-card-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+</style>

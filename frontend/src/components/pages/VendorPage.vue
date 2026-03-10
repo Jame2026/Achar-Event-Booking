@@ -317,8 +317,11 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             <img :src="item.image" :alt="item.title" />
             <div class="service-body">
               <div class="service-head">
-                <h3>{{ item.title }}</h3>
-                <span class="tag">{{ item.eventTypeLabel }}</span>
+                <div>
+                  <h3>{{ item.title }}</h3>
+                  <small class="service-meta">{{ item.eventTypeLabel }}</small>
+                </div>
+                <strong class="service-price">{{ item.priceLabel }}</strong>
               </div>
               <p>{{ item.description }}</p>
               <ul>
@@ -326,7 +329,6 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                 <li>{{ item.date }}</li>
               </ul>
               <div class="service-footer">
-                <strong>{{ item.priceLabel }}</strong>
                 <div class="service-book-actions">
                   <button
                     type="button"
