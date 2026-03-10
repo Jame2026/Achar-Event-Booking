@@ -1002,30 +1002,12 @@
 .booking-modal-overlay {
   position: fixed;
   inset: 0;
-<<<<<<< HEAD
-  background: rgba(15, 23, 42, 0.55);
-=======
   background:
     radial-gradient(circle at 20% 0%, rgba(255, 132, 56, 0.18), transparent 40%),
     rgba(15, 23, 42, 0.58);
->>>>>>> 95f403bcc48a73b6d7beac4c97add163d06fb5ce
   display: flex;
   align-items: flex-start;
   justify-content: center;
-<<<<<<< HEAD
-  padding: 20px 160px 20px 20px;
-  z-index: 100;
-  backdrop-filter: blur(3px);
-}
-
-.booking-modal {
-  width: min(540px, calc(100% - 120px));
-  max-height: calc(100dvh - 40px);
-  background: #fff;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.3);
-=======
   padding: 18px;
   z-index: 120;
   overflow-y: auto;
@@ -1040,7 +1022,6 @@
   border-radius: 22px;
   border: 1px solid #dde5f2;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.3);
->>>>>>> 95f403bcc48a73b6d7beac4c97add163d06fb5ce
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1048,165 +1029,16 @@
   animation: modalSlideUp 0.28s cubic-bezier(0.34, 1.36, 0.64, 1) both;
 }
 
-<<<<<<< HEAD
 @keyframes modalSlideUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
-
-/* Banner image */
-.booking-modal-banner {
-  width: 100%;
-  height: 210px;
-  flex-shrink: 0;
-  overflow: hidden;
-  background: #1e293b;
-}
-
-.booking-modal-banner img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  opacity: 0.85;
-}
-
-/* Vendor info panel */
-.booking-vendor-panel {
-  padding: 18px 24px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.booking-eyebrow {
-  margin: 0 0 5px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
-.booking-vendor-name {
-  display: block;
-  font-size: 20px;
-  font-weight: 800;
-  color: #111827;
-  margin: 0 0 3px;
-  font-family: "Fraunces", Georgia, serif;
-}
-
-.booking-vendor-location {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.booking-vendor-rating {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-
-.booking-vendor-rating .star {
-  color: #fbbf24;
-}
-
-.booking-vendor-rating strong {
-  color: #111827;
-  font-weight: 700;
-}
-
-.booking-vendor-rating span {
-  color: var(--muted);
-}
-
-/* Form */
-.booking-modal-form {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.booking-form-header-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.booking-form-header-row h3 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.2;
-  flex-shrink: 0;
-  font-family: "Fraunces", Georgia, serif;
-}
-
-.booking-form-header-row p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-  padding-top: 2px;
-}
-
-.booking-form-body {
-  padding: 20px 24px 24px;
-  display: grid;
-  gap: 14px;
-  overflow-y: auto;
-}
-
-.bm-form-group {
-  display: grid;
-  gap: 6px;
-}
-
-.bm-form-group label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.bm-form-group input,
-.bm-form-group textarea,
-.bm-form-group select {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 14px;
-  font-family: inherit;
-  color: #111827;
-  background: #fff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.bm-form-group input:focus,
-.bm-form-group textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.12);
-}
-
-.bm-form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.booking-submit-btn {
-  width: 100%;
-  min-height: 48px;
-  font-size: 15px;
-  border-radius: 14px;
-  margin-top: 6px;
-=======
 .booking-modal-layout {
   display: grid;
   grid-template-columns: 1.02fr 1.25fr;
@@ -1436,7 +1268,6 @@
 .booking-success-state .primary-btn {
   justify-self: center;
   min-width: 140px;
->>>>>>> 95f403bcc48a73b6d7beac4c97add163d06fb5ce
 }
 
 /* Success state */

@@ -22,12 +22,4 @@ export default defineConfig({
       'lucide-vue-next': fileURLToPath(new URL('./src/shims/lucide-vue-next.js', import.meta.url)),
     },
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      }
-    }
-  }
 })

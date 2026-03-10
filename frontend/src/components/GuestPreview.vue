@@ -744,10 +744,6 @@ function toggleService(id) {
   }
 }
 
-function toggleServiceDetails(id) {
-  expandedServiceId.value = expandedServiceId.value === id ? null : id;
-}
-
 function clearFocusedCard() {
   if (focusedCardTimer) {
     clearTimeout(focusedCardTimer);
@@ -1224,6 +1220,31 @@ function noop() {}
               </article>
             </div>
             <!-- services below packages on the same page -->
+            <div class="service-section">
+              <h2>Matching Services</h2>
+              <div
+                v-if="matchingServicesFiltered.length === 0"
+                class="card empty-state"
+              >
+                No matching services for this event type.
+              </div>
+              <div class="addon-grid">
+                <ServiceCard
+                  v-for="service in matchingServicesFiltered"
+                  :key="service.id"
+                  :service="service"
+                  :is-selected="selectedServiceIds.includes(service.id)"
+                  :is-expanded="expandedServiceIds.includes(service.id)"
+                  :is-favorite="isServiceFavorite(service.id)"
+                  :event-type-map="eventTypeMap"
+                  :service-fee-rate="serviceFeeRate"
+                  @toggle-service="toggleService(service.id)"
+                  @toggle-details="toggleServiceDetails"
+                  @message="goToSignIn"
+                  @toggle-favorite="toggleFavoriteService"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1477,7 +1498,7 @@ function noop() {}
                   <ServiceCard
                     :service="service"
                     :is-selected="selectedServiceIds.includes(service.id)"
-                    :is-expanded="expandedServiceId === service.id"
+                    :is-expanded="expandedServiceIds.includes(service.id)"
                     :is-favorite="isServiceFavorite(service.id)"
                     :event-type-map="eventTypeMap"
                     :service-fee-rate="serviceFeeRate"
@@ -1612,7 +1633,7 @@ function noop() {}
             Pre-book Now
           </button>
         </aside>
-        </section>
+      </section>
       </section>
 
       <section

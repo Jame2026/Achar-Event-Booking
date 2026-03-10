@@ -1379,7 +1379,8 @@ onBeforeUnmount(() => {
       :is-sharing-location="isSharingLocation"
       :save-document="saveDocument"
       :delete-message="deleteMessage"
-<<<<<<< HEAD
+      :is-loading-messages="isLoadingMessages"
+      :messages-error="messagesError"
     />
     <footer v-if="currentPage !== 'messages'" class="footer">
       <div class="shell footer-grid">
@@ -1420,12 +1421,6 @@ onBeforeUnmount(() => {
       </div>
     </footer>
   </div>
-=======
-      :is-loading-messages="isLoadingMessages"
-      :messages-error="messagesError"
-      />
-    </div>
->>>>>>> 95f403bcc48a73b6d7beac4c97add163d06fb5ce
   </div>
 </template>
 
