@@ -1,3 +1,6 @@
+const DEFAULT_API_TIMEOUT_MS = 15000
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
+
 function buildApiPath(path, query = {}) {
   if (typeof path !== 'string' || !path.trim()) {
     throw new Error(`Invalid API path: ${String(path)}`)
@@ -13,7 +16,8 @@ function buildApiPath(path, query = {}) {
   })
 
   const queryString = params.toString()
-  return `/api/${normalizedPath}${queryString ? `?${queryString}` : ''}`
+  const apiRoot = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`
+  return `${apiRoot}/${normalizedPath}${queryString ? `?${queryString}` : ''}`
 }
 
 async function readErrorMessage(response) {
@@ -57,6 +61,8 @@ async function readJsonResponse(response, requestPath) {
 async function requestApi(method, path, { payload, query } = {}) {
   const requestPath = buildApiPath(path, query)
   const isFormData = payload instanceof FormData
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_API_TIMEOUT_MS)
   const headers = {
     Accept: 'application/json',
   }
@@ -65,11 +71,22 @@ async function requestApi(method, path, { payload, query } = {}) {
     headers['Content-Type'] = 'application/json'
   }
 
-  const response = await fetch(requestPath, {
-    method,
-    headers,
-    body: payload === undefined ? undefined : isFormData ? payload : JSON.stringify(payload),
-  })
+  let response
+  try {
+    response = await fetch(requestPath, {
+      method,
+      headers,
+      body: payload === undefined ? undefined : isFormData ? payload : JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Request timeout after ${Math.floor(DEFAULT_API_TIMEOUT_MS / 1000)}s for ${requestPath}.`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response))

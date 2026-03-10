@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
   'appLogoSrc',
@@ -30,14 +31,192 @@ const localActiveTab = ref(typeof props.activeTab === 'string' ? props.activeTab
 const isCreateServiceModalOpen = ref(false)
 const isDetectingVendorLocation = ref(false)
 const vendorLocationNotice = ref('')
+const incomePeriod = ref('month')
+const copyByLanguage = {
+  en: {
+    overview: 'Overview',
+    myServices: 'My Services',
+    bookings: 'Bookings',
+    messages: 'Messages',
+    analytics: 'Analytics',
+    week: 'Week',
+    month: 'Month',
+    year: 'Year',
+    noData: 'No data',
+    geoUnsupported: 'Geolocation is not supported by this browser.',
+    locationCaptured: 'Current location captured.',
+    locationDenied: 'Could not access your current location.',
+    vendorPortal: 'Vendor Portal',
+    backHome: 'Back to Home',
+    settings: 'Settings',
+    logout: 'Logout',
+    verifiedWorkspace: 'Verified vendor workspace',
+    dashboardEyebrow: 'Vendor dashboard',
+    dashboardTitle: 'Achar Vendor Dashboard',
+    dashboardText: 'Manage your services, booking requests, and customer messages from one workspace.',
+    newService: '+ New Service',
+    signedInAs: 'Signed in as',
+    vendor: 'Vendor',
+    totalIncome: 'Total Income',
+    confirmedRevenue: 'Confirmed bookings revenue',
+    totalBookedServices: 'Total Booked Services',
+    completedConfirmations: 'Completed and active confirmations',
+    newRequests: 'New Requests',
+    waitingResponse: 'Waiting for your response',
+    unreadMessages: 'Unread Messages',
+    conversationsNeedAttention: 'Customer conversations needing attention',
+    performance: 'Performance',
+    incomeTrend: 'Income Trend Overview',
+    confirmedRevenueRange: 'Confirmed revenue in selected range',
+    average: 'Average',
+    averagePerPoint: 'Average per point on the chart',
+    peak: 'Peak',
+    noPeakYet: 'No peak yet',
+    bestPeriod: 'Best period',
+    na: 'N/A',
+    performanceLabel: 'Performance',
+    confirmedBookings: 'Confirmed bookings',
+    coverage: 'Coverage',
+    activeServicesListed: 'Active services listed',
+    noConfirmedIncome: 'No confirmed income yet for this period.',
+    createService: 'Create service',
+    insertService: 'Insert Service',
+    currentListings: 'Current listings',
+    loadingServices: 'Loading services...',
+    bookingRequests: 'Requests',
+    newBookingRequests: 'New Booking Requests',
+    loadingBookings: 'Loading bookings...',
+    customerMessages: 'Customer Messages',
+    openMessages: 'Open Messages',
+    incomeInsights: 'Vendor Income Insights',
+    addNewService: 'Add New Service',
+  },
+  km: {
+    overview: 'ទិដ្ឋភាពទូទៅ',
+    myServices: 'សេវាកម្មរបស់ខ្ញុំ',
+    bookings: 'ការកក់',
+    messages: 'សារ',
+    analytics: 'វិភាគទិន្នន័យ',
+    week: 'សប្ដាហ៍',
+    month: 'ខែ',
+    year: 'ឆ្នាំ',
+    noData: 'គ្មានទិន្នន័យ',
+    geoUnsupported: 'កម្មវិធីរុករកនេះមិនគាំទ្រការកំណត់ទីតាំងទេ។',
+    locationCaptured: 'បានចាប់យកទីតាំងបច្ចុប្បន្ន។',
+    locationDenied: 'មិនអាចចូលប្រើទីតាំងបច្ចុប្បន្នរបស់អ្នកបានទេ។',
+    vendorPortal: 'ផតថលអ្នកផ្គត់ផ្គង់',
+    backHome: 'ត្រឡប់ទៅទំព័រដើម',
+    settings: 'ការកំណត់',
+    logout: 'ចាកចេញ',
+    verifiedWorkspace: 'កន្លែងធ្វើការអ្នកផ្គត់ផ្គង់ដែលបានផ្ទៀងផ្ទាត់',
+    dashboardEyebrow: 'ផ្ទាំងគ្រប់គ្រងអ្នកផ្គត់ផ្គង់',
+    dashboardTitle: 'ផ្ទាំងគ្រប់គ្រងអ្នកផ្គត់ផ្គង់ Achar',
+    dashboardText: 'គ្រប់គ្រងសេវាកម្ម សំណើកក់ និងសារអតិថិជនរបស់អ្នកពីកន្លែងធ្វើការតែមួយ។',
+    newService: '+ សេវាកម្មថ្មី',
+    signedInAs: 'បានចូលជា',
+    vendor: 'អ្នកផ្គត់ផ្គង់',
+    totalIncome: 'ចំណូលសរុប',
+    confirmedRevenue: 'ចំណូលពីការកក់ដែលបានបញ្ជាក់',
+    totalBookedServices: 'សេវាកម្មដែលបានកក់សរុប',
+    completedConfirmations: 'ការបញ្ជាក់ដែលបានបញ្ចប់ និងកំពុងសកម្ម',
+    newRequests: 'សំណើថ្មី',
+    waitingResponse: 'កំពុងរង់ចាំការឆ្លើយតបរបស់អ្នក',
+    unreadMessages: 'សារមិនទាន់អាន',
+    conversationsNeedAttention: 'ការសន្ទនារបស់អតិថិជនដែលត្រូវការយកចិត្តទុកដាក់',
+    performance: 'លទ្ធផល',
+    incomeTrend: 'ទិដ្ឋភាពនិន្នាការចំណូល',
+    confirmedRevenueRange: 'ចំណូលដែលបានបញ្ជាក់ក្នុងរយៈពេលដែលបានជ្រើស',
+    average: 'មធ្យម',
+    averagePerPoint: 'មធ្យមក្នុងមួយចំណុចលើក្រាហ្វ',
+    peak: 'ខ្ពស់បំផុត',
+    noPeakYet: 'មិនទាន់មានកំពូល',
+    bestPeriod: 'រយៈពេលល្អបំផុត',
+    na: 'មិនមាន',
+    performanceLabel: 'លទ្ធផល',
+    confirmedBookings: 'ការកក់ដែលបានបញ្ជាក់',
+    coverage: 'ការគ្របដណ្តប់',
+    activeServicesListed: 'សេវាកម្មសកម្មដែលបានបញ្ជី',
+    noConfirmedIncome: 'មិនទាន់មានចំណូលដែលបានបញ្ជាក់សម្រាប់រយៈពេលនេះទេ។',
+    createService: 'បង្កើតសេវាកម្ម',
+    insertService: 'បញ្ចូលសេវាកម្ម',
+    currentListings: 'បញ្ជីបច្ចុប្បន្ន',
+    loadingServices: 'កំពុងផ្ទុកសេវាកម្ម...',
+    bookingRequests: 'សំណើ',
+    newBookingRequests: 'សំណើកក់ថ្មី',
+    loadingBookings: 'កំពុងផ្ទុកការកក់...',
+    customerMessages: 'សារអតិថិជន',
+    openMessages: 'បើកសារ',
+    incomeInsights: 'ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់',
+    addNewService: 'បន្ថែមសេវាកម្មថ្មី',
+  },
+  zh: {
+    overview: '概览',
+    myServices: '我的服务',
+    bookings: '预订',
+    messages: '消息',
+    analytics: '分析',
+    week: '周',
+    month: '月',
+    year: '年',
+    noData: '无数据',
+    geoUnsupported: '当前浏览器不支持地理定位。',
+    locationCaptured: '已获取当前位置。',
+    locationDenied: '无法访问您的当前位置。',
+    vendorPortal: '商家门户',
+    backHome: '返回首页',
+    settings: '设置',
+    logout: '退出登录',
+    verifiedWorkspace: '已认证商家工作台',
+    dashboardEyebrow: '商家仪表盘',
+    dashboardTitle: 'Achar 商家仪表盘',
+    dashboardText: '在一个工作区中管理您的服务、预订请求和客户消息。',
+    newService: '+ 新建服务',
+    signedInAs: '当前登录为',
+    vendor: '商家',
+    totalIncome: '总收入',
+    confirmedRevenue: '已确认预订收入',
+    totalBookedServices: '已预订服务总数',
+    completedConfirmations: '已完成和进行中的确认',
+    newRequests: '新请求',
+    waitingResponse: '等待您的回复',
+    unreadMessages: '未读消息',
+    conversationsNeedAttention: '需要处理的客户对话',
+    performance: '表现',
+    incomeTrend: '收入趋势概览',
+    confirmedRevenueRange: '所选范围内的已确认收入',
+    average: '平均',
+    averagePerPoint: '图表中每个点的平均值',
+    peak: '峰值',
+    noPeakYet: '尚无峰值',
+    bestPeriod: '最佳时段',
+    na: '无',
+    performanceLabel: '表现',
+    confirmedBookings: '已确认预订',
+    coverage: '覆盖范围',
+    activeServicesListed: '已上架的活跃服务',
+    noConfirmedIncome: '该时段暂无已确认收入。',
+    createService: '创建服务',
+    insertService: '录入服务',
+    currentListings: '当前列表',
+    loadingServices: '正在加载服务...',
+    bookingRequests: '请求',
+    newBookingRequests: '新的预订请求',
+    loadingBookings: '正在加载预订...',
+    customerMessages: '客户消息',
+    openMessages: '打开消息',
+    incomeInsights: '商家收入洞察',
+    addNewService: '添加新服务',
+  },
+}
+const { uiText } = useLanguageCopy(copyByLanguage)
 
-const navItems = [
-  { key: 'overview', label: 'Overview', number: '01' },
-  { key: 'services', label: 'My Services', number: '02' },
-  { key: 'bookings', label: 'Bookings', number: '03' },
-  { key: 'messages', label: 'Messages', number: '04' },
-  { key: 'income', label: 'Analytics', number: '05' },
-]
+const navItems = computed(() => [
+  { key: 'overview', label: uiText.value.overview, number: '01' },
+  { key: 'services', label: uiText.value.myServices, number: '02' },
+  { key: 'bookings', label: uiText.value.bookings, number: '03' },
+  { key: 'messages', label: uiText.value.messages, number: '04' },
+  { key: 'income', label: uiText.value.analytics, number: '05' },
+])
 
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
@@ -46,6 +225,7 @@ const safeIncome = computed(() => ({
   thisMonth: Number(props.vendorIncome?.thisMonth || 0),
   thisYear: Number(props.vendorIncome?.thisYear || 0),
   activeServices: Number(props.vendorIncome?.activeServices || 0),
+  periods: props.vendorIncome?.periods || {},
 }))
 
 const safeMessagesSummary = computed(() => Number(props.messagesSummary || 0))
@@ -69,6 +249,95 @@ const eventOptions = computed(() =>
     ? props.eventTypeOptions.filter((item) => item?.value && item.value !== 'all')
     : [],
 )
+const incomePeriodOptions = computed(() => [
+  { key: 'week', label: uiText.value.week },
+  { key: 'month', label: uiText.value.month },
+  { key: 'year', label: uiText.value.year },
+])
+const activeIncomePeriod = computed(
+  () => safeIncome.value.periods?.[incomePeriod.value] || { label: uiText.value.noData, points: [], total: 0 },
+)
+const activeIncomePoints = computed(() =>
+  Array.isArray(activeIncomePeriod.value.points) ? activeIncomePeriod.value.points : [],
+)
+const incomePeakValue = computed(() =>
+  Math.max(...activeIncomePoints.value.map((item) => Number(item.value || 0)), 0),
+)
+const incomeAverageValue = computed(() =>
+  activeIncomePoints.value.length
+    ? activeIncomePoints.value.reduce((sum, item) => sum + Number(item.value || 0), 0) /
+      activeIncomePoints.value.length
+    : 0,
+)
+const incomeMidValue = computed(() => incomePeakValue.value / 2)
+const topIncomePoint = computed(() => {
+  if (!activeIncomePoints.value.length) return null
+  return activeIncomePoints.value.reduce((best, point) =>
+    Number(point.value || 0) > Number(best.value || 0) ? point : best,
+  )
+})
+const normalizedIncomeChartPoints = computed(() => {
+  const points = activeIncomePoints.value
+  if (!points.length) return []
+
+  const width = 100
+  const height = 100
+  const maxValue = incomePeakValue.value || 1
+
+  return points.map((point, index) => ({
+    x: points.length === 1 ? width / 2 : (index / (points.length - 1)) * width,
+    y: height - (Number(point.value || 0) / maxValue) * 82 - 9,
+    value: Number(point.value || 0),
+    label: point.label,
+    fullLabel: point.fullLabel,
+  }))
+})
+
+function buildSmoothPath(points) {
+  if (!points.length) return ''
+  if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+
+  let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index]
+    const next = points[index + 1]
+    const controlX = (current.x + next.x) / 2
+    path += ` C ${controlX.toFixed(2)} ${current.y.toFixed(2)}, ${controlX.toFixed(2)} ${next.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`
+  }
+
+  return path
+}
+
+const incomeChartPath = computed(() => buildSmoothPath(normalizedIncomeChartPoints.value))
+const incomeLineShadowPath = computed(() => buildSmoothPath(normalizedIncomeChartPoints.value.map((point) => ({
+  ...point,
+  y: point.y + 1.8,
+}))))
+const latestIncomePoint = computed(() =>
+  normalizedIncomeChartPoints.value.length
+    ? normalizedIncomeChartPoints.value[normalizedIncomeChartPoints.value.length - 1]
+    : null,
+)
+const averageLineY = computed(() => {
+  const maxValue = incomePeakValue.value || 1
+  return 100 - (Number(incomeAverageValue.value || 0) / maxValue) * 82 - 9
+})
+const incomeAreaPath = computed(() => {
+  const linePath = incomeChartPath.value
+  const points = normalizedIncomeChartPoints.value
+  if (!linePath || !points.length) return ''
+  const width = 100
+  return `${linePath} L ${width} 100 L 0 100 Z`
+})
+
+function formatCurrency(value) {
+  return `$${Number(value || 0).toLocaleString()}`
+}
+
+function setIncomePeriod(periodKey) {
+  incomePeriod.value = periodKey
+}
 
 function setActiveTab(tabKey) {
   localActiveTab.value = tabKey
@@ -150,7 +419,7 @@ async function detectVendorLocation() {
   if (!props.vendorServiceForm) return
 
   if (!navigator.geolocation) {
-    vendorLocationNotice.value = 'Geolocation is not supported by this browser.'
+    vendorLocationNotice.value = uiText.value.geoUnsupported
     return
   }
 
@@ -202,11 +471,11 @@ async function detectVendorLocation() {
       props.vendorServiceForm.location_latitude = lat
       props.vendorServiceForm.location_longitude = lng
       props.vendorServiceForm.location = placeName || `${lat}, ${lng}`
-      vendorLocationNotice.value = 'Current location captured.'
+      vendorLocationNotice.value = uiText.value.locationCaptured
       isDetectingVendorLocation.value = false
     },
     () => {
-      vendorLocationNotice.value = 'Could not access your current location.'
+      vendorLocationNotice.value = uiText.value.locationDenied
       isDetectingVendorLocation.value = false
     },
     {
@@ -248,7 +517,7 @@ watch(
         <img :src="props.appLogoSrc || '/achar-logo.png'" alt="Achar logo" />
         <div>
           <strong>Achar</strong>
-          <span>Vendor Portal</span>
+          <span>{{ uiText.vendorPortal }}</span>
         </div>
       </div>
 
@@ -267,14 +536,14 @@ watch(
       </nav>
 
       <div class="sidebar-footer">
-        <RouterLink class="side-utility home" to="/">Back to Home</RouterLink>
-        <button type="button" class="side-utility">Settings</button>
-        <button type="button" class="side-utility logout" @click="props.logoutUser">Logout</button>
+        <RouterLink class="side-utility home" to="/">{{ uiText.backHome }}</RouterLink>
+        <button type="button" class="side-utility">{{ uiText.settings }}</button>
+        <button type="button" class="side-utility logout" @click="props.logoutUser">{{ uiText.logout }}</button>
         <div class="vendor-card">
           <span class="vendor-avatar">{{ (props.vendorDisplayName || 'V').slice(0, 1).toUpperCase() }}</span>
           <div>
-            <strong>{{ props.vendorDisplayName || 'Vendor' }}</strong>
-            <small>Verified vendor workspace</small>
+            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
+            <small>{{ uiText.verifiedWorkspace }}</small>
           </div>
         </div>
       </div>
@@ -283,80 +552,162 @@ watch(
     <section class="main-panel">
       <header class="hero">
         <div>
-          <p class="eyebrow">Vendor dashboard</p>
-          <h1>Achar Vendor Dashboard</h1>
+          <p class="eyebrow">{{ uiText.dashboardEyebrow }}</p>
+          <h1>{{ uiText.dashboardTitle }}</h1>
           <p class="hero-copy">
-            Manage your services, booking requests, and customer messages from one workspace.
+            {{ uiText.dashboardText }}
           </p>
         </div>
 
         <div class="hero-side">
           <button type="button" class="primary-button" @click="openCreateServiceModal">
-            + New Service
+            {{ uiText.newService }}
           </button>
           <div class="signed-user">
-            <span>Signed in as</span>
-            <strong>{{ props.vendorDisplayName || 'Vendor' }}</strong>
+            <span>{{ uiText.signedInAs }}</span>
+            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
           </div>
         </div>
       </header>
 
       <section class="stats-grid">
         <article class="stat-card">
-          <small>Total Income</small>
+          <small>{{ uiText.totalIncome }}</small>
           <strong>${{ safeIncome.total.toLocaleString() }}</strong>
-          <span>Confirmed bookings revenue</span>
+          <span>{{ uiText.confirmedRevenue }}</span>
         </article>
         <article class="stat-card">
-          <small>Total Booked Services</small>
+          <small>{{ uiText.totalBookedServices }}</small>
           <strong>{{ safeIncome.confirmedCount }}</strong>
-          <span>Completed and active confirmations</span>
+          <span>{{ uiText.completedConfirmations }}</span>
         </article>
         <article class="stat-card">
-          <small>New Requests</small>
+          <small>{{ uiText.newRequests }}</small>
           <strong>{{ safeIncome.newBookings }}</strong>
-          <span>Waiting for your response</span>
+          <span>{{ uiText.waitingResponse }}</span>
         </article>
         <article class="stat-card accent">
-          <small>Unread Messages</small>
+          <small>{{ uiText.unreadMessages }}</small>
           <strong>{{ safeMessagesSummary }}</strong>
-          <span>Customer conversations needing attention</span>
+          <span>{{ uiText.conversationsNeedAttention }}</span>
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'overview'" class="content-grid">
+      <section v-show="localActiveTab === 'overview'" class="content-grid overview-grid">
         <article class="panel panel-wide">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Performance</p>
-              <h2>Income Trend Overview</h2>
+              <p class="eyebrow">{{ uiText.performance }}</p>
+              <h2>{{ uiText.incomeTrend }}</h2>
             </div>
-            <span class="badge">Last 30 days</span>
+            <div class="period-switcher">
+              <button
+                v-for="option in incomePeriodOptions"
+                :key="option.key"
+                type="button"
+                class="period-chip"
+                :class="{ active: incomePeriod === option.key }"
+                @click="setIncomePeriod(option.key)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
           </div>
-          <div class="chart-placeholder">
-            <div class="chart-line chart-line-a"></div>
-            <div class="chart-line chart-line-b"></div>
-            <div class="chart-line chart-line-c"></div>
-          </div>
-        </article>
+          <div class="income-chart-card">
+            <div class="income-chart-summary">
+              <article class="metric-tile">
+                <small>{{ activeIncomePeriod.label }}</small>
+                <strong>{{ formatCurrency(activeIncomePeriod.total) }}</strong>
+                <span>{{ uiText.confirmedRevenueRange }}</span>
+              </article>
+              <article class="metric-tile">
+                <small>{{ uiText.average }}</small>
+                <strong>{{ formatCurrency(incomeAverageValue) }}</strong>
+                <span>{{ uiText.averagePerPoint }}</span>
+              </article>
+              <article class="metric-tile">
+                <small>{{ uiText.peak }}</small>
+                <strong>{{ formatCurrency(incomePeakValue) }}</strong>
+                <span>{{ topIncomePoint?.fullLabel || uiText.noPeakYet }}</span>
+              </article>
+            </div>
 
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Quick actions</p>
-              <h2>Service Control</h2>
+            <div v-if="activeIncomePoints.length" class="income-chart-layout">
+              <div class="chart-scale">
+                <span>{{ formatCurrency(incomePeakValue) }}</span>
+                <span>{{ formatCurrency(incomeMidValue) }}</span>
+                <span>$0</span>
+              </div>
+              <div class="chart-shell">
+                <div class="chart-grid">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <svg viewBox="0 0 100 100" class="income-chart" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="income-area" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.24" />
+                      <stop offset="100%" stop-color="#ea580c" stop-opacity="0.02" />
+                    </linearGradient>
+                    <linearGradient id="income-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#f97316" />
+                      <stop offset="100%" stop-color="#c2410c" />
+                    </linearGradient>
+                  </defs>
+                  <line class="income-average-line" x1="0" :y1="averageLineY" x2="100" :y2="averageLineY" />
+                  <path class="income-area" :d="incomeAreaPath" />
+                  <path class="income-line-shadow" :d="incomeLineShadowPath" />
+                  <path class="income-line" :d="incomeChartPath" />
+                  <circle
+                    v-for="(point, index) in normalizedIncomeChartPoints"
+                    :key="`${incomePeriod}-${index}`"
+                    class="income-dot"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="1.55"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-highlight"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="3.2"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-core"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="1.9"
+                  />
+                </svg>
+                <div class="chart-labels">
+                  <span v-for="(point, index) in activeIncomePoints" :key="`${point.label}-${index}`">
+                    {{ point.label }}
+                  </span>
+                </div>
+              </div>
+              <aside class="chart-insights">
+                <article>
+                  <small>{{ uiText.bestPeriod }}</small>
+                  <strong>{{ topIncomePoint?.label || uiText.na }}</strong>
+                  <span>{{ formatCurrency(topIncomePoint?.value || 0) }}</span>
+                </article>
+                <article>
+                  <small>{{ uiText.performanceLabel }}</small>
+                  <strong>{{ safeIncome.confirmedCount }}</strong>
+                  <span>{{ uiText.confirmedBookings }}</span>
+                </article>
+                <article>
+                  <small>{{ uiText.coverage }}</small>
+                  <strong>{{ safeIncome.activeServices }}</strong>
+                  <span>{{ uiText.activeServicesListed }}</span>
+                </article>
+              </aside>
             </div>
-          </div>
-          <p class="panel-copy">
-            Add a new service now or jump to your customer inbox.
-          </p>
-          <div class="action-row">
-            <button type="button" class="primary-button" @click="openCreateServiceModal">
-              Add Service
-            </button>
-            <button type="button" class="secondary-button" @click="openMessages">
-              Open Messages
-            </button>
+
+            <p v-else class="notice">{{ uiText.noConfirmedIncome }}</p>
           </div>
         </article>
       </section>
@@ -365,8 +716,8 @@ watch(
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Create service</p>
-              <h2>Insert Service</h2>
+              <p class="eyebrow">{{ uiText.createService }}</p>
+              <h2>{{ uiText.insertService }}</h2>
             </div>
             <span class="badge">Visible to users when active</span>
           </div>
@@ -536,13 +887,13 @@ watch(
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Current listings</p>
-              <h2>My Services</h2>
+              <p class="eyebrow">{{ uiText.currentListings }}</p>
+              <h2>{{ uiText.myServices }}</h2>
             </div>
             <span class="badge">{{ safeVendorEvents.length }} services</span>
           </div>
 
-          <p v-if="props.isLoadingEvents" class="notice">Loading services...</p>
+          <p v-if="props.isLoadingEvents" class="notice">{{ uiText.loadingServices }}</p>
           <p v-else-if="!safeVendorEvents.length" class="notice">
             No service yet. Create one from the form.
           </p>
@@ -575,12 +926,12 @@ watch(
       <section v-show="localActiveTab === 'bookings'" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Requests</p>
-            <h2>New Booking Requests</h2>
+            <p class="eyebrow">{{ uiText.bookingRequests }}</p>
+            <h2>{{ uiText.newBookingRequests }}</h2>
           </div>
         </div>
 
-        <p v-if="props.isLoadingVendorBookings" class="notice">Loading bookings...</p>
+        <p v-if="props.isLoadingVendorBookings" class="notice">{{ uiText.loadingBookings }}</p>
         <p v-else-if="!safeVendorBookings.length" class="notice">
           No booking requests yet.
         </p>
@@ -625,32 +976,160 @@ watch(
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
-            <h2>Customer Messages</h2>
+            <h2>{{ uiText.customerMessages }}</h2>
           </div>
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
         <p class="panel-copy">
           Respond quickly to customer questions and booking confirmations.
         </p>
-        <button type="button" class="primary-button" @click="openMessages">Open Messages</button>
+        <button type="button" class="primary-button" @click="openMessages">{{ uiText.openMessages }}</button>
       </section>
 
-      <section v-show="localActiveTab === 'income'" class="stats-grid">
-        <article class="stat-card">
-          <small>This Month</small>
-          <strong>${{ safeIncome.thisMonth.toLocaleString() }}</strong>
-          <span>Monthly income estimate</span>
+      <section v-show="localActiveTab === 'income'" class="income-layout">
+        <article class="panel panel-wide">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Analytics</p>
+              <h2>{{ uiText.incomeInsights }}</h2>
+            </div>
+            <div class="period-switcher">
+              <button
+                v-for="option in incomePeriodOptions"
+                :key="`analytics-${option.key}`"
+                type="button"
+                class="period-chip"
+                :class="{ active: incomePeriod === option.key }"
+                @click="setIncomePeriod(option.key)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="income-chart-card">
+            <div class="income-chart-summary income-chart-summary-wide">
+              <article class="metric-tile">
+                <small>Selected period</small>
+                <strong>{{ activeIncomePeriod.label }}</strong>
+                <span>Reporting window</span>
+              </article>
+              <article class="metric-tile">
+                <small>Income</small>
+                <strong>{{ formatCurrency(activeIncomePeriod.total) }}</strong>
+                <span>Confirmed revenue only</span>
+              </article>
+              <article class="metric-tile">
+                <small>Average</small>
+                <strong>{{ formatCurrency(incomeAverageValue) }}</strong>
+                <span>Average per displayed period</span>
+              </article>
+              <article class="metric-tile">
+                <small>Peak</small>
+                <strong>{{ formatCurrency(incomePeakValue) }}</strong>
+                <span>{{ topIncomePoint?.fullLabel || 'No peak yet' }}</span>
+              </article>
+            </div>
+
+            <div v-if="activeIncomePoints.length" class="income-chart-layout analytics-chart-layout">
+              <div class="chart-scale">
+                <span>{{ formatCurrency(incomePeakValue) }}</span>
+                <span>{{ formatCurrency(incomeMidValue) }}</span>
+                <span>$0</span>
+              </div>
+              <div class="chart-shell">
+                <div class="chart-grid">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <svg viewBox="0 0 100 100" class="income-chart" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="income-area-analytics" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.24" />
+                      <stop offset="100%" stop-color="#ea580c" stop-opacity="0.02" />
+                    </linearGradient>
+                    <linearGradient id="income-line-gradient-analytics" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#f97316" />
+                      <stop offset="100%" stop-color="#c2410c" />
+                    </linearGradient>
+                  </defs>
+                  <line class="income-average-line" x1="0" :y1="averageLineY" x2="100" :y2="averageLineY" />
+                  <path class="income-area alt" :d="incomeAreaPath" />
+                  <path class="income-line-shadow" :d="incomeLineShadowPath" />
+                  <path class="income-line" :d="incomeChartPath" />
+                  <circle
+                    v-for="(point, index) in normalizedIncomeChartPoints"
+                    :key="`analytics-${incomePeriod}-${index}`"
+                    class="income-dot"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="1.55"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-highlight"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="3.2"
+                  />
+                  <circle
+                    v-if="latestIncomePoint"
+                    class="income-dot-core"
+                    :cx="latestIncomePoint.x"
+                    :cy="latestIncomePoint.y"
+                    r="1.9"
+                  />
+                </svg>
+                <div class="chart-labels">
+                  <span v-for="(point, index) in activeIncomePoints" :key="`analytics-${point.label}-${index}`">
+                    {{ point.label }}
+                  </span>
+                </div>
+              </div>
+              <aside class="chart-insights">
+                <article>
+                  <small>Best period</small>
+                  <strong>{{ topIncomePoint?.label || 'N/A' }}</strong>
+                  <span>{{ formatCurrency(topIncomePoint?.value || 0) }}</span>
+                </article>
+                <article>
+                  <small>This month</small>
+                  <strong>{{ formatCurrency(safeIncome.thisMonth) }}</strong>
+                  <span>Current calendar month</span>
+                </article>
+                <article>
+                  <small>This year</small>
+                  <strong>{{ formatCurrency(safeIncome.thisYear) }}</strong>
+                  <span>Current calendar year</span>
+                </article>
+              </aside>
+            </div>
+          </div>
         </article>
-        <article class="stat-card">
-          <small>This Year</small>
-          <strong>${{ safeIncome.thisYear.toLocaleString() }}</strong>
-          <span>Year-to-date income estimate</span>
-        </article>
-        <article class="stat-card">
-          <small>Active Services</small>
-          <strong>{{ safeIncome.activeServices }}</strong>
-          <span>Public listings currently visible</span>
-        </article>
+
+        <section class="stats-grid income-stats-grid">
+          <article class="stat-card">
+            <small>This Month</small>
+            <strong>{{ formatCurrency(safeIncome.thisMonth) }}</strong>
+            <span>Confirmed income this calendar month</span>
+          </article>
+          <article class="stat-card">
+            <small>This Year</small>
+            <strong>{{ formatCurrency(safeIncome.thisYear) }}</strong>
+            <span>Confirmed income this calendar year</span>
+          </article>
+          <article class="stat-card">
+            <small>Active Services</small>
+            <strong>{{ safeIncome.activeServices }}</strong>
+            <span>Public listings currently visible</span>
+          </article>
+          <article class="stat-card accent">
+            <small>Confirmed Bookings</small>
+            <strong>{{ safeIncome.confirmedCount }}</strong>
+            <span>Orders already producing income</span>
+          </article>
+        </section>
       </section>
     </section>
 
@@ -658,8 +1137,8 @@ watch(
       <section class="modal-card" @click.stop>
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Create service</p>
-            <h2>Add New Service</h2>
+            <p class="eyebrow">{{ uiText.createService }}</p>
+            <h2>{{ uiText.addNewService }}</h2>
           </div>
           <button type="button" class="secondary-button" @click="closeCreateServiceModal">Close</button>
         </div>
@@ -1132,6 +1611,10 @@ watch(
   grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
 }
 
+.overview-grid {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   padding: 26px;
 }
@@ -1157,35 +1640,243 @@ watch(
   font-weight: 700;
 }
 
-.chart-placeholder {
-  height: 250px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(180deg, #fff7ed 0%, #fffbf5 100%);
-}
-
-.chart-line {
-  position: absolute;
-  left: 10%;
-  right: 8%;
-  height: 12px;
+.period-switcher {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ea580c 0%, #f97316 100%);
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
-.chart-line-a {
-  top: 72%;
+.period-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.chart-line-b {
-  top: 62%;
-  width: 78%;
+.period-chip.active {
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
 }
 
-.chart-line-c {
-  top: 52%;
-  width: 62%;
+.metric-tile {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.metric-tile span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.income-chart-layout {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 220px;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.chart-scale {
+  display: grid;
+  align-content: stretch;
+  gap: 0;
+}
+
+.chart-scale span {
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chart-scale span:nth-child(1) {
+  align-items: flex-start;
+}
+
+.chart-scale span:nth-child(2) {
+  align-items: center;
+}
+
+.chart-scale span:nth-child(3) {
+  align-items: flex-end;
+}
+
+.analytics-chart-layout {
+  grid-template-columns: 84px minmax(0, 1fr) 240px;
+}
+
+.chart-insights {
+  display: grid;
+  gap: 12px;
+}
+
+.chart-insights article {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.chart-insights small {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chart-insights strong {
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.chart-insights span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chart-shell {
+  min-height: 248px;
+  padding: 14px 16px 10px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.92) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.chart-grid {
+  inset: 14px 16px 34px;
+}
+
+.chart-grid span {
+  border-top: 1px dashed rgba(148, 163, 184, 0.22);
+}
+
+.income-chart {
+  width: 100%;
+  height: 220px;
+  overflow: visible;
+}
+
+.income-area {
+  fill: url(#income-area);
+}
+
+.income-area.alt {
+  fill: url(#income-area-analytics);
+}
+
+.income-line {
+  fill: none;
+  stroke: url(#income-line-gradient);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.income-line-shadow {
+  fill: none;
+  stroke: rgba(194, 65, 12, 0.14);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.income-average-line {
+  stroke: rgba(148, 163, 184, 0.5);
+  stroke-width: 0.65;
+  stroke-dasharray: 2.5 2.5;
+}
+
+.income-dot {
+  fill: #fff;
+  stroke: #c2410c;
+  stroke-width: 1.25;
+}
+
+.income-dot-highlight {
+  fill: rgba(249, 115, 22, 0.15);
+  stroke: rgba(249, 115, 22, 0.2);
+  stroke-width: 0.6;
+}
+
+.income-dot-core {
+  fill: #f97316;
+  stroke: #ffffff;
+  stroke-width: 0.9;
+}
+
+.chart-labels {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+}
+
+.chart-labels span {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.income-chart-card {
+  display: grid;
+  gap: 18px;
+  min-height: 260px;
+  padding: 22px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.income-chart-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.income-chart-summary-wide {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.income-chart-summary small {
+  display: block;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.income-chart-summary strong {
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.1;
+}
+
+.income-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.income-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .action-row,
@@ -1436,7 +2127,12 @@ watch(
 
   .stats-grid,
   .content-grid,
-  .services-grid {
+  .services-grid,
+  .income-stats-grid,
+  .income-chart-summary,
+  .income-chart-summary-wide,
+  .income-chart-layout,
+  .analytics-chart-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -1447,6 +2143,10 @@ watch(
   }
 
   .hero {
+    flex-direction: column;
+  }
+
+  .panel-head {
     flex-direction: column;
   }
 
@@ -1462,6 +2162,15 @@ watch(
   .service-form,
   .service-item {
     grid-template-columns: 1fr;
+  }
+
+  .chart-labels {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .period-switcher {
+    justify-content: flex-start;
   }
 }
 </style>

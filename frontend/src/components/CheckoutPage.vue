@@ -124,10 +124,12 @@ function saveLocalBooking(user) {
     const firstItem = bookingItems.value[0] || {};
     rows.unshift({
       id: `local-${Date.now()}`,
+      eventId: booking.eventId || null,
       customerEmail: email,
       customerName: booking.fullName || user?.name || "Guest User",
-      vendor: booking.vendorTitle || "Selected Vendor",
+      vendor: booking.vendorName || booking.vendorTitle || "Selected Vendor",
       service: firstItem.name || booking.vendorTitle || "Service Booking",
+      image: booking.image || "",
       dateLabel: booking.eventDate || "Date TBD",
       eventType: "other",
       total: Number(bookingTotal.value || 0),
@@ -146,7 +148,7 @@ async function handleConfirmAndPay() {
   if (!agreedTerms.value) return;
   if (selectedMethod.value !== "card" && !isAwaitingPayment.value) {
     isAwaitingPayment.value = true;
-    paymentNotice.value = "Please scan the QR code and complete payment, then click Complete Payment.";
+    paymentNotice.value = uiText.value.scanQrNotice;
     return;
   }
 
@@ -158,7 +160,7 @@ async function handleConfirmAndPay() {
     const expiryMatch = expiry.match(/^(\d{2})\/(\d{2})$/);
 
     if (!holder || digits.length < 13 || digits.length > 19 || !expiryMatch || !/^\d{3,4}$/.test(cvv)) {
-      paymentNotice.value = "Please enter valid card details to continue.";
+      paymentNotice.value = uiText.value.validCardDetails;
       return;
     }
 
@@ -168,13 +170,13 @@ async function handleConfirmAndPay() {
     const currentYY = Number(String(now.getFullYear()).slice(-2));
     const currentMM = now.getMonth() + 1;
     if (mm < 1 || mm > 12 || yy < currentYY || (yy === currentYY && mm < currentMM)) {
-      paymentNotice.value = "Your card expiry date is invalid or already expired.";
+      paymentNotice.value = uiText.value.invalidCardExpiry;
       return;
     }
   }
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) {
-    paymentNotice.value = "Please sign in or register to continue payment.";
+    paymentNotice.value = uiText.value.signInToContinuePayment;
     sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
     sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
     router.push("/legacy-app");
@@ -187,9 +189,9 @@ async function handleConfirmAndPay() {
     user = null;
   }
   const customerEmail = String(booking.email || user?.email || "").trim();
-  const customerName = String(booking.fullName || user?.name || "Guest User").trim();
+  const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
   if (!customerEmail) {
-    paymentNotice.value = "Please add your email before confirming payment.";
+    paymentNotice.value = uiText.value.addEmailBeforePayment;
     return;
   }
   const firstItem = bookingItems.value[0] || {};
@@ -200,12 +202,13 @@ async function handleConfirmAndPay() {
       quantity,
       customer_name: customerName,
       customer_email: customerEmail,
-      service_name: firstItem.name || booking.vendorTitle || "Service Booking",
+      service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
       requested_event_type: booking.requestedEventType || "other",
+      requested_event_date: booking.eventDate || null,
       total_amount: bookingTotal.value,
     });
   } catch (error) {
-    paymentNotice.value = error?.message || "Unable to save booking to database.";
+    paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
     return;
   }
   const receiptPayload = {
@@ -264,6 +267,15 @@ const copyByLanguage = {
     qrText: "Scan this QR code with your banking app to pay the deposit.",
     back: "Back",
     completePayment: "Complete Payment",
+    scanQrNotice: "Please scan the QR code and complete payment, then click Complete Payment.",
+    validCardDetails: "Please enter valid card details to continue.",
+    invalidCardExpiry: "Your card expiry date is invalid or already expired.",
+    signInToContinuePayment: "Please sign in or register to continue payment.",
+    guestUser: "Guest User",
+    addEmailBeforePayment: "Please add your email before confirming payment.",
+    serviceBooking: "Service Booking",
+    unableSaveBooking: "Unable to save booking to database.",
+    noAdditionalDetails: "No additional details.",
   },
   km: {
     servicesStep: "1 សេវាកម្ម",
@@ -300,6 +312,15 @@ const copyByLanguage = {
     qrText: "ស្កេន QR នេះក្នុងកម្មវិធីធនាគាររបស់អ្នក ដើម្បីទូទាត់ប្រាក់កក់។",
     back: "ត្រឡប់",
     completePayment: "បញ្ចប់ការទូទាត់",
+    scanQrNotice: "សូមស្កេនកូដ QR និងបញ្ចប់ការទូទាត់ រួចចុច បញ្ចប់ការទូទាត់។",
+    validCardDetails: "សូមបញ្ចូលព័ត៌មានកាតឱ្យត្រឹមត្រូវ ដើម្បីបន្ត។",
+    invalidCardExpiry: "កាលបរិច្ឆេទផុតកំណត់កាតរបស់អ្នកមិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ។",
+    signInToContinuePayment: "សូមចូលគណនី ឬចុះឈ្មោះ ដើម្បីបន្តការទូទាត់។",
+    guestUser: "ភ្ញៀវ",
+    addEmailBeforePayment: "សូមបន្ថែមអ៊ីមែលរបស់អ្នកមុនពេលបញ្ជាក់ការទូទាត់។",
+    serviceBooking: "ការកក់សេវាកម្ម",
+    unableSaveBooking: "មិនអាចរក្សាទុកការកក់ទៅមូលដ្ឋានទិន្នន័យបានទេ។",
+    noAdditionalDetails: "មិនមានព័ត៌មានលម្អិតបន្ថែមទេ។",
   },
   zh: {
     servicesStep: "1 服务",
@@ -336,6 +357,15 @@ const copyByLanguage = {
     qrText: "请使用银行应用扫描此二维码支付定金。",
     back: "返回",
     completePayment: "完成支付",
+    scanQrNotice: "请扫描二维码并完成支付，然后点击“完成支付”。",
+    validCardDetails: "请输入有效的银行卡信息后再继续。",
+    invalidCardExpiry: "您的卡片有效期无效或已过期。",
+    signInToContinuePayment: "请先登录或注册再继续支付。",
+    guestUser: "访客",
+    addEmailBeforePayment: "请在确认支付前添加您的邮箱。",
+    serviceBooking: "服务预订",
+    unableSaveBooking: "无法将预订保存到数据库。",
+    noAdditionalDetails: "无其他详细信息。",
   },
 };
 
@@ -374,7 +404,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             <h3>{{ item.name }}</h3>
             <p>{{ booking.eventDate || uiText.dateNotSelected }} | {{ booking.location }}</p>
             <p>{{ item.type === "package" ? uiText.package : uiText.service }} | {{ uiText.qty }} {{ item.qty }}</p>
-            <small>{{ item.description || "No additional details." }}</small>
+            <small>{{ item.description || uiText.noAdditionalDetails }}</small>
           </div>
           <strong>${{ Number(item.totalPrice || 0).toLocaleString() }}</strong>
         </article>

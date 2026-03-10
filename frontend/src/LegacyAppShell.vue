@@ -16,8 +16,6 @@ import {
   eventTypeMap,
   eventTypeOptions,
   fallbackVendorLocation,
-  packageCatalogByEventType,
-  packageImageByEventType,
   reviews,
   serviceFeeRate,
   stats,
@@ -29,6 +27,7 @@ import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
 import { useVendorMessagesFeature } from './features/useVendorMessagesFeature'
 import { useProfileFeature } from './features/useProfileFeature'
+import { useLanguageCopy } from './features/language'
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
@@ -41,6 +40,120 @@ const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
 const loggedInUser = ref(null)
+const copyByLanguage = {
+  en: {
+    signInToContinue: 'Please sign in to continue booking.',
+    socialLoginFailed: 'Social login failed.',
+    socialLoginInvalid: 'Social login did not return valid user info.',
+    searchBookings: 'Search bookings...',
+    searchServices: 'Search services...',
+    serviceBooking: 'Service Booking',
+    vendor: 'Vendor',
+    customer: 'Customer',
+    dateTbd: 'Date TBD',
+    loadEventsFailed: 'Could not load events from backend API. Please start backend server.',
+    vendorAccountMissing: 'Vendor account is missing.',
+    fillTitleLocationStart: 'Please fill title, location, and start date.',
+    serviceCreated: 'Service created successfully and is now visible to users.',
+    couldNotCreateService: 'Could not create service.',
+    couldNotUpdateService: 'Could not update service status.',
+    couldNotDeleteService: 'Could not delete service.',
+    couldNotLoadVendorBookings: 'Could not load vendor bookings right now.',
+    couldNotUpdateBookingStatus: 'Could not update booking status.',
+    signInCheckAvailability: 'Please sign in to check service availability.',
+    availabilityChecked: 'Availability checked.',
+    couldNotCheckAvailability: 'Could not check availability right now.',
+    loadedLatestBooking: 'Loaded your latest booking from this device.',
+    couldNotLoadBookings: 'Could not load bookings. Check backend API and database migrations.',
+    signInBeforeBooking: 'Please sign in before checking availability and booking.',
+    enterNameEmail: 'Please enter your name and email before booking.',
+    selectValidQuantity: 'Please select a valid quantity.',
+    serviceUnavailable: 'This service is not available at the moment.',
+    bookingCreatedFor: 'Booking created for',
+    bookingFailed: 'Booking failed.',
+    rescheduleRequested: 'Reschedule request sent. Waiting for confirmation.',
+    signInConfirmPackage: 'Please sign in before confirming your package booking.',
+    justNow: 'Just now',
+    last7Days: 'Last 7 days',
+    last30Days: 'Last 30 days',
+    last12Months: 'Last 12 months',
+  },
+  km: {
+    signInToContinue: 'សូមចូលគណនីដើម្បីបន្តការកក់។',
+    socialLoginFailed: 'ការចូលតាមបណ្តាញសង្គមបានបរាជ័យ។',
+    socialLoginInvalid: 'ការចូលតាមបណ្តាញសង្គមមិនបានផ្តល់ព័ត៌មានអ្នកប្រើត្រឹមត្រូវទេ។',
+    searchBookings: 'ស្វែងរកការកក់...',
+    searchServices: 'ស្វែងរកសេវាកម្ម...',
+    serviceBooking: 'ការកក់សេវាកម្ម',
+    vendor: 'អ្នកផ្គត់ផ្គង់',
+    customer: 'អតិថិជន',
+    dateTbd: 'មិនទាន់កំណត់កាលបរិច្ឆេទ',
+    loadEventsFailed: 'មិនអាចផ្ទុកព្រឹត្តិការណ៍ពី backend API បានទេ។ សូមបើកម៉ាស៊ីនមេ backend។',
+    vendorAccountMissing: 'គណនីអ្នកផ្គត់ផ្គង់បាត់។',
+    fillTitleLocationStart: 'សូមបំពេញចំណងជើង ទីតាំង និងថ្ងៃចាប់ផ្តើម។',
+    serviceCreated: 'សេវាកម្មត្រូវបានបង្កើតដោយជោគជ័យ ហើយអាចមើលឃើញដោយអ្នកប្រើហើយ។',
+    couldNotCreateService: 'មិនអាចបង្កើតសេវាកម្មបានទេ។',
+    couldNotUpdateService: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពសេវាកម្មបានទេ។',
+    couldNotDeleteService: 'មិនអាចលុបសេវាកម្មបានទេ។',
+    couldNotLoadVendorBookings: 'មិនអាចផ្ទុកការកក់របស់អ្នកផ្គត់ផ្គង់បានទេ។',
+    couldNotUpdateBookingStatus: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពការកក់បានទេ។',
+    signInCheckAvailability: 'សូមចូលគណនីដើម្បីពិនិត្យមើលពេលទំនេរ។',
+    availabilityChecked: 'បានពិនិត្យពេលទំនេរហើយ។',
+    couldNotCheckAvailability: 'មិនអាចពិនិត្យមើលពេលទំនេរឥឡូវនេះបានទេ។',
+    loadedLatestBooking: 'បានផ្ទុកការកក់ចុងក្រោយរបស់អ្នកពីឧបករណ៍នេះ។',
+    couldNotLoadBookings: 'មិនអាចផ្ទុកការកក់បានទេ។ សូមពិនិត្យ backend API និង migrations មូលដ្ឋានទិន្នន័យ។',
+    signInBeforeBooking: 'សូមចូលគណនីមុនពិនិត្យពេលទំនេរ និងធ្វើការកក់។',
+    enterNameEmail: 'សូមបញ្ចូលឈ្មោះ និងអ៊ីមែលរបស់អ្នកមុនពេលកក់។',
+    selectValidQuantity: 'សូមជ្រើសរើសចំនួនត្រឹមត្រូវ។',
+    serviceUnavailable: 'សេវាកម្មនេះមិនមានទំនេរនៅពេលនេះទេ។',
+    bookingCreatedFor: 'ការកក់ត្រូវបានបង្កើតសម្រាប់',
+    bookingFailed: 'ការកក់បានបរាជ័យ។',
+    rescheduleRequested: 'សំណើកំណត់ពេលឡើងវិញត្រូវបានផ្ញើ។ កំពុងរង់ចាំការបញ្ជាក់។',
+    signInConfirmPackage: 'សូមចូលគណនីមុនពេលបញ្ជាក់ការកក់កញ្ចប់របស់អ្នក។',
+    justNow: 'ឥឡូវនេះ',
+    last7Days: '7 ថ្ងៃចុងក្រោយ',
+    last30Days: '30 ថ្ងៃចុងក្រោយ',
+    last12Months: '12 ខែចុងក្រោយ',
+  },
+  zh: {
+    signInToContinue: '请先登录再继续预订。',
+    socialLoginFailed: '社交登录失败。',
+    socialLoginInvalid: '社交登录未返回有效的用户信息。',
+    searchBookings: '搜索预订...',
+    searchServices: '搜索服务...',
+    serviceBooking: '服务预订',
+    vendor: '商家',
+    customer: '客户',
+    dateTbd: '日期待定',
+    loadEventsFailed: '无法从后端 API 加载活动。请启动后端服务。',
+    vendorAccountMissing: '缺少商家账户。',
+    fillTitleLocationStart: '请填写标题、地点和开始日期。',
+    serviceCreated: '服务已成功创建，并且用户现在可以看到它。',
+    couldNotCreateService: '无法创建服务。',
+    couldNotUpdateService: '无法更新服务状态。',
+    couldNotDeleteService: '无法删除服务。',
+    couldNotLoadVendorBookings: '暂时无法加载商家预订。',
+    couldNotUpdateBookingStatus: '无法更新预订状态。',
+    signInCheckAvailability: '请先登录再查看档期。',
+    availabilityChecked: '档期已检查。',
+    couldNotCheckAvailability: '暂时无法检查档期。',
+    loadedLatestBooking: '已从此设备加载您最近的预订。',
+    couldNotLoadBookings: '无法加载预订。请检查后端 API 和数据库迁移。',
+    signInBeforeBooking: '请先登录再检查档期并预订。',
+    enterNameEmail: '请在预订前输入您的姓名和邮箱。',
+    selectValidQuantity: '请选择有效数量。',
+    serviceUnavailable: '该服务当前不可用。',
+    bookingCreatedFor: '已为以下项目创建预订：',
+    bookingFailed: '预订失败。',
+    rescheduleRequested: '改期请求已发送，正在等待确认。',
+    signInConfirmPackage: '请先登录再确认您的套餐预订。',
+    justNow: '刚刚',
+    last7Days: '最近 7 天',
+    last30Days: '最近 30 天',
+    last12Months: '最近 12 个月',
+  },
+}
+const { uiText } = useLanguageCopy(copyByLanguage)
 
 function getStoredUser() {
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY)
@@ -141,7 +254,7 @@ function handlePostAuthRedirect() {
   return true
 }
 
-function requireLogin(message = 'Please sign in to continue booking.') {
+function requireLogin(message = uiText.value.signInToContinue) {
   if (loggedInUser.value) return true
   notice.value = message
   currentView.value = 'login'
@@ -166,7 +279,7 @@ const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
-const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
@@ -243,7 +356,7 @@ function handleSocialQueryResult() {
 
   if (socialStatus === 'error') {
     const message = firstQueryValue(route.query.message)
-    localStorage.setItem('achar_social_error', String(message || 'Social login failed.'))
+    localStorage.setItem('achar_social_error', String(message || uiText.value.socialLoginFailed))
     currentView.value = 'login'
     clearSocialQueryFromRoute()
     return
@@ -263,7 +376,7 @@ function handleSocialQueryResult() {
         role,
       })
     } else {
-      localStorage.setItem('achar_social_error', 'Social login did not return valid user info.')
+      localStorage.setItem('achar_social_error', uiText.value.socialLoginInvalid)
     }
 
     currentView.value = 'login'
@@ -328,6 +441,8 @@ const {
   customerEmail,
   userPhone,
   userLocation,
+  userProfileImageUrl,
+  isSavingProfile,
   userLatitude,
   userLongitude,
   isDetectingLocation,
@@ -337,11 +452,14 @@ const {
   userLocationMapUrl,
   userLocationMapEmbedUrl,
   userLocationMapLinkUrl,
+  loadUserProfile,
+  updateProfileImageFile,
+  removeProfileImage,
   goToProfile: openProfilePage,
   saveUserProfile,
   resetUserProfile,
   detectCurrentLocation,
-} = useProfileFeature(notice)
+} = useProfileFeature(notice, loggedInUser)
 
 const {
   conversationSearch,
@@ -433,7 +551,7 @@ const customizationBindings = {
   customizationQuantity,
 }
 const bookingsBindings = { bookingFilter, bookingEventTypeFilter }
-const profileBindings = { userProfileDraft }
+const profileBindings = { userProfileDraft, userProfileImageUrl, isSavingProfile, updateProfileImageFile, removeProfileImage }
 const messagesBindings = { conversationSearch, selectedConversationId, composerText }
 const availabilityBindings = { selectedAvailabilitySlot }
 const notificationItems = computed(() =>
@@ -442,7 +560,7 @@ const notificationItems = computed(() =>
     const event = booking.event || {}
     return {
       ...item,
-      eventTitle: event.title || 'Service Booking',
+      eventTitle: event.title || uiText.value.serviceBooking,
       eventDate: formatNotificationDate(event.starts_at),
       createdLabel: formatNotificationTime(item.created_at),
     }
@@ -453,7 +571,7 @@ const unreadNotificationCount = computed(
 )
 
 const navSearchPlaceholder = computed(() =>
-  currentPage.value === 'bookings' ? 'Search bookings...' : 'Search services...',
+  currentPage.value === 'bookings' ? uiText.value.searchBookings : uiText.value.searchServices,
 )
 const vendorLocationText = computed(() => {
   const firstWithLocation = vendorEvents.value.find((item) => item.location && item.location.trim())
@@ -463,33 +581,9 @@ const vendorMapEmbedUrl = computed(
   () => `https://www.google.com/maps?q=${encodeURIComponent(vendorLocationText.value)}&output=embed`,
 )
 
-const vendorFallbackPackages = computed(() => {
-  const packages = []
-  Object.entries(packageCatalogByEventType).forEach(([type, entries]) => {
-    entries.forEach((entry) => {
-      const price = Number(entry.basePrice || 0)
-      packages.push({
-        id: `preview-${type}-${entry.id}`,
-        title: entry.title,
-        eventType: type,
-        eventTypeLabel: eventTypeMap[type] || 'Other',
-        description: entry.description,
-        location: fallbackVendorLocation,
-        date: 'Date TBD',
-        price,
-        priceLabel: `From $${price.toLocaleString()}`,
-        image: packageImageByEventType[type] || packageImageByEventType.other,
-        isPreview: true,
-      })
-    })
-  })
-  return packages
-})
-
 const filteredPackages = computed(() => {
   const q = globalSearch.value.trim().toLowerCase()
-  const sourcePackages = vendorEvents.value.length ? vendorEvents.value : vendorFallbackPackages.value
-  return sourcePackages.filter((item) => {
+  return vendorEvents.value.filter((item) => {
     const matchesType = selectedEventType.value === 'all' || item.eventType === selectedEventType.value
     const matchesSearch = !q || item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     return matchesType && matchesSearch
@@ -511,7 +605,7 @@ const dashboardStats = computed(() => {
   const totalBookings = bookings.value.length
   const upcomingBookings = bookings.value.filter((item) => item.type === 'Upcoming').length
   const completedBookings = bookings.value.filter((item) => item.type === 'Completed').length
-  const unreadMessages = conversations.value.filter((item) => item.time === 'Just now').length
+  const unreadMessages = conversations.value.filter((item) => item.time === uiText.value.justNow).length
   return { totalBookings, upcomingBookings, completedBookings, unreadMessages }
 })
 
@@ -522,24 +616,118 @@ const vendorDisplayName = computed(
 const messagesSummary = computed(
   () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
 )
+function getIncomeDateParts(value) {
+  const date = value ? new Date(value) : null
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
+  return {
+    date,
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+  }
+}
+
+function createDailyIncomeSeries(bookings, days) {
+  const today = new Date()
+  const buckets = Array.from({ length: days }, (_, index) => {
+    const date = new Date(today)
+    date.setHours(0, 0, 0, 0)
+    date.setDate(today.getDate() - (days - index - 1))
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      label: date.toLocaleDateString('en-US', days <= 7 ? { weekday: 'short' } : { month: 'short', day: 'numeric' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createMonthlyIncomeSeries(bookings, months = 12) {
+  const today = new Date()
+  const buckets = Array.from({ length: months }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (months - index - 1), 1)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
 const vendorIncome = computed(() => {
-  const total = vendorBookings.value
-    .filter((item) => String(item.status || '').toLowerCase() === 'confirmed')
-    .reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
-  const confirmedCount = vendorBookings.value.filter(
+  const confirmedBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'confirmed',
-  ).length
+  )
+  const total = confirmedBookings.reduce((sum, item) => sum + Number(item.total_amount || 0), 0)
+  const confirmedCount = confirmedBookings.length
   const newBookings = vendorBookings.value.filter(
     (item) => String(item.status || '').toLowerCase() === 'pending',
   ).length
   const activeServices = vendorEvents.value.filter((item) => item.isActive).length
+  const now = new Date()
+  const thisMonth = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() && parts.month === now.getMonth()
+      ? sum + Number(item.total_amount || 0)
+      : sum
+  }, 0)
+  const thisYear = confirmedBookings.reduce((sum, item) => {
+    const parts = getIncomeDateParts(item.income_date)
+    if (!parts) return sum
+    return parts.year === now.getFullYear() ? sum + Number(item.total_amount || 0) : sum
+  }, 0)
+  const weekSeries = createDailyIncomeSeries(confirmedBookings, 7)
+  const monthSeries = createDailyIncomeSeries(confirmedBookings, 30)
+  const yearSeries = createMonthlyIncomeSeries(confirmedBookings, 12)
+  const periodTotal = (series) => series.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return {
     total,
     confirmedCount,
     newBookings,
-    thisMonth: total,
-    thisYear: total,
+    thisMonth,
+    thisYear,
     activeServices,
+    periods: {
+      week: {
+        label: uiText.value.last7Days,
+        points: weekSeries,
+        total: periodTotal(weekSeries),
+      },
+      month: {
+        label: uiText.value.last30Days,
+        points: monthSeries,
+        total: periodTotal(monthSeries),
+      },
+      year: {
+        label: uiText.value.last12Months,
+        points: yearSeries,
+        total: periodTotal(yearSeries),
+      },
+    },
   }
 })
 
@@ -556,8 +744,8 @@ function getLocalBookingsByEmail(email) {
       .map((row, index) => ({
         id: row.id || `local-${index}`,
         vendor: row.vendor || vendorProfile.name,
-        service: row.service || 'Service Booking',
-        date: row.dateLabel || 'Date TBD',
+        service: row.service || uiText.value.serviceBooking,
+        date: row.dateLabel || uiText.value.dateTbd,
         metaLabel: 'Event Type',
         metaValue: eventTypeMap[row.eventType] || 'Other',
         placeLabel: 'Total',
@@ -566,8 +754,9 @@ function getLocalBookingsByEmail(email) {
         statusClass: row.statusClass || 'confirmed',
         type: row.type || 'Upcoming',
         eventType: row.eventType || 'other',
-        eventId: null,
+        eventId: row.eventId || null,
         image:
+          row.image ||
           'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
         primaryBtn: 'View Details',
         secondaryBtn: 'Reschedule',
@@ -578,12 +767,32 @@ function getLocalBookingsByEmail(email) {
   }
 }
 
-function mergeBookingsWithLocal(apiMappedRows, email) {
-  const localRows = getLocalBookingsByEmail(email)
-  if (!localRows.length) return apiMappedRows
-  const apiIds = new Set(apiMappedRows.map((row) => String(row.id)))
-  const localOnlyRows = localRows.filter((row) => !apiIds.has(String(row.id)))
-  return [...localOnlyRows, ...apiMappedRows]
+function clearLocalBookingsByEmail(email) {
+  if (!email) return
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return
+
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const remainingRows = rows.filter(
+      (row) => String(row?.customerEmail || '').trim().toLowerCase() !== normalizedEmail,
+    )
+
+    if (remainingRows.length === rows.length) return
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY)
+      return
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows))
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
 }
 
 function onBrandLogoError() {
@@ -611,9 +820,9 @@ function getAvailabilityLabel(item) {
 }
 
 function formatNotificationDate(value) {
-  if (!value) return 'Date TBD'
+  if (!value) return uiText.value.dateTbd
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return 'Date TBD'
+  if (Number.isNaN(parsed.getTime())) return uiText.value.dateTbd
   return parsed.toLocaleDateString('en-US', {
     month: 'short',
     day: '2-digit',
@@ -772,7 +981,7 @@ async function loadEvents() {
     })
     selectedQuantities.value = initialQuantities
   } catch (error) {
-    notice.value = 'Could not load events from backend API. Please start backend server.'
+    notice.value = uiText.value.loadEventsFailed
   } finally {
     isLoadingEvents.value = false
   }
@@ -801,7 +1010,7 @@ async function submitVendorService() {
 
   const vendorUserId = Number(loggedInUser.value?.id || 0)
   if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
-    vendorServiceNotice.value = 'Vendor account is missing.'
+    vendorServiceNotice.value = uiText.value.vendorAccountMissing
     return
   }
 
@@ -822,7 +1031,7 @@ async function submitVendorService() {
   }
 
   if (!normalizedPayload.title || !normalizedPayload.location || !normalizedPayload.starts_at) {
-    vendorServiceNotice.value = 'Please fill title, location, and start date.'
+    vendorServiceNotice.value = uiText.value.fillTitleLocationStart
     return
   }
 
@@ -852,10 +1061,10 @@ async function submitVendorService() {
     await apiPost('vendor/services', payload)
     await loadEvents()
     selectedEventType.value = normalizedPayload.event_type
-    vendorServiceNotice.value = 'Service created successfully and is now visible to users.'
+    vendorServiceNotice.value = uiText.value.serviceCreated
     resetVendorServiceForm()
   } catch (error) {
-    vendorServiceNotice.value = error?.message || 'Could not create service.'
+    vendorServiceNotice.value = error?.message || uiText.value.couldNotCreateService
   } finally {
     isSubmittingVendorService.value = false
   }
@@ -872,7 +1081,7 @@ async function toggleVendorServiceActive(item) {
     })
     await loadEvents()
   } catch (error) {
-    vendorServiceNotice.value = error?.message || 'Could not update service status.'
+    vendorServiceNotice.value = error?.message || uiText.value.couldNotUpdateService
   }
 }
 
@@ -884,27 +1093,27 @@ async function deleteVendorService(item) {
     await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
     await loadEvents()
   } catch (error) {
-    vendorServiceNotice.value = error?.message || 'Could not delete service.'
+    vendorServiceNotice.value = error?.message || uiText.value.couldNotDeleteService
   }
 }
 
 function mapVendorBookingRow(row) {
   const event = row.event || {}
+  const bookingDate = row.requested_event_date || event.starts_at
   return {
     id: row.id,
-    service_name: row.service_name || event.title || 'Service Booking',
-    customer_name: row.customer_name || row.user?.name || 'Customer',
-    date_label: event.starts_at
-      ? new Date(event.starts_at).toLocaleString('en-US', {
+    service_name: row.service_name || event.title || uiText.value.serviceBooking,
+    customer_name: row.customer_name || row.user?.name || uiText.value.customer,
+    date_label: bookingDate
+      ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
           day: '2-digit',
           year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
         })
-      : 'Date TBD',
+      : uiText.value.dateTbd,
     status: String(row.status || 'pending'),
     total_amount: Number(row.total_amount || 0),
+    income_date: row.requested_event_date || row.created_at || event.starts_at || row.updated_at || null,
   }
 }
 
@@ -924,7 +1133,7 @@ async function loadVendorBookings() {
     vendorBookings.value = rows.map(mapVendorBookingRow)
   } catch (error) {
     vendorBookings.value = []
-    notice.value = 'Could not load vendor bookings right now.'
+    notice.value = uiText.value.couldNotLoadVendorBookings
   } finally {
     isLoadingVendorBookings.value = false
   }
@@ -942,12 +1151,12 @@ async function updateVendorBookingStatus(item, status) {
     await loadVendorBookings()
     await loadNotifications({ silent: true })
   } catch (error) {
-    notice.value = error?.message || 'Could not update booking status.'
+    notice.value = error?.message || uiText.value.couldNotUpdateBookingStatus
   }
 }
 
 async function checkEventAvailability(item) {
-  if (!requireLogin('Please sign in to check service availability.')) {
+  if (!requireLogin(uiText.value.signInCheckAvailability)) {
     return null
   }
 
@@ -958,10 +1167,10 @@ async function checkEventAvailability(item) {
       ...availabilityByEvent.value,
       [item.id]: result,
     }
-    notice.value = result.message || 'Availability checked.'
+    notice.value = result.message || uiText.value.availabilityChecked
     return result
   } catch (error) {
-    notice.value = 'Could not check availability right now.'
+    notice.value = uiText.value.couldNotCheckAvailability
     return null
   } finally {
     checkingAvailabilityEventId.value = null
@@ -982,14 +1191,14 @@ async function loadBookings() {
     const apiMappedRows = rows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    bookings.value = mergeBookingsWithLocal(apiMappedRows, email)
-    await loadNotifications({ silent: true })
+    bookings.value = apiMappedRows
+    clearLocalBookingsByEmail(email)
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
     notice.value = localRows.length
-      ? 'Loaded your latest booking from this device.'
-      : 'Could not load bookings. Check backend API and database migrations.'
+      ? uiText.value.loadedLatestBooking
+      : uiText.value.couldNotLoadBookings
   } finally {
     isLoadingBookings.value = false
   }
@@ -1000,9 +1209,9 @@ async function bootstrapAuthenticatedShell() {
 
   isBootstrappingAuth.value = true
   try {
-    const tasks = [loadEvents(), loadNotifications({ silent: true })]
+    const tasks = [loadUserProfile(), loadEvents(), loadNotifications({ silent: true })]
     if (isVendorAccount.value) tasks.push(loadVendorBookings())
-    if (customerEmail.value.trim()) tasks.push(loadBookings())
+    if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
   } finally {
@@ -1025,12 +1234,23 @@ function goToVendor(tab = 'about') {
   activeVendorTab.value = allowedTabs.includes(normalizedTab) ? normalizedTab : 'about'
 }
 
+function openBookedServiceDetails(item) {
+  const eventType = typeof item?.eventType === 'string' && item.eventType ? item.eventType : 'all'
+  const serviceName = typeof item?.service === 'string' ? item.service.trim() : ''
+
+  selectedEventType.value = eventType
+  globalSearch.value = serviceName
+  sessionStorage.setItem(GLOBAL_SEARCH_SESSION_KEY, serviceName)
+  currentPage.value = 'vendor'
+  activeVendorTab.value = 'services'
+}
+
 function goToPackageCustomization(preferredEventType = 'all', preferredTitle = '') {
   openCustomizationPage(currentPage, preferredEventType, preferredTitle)
 }
 
 function goToAvailability(item = null) {
-  if (!requireLogin('Please sign in to check service availability.')) {
+  if (!requireLogin(uiText.value.signInCheckAvailability)) {
     return
   }
   openAvailabilityPage(item)
@@ -1074,7 +1294,7 @@ function openUpcomingBookings() {
 }
 
 async function bookPackage(item) {
-  if (!requireLogin('Please sign in before checking availability and booking.')) {
+  if (!requireLogin(uiText.value.signInBeforeBooking)) {
     return
   }
 
@@ -1082,19 +1302,19 @@ async function bookPackage(item) {
   const email = customerEmail.value.trim()
 
   if (!name || !email) {
-    notice.value = 'Please enter your name and email before booking.'
+    notice.value = uiText.value.enterNameEmail
     return
   }
 
   const quantity = Number(selectedQuantities.value[item.id] || 1)
   if (!Number.isFinite(quantity) || quantity < 1) {
-    notice.value = 'Please select a valid quantity.'
+    notice.value = uiText.value.selectValidQuantity
     return
   }
 
   const availability = getAvailability(item) || (await checkEventAvailability(item))
   if (!availability || !availability.service_available || !availability.vendor_available) {
-    notice.value = availability?.message || 'This service is not available at the moment.'
+    notice.value = availability?.message || uiText.value.serviceUnavailable
     return
   }
 
@@ -1107,13 +1327,13 @@ async function bookPackage(item) {
       customer_email: email,
     })
 
-    notice.value = `Booking created for ${item.title}.`
+    notice.value = `${uiText.value.bookingCreatedFor} ${item.title}.`
     await loadBookings()
     await loadNotifications({ silent: true })
     goToBookings()
     bookingFilter.value = 'Upcoming'
   } catch (error) {
-    notice.value = error.message || 'Booking failed.'
+    notice.value = error.message || uiText.value.bookingFailed
   } finally {
     bookingSubmittingEventId.value = null
   }
@@ -1125,35 +1345,36 @@ function bookingPrimaryAction(item) {
     return
   }
   if (item.primaryBtn === 'View Details') {
-    goToVendor()
+    openBookedServiceDetails(item)
   }
 }
 
 function bookingSecondaryAction(item) {
-  item.note = 'Reschedule request sent. Waiting for confirmation.'
+  item.note = uiText.value.rescheduleRequested
 }
 
 async function confirmCustomization() {
-  if (!requireLogin('Please sign in before confirming your package booking.')) {
+  if (!requireLogin(uiText.value.signInConfirmPackage)) {
     return
   }
   await submitCustomization(getAvailability)
   await loadNotifications({ silent: true })
 }
 
-watch([customerName, customerEmail, userPhone, userLocation, userLatitude, userLongitude], () => {
+watch([customerName, customerEmail, userPhone, userLocation, userProfileImageUrl, userLatitude, userLongitude], () => {
   localStorage.setItem('achar_customer_name', customerName.value)
   localStorage.setItem('achar_customer_email', customerEmail.value)
   localStorage.setItem('achar_user_phone', userPhone.value)
   localStorage.setItem('achar_user_location', userLocation.value)
   localStorage.setItem('achar_user_lat', userLatitude.value === null ? '' : String(userLatitude.value))
   localStorage.setItem('achar_user_lng', userLongitude.value === null ? '' : String(userLongitude.value))
+  localStorage.setItem('achar_user_profile_image', userProfileImageUrl.value || '')
 })
 
 watch(customerEmail, () => {
   if (!loggedInUser.value || isBootstrappingAuth.value) return
 
-  if (currentPage.value === 'bookings' || currentPage.value === 'dashboard') {
+  if (!isVendorAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
     loadBookings()
   }
   loadNotifications({ silent: true })
@@ -1364,6 +1585,7 @@ onBeforeUnmount(() => {
       :detect-current-location="detectCurrentLocation"
       :reset-user-profile="resetUserProfile"
       :save-user-profile="saveUserProfile"
+      :is-saving-profile="isSavingProfile"
       :logout-user="logout"
     />
 

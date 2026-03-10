@@ -1,7 +1,8 @@
-﻿<script setup>
-import { ref, computed } from "vue";
+<script setup>
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
+import { apiGet } from "../features/apiClient";
 
 const appLogoSrc = ref(
   localStorage.getItem("achar_brand_logo") || "/achar-logo.png",
@@ -11,461 +12,489 @@ function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
 }
 
-const showAllEvents = ref(false);
 const router = useRouter();
 
-const eventTypes = [
+const showAllEvents = ref(false);
+const showAllVendors = ref(false);
+const currentVendorIndex = ref(0);
+
+const eventRows = ref([]);
+const dataLoadFailed = ref(false);
+const isLoadingHomeData = ref(false);
+const HOME_EVENT_PAGE_SIZE = 100;
+
+const copyByLanguage = {
+  en: {
+    heroTitlePrefix: "Your Perfect Event,",
+    heroTitleHighlight: "Orchestrated",
+    heroTitleSuffix: "to Perfection",
+    heroLede:
+      "Discover and book trusted vendors, venues, and specialists for both traditional and modern celebrations.",
+    exploreServices: "Explore Services & Packages",
+    browseByEvent: "Browse by Event Type",
+    suitedTitle: "Perfectly suited for those extra-special occasions",
+    eventsSubtitle: "Services posted by vendors are shown here.",
+    showLess: "Show less",
+    showAllEvents: "See all events",
+    eventLoadError: "Live data is temporarily unavailable.",
+    eventLoading: "Loading live vendor services...",
+    noLiveServices: "No live vendor services available yet.",
+    exploreStyle: "Explore style >",
+    recommendedVendors: "Recommended Vendors",
+    handpickedTitle: "Handpicked services, ready to book",
+    showAllServices: "See all services",
+    showLessServices: "Show fewer services",
+    postedServicesSubtitle: "Every service posted by vendors is available here.",
+    bookingYouAre: "You are booking",
+    bookingRequestSent: "Booking Request Sent",
+    bookingRequestBodyA: "Your request to book",
+    bookingRequestBodyB: "has been sent. The vendor will contact you by email.",
+    done: "Done",
+    confirmDetails: "Confirm Your Details",
+    fillForm: "Fill out the form below to send a booking request.",
+    fullName: "Full name",
+    emailAddress: "Email address",
+    eventDate: "Event date",
+    numberOfGuests: "Number of guests",
+    additionalNotes: "Additional notes",
+    sendBookingRequest: "Send Booking Request",
+    cancel: "Cancel",
+    planningSimple: "Planning Made Simple",
+    stepsTitle: "The easy steps to bring your dream event to life",
+    latestTips: "Latest Planning Tips",
+    tipsTitle: "Ideas and advice from our planning pros",
+    readAllArticles: "Read all articles ->",
+    startPlanning: "Start Planning",
+    ctaTitle: "Ready to Plan Your Masterpiece?",
+    ctaText: "Join planners and vendors on Achar. Start your journey today.",
+    getStartedFree: "Get Started for Free",
+    listBusiness: "List Your Business",
+    fallbackVendor: "Vendor",
+    fallbackLocation: "Location TBD",
+    fallbackEvent: "Special Event",
+    bookingRequestFromHome: "Booking request from homepage",
+    startsFrom: "Starts from",
+    from: "From",
+    book: "Book",
+    serviceBooking: "Service Booking",
+    professionalServiceReady: "Professional vendor service ready for booking.",
+    premium: "Premium",
+    topRated: "Top Rated",
+    reviews: "reviews",
+    previous: "Previous",
+    next: "Next",
+    viewService: "View Service",
+    noServiceUpdates: "No live service updates available yet.",
+    howToPlanPrefix: "How to plan a great",
+    howToPlanSuffix: "experience",
+    fromVendor: "From",
+    planner: "Planner",
+  },
+  km: {
+    heroTitlePrefix: "ព្រឹត្តិការណ៍ដ៏ល្អឥតខ្ចោះរបស់អ្នក,",
+    heroTitleHighlight: "រៀបចំ",
+    heroTitleSuffix: "យ៉ាងល្អឥតខ្ចោះ",
+    heroLede:
+      "ស្វែងរក និងកក់អ្នកផ្គត់ផ្គង់ទីតាំង និងអ្នកជំនាញដែលទុកចិត្តបាន សម្រាប់ពិធីប្រពៃណី និងទំនើប។",
+    exploreServices: "ស្វែងរកសេវាកម្ម និងកញ្ចប់",
+    browseByEvent: "រកមើលសេវាកម្មផ្ទាល់",
+    suitedTitle: "សេវាកម្មពិតពីអ្នកផ្គត់ផ្គង់ដែលអាចកក់បានឥឡូវនេះ",
+    eventsSubtitle: "សេវាកម្មដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះត្រូវបានបង្ហាញនៅទីនេះ។",
+    showLess: "បង្ហាញតិច",
+    showAllEvents: "បង្ហាញសេវាកម្មទាំងអស់",
+    eventLoadError: "ទិន្នន័យផ្ទាល់មិនអាចប្រើបានបណ្តោះអាសន្ន។",
+    eventLoading: "កំពុងផ្ទុកសេវាកម្មផ្ទាល់ពីអ្នកផ្គត់ផ្គង់...",
+    noLiveServices: "មិនទាន់មានសេវាកម្មផ្ទាល់ពីអ្នកផ្គត់ផ្គង់ទេ។",
+    exploreStyle: "មើលរចនាប័ទ្ម >",
+    recommendedVendors: "អ្នកផ្គត់ផ្គង់ណែនាំ",
+    handpickedTitle: "សេវាកម្មជ្រើសរើសរួច រៀបចំសម្រាប់ការកក់",
+    showAllServices: "មើលសេវាកម្មទាំងអស់",
+    showLessServices: "បង្ហាញសេវាកម្មតិច",
+    postedServicesSubtitle: "សេវាកម្មទាំងអស់ដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះមាននៅទីនេះ។",
+    bookingYouAre: "អ្នកកំពុងកក់",
+    bookingRequestSent: "សំណើកក់ត្រូវបានផ្ញើ",
+    bookingRequestBodyA: "សំណើរបស់អ្នកសម្រាប់កក់",
+    bookingRequestBodyB: "ត្រូវបានផ្ញើរួចហើយ។ អ្នកផ្គត់ផ្គង់នឹងទាក់ទងអ្នកតាមអ៊ីមែល។",
+    done: "រួចរាល់",
+    confirmDetails: "បញ្ជាក់ព័ត៌មានរបស់អ្នក",
+    fillForm: "បំពេញទម្រង់ខាងក្រោមដើម្បីផ្ញើសំណើកក់។",
+    fullName: "ឈ្មោះពេញ",
+    emailAddress: "អាសយដ្ឋានអ៊ីមែល",
+    eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+    numberOfGuests: "ចំនួនភ្ញៀវ",
+    additionalNotes: "កំណត់ចំណាំបន្ថែម",
+    sendBookingRequest: "ផ្ញើសំណើកក់",
+    cancel: "បោះបង់",
+    planningSimple: "រៀបចំផែនការងាយស្រួល",
+    stepsTitle: "ជំហានងាយៗ ដើម្បីធ្វើឱ្យព្រឹត្តិការណ៍សុបិន្តក្លាយជាការពិត",
+    latestTips: "គន្លឹះរៀបចំថ្មីៗ",
+    tipsTitle: "គំនិត និងដំបូន្មានពីអ្នកជំនាញរៀបចំរបស់យើង",
+    readAllArticles: "អានអត្ថបទទាំងអស់ ->",
+    startPlanning: "ចាប់ផ្តើមរៀបចំ",
+    ctaTitle: "រួចរាល់សម្រាប់រៀបចំព្រឹត្តិការណ៍របស់អ្នកហើយឬនៅ?",
+    ctaText: "ចូលរួមជាមួយអ្នករៀបចំ និងអ្នកផ្គត់ផ្គង់លើ Achar។ ចាប់ផ្តើមថ្ងៃនេះ។",
+    getStartedFree: "ចាប់ផ្តើមដោយឥតគិតថ្លៃ",
+    listBusiness: "ចុះឈ្មោះអាជីវកម្ម",
+    fallbackVendor: "អ្នកផ្គត់ផ្គង់",
+    fallbackLocation: "ទីតាំងមិនទាន់មាន",
+    fallbackEvent: "ព្រឹត្តិការណ៍ពិសេស",
+    bookingRequestFromHome: "សំណើកក់ពីទំព័រដើម",
+    startsFrom: "ចាប់ពី",
+    from: "ពី",
+    book: "កក់",
+    serviceBooking: "ការកក់សេវាកម្ម",
+    professionalServiceReady: "សេវាកម្មអ្នកផ្គត់ផ្គង់ដែលត្រៀមសម្រាប់ការកក់។",
+    premium: "ពិសេស",
+    topRated: "ពេញនិយម",
+    reviews: "ការវាយតម្លៃ",
+    previous: "មុន",
+    next: "បន្ទាប់",
+    viewService: "មើលសេវាកម្ម",
+    noServiceUpdates: "មិនទាន់មានព័ត៌មានសេវាកម្មថ្មីទេ។",
+    howToPlanPrefix: "របៀបរៀបចំ",
+    howToPlanSuffix: "ឱ្យល្អ",
+    fromVendor: "ពី",
+    planner: "អ្នករៀបចំ",
+  },
+  zh: {
+    heroTitlePrefix: "您的完美活动，",
+    heroTitleHighlight: "精心策划",
+    heroTitleSuffix: "到位",
+    heroLede: "发现并预订值得信赖的供应商、场地和专家，适用于传统与现代庆典。",
+    exploreServices: "探索服务与套餐",
+    browseByEvent: "浏览实时服务",
+    suitedTitle: "当前可预订的真实商家服务",
+    eventsSubtitle: "这里显示商家发布的真实服务。",
+    showLess: "收起",
+    showAllEvents: "显示全部服务",
+    eventLoadError: "实时数据暂不可用。",
+    eventLoading: "正在加载实时商家服务...",
+    noLiveServices: "暂无实时商家服务。",
+    exploreStyle: "查看风格 >",
+    recommendedVendors: "推荐商家",
+    handpickedTitle: "精选服务，随时预订",
+    showAllServices: "查看全部服务",
+    showLessServices: "收起服务",
+    postedServicesSubtitle: "这里会显示商家发布的全部服务。",
+    bookingYouAre: "您正在预订",
+    bookingRequestSent: "预订请求已发送",
+    bookingRequestBodyA: "您对",
+    bookingRequestBodyB: "的预订请求已发送，商家将通过邮箱联系您。",
+    done: "完成",
+    confirmDetails: "确认您的信息",
+    fillForm: "填写下方表单以发送预订请求。",
+    fullName: "姓名",
+    emailAddress: "邮箱地址",
+    eventDate: "活动日期",
+    numberOfGuests: "宾客人数",
+    additionalNotes: "附加说明",
+    sendBookingRequest: "发送预订请求",
+    cancel: "取消",
+    planningSimple: "规划更简单",
+    stepsTitle: "轻松几步，实现您的理想活动",
+    latestTips: "最新策划建议",
+    tipsTitle: "来自策划专家的想法与建议",
+    readAllArticles: "阅读全部文章 ->",
+    startPlanning: "开始规划",
+    ctaTitle: "准备好策划您的精彩活动了吗？",
+    ctaText: "加入 Achar 的策划者与商家，今天就开始。",
+    getStartedFree: "免费开始",
+    listBusiness: "商家入驻",
+    fallbackVendor: "商家",
+    fallbackLocation: "地点待定",
+    fallbackEvent: "特别活动",
+    bookingRequestFromHome: "来自首页的预订请求",
+    startsFrom: "起价",
+    from: "起",
+    book: "预订",
+    serviceBooking: "服务预订",
+    professionalServiceReady: "可立即预订的专业商家服务。",
+    premium: "精选",
+    topRated: "高评分",
+    reviews: "条评价",
+    previous: "上一项",
+    next: "下一项",
+    viewService: "查看服务",
+    noServiceUpdates: "暂无最新服务动态。",
+    howToPlanPrefix: "如何策划出色的",
+    howToPlanSuffix: "体验",
+    fromVendor: "来自",
+    planner: "策划人",
+  },
+};
+
+const language = computed(
+  () => localStorage.getItem("achar_language") || "en",
+);
+const uiText = computed(
+  () => copyByLanguage[language.value] || copyByLanguage.en,
+);
+
+const eventTypeLabelsByLanguage = {
+  en: {
+    wedding: "Wedding",
+    baby_shower: "Baby Shower",
+    house_blessing: "House Blessing",
+    monk_ceremony: "Monk Ceremony",
+    company_party: "Company Party",
+    engagement: "Engagement",
+    birthday: "Birthday",
+    anniversary: "Anniversary",
+    graduation: "Graduation",
+    school_event: "School Event",
+    festival: "Festival",
+    other: "Special Event",
+  },
+  km: {
+    wedding: "Wedding",
+    baby_shower: "Baby Shower",
+    house_blessing: "House Blessing",
+    monk_ceremony: "Monk Ceremony",
+    company_party: "Company Party",
+    engagement: "Engagement",
+    birthday: "Birthday",
+    anniversary: "Anniversary",
+    graduation: "Graduation",
+    school_event: "School Event",
+    festival: "Festival",
+    other: copyByLanguage.km.fallbackEvent,
+  },
+  zh: {
+    wedding: "婚礼",
+    baby_shower: "宝宝派对",
+    house_blessing: "乔迁/祝福",
+    monk_ceremony: "僧侣仪式",
+    company_party: "公司聚会",
+    engagement: "订婚",
+    birthday: "生日",
+    anniversary: "周年纪念",
+    graduation: "毕业典礼",
+    school_event: "校园活动",
+    festival: "节庆活动",
+    other: copyByLanguage.zh.fallbackEvent,
+  },
+};
+
+const eventTypeNotesByLanguage = {
+  en: {
+    wedding: "Event Planning",
+    baby_shower: "Event Planning",
+    house_blessing: "Event Planning",
+    monk_ceremony: "Traditional Ritual",
+    company_party: "Event Planning",
+    engagement: "Event Planning",
+    birthday: "Event Planning",
+    anniversary: "Event Planning",
+    graduation: "Celebration",
+    school_event: "Celebration",
+    festival: "Festival",
+    other: "Special Event",
+  },
+  km: {
+    wedding: "Event Planning",
+    baby_shower: "Event Planning",
+    house_blessing: "Event Planning",
+    monk_ceremony: "Traditional Ritual",
+    company_party: "Event Planning",
+    engagement: "Event Planning",
+    birthday: "Event Planning",
+    anniversary: "Event Planning",
+    graduation: "Celebration",
+    school_event: "Celebration",
+    festival: "Festival",
+    other: copyByLanguage.km.fallbackEvent,
+  },
+  zh: {
+    wedding: "活动策划",
+    baby_shower: "活动策划",
+    house_blessing: "活动策划",
+    monk_ceremony: "传统仪式",
+    company_party: "活动策划",
+    engagement: "活动策划",
+    birthday: "活动策划",
+    anniversary: "活动策划",
+    graduation: "庆祝",
+    school_event: "庆祝",
+    festival: "节庆",
+    other: copyByLanguage.zh.fallbackEvent,
+  },
+};
+
+const eventImageByType = {
+  wedding: "/event-cards/wedding-stage.jpg",
+  baby_shower: "/event-cards/orange-flowers.jpg",
+  house_blessing: "/house.png",
+  monk_ceremony: "/event-cards/house-blessing-offering.jpg",
+  company_party: "/event-cards/ceremony-hall.jpg",
+  engagement: "/event-cards/engagement-attire.jpg",
+  birthday: "/W5.png",
+  anniversary: "/event-cards/anniversary-arch.jpg",
+  graduation: "/event-cards/anniversary-arch.jpg",
+  school_event: "/event-cards/ceremony-hall.jpg",
+  festival: "/event-cards/house-blessing-offering.jpg",
+  other: "/W3.png",
+};
+
+const eventFallbackByType = {
+  wedding: "/W1.png",
+  baby_shower: "/W2.png",
+  house_blessing: "/W3.png",
+  monk_ceremony: "/W2.png",
+  company_party: "/p1.png",
+  engagement: "/p2.png",
+  birthday: "/W5.png",
+  anniversary: "/w4.png",
+  graduation: "/p1.png",
+  school_event: "/W1.png",
+  festival: "/W5.png",
+  other: "/W3.png",
+};
+
+function toEventLabel(key) {
+  const normalized = String(key || "other").toLowerCase();
+  const map =
+    eventTypeLabelsByLanguage[language.value] || eventTypeLabelsByLanguage.en;
+  return map[normalized] || uiText.value.fallbackEvent;
+}
+
+function toEventNote(key) {
+  const normalized = String(key || "other").toLowerCase();
+  const map =
+    eventTypeNotesByLanguage[language.value] || eventTypeNotesByLanguage.en;
+  return map[normalized] || eventTypeNotesByLanguage.en.other;
+}
+
+const steps = computed(() => [
   {
-    name: "Wedding",
-    note: "Event Planning",
-    image: "/event-cards/wedding-stage.jpg",
-    fallback: "/W1.png",
+    title:
+      language.value === "km"
+        ? "ស្វែងរកអ្នកផ្គត់ផ្គង់"
+        : language.value === "zh"
+          ? "发现商家"
+          : "Discover Vendors",
+    text:
+      language.value === "km"
+        ? "រកមើលសេវាកម្មដែលទុកចិត្តបាន និងប្រៀបធៀបជម្រើសបានលឿន។"
+        : language.value === "zh"
+          ? "快速浏览可信服务并比较方案。"
+          : "Browse trusted services and compare options fast.",
+    icon: "01",
   },
   {
-    name: "Baby Shower",
-    note: "Event Planning",
-    image: "/event-cards/orange-flowers.jpg",
-    fallback: "/W2.png",
+    title:
+      language.value === "km"
+        ? "កំណត់តាមតម្រូវការ"
+        : language.value === "zh"
+          ? "定制细节"
+          : "Customize Details",
+    text:
+      language.value === "km"
+        ? "ជ្រើសរើសកញ្ចប់ឱ្យសមនឹងព្រឹត្តិការណ៍ និងថវិការបស់អ្នក។"
+        : language.value === "zh"
+          ? "选择适合您活动与预算的组合。"
+          : "Select package pieces that fit your event and budget.",
+    icon: "02",
   },
   {
-    name: "House Blessing",
-    note: "Event Planning",
-    image: "/event-cards/house-blessing-offering.jpg",
-    fallback: "/W3.png",
+    title:
+      language.value === "km"
+        ? "កក់ដោយសុវត្ថិភាព"
+        : language.value === "zh"
+          ? "安全预订"
+          : "Book Securely",
+    text:
+      language.value === "km"
+        ? "បញ្ជាក់ការកក់ដោយសុវត្ថិភាព និងទទួលបានស្ថានភាពច្បាស់លាស់។"
+        : language.value === "zh"
+          ? "通过安全结账确认，并获得清晰状态更新。"
+          : "Confirm with secure checkout and receive clear status updates.",
+    icon: "03",
   },
-  {
-    name: "Monk Ceremony",
-    note: "Traditional Ritual",
-    image: "/event-cards/house-blessing-offering.jpg",
-    fallback: "/W2.png",
-  },
-  {
-    name: "Company Party",
-    note: "Event Planning",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/p1.png",
-  },
-  {
-    name: "Engagement",
-    note: "Event Planning",
-    image: "/event-cards/engagement-attire.jpg",
-    fallback: "/p2.png",
-  },
-  {
-    name: "Birthday",
-    note: "Event Planning",
-    image: "/W5.png",
-    fallback: "/W5.png",
-  },
-  {
-    name: "Anniversary",
-    note: "Event Planning",
-    image: "/event-cards/anniversary-arch.jpg",
-    fallback: "/w4.png",
-  },
-  {
-    name: "Bridal Shower",
-    note: "Event Planning",
-    image: "/event-cards/engagement-attire.jpg",
-    fallback: "/W2.png",
-  },
-  {
-    name: "Graduation",
-    note: "Celebration",
-    image: "/event-cards/anniversary-arch.jpg",
-    fallback: "/p1.png",
-  },
-  {
-    name: "Retirement Party",
-    note: "Celebration",
-    image: "/event-cards/house-blessing-offering.jpg",
-    fallback: "/W1.png",
-  },
-  {
-    name: "Product Launch",
-    note: "Corporate Event",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/p2.png",
-  },
-  {
-    name: "Corporate Gala",
-    note: "Business Event",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/W5.png",
-  },
-  {
-    name: "Rehearsal Dinner",
-    note: "Wedding Related",
-    image: "/event-cards/wedding-stage.jpg",
-    fallback: "/w4.png",
-  },
-  {
-    name: "Bachelorette Party",
-    note: "Celebration",
-    image: "/event-cards/wedding-stage.jpg",
-    fallback: "/W3.png",
-  },
-  {
-    name: "Grand Opening",
-    note: "Business Event",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/p1.png",
-  },
-  {
-    name: "Team Building",
-    note: "Corporate Event",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/p2.png",
-  },
-  {
-    name: "Seminar",
-    note: "Professional Event",
-    image: "/event-cards/house-blessing-offering.jpg",
-    fallback: "/W1.png",
-  },
-  {
-    name: "Award Ceremony",
-    note: "Corporate Event",
-    image: "/event-cards/ceremony-hall.jpg",
-    fallback: "/W5.png",
-  },
-];
+]);
+
+const eventTypes = computed(() => {
+  if (!eventRows.value.length) return [];
+  return eventRows.value.map((item, index) => {
+    const eventTypeKey = String(item.event_type || "other").toLowerCase();
+    const price = Number(item.price || 0);
+    return {
+      id: Number(item.id || index + 1),
+      key: `home-event-${item.id || index + 1}`,
+      eventId: Number(item.id || 0) || null,
+      vendorName: item.vendor?.name || uiText.value.fallbackVendor,
+      requestedEventType: eventTypeKey,
+      name: item.title || uiText.value.serviceBooking,
+      note: toEventLabel(eventTypeKey),
+      description:
+        String(item.description || "").trim() ||
+        uiText.value.professionalServiceReady,
+      price,
+      priceLabel:
+        price > 0
+          ? `${uiText.value.from} $${Math.round(price).toLocaleString()}`
+          : "$0",
+      image:
+        item.image_url ||
+        eventImageByType[eventTypeKey] ||
+        eventImageByType.other,
+      fallback:
+        eventFallbackByType[eventTypeKey] || eventFallbackByType.other,
+    };
+  });
+});
 
 const displayedEvents = computed(() => {
-  return showAllEvents.value ? eventTypes : eventTypes.slice(0, 4);
+  const rows = eventTypes.value;
+  return showAllEvents.value ? rows : rows.slice(0, 4);
 });
 
-// vendor carousel controls
-const currentVendorIndex = ref(0);
+const vendors = computed(() => {
+  if (!eventRows.value.length) return [];
+  return eventRows.value.map((item, index) => {
+    const eventTypeKey = String(item.event_type || "other").toLowerCase();
+    const price = Number(item.price || 0);
+    return {
+      id: Number(item.id || index + 1),
+      eventId: Number(item.id || 0) || null,
+      vendorId: Number(item.vendor_id || 0) || null,
+      vendorName: item.vendor?.name || uiText.value.fallbackVendor,
+      requestedEventType: eventTypeKey,
+      tag: price >= 2500 ? uiText.value.premium : uiText.value.topRated,
+      title: item.title || uiText.value.serviceBooking,
+      categories: [
+        toEventLabel(eventTypeKey),
+        item.location || uiText.value.fallbackLocation,
+      ],
+      location: item.location || uiText.value.fallbackLocation,
+      rating: Number((4.6 + ((index % 5) * 0.08)).toFixed(1)),
+      reviews: Number(item.bookings_count || 0),
+      price: price > 0 ? `$${Math.round(price).toLocaleString()}` : "$0",
+      priceCaption: uiText.value.startsFrom,
+      cta: uiText.value.book,
+      image:
+        item.image_url ||
+        eventImageByType[eventTypeKey] ||
+        eventImageByType.other,
+    };
+  });
+});
+
 const VENDOR_PAGE_SIZE = 4;
+const vendorPageCount = computed(() =>
+  Math.max(1, Math.ceil(vendors.value.length / VENDOR_PAGE_SIZE)),
+);
+const hasMoreVendors = computed(
+  () => vendors.value.length > VENDOR_PAGE_SIZE,
+);
 const displayedVendors = computed(() => {
-  return vendors.slice(
-    currentVendorIndex.value,
-    currentVendorIndex.value + VENDOR_PAGE_SIZE,
-  );
+  const rows = vendors.value;
+  if (showAllVendors.value) return rows;
+  const maxStart = Math.max(0, rows.length - VENDOR_PAGE_SIZE);
+  const start = Math.min(currentVendorIndex.value, maxStart);
+  return rows.slice(start, start + VENDOR_PAGE_SIZE);
 });
 
-function nextVendors() {
-  if (currentVendorIndex.value + VENDOR_PAGE_SIZE < vendors.length) {
-    currentVendorIndex.value += VENDOR_PAGE_SIZE;
-  }
-}
-
-function prevVendors() {
-  if (currentVendorIndex.value - VENDOR_PAGE_SIZE >= 0) {
-    currentVendorIndex.value -= VENDOR_PAGE_SIZE;
-  }
-}
-
-function onEventCardImageError(event, fallback) {
-  event.target.src = fallback;
-}
-
-function goToEvent(event) {
-  // convert name to key used in packageCatalogByEventType
-  const key = event.name.toLowerCase().replace(/\s+/g, "_");
-  router.push({ path: "/services/packages", query: { event: key } });
-}
-
-const vendors = [
-  {
-    tag: "Top rated",
-    title: "Skyline Grand Atrium",
-    categories: ["Wedding Planning", "Event Design", "Venue"],
-    location: "Downtown Manhattan",
-    rating: 4.9,
-    reviews: 2458,
-    price: "$3,500",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Artisan Palate",
-    categories: ["Catering", "Private Dining", "Menu Design"],
-    location: "Upper West Side",
-    rating: 4.8,
-    reviews: 1945,
-    price: "$150/pp",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Lumina Studios",
-    categories: ["Photography", "Cinematography", "Videography"],
-    location: "Brooklyn Heights",
-    rating: 4.9,
-    reviews: 3021,
-    price: "$2,200",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Elegant Events Co",
-    categories: ["Decoration", "Floral Design", "Styling"],
-    location: "Queens Center",
-    rating: 4.7,
-    reviews: 1523,
-    price: "$1,200",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Premium",
-    title: "Prime Venues",
-    categories: ["Venue Rental", "Layout Design", "Catering"],
-    location: "The Hamptons",
-    rating: 4.8,
-    reviews: 876,
-    price: "$4,000",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Blooming Bliss Florals",
-    categories: ["Floral Design", "Bouquets", "Installation"],
-    location: "Midtown East",
-    rating: 4.9,
-    reviews: 2156,
-    price: "$800",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Harmony Music Collective",
-    categories: ["Live Music", "DJ Services", "Entertainment"],
-    location: "Brooklyn",
-    rating: 4.7,
-    reviews: 1834,
-    price: "$600",
-    priceCaption: "From",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Beauty & Glamour Studio",
-    categories: ["Makeup", "Hair Styling", "Bridal Services"],
-    location: "Manhattan",
-    rating: 4.8,
-    reviews: 2342,
-    price: "$350",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Premium",
-    title: "Luxe Rentals & Linens",
-    categories: ["Table Rentals", "Linens", "Décor Elements"],
-    location: "Long Island City",
-    rating: 4.9,
-    reviews: 1567,
-    price: "$500",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Sweet Confections Bakery",
-    categories: ["Custom Cakes", "Desserts", "Pastries"],
-    location: "Upper East Side",
-    rating: 4.8,
-    reviews: 2089,
-    price: "$250",
-    priceCaption: "Per Tier from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Prestige Event Planning",
-    categories: [
-      "Event Coordination",
-      "Budget Management",
-      "Timeline Planning",
-    ],
-    location: "Midtown Manhattan",
-    rating: 4.9,
-    reviews: 2567,
-    price: "$1,500",
-    priceCaption: "Planning Fee from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "ProAudio & Lighting Co",
-    categories: ["Sound System", "Stage Lighting", "AV Equipment"],
-    location: "Queens",
-    rating: 4.8,
-    reviews: 1923,
-    price: "$900",
-    priceCaption: "Setup from",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Elegant Invitations Studio",
-    categories: ["Invitation Design", "Printing", "Stationery"],
-    location: "Brooklyn",
-    rating: 4.7,
-    reviews: 1456,
-    price: "$200",
-    priceCaption: "Per Set from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Premium",
-    title: "Luxe Transportation Services",
-    categories: ["Airport Pickup", "Valet Service", "Guest Transportation"],
-    location: "Manhattan",
-    rating: 4.9,
-    reviews: 1765,
-    price: "$75",
-    priceCaption: "Per Hour from",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Grand Tent & Canopy Rentals",
-    categories: ["Tent Rentals", "Canopy Setup", "Weather Protection"],
-    location: "New Jersey",
-    rating: 4.8,
-    reviews: 1342,
-    price: "$400",
-    priceCaption: "Starts from",
-    cta: "Book",
-    image: "public/W1.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Premium Bar & Beverage Service",
-    categories: ["Bar Service", "Beverage Selection", "Bartending"],
-    location: "Manhattan",
-    rating: 4.7,
-    reviews: 2134,
-    price: "$35",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W5.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Corporate Event Specialists",
-    categories: ["Corporate Planning", "Conference Setup", "Team Events"],
-    location: "Midtown",
-    rating: 4.9,
-    reviews: 2301,
-    price: "$2,000",
-    priceCaption: "Event Planning from",
-    cta: "Book",
-    image: "public/w4.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Hospitality & Guest Services",
-    categories: ["Guest Reception", "Coat Check", "Concierge Services"],
-    location: "Upper East Side",
-    rating: 4.8,
-    reviews: 1678,
-    price: "$25",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/W2.png",
-  },
-  {
-    tag: "Premium",
-    title: "Sacred Rituals & Blessings",
-    categories: [
-      "House Blessing",
-      "Ritual Services",
-      "Traditional Ceremonies",
-      "Monk Ceremony",
-    ],
-    location: "Queens",
-    rating: 4.9,
-    reviews: 987,
-    price: "$400",
-    priceCaption: "Service from",
-    cta: "Book",
-    image: "public/p1.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Monk Ceremony Package",
-    categories: ["Monk Ceremony", "Traditional Services", "Blessing"],
-    location: "Phnom Penh",
-    rating: 4.8,
-    reviews: 643,
-    price: "$300",
-    priceCaption: "Service from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Best Value",
-    title: "Kids Paradise Entertainment",
-    categories: [
-      "Kids Entertainment",
-      "Games & Activities",
-      "Character Meet & Greet",
-    ],
-    location: "Brooklyn",
-    rating: 4.8,
-    reviews: 1523,
-    price: "$300",
-    priceCaption: "Per Hour from",
-    cta: "Book",
-    image: "public/W3.png",
-  },
-  {
-    tag: "Top rated",
-    title: "Gourmet Catering Elite",
-    categories: ["Fine Dining Catering", "Menu Customization", "Chef Services"],
-    location: "Manhattan",
-    rating: 4.9,
-    reviews: 2678,
-    price: "$85",
-    priceCaption: "Per Person from",
-    cta: "Book",
-    image: "public/p2.png",
-  },
-];
-
-const steps = [
-  {
-    title: "Discover Vendors",
-    text: "Browse thousands of curated local services to match your vibe.",
-    icon: "🔍",
-  },
-  {
-    title: "Chat & Customize",
-    text: "Message vendors, compare options, and personalize every detail.",
-    icon: "💬",
-  },
-  {
-    title: "Book Securely",
-    text: "Lock in dates with confidence—secure payments and reminders.",
-    icon: "🛡️",
-  },
-];
-
-const tips = [
+const fallbackTips = [
   {
     category: "Wedding Planning",
     title: "5 Secrets to a Stress-Free Wedding Ceremony",
@@ -486,40 +515,104 @@ const tips = [
   },
 ];
 
-const showBookingModal = ref(false);
-const selectedVendor = ref(null);
-const bookingSuccess = ref(false);
-const bookingForm = ref({
-  fullName: "",
-  email: "",
-  eventDate: "",
-  guests: 50,
-  notes: "",
+const tips = computed(() => {
+  if (!eventRows.value.length) return fallbackTips;
+
+  return eventRows.value.slice(0, 3).map((item) => {
+    const key = String(item.event_type || "other").toLowerCase();
+    return {
+      category: toEventLabel(key),
+      title: `${uiText.value.howToPlanPrefix} ${toEventLabel(key).toLowerCase()} ${uiText.value.howToPlanSuffix}`,
+      meta: `${uiText.value.fromVendor} ${item.title || uiText.value.fallbackVendor}`,
+      image: eventImageByType[key] || eventImageByType.other,
+    };
+  });
 });
 
-function openBookingModal(vendor) {
-  selectedVendor.value = vendor;
-  bookingSuccess.value = false;
-  showBookingModal.value = true;
-  // Reset form for a clean slate each time the modal is opened
-  bookingForm.value = {
-    fullName: "",
-    email: "",
-    eventDate: "",
-    guests: 50,
-    notes: "",
-  };
+function nextVendors() {
+  if (showAllVendors.value) return;
+  if (currentVendorIndex.value + VENDOR_PAGE_SIZE < vendors.value.length) {
+    currentVendorIndex.value += VENDOR_PAGE_SIZE;
+  }
 }
 
-function closeBookingModal() {
-  showBookingModal.value = false;
+function prevVendors() {
+  if (showAllVendors.value) return;
+  if (currentVendorIndex.value - VENDOR_PAGE_SIZE >= 0) {
+    currentVendorIndex.value -= VENDOR_PAGE_SIZE;
+  }
 }
 
-function submitBooking() {
-  // In a real app, you'd make an API call here.
-  // On success, we just need to flip the boolean to show the success view.
-  bookingSuccess.value = true;
+function toggleAllVendors() {
+  showAllVendors.value = !showAllVendors.value;
+  if (!showAllVendors.value) {
+    currentVendorIndex.value = 0;
+  }
 }
+
+function onEventCardImageError(event, fallback) {
+  event.target.src = fallback;
+}
+
+function goToEvent(event) {
+  const query = {};
+  const eventType = String(event.requestedEventType || "").trim();
+  const title = String(event.name || "").trim();
+  const eventId = Number(event.eventId || 0);
+
+  if (eventType && eventType !== "other") query.event = eventType;
+  if (title) query.q = title;
+  if (Number.isFinite(eventId) && eventId > 0) {
+    query.prebookEventId = String(eventId);
+  }
+
+  router.push({ path: "/services/packages", query });
+}
+
+async function loadHomeData() {
+  isLoadingHomeData.value = true;
+  dataLoadFailed.value = false;
+  try {
+    const result = await apiGet("events", { per_page: HOME_EVENT_PAGE_SIZE });
+    const rows = Array.isArray(result?.data)
+      ? result.data
+      : Array.isArray(result)
+        ? result
+        : [];
+    if (rows.length) {
+      eventRows.value = rows;
+      return;
+    }
+
+    const fallbackResponse = await fetch(
+      `/api/events?per_page=${HOME_EVENT_PAGE_SIZE}`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
+    if (!fallbackResponse.ok) {
+      throw new Error(
+        `Home events request failed (${fallbackResponse.status})`,
+      );
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    eventRows.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
+  } catch (error) {
+    dataLoadFailed.value = true;
+    eventRows.value = [];
+  } finally {
+    isLoadingHomeData.value = false;
+  }
+}
+
+onMounted(loadHomeData);
 </script>
 
 <template>
@@ -531,20 +624,19 @@ function submitBooking() {
       <div class="hero__grid">
         <div class="hero__text">
           <h1>
-            Your Perfect Event,
-            <span class="highlight">Orchestrated</span>
-            to Perfection
+            {{ uiText.heroTitlePrefix }}
+            <span class="highlight">{{ uiText.heroTitleHighlight }}</span>
+            {{ uiText.heroTitleSuffix }}
           </h1>
           <p class="lede">
-            Discover and book the finest venues, caterers, and specialists to
-            master your traditional and modern ceremonies.
+            {{ uiText.heroLede }}
           </p>
 
           <router-link
             class="search-btn hero-explore-btn"
             to="/services/packages"
           >
-            <span>Explore Services & Packages</span>
+            <span>{{ uiText.exploreServices }}</span>
             <span class="hero-explore-icon" aria-hidden="true">→</span>
           </router-link>
         </div>
@@ -554,18 +646,31 @@ function submitBooking() {
     <section id="services" class="section">
       <div class="section__header">
         <div>
-          <p class="eyebrow">Browse by Event Type</p>
-          <h2>Perfectly suited for those extra-special occasions</h2>
+          <p class="eyebrow">{{ uiText.browseByEvent }}</p>
+          <h2>{{ uiText.suitedTitle }}</h2>
         </div>
         <button class="link-button" @click="showAllEvents = !showAllEvents">
-          {{ showAllEvents ? "Show less" : "See all events" }} →
+          {{ showAllEvents ? uiText.showLess : uiText.showAllEvents }} →
         </button>
       </div>
-      <div class="event-grid">
-        <div
-          class="event-card"
+
+      <div v-if="dataLoadFailed" class="event-load-note">
+        {{ uiText.eventLoadError }}
+      </div>
+
+      <div v-else-if="isLoadingHomeData" class="event-load-note">
+        {{ uiText.eventLoading }}
+      </div>
+
+      <div v-else-if="displayedEvents.length === 0" class="event-load-note">
+        {{ uiText.noLiveServices }}
+      </div>
+
+      <div v-else class="event-grid">
+        <article
           v-for="event in displayedEvents"
-          :key="event.name"
+          :key="event.key || event.name"
+          class="event-card"
           role="button"
           tabindex="0"
           @click="goToEvent(event)"
@@ -581,33 +686,78 @@ function submitBooking() {
             />
           </div>
           <div class="event-info">
-            <p class="event-title">{{ event.name }}</p>
-            <p class="event-note">{{ event.note }}</p>
+            <div class="event-copy">
+              <p class="event-type">{{ event.note }}</p>
+              <p class="event-title">{{ event.name }}</p>
+              <p class="event-note">{{ event.vendorName }}</p>
+              <p class="event-desc">{{ event.description }}</p>
+            </div>
+            <div class="event-card-footer">
+              <strong>{{ event.priceLabel }}</strong>
+              <button
+                type="button"
+                class="outline-btn"
+                @click.stop="goToEvent(event)"
+              >
+                {{ uiText.viewService }}
+              </button>
+            </div>
           </div>
-        </div>
+        </article>
       </div>
     </section>
 
     <section class="section">
       <div class="section__header">
         <div>
-          <p class="eyebrow">Recommended Vendors</p>
-          <h2>Handpicked services, ready to book</h2>
+          <p class="eyebrow">{{ uiText.recommendedVendors }}</p>
+          <h2>{{ uiText.handpickedTitle }}</h2>
+          <p class="events-subtitle">{{ uiText.postedServicesSubtitle }}</p>
         </div>
         <div class="carousel-nav">
-          <button aria-label="Previous" class="pill-btn" @click="prevVendors">
-            ‹
+          <button
+            v-if="hasMoreVendors"
+            type="button"
+            class="link-button event-toggle-btn"
+            @click="toggleAllVendors"
+          >
+            {{ showAllVendors ? uiText.showLessServices : uiText.showAllServices }}
+            <span aria-hidden="true">&gt;</span>
           </button>
-          <button aria-label="Next" class="pill-btn" @click="nextVendors">
-            ›
+          <button
+            :aria-label="uiText.previous"
+            class="pill-btn"
+            :disabled="showAllVendors || currentVendorIndex === 0"
+            @click="prevVendors"
+          >
+            &lt;
+          </button>
+          <button
+            :aria-label="uiText.next"
+            class="pill-btn"
+            :disabled="
+              showAllVendors || currentVendorIndex + VENDOR_PAGE_SIZE >= vendors.length
+            "
+            @click="nextVendors"
+          >
+            &gt;
           </button>
         </div>
       </div>
-      <div class="vendor-grid">
+
+      <div v-if="isLoadingHomeData" class="event-load-note">
+        {{ uiText.eventLoading }}
+      </div>
+
+      <div v-else-if="displayedVendors.length === 0" class="event-load-note">
+        {{ uiText.noLiveServices }}
+      </div>
+
+      <div v-else class="vendor-grid">
         <article
           class="vendor-card"
           v-for="vendor in displayedVendors"
-          :key="vendor.title"
+          :key="vendor.id || vendor.title"
         >
           <span class="vendor-tag">{{ vendor.tag }}</span>
           <div class="vendor-media">
@@ -616,22 +766,21 @@ function submitBooking() {
           <div class="vendor-body">
             <div>
               <p class="vendor-title">{{ vendor.title }}</p>
+              <p v-if="vendor.vendorName" class="vendor-subtitle">
+                {{ vendor.vendorName }}
+              </p>
               <p class="vendor-meta">
-                <span
-                  class="dot"
-                  v-for="category in vendor.categories"
-                  :key="category"
-                  >{{ category }}</span
-                >
-                <span class="location">{{ vendor.location }}</span>
+                <span class="dot" v-for="category in vendor.categories" :key="category">
+                  {{ category }}
+                </span>
               </p>
             </div>
             <div class="vendor-rating">
               <span class="star">★</span>
               <strong>{{ vendor.rating }}</strong>
-              <span class="reviews"
-                >{{ vendor.reviews?.toLocaleString() || "4,758" }} reviews</span
-              >
+              <span class="reviews">
+                {{ vendor.reviews?.toLocaleString() || "0" }} {{ uiText.reviews }}
+              </span>
             </div>
             <div class="vendor-footer">
               <div class="pricing">
@@ -641,7 +790,7 @@ function submitBooking() {
               <button
                 type="button"
                 class="outline-btn"
-                @click="openBookingModal(vendor)"
+                @click="goToEvent(vendor)"
               >
                 {{ vendor.cta }}
               </button>
@@ -649,150 +798,19 @@ function submitBooking() {
           </div>
         </article>
       </div>
+      <p
+        v-if="!showAllVendors && hasMoreVendors"
+        class="vendor-page-indicator"
+      >
+        {{ Math.floor(currentVendorIndex / VENDOR_PAGE_SIZE) + 1 }} /
+        {{ vendorPageCount }}
+      </p>
     </section>
-
-    <!-- Improved Booking Modal -->
-    <div
-      v-if="showBookingModal"
-      class="booking-modal-overlay"
-      @click="closeBookingModal"
-    >
-      <div v-if="selectedVendor" class="booking-modal" @click.stop>
-        <button type="button" class="booking-close" @click="closeBookingModal">
-          &times;
-        </button>
-
-        <div class="booking-modal-layout">
-          <!-- Left Side: Vendor Info -->
-          <div class="booking-vendor-preview">
-            <img
-              :src="selectedVendor.image"
-              :alt="selectedVendor.title"
-              class="vendor-preview-image"
-            />
-            <div class="vendor-preview-info">
-              <p class="eyebrow">You are booking</p>
-              <h4>{{ selectedVendor.title }}</h4>
-              <p class="vendor-location">{{ selectedVendor.location }}</p>
-              <div class="vendor-rating">
-                <span class="star">★</span>
-                <strong>{{ selectedVendor.rating }}</strong>
-                <span class="reviews"
-                  >({{
-                    selectedVendor.reviews?.toLocaleString()
-                  }}
-                  reviews)</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- Right Side: Form or Success State -->
-          <div class="booking-form-section">
-            <div v-if="bookingSuccess" class="booking-success-state">
-              <div class="success-icon">🎉</div>
-              <h3>Booking Request Sent!</h3>
-              <p>
-                Your request to book
-                <strong>{{ selectedVendor.title }}</strong> has been sent. The
-                vendor will contact you via email shortly.
-              </p>
-              <button
-                type="button"
-                class="primary-btn"
-                @click="closeBookingModal"
-              >
-                Done
-              </button>
-            </div>
-
-            <form
-              v-else
-              class="booking-modal-form"
-              @submit.prevent="submitBooking"
-            >
-              <div class="booking-modal-header">
-                <h3>Confirm Your Details</h3>
-                <p>Fill out the form below to send a booking request.</p>
-              </div>
-
-              <div class="form-group">
-                <label for="fullName">Full name</label>
-                <input
-                  id="fullName"
-                  v-model.trim="bookingForm.fullName"
-                  type="text"
-                  required
-                  placeholder="e.g., Jane Doe"
-                />
-              </div>
-
-              <div class="form-group">
-                <label for="email">Email address</label>
-                <input
-                  id="email"
-                  v-model.trim="bookingForm.email"
-                  type="email"
-                  required
-                  placeholder="e.g., jane.doe@email.com"
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="eventDate">Event date</label>
-                  <input
-                    id="eventDate"
-                    v-model="bookingForm.eventDate"
-                    type="date"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="guests">Number of guests</label>
-                  <input
-                    id="guests"
-                    v-model.number="bookingForm.guests"
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="50"
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="notes">Additional notes</label>
-                <textarea
-                  id="notes"
-                  v-model.trim="bookingForm.notes"
-                  rows="3"
-                  placeholder="Any special requests or details for the vendor..."
-                ></textarea>
-              </div>
-
-              <div class="booking-modal-actions">
-                <button
-                  type="button"
-                  class="ghost-btn"
-                  @click="closeBookingModal"
-                >
-                  Cancel
-                </button>
-                <button type="submit" class="primary-btn">
-                  Send Booking Request
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <section class="section steps">
       <div class="section__header center">
-        <p class="eyebrow">Planning Made Simple</p>
-        <h2>The easy steps to bring your dream event to life</h2>
+        <p class="eyebrow">{{ uiText.planningSimple }}</p>
+        <h2>{{ uiText.stepsTitle }}</h2>
       </div>
       <div class="steps-grid">
         <div class="step-card" v-for="(step, index) in steps" :key="step.title">
@@ -807,14 +825,18 @@ function submitBooking() {
     <section id="favorite" class="section tips">
       <div class="section__header">
         <div>
-          <p class="eyebrow">Latest Planning Tips</p>
-          <h2>Ideas and advice from our planning pros</h2>
+          <p class="eyebrow">{{ uiText.latestTips }}</p>
+          <h2>{{ uiText.tipsTitle }}</h2>
         </div>
-        <router-link class="link" to="/customization"
-          >Read all articles -></router-link
-        >
+        <router-link class="link" to="/customization">
+          {{ uiText.readAllArticles }}
+        </router-link>
       </div>
-      <div class="tips-grid">
+      <div v-if="tips.length === 0" class="event-load-note">
+        {{ uiText.noServiceUpdates }}
+      </div>
+
+      <div v-else class="tips-grid">
         <article class="tip-card" v-for="tip in tips" :key="tip.title">
           <img class="tip-img" :src="tip.image" :alt="tip.title" />
           <div class="tip-body">
@@ -828,19 +850,18 @@ function submitBooking() {
 
     <section class="cta">
       <div class="cta__content">
-        <p class="eyebrow light">Start Planning</p>
-        <h2>Ready to Plan Your Masterpiece?</h2>
+        <p class="eyebrow light">{{ uiText.startPlanning }}</p>
+        <h2>{{ uiText.ctaTitle }}</h2>
         <p class="cta-text">
-          Join thousands of planners and vendors on Achar. Start your journey
-          today.
+          {{ uiText.ctaText }}
         </p>
         <div class="cta-actions">
-          <router-link class="primary-btn large" to="/booking"
-            >Get Started for Free</router-link
-          >
-          <router-link class="ghost-btn light large" to="/customization"
-            >List Your Business</router-link
-          >
+          <router-link class="primary-btn large" to="/booking">
+            {{ uiText.getStartedFree }}
+          </router-link>
+          <router-link class="ghost-btn light large" to="/customization">
+            {{ uiText.listBusiness }}
+          </router-link>
         </div>
       </div>
     </section>
@@ -870,25 +891,27 @@ function submitBooking() {
         </div>
         <div>
           <p class="footer-title">For Partners</p>
-          <router-link to="/dashboard" class="footer-link"
-            >Enterprise Solutions</router-link
-          >
-          <router-link to="/services" class="footer-link"
-            >Affiliate Program</router-link
-          >
-          <router-link to="/legacy-app" class="footer-link"
-            >Corporate Packages</router-link
-          >
+          <router-link to="/dashboard" class="footer-link">
+            Enterprise Solutions
+          </router-link>
+          <router-link to="/services" class="footer-link">
+            Affiliate Program
+          </router-link>
+          <router-link to="/legacy-app" class="footer-link">
+            Corporate Packages
+          </router-link>
         </div>
         <div>
           <p class="footer-title">For Vendors</p>
-          <router-link to="/dashboard" class="footer-link"
-            >Join as Vendor</router-link
-          >
-          <router-link to="/services" class="footer-link">Pricing</router-link>
-          <router-link to="/booking" class="footer-link"
-            >Help Center</router-link
-          >
+          <router-link to="/dashboard" class="footer-link">
+            Join as Vendor
+          </router-link>
+          <router-link to="/services" class="footer-link">
+            Pricing
+          </router-link>
+          <router-link to="/booking" class="footer-link">
+            Help Center
+          </router-link>
         </div>
         <div>
           <p class="footer-title">Subscribe</p>

@@ -22,12 +22,14 @@ class Booking extends Model
         'customer_email',
         'service_name',
         'requested_event_type',
+        'requested_event_date',
     ];
 
     protected function casts(): array
     {
         return [
             'total_amount' => 'decimal:2',
+            'requested_event_date' => 'date',
         ];
     }
 

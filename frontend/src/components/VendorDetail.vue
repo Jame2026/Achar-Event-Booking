@@ -1,23 +1,38 @@
 <script setup>
+import { computed, onMounted, ref } from "vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import {
   fallbackVendorLocation,
-  matchingServicesCatalog,
-  packageCatalogByEventType,
   reviews,
   stats,
   vendorProfile,
 } from "../features/appData";
+import { apiGet } from "../features/apiClient";
 
-const packageItems = Object.values(packageCatalogByEventType).flat().slice(0, 4);
-const serviceItems = matchingServicesCatalog.slice(0, 4);
-const catalogItems = [
-  ...packageItems.map((item) => ({ id: `pkg-${item.id}`, title: item.title, description: item.description })),
-  ...serviceItems.map((item) => ({ id: `svc-${item.id}`, title: item.name, description: item.description })),
-];
+const liveServices = ref([]);
+const catalogItems = computed(() =>
+  liveServices.value.map((item) => ({
+    id: `svc-${item.id}`,
+    title: item.title || "Service Booking",
+    description: item.description || "Professional vendor service ready for booking.",
+  })),
+);
 const encodedLocation = encodeURIComponent(fallbackVendorLocation);
 const mapEmbedUrl = `https://www.google.com/maps?q=${encodedLocation}&output=embed`;
 const mapLinkUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLocation}`;
+
+async function loadVendorServices() {
+  try {
+    const result = await apiGet("events", { per_page: 80 });
+    liveServices.value = Array.isArray(result?.data) ? result.data : [];
+  } catch {
+    liveServices.value = [];
+  }
+}
+
+onMounted(() => {
+  void loadVendorServices();
+});
 </script>
 
 <template>
@@ -67,6 +82,7 @@ const mapLinkUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLoc
 
           <article class="card vendor-card">
             <h2>Packages & Services</h2>
+            <p v-if="catalogItems.length === 0">No live vendor services have been posted yet.</p>
             <div class="catalog-grid">
               <div v-for="item in catalogItems" :key="item.id" class="catalog-item">
                 <strong>{{ item.title }}</strong>
