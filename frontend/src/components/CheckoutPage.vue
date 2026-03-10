@@ -206,6 +206,14 @@ async function handleConfirmAndPay() {
       requested_event_type: booking.requestedEventType || "other",
       requested_event_date: booking.eventDate || null,
       total_amount: bookingTotal.value,
+      booked_items: bookingItems.value.map((item) => ({
+        type: item.type || "service",
+        name: item.name || "",
+        description: item.description || "",
+        qty: Math.max(1, Number(item.qty || 1)),
+        unitPrice: Number(item.unitPrice || 0),
+        totalPrice: Number(item.totalPrice || 0),
+      })),
     });
   } catch (error) {
     paymentNotice.value = error?.message || uiText.value.unableSaveBooking;

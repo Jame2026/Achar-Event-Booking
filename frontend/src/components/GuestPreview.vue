@@ -7,6 +7,7 @@ import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
+import { mapBooking as mapApiBooking } from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
 import {
   buildPackageServiceDescriptions,
@@ -298,6 +299,10 @@ const pageContent = computed(() => {
 
 const bookingFilter = ref("Upcoming");
 const bookingEventTypeFilter = ref("all");
+const guestBookings = ref([]);
+const isLoadingGuestBookings = ref(false);
+const bookingPageNotice = ref("");
+const selectedBookingDetails = ref(null);
 const customizationEventType = ref("all");
 const customizationSearch = ref("");
 const selectedCustomizationPackageId = ref(null);
@@ -395,6 +400,17 @@ const guestPreviewPackagesFiltered = computed(() => {
     );
   }
   return rows;
+});
+
+const filteredGuestBookings = computed(() => {
+  const activeType = bookingFilter.value;
+  const activeEventType = bookingEventTypeFilter.value;
+
+  return guestBookings.value.filter((item) => {
+    const matchesType = !activeType || item.type === activeType;
+    const matchesEventType = activeEventType === "all" || item.eventType === activeEventType;
+    return matchesType && matchesEventType;
+  });
 });
 
 const emptyDashboardStats = {
@@ -496,6 +512,57 @@ async function loadLiveVendorEvents() {
   } catch {
     liveVendorEvents.value = [];
   }
+}
+
+async function loadGuestBookings() {
+  const customerEmail = String(localStorage.getItem("achar_customer_email") || "").trim().toLowerCase();
+  if (!customerEmail) {
+    guestBookings.value = [];
+    bookingPageNotice.value = "Please add your email before loading bookings.";
+    return;
+  }
+
+  isLoadingGuestBookings.value = true;
+  try {
+    const result = await apiGet("bookings", { customer_email: customerEmail });
+    const rows = Array.isArray(result?.data) ? result.data : [];
+    guestBookings.value = rows.map((row) => {
+      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
+      return {
+        ...mapped,
+        primaryBtn: "View Details",
+        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
+        rawBooking: row,
+      };
+    });
+    bookingPageNotice.value = "";
+  } catch (error) {
+    guestBookings.value = [];
+    bookingPageNotice.value = error?.message || "Could not load your bookings.";
+  } finally {
+    isLoadingGuestBookings.value = false;
+  }
+}
+
+function openBookingDetails(item) {
+  selectedBookingDetails.value = item;
+}
+
+function closeBookingDetails() {
+  selectedBookingDetails.value = null;
+}
+
+function bookingPrimaryAction(item) {
+  openBookingDetails(item);
+}
+
+function bookingSecondaryAction(item) {
+  if (item?.secondaryBtn === "Message Vendor") {
+    goToSignIn();
+    return;
+  }
+
+  bookingPageNotice.value = "Reschedule will be available soon.";
 }
 
 const guestPreviewPackages = computed(() => {
@@ -869,13 +936,18 @@ const prebookCalendarCells = computed(() => {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = new Date(year, month, day);
     const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayAvailability = prebookCalendarAvailability.value[iso] || null;
+    const isBooked = dayAvailability?.status === "booked";
+    const isAvailable = dayAvailability?.status === "available";
+    const isVendorBusy = Boolean(dayAvailability?.has_another_booked || dayAvailability?.has_existing_booking);
     cells.push({
       id: iso,
       day,
       date: iso,
       inMonth: true,
-      booked: prebookCalendarAvailability.value[iso] === "booked",
-      available: prebookCalendarAvailability.value[iso] === "available",
+      booked: isBooked,
+      available: isAvailable,
+      vendorBusy: isVendorBusy,
       disabled: date < today,
     });
   }
@@ -952,7 +1024,14 @@ async function loadPrebookCalendarAvailability() {
     const result = await apiGet(`events/${activePrebookEventId.value}/availability-calendar`, { month });
     const days = Array.isArray(result.days) ? result.days : [];
     prebookCalendarAvailability.value = Object.fromEntries(
-      days.map((item) => [String(item.date), String(item.status || "available")]),
+      days.map((item) => [
+        String(item.date),
+        {
+          status: String(item.status || "available"),
+          has_another_booked: Boolean(item.has_another_booked),
+          has_existing_booking: Boolean(item.has_existing_booking),
+        },
+      ]),
     );
   } catch {
     prebookCalendarAvailability.value = {};
@@ -1289,6 +1368,19 @@ watch(
 );
 
 watch(
+  [activePrebookEventId, showPrebookCalendar],
+  ([eventId, isCalendarOpen]) => {
+    if (!isCalendarOpen) return;
+    if (!eventId) {
+      prebookCalendarAvailability.value = {};
+      return;
+    }
+    void loadPrebookCalendarAvailability();
+  },
+  { immediate: true },
+);
+
+watch(
   favoritePackages,
   (rows) => {
     if (!rows.length) {
@@ -1353,8 +1445,19 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => section.value,
+  (currentSection) => {
+    if (currentSection === "bookings") {
+      void loadGuestBookings();
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   void loadLiveVendorEvents();
+  void loadGuestBookings();
 });
 
 onUnmounted(() => {
@@ -1620,7 +1723,7 @@ function noop() {}
           <button
             type="button"
             class="confirm-selection"
-            :disabled="selectedServices.length === 0"
+            :disabled="!selectedPackage && selectedServices.length === 0"
             @click="openPrebookForm"
           >
             {{ uiText.prebookNow }}
@@ -1942,17 +2045,72 @@ function noop() {}
         v-else
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
-        :notice="''"
-        :is-loading-bookings="false"
-        :filtered-bookings="[]"
+        :notice="bookingPageNotice"
+        :is-loading-bookings="isLoadingGuestBookings"
+        :filtered-bookings="filteredGuestBookings"
         :go-to-dashboard="() => goToSection('dashboard')"
         :go-to-vendor="() => goToSection('services-packages')"
         :go-to-messages="goToSignIn"
         :go-to-profile="goToSignIn"
-        :booking-secondary-action="noop"
-        :booking-primary-action="noop"
+        :booking-secondary-action="bookingSecondaryAction"
+        :booking-primary-action="bookingPrimaryAction"
       />
     </main>
+
+    <div
+      v-if="selectedBookingDetails"
+      class="package-modal-overlay"
+      @click="closeBookingDetails"
+    >
+      <div class="package-modal booking-details-modal" @click.stop>
+        <div class="package-modal-head">
+          <div>
+            <p class="package-product-type">{{ selectedBookingDetails.status }}</p>
+            <h3>{{ selectedBookingDetails.service }}</h3>
+          </div>
+          <button
+            type="button"
+            class="package-modal-close"
+            @click="closeBookingDetails"
+          >
+            &times;
+          </button>
+        </div>
+        <img
+          class="package-modal-image"
+          :src="selectedBookingDetails.image"
+          :alt="selectedBookingDetails.service"
+        />
+        <div class="booking-detail-grid">
+          <p><strong>Vendor</strong><span>{{ selectedBookingDetails.vendor }}</span></p>
+          <p><strong>Date</strong><span>{{ selectedBookingDetails.date }}</span></p>
+          <p><strong>Event Type</strong><span>{{ selectedBookingDetails.metaValue }}</span></p>
+          <p><strong>Total</strong><span>{{ selectedBookingDetails.placeValue }}</span></p>
+          <p><strong>Quantity</strong><span>{{ selectedBookingDetails.quantity }}</span></p>
+          <p><strong>Service Price</strong><span>${{ Number(selectedBookingDetails.servicePrice || 0).toLocaleString() }}</span></p>
+          <p><strong>Status</strong><span>{{ selectedBookingDetails.status }}</span></p>
+          <p><strong>Booking ID</strong><span>#{{ selectedBookingDetails.id }}</span></p>
+        </div>
+        <div class="booking-items-panel">
+          <h4>Booked Services</h4>
+          <ul v-if="selectedBookingDetails.bookedItems?.length" class="booking-items-list">
+            <li v-for="(item, index) in selectedBookingDetails.bookedItems" :key="`${selectedBookingDetails.id}-${index}`">
+              <div>
+                <strong>{{ item.name || selectedBookingDetails.service }}</strong>
+                <small>{{ item.type || "service" }} | Qty {{ Number(item.qty || 1) }}</small>
+                <small v-if="item.description" class="booking-item-description">{{ item.description }}</small>
+              </div>
+              <div class="booking-item-prices">
+                <span>${{ Number(item.totalPrice || item.unitPrice || 0).toLocaleString() }}</span>
+                <small v-if="item.unitPrice">Unit ${{ Number(item.unitPrice || 0).toLocaleString() }}</small>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="booking-detail-empty">{{ selectedBookingDetails.service }}</p>
+        </div>
+        <p class="booking-detail-note">{{ selectedBookingDetails.note }}</p>
+      </div>
+    </div>
 
     <div
       v-if="activePackage"
@@ -2140,6 +2298,7 @@ function noop() {}
                     :class="{
                       muted: !cell.inMonth,
                       booked: cell.booked && cell.inMonth,
+                      busy: cell.vendorBusy && cell.inMonth,
                       available: cell.available && cell.inMonth,
                       selected: isPrebookCalendarCellSelected(cell),
                     }"
@@ -2152,7 +2311,7 @@ function noop() {}
 
                 <div class="prebook-calendar-legend">
                   <span><i class="dot available"></i> Available</span>
-                  <span><i class="dot booked"></i> Booked</span>
+                  <span><i class="dot booked"></i> Already Booked</span>
                   <span><i class="dot selected"></i> Selected</span>
                 </div>
                 <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
@@ -2795,21 +2954,32 @@ function noop() {}
 }
 
 .prebook-calendar-day.selected {
-  border-color: #ff8a3d;
-  background: #ff7a12;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
-  color: #fff;
+  border-color: #f49e1d;
+  background: #f49e1d;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+  color: #ffffff;
 }
 
 .prebook-calendar-day.available {
-  border-color: #d7e1ee;
-  box-shadow: inset 0 -3px 0 #22c55e;
+  background: #22c55e;
+  color: #ffffff;
+  border-color: #22c55e;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
 }
 
 .prebook-calendar-day.booked {
-  background: #f8fafc;
-  color: #94a3b8;
-  box-shadow: inset 0 -3px 0 #cbd5e1;
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.prebook-calendar-day.busy {
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(248, 113, 113, 0.04)),
+    #fff1f2;
+  color: #991b1b;
+  border-color: #fda4af;
 }
 
 .prebook-calendar-legend {
@@ -2838,11 +3008,11 @@ function noop() {}
 }
 
 .prebook-calendar-legend .dot.booked {
-  background: #cbd5e1;
+  background: #ef4444;
 }
 
 .prebook-calendar-legend .dot.selected {
-  background: #f97316;
+  background: #f4c21d;
 }
 
 .prebook-calendar-loading {
@@ -3143,6 +3313,112 @@ function noop() {}
   background: #f8fafc;
 }
 
+.booking-details-modal {
+  max-width: 640px;
+}
+
+.booking-detail-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.booking-detail-grid p {
+  margin: 0;
+  border: 1px solid #e2e8f3;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.booking-detail-grid strong {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.booking-detail-grid span {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.booking-detail-note {
+  margin: 14px 0 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.booking-items-panel {
+  margin-top: 14px;
+  border: 1px solid #e2e8f3;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.booking-items-panel h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.booking-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.booking-items-list li {
+  border: 1px solid #e2e8f3;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.booking-items-list strong {
+  display: block;
+  color: #1e293b;
+}
+
+.booking-items-list small {
+  color: #64748b;
+}
+
+.booking-item-description {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.booking-item-prices {
+  text-align: right;
+  display: grid;
+  gap: 4px;
+}
+
+.booking-items-list span {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.booking-item-prices small {
+  color: #64748b;
+}
+
+.booking-detail-empty {
+  margin: 0;
+  color: #475569;
+}
+
 .favorite-booking-card {
   margin-top: 12px;
 }
@@ -3265,6 +3541,10 @@ function noop() {}
   }
 
   .package-modal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-detail-grid {
     grid-template-columns: 1fr;
   }
 }
