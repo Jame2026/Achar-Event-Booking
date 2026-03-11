@@ -37,6 +37,8 @@ export function mapBooking(apiBooking, options) {
     id: apiBooking.id,
     vendor: resolvedVendorName,
     service: apiBooking.service_name || event.title || 'Service Booking',
+    servicePrice: Number(apiBooking.total_amount || 0),
+    quantity: Number(apiBooking.quantity || 1),
     date: formatDateTime(bookingDate),
     metaLabel: 'Event Type',
     metaValue: eventTypeMap[apiBooking.requested_event_type || event.event_type] || 'Other',
@@ -50,6 +52,7 @@ export function mapBooking(apiBooking, options) {
     image:
       event.image_url ||
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
+    bookedItems: Array.isArray(apiBooking.booked_items) ? apiBooking.booked_items : [],
     primaryBtn: status === 'pending' ? 'Message Vendor' : 'View Details',
     secondaryBtn: 'Reschedule',
     note: `${apiBooking.customer_name} | ${apiBooking.customer_email}`,

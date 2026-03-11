@@ -163,6 +163,13 @@ class BookingController extends Controller
             'requested_event_type' => ['nullable', 'string', 'max:60'],
             'requested_event_date' => ['nullable', 'date'],
             'total_amount' => ['nullable', 'numeric', 'min:0'],
+            'booked_items' => ['nullable', 'array'],
+            'booked_items.*.type' => ['nullable', 'string', 'max:40'],
+            'booked_items.*.name' => ['nullable', 'string', 'max:255'],
+            'booked_items.*.description' => ['nullable', 'string'],
+            'booked_items.*.qty' => ['nullable', 'integer', 'min:1'],
+            'booked_items.*.unitPrice' => ['nullable', 'numeric', 'min:0'],
+            'booked_items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $eventId = $validated['event_id'] ?? null;
@@ -204,6 +211,7 @@ class BookingController extends Controller
             'service_name' => $validated['service_name'] ?? ($event?->title ?? 'Custom Booking'),
             'requested_event_date' => $requestedDate,
             'total_amount' => $totalAmount,
+            'booked_items' => $validated['booked_items'] ?? null,
         ]);
 
         $booking->setRelation('event', $event);
@@ -227,6 +235,13 @@ class BookingController extends Controller
             'customer_email' => ['sometimes', 'email', 'max:255'],
             'service_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_event_type' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'booked_items' => ['sometimes', 'nullable', 'array'],
+            'booked_items.*.type' => ['nullable', 'string', 'max:40'],
+            'booked_items.*.name' => ['nullable', 'string', 'max:255'],
+            'booked_items.*.description' => ['nullable', 'string'],
+            'booked_items.*.qty' => ['nullable', 'integer', 'min:1'],
+            'booked_items.*.unitPrice' => ['nullable', 'numeric', 'min:0'],
+            'booked_items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $event = $booking->event;
