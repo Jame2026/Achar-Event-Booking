@@ -23,6 +23,7 @@ class Booking extends Model
         'service_name',
         'requested_event_type',
         'requested_event_date',
+        'booked_items',
     ];
 
     protected function casts(): array
@@ -30,6 +31,7 @@ class Booking extends Model
         return [
             'total_amount' => 'decimal:2',
             'requested_event_date' => 'date',
+            'booked_items' => 'array',
         ];
     }
 

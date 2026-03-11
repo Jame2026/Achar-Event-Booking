@@ -204,13 +204,13 @@ const submitRegister = async () => {
         </div>
 
         <div class="form-head">
-          <h2>{{ uiText.title }}</h2>
+          <h2>📝 {{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitRegister">
           <label class="field">
-            <span>{{ uiText.registerWith }}</span>
+            <span>🧾 {{ uiText.registerWith }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: registerMethod === 'email' }">
                 <input v-model="registerMethod" type="radio" value="email" name="register_method" />
@@ -227,17 +227,17 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>{{ uiText.fullName }}</span>
+            <span>👤 {{ uiText.fullName }}</span>
             <input v-model="form.name" type="text" :placeholder="uiText.fullNamePlaceholder" required />
           </label>
 
           <label v-if="registerMethod === 'email'" class="field">
-            <span>{{ uiText.emailLabel }}</span>
+            <span>📧 {{ uiText.emailLabel }}</span>
             <input v-model="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
           </label>
 
           <label v-else class="field">
-            <span>{{ uiText.phoneNumber }}</span>
+            <span>📱 {{ uiText.phoneNumber }}</span>
             <input
               v-model="form.phone"
               type="tel"
@@ -249,7 +249,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>{{ uiText.profession }}</span>
+            <span>💼 {{ uiText.profession }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: form.role === 'user' }">
                 <input v-model="form.role" type="radio" value="user" name="role" />
@@ -266,7 +266,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>{{ uiText.password }}</span>
+            <span>🔑 {{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -291,7 +291,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>{{ uiText.confirmPassword }}</span>
+            <span>✅ {{ uiText.confirmPassword }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -319,7 +319,7 @@ const submitRegister = async () => {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? uiText.creating : uiText.createAccount }}
+            {{ submitting ? uiText.creating : `✨ ${uiText.createAccount}` }}
           </button>
         </form>
 

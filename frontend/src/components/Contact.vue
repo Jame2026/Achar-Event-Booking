@@ -49,7 +49,7 @@ const handleSubmit = (event) => {
   <section id="contact" class="contact-page">
     <div class="contact-shell">
       <div class="contact-hero">
-        <div class="badge">Contact</div>
+        <div class="badge">💬 Contact</div>
         <h2>Talk with our event concierge team</h2>
         <p class="lede">
           Whether you are planning your first ceremony or scaling corporate gatherings, our specialists help you book the
@@ -70,28 +70,28 @@ const handleSubmit = (event) => {
 
       <div class="contact-layout">
         <div class="contact-card form-card">
-          <p class="eyebrow">Send a message</p>
+          <p class="eyebrow">✉️ Send a message</p>
           <h3>Tell us about your event</h3>
           <form class="contact-form" @submit.prevent="handleSubmit">
             <div class="form-grid">
               <label class="field">
-                <span>Name</span>
+                <span>👤 Name</span>
                 <input name="name" type="text" placeholder="Your full name" required />
               </label>
               <label class="field">
-                <span>Email</span>
+                <span>📧 Email</span>
                 <input name="email" type="email" placeholder="you@example.com" required />
               </label>
               <label class="field">
-                <span>Phone</span>
+                <span>📱 Phone</span>
                 <input name="phone" type="tel" placeholder="+1 (555) 123-4567" />
               </label>
               <label class="field">
-                <span>Event date</span>
+                <span>📅 Event date</span>
                 <input name="date" type="date" />
               </label>
               <label class="field full">
-                <span>Event details</span>
+                <span>📝 Event details</span>
                 <textarea
                   name="details"
                   rows="4"
@@ -104,13 +104,13 @@ const handleSubmit = (event) => {
                 <input type="checkbox" name="newsletter" />
                 <span>Keep me posted on planning guides and vendor offers</span>
               </label>
-              <button class="primary-btn" type="submit">Send request</button>
+              <button class="primary-btn" type="submit">🚀 Send request</button>
             </div>
           </form>
         </div>
 
         <div class="contact-card info-card">
-          <p class="eyebrow">Direct lines</p>
+          <p class="eyebrow">📞 Direct lines</p>
           <h3>We are ready when you are</h3>
           <div class="channel-list">
             <div class="channel" v-for="channel in supportChannels" :key="channel.title">

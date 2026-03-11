@@ -126,7 +126,7 @@
         </div>
 
         <div class="hint-box">
-          <div class="hint-icon">ℹ</div>
+          <div class="hint-icon">ℹ️</div>
           <p>Setting a guest count range helps automate availability for client bookings. Large bookings can trigger custom pricing or staffing adjustments.</p>
         </div>
       </section>
@@ -184,9 +184,15 @@
 
       <!-- Actions -->
       <div class="form-actions">
+<<<<<<< HEAD
         <button type="button" class="btn-cancel" @click="handleCancel">Cancel</button>
         <button type="button" class="btn-save" :disabled="isSubmitting" @click="handleAddClick">
           {{ isSubmitting ? 'Saving...' : 'Add Service' }}
+=======
+        <button type="button" class="btn-cancel" @click="cancel">❌ Cancel</button>
+        <button type="submit" class="btn-save" :disabled="isSubmitting">
+          {{ isSubmitting ? 'Saving...' : '✅ Add Service' }}
+>>>>>>> be2846549d966ed25295cba9051866c68115334e
         </button>
       </div>
 

@@ -138,18 +138,18 @@ const submitLogin = async () => {
         </div>
 
         <div class="form-head">
-          <h2>{{ uiText.title }}</h2>
+          <h2>🔐 {{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="field">
-            <span>{{ uiText.emailOrPhone }}</span>
+            <span>📧 {{ uiText.emailOrPhone }}</span>
             <input v-model="form.login" type="text" :placeholder="uiText.emailOrPhonePlaceholder" required />
           </label>
 
           <label class="field">
-            <span>{{ uiText.password }}</span>
+            <span>🔑 {{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -175,15 +175,15 @@ const submitLogin = async () => {
           <div class="auth-help-row">
             <label class="check-row">
               <input v-model="form.remember" type="checkbox" />
-              <span>{{ uiText.remember }}</span>
+              <span>🛡️ {{ uiText.remember }}</span>
             </label>
-            <router-link class="link-btn" to="/forgot-password">{{ uiText.forgotPassword }}</router-link>
+            <router-link class="link-btn" to="/forgot-password">🔄 {{ uiText.forgotPassword }}</router-link>
           </div>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? uiText.signingIn : uiText.login }}
+            {{ submitting ? uiText.signingIn : `🚀 ${uiText.login}` }}
           </button>
         </form>
 

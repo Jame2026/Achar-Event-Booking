@@ -76,11 +76,11 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
 <template>
   <main class="shell profile-page">
-    <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
+    <div class="breadcrumbs">🧭 {{ uiText.breadcrumbs }}</div>
 
     <section class="card services profile-form">
       <div class="profile-head">
-        <h2>{{ uiText.title }}</h2>
+        <h2>🧑‍💼 {{ uiText.title }}</h2>
         <p>Manage your account details and profile photo shown across the platform.</p>
       </div>
       <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
@@ -111,7 +111,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                 <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
               </svg>
             </span>
-            Upload Photo
+            🖼️ Upload Photo
             <input
               type="file"
               accept="image/*"
@@ -126,15 +126,15 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                 <path d="M19 6l-1 14H6L5 6" />
               </svg>
             </span>
-            Remove Photo
+            🗑️ Remove Photo
           </button>
         </div>
       </div>
 
-      <h3 class="profile-section-title">Account Information</h3>
+      <h3 class="profile-section-title">🧾 Account Information</h3>
       <div class="profile-grid">
         <label>
-          {{ uiText.fullName }}
+          👤 {{ uiText.fullName }}
           <input
             type="text"
             :placeholder="uiText.fullNamePlaceholder"
@@ -143,7 +143,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           />
         </label>
         <label>
-          {{ uiText.email }}
+          📧 {{ uiText.email }}
           <input
             type="email"
             :placeholder="uiText.emailPlaceholder"
@@ -152,7 +152,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           />
         </label>
         <label>
-          {{ uiText.phone }}
+          📱 {{ uiText.phone }}
           <input
             type="text"
             placeholder="+1 (555) 123-4567"
@@ -161,7 +161,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           />
         </label>
         <label>
-          {{ uiText.location }}
+          📍 {{ uiText.location }}
           <input
             type="text"
             :placeholder="uiText.locationPlaceholder"
@@ -171,13 +171,13 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </label>
       </div>
 
-      <h3 class="profile-section-title">Location</h3>
+      <h3 class="profile-section-title">🗺️ {{ uiText.location }}</h3>
       <div class="profile-location-tools">
         <button type="button" class="btn-light" :disabled="props.isDetectingLocation" @click="props.detectCurrentLocation">
-          {{ props.isDetectingLocation ? uiText.detectingLocation : uiText.useCurrentLocation }}
+          {{ props.isDetectingLocation ? `📡 ${uiText.detectingLocation}` : `📌 ${uiText.useCurrentLocation}` }}
         </button>
         <p v-if="props.userLatitude !== null && props.userLongitude !== null" class="location-coords">
-          Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
+          📍 Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
         </p>
         <iframe
           v-if="props.userLocationMapEmbedUrl"
@@ -193,15 +193,15 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           target="_blank"
           rel="noopener noreferrer"
         >
-          {{ uiText.openInMap }}
+          🧭 {{ uiText.openInMap }}
         </a>
       </div>
 
       <div class="profile-actions">
-        <button type="button" class="btn-logout" @click="props.logoutUser">{{ uiText.logout }}</button>
-        <button type="button" class="btn-light" @click="props.resetUserProfile">{{ uiText.reset }}</button>
+        <button type="button" class="btn-logout" @click="props.logoutUser">🚪 {{ uiText.logout }}</button>
+        <button type="button" class="btn-light" @click="props.resetUserProfile">♻️ {{ uiText.reset }}</button>
         <button type="button" class="btn-accent" :disabled="props.isSavingProfile" @click="props.saveUserProfile">
-          {{ props.isSavingProfile ? 'Saving...' : uiText.saveProfile }}
+          {{ props.isSavingProfile ? 'Saving...' : `💾 ${uiText.saveProfile}` }}
         </button>
       </div>
     </section>

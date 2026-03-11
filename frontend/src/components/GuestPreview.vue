@@ -7,6 +7,7 @@ import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
+import { mapBooking as mapApiBooking } from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
 import {
   buildPackageServiceDescriptions,
@@ -27,6 +28,7 @@ const props = defineProps({
 const section = computed(() => props.section);
 const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
@@ -60,7 +62,7 @@ const copyByLanguage = {
     quantity: "Quantity",
     packageSubtotal: "Package Subtotal",
     servicesSubtotal: "Services Subtotal",
-    serviceFee: "Service Fee (10%)",
+    serviceFee: "Service Fee (3.5%)",
     totalPrice: "Total Price",
     prebookFavoriteItems: "Pre-book Favorite Items",
     favoriteBundle: "Favorite Services Bundle",
@@ -132,7 +134,7 @@ const copyByLanguage = {
     quantity: "ចំនួន",
     packageSubtotal: "សរុបកញ្ចប់",
     servicesSubtotal: "សរុបសេវាកម្ម",
-    serviceFee: "ថ្លៃសេវា (10%)",
+    serviceFee: "ថ្លៃសេវា (3.5%)",
     totalPrice: "តម្លៃសរុប",
     prebookFavoriteItems: "កក់ជាមុនរបស់ដែលចូលចិត្ត",
     favoriteBundle: "កញ្ចប់សេវាកម្មដែលចូលចិត្ត",
@@ -204,7 +206,7 @@ const copyByLanguage = {
     quantity: "数量",
     packageSubtotal: "套餐小计",
     servicesSubtotal: "服务小计",
-    serviceFee: "服务费 (10%)",
+    serviceFee: "服务费 (3.5%)",
     totalPrice: "总价",
     prebookFavoriteItems: "预订收藏项目",
     favoriteBundle: "收藏服务组合",
@@ -298,6 +300,10 @@ const pageContent = computed(() => {
 
 const bookingFilter = ref("Upcoming");
 const bookingEventTypeFilter = ref("all");
+const guestBookings = ref([]);
+const isLoadingGuestBookings = ref(false);
+const bookingPageNotice = ref("");
+const selectedBookingDetails = ref(null);
 const customizationEventType = ref("all");
 const customizationSearch = ref("");
 const selectedCustomizationPackageId = ref(null);
@@ -395,6 +401,17 @@ const guestPreviewPackagesFiltered = computed(() => {
     );
   }
   return rows;
+});
+
+const filteredGuestBookings = computed(() => {
+  const activeType = bookingFilter.value;
+  const activeEventType = bookingEventTypeFilter.value;
+
+  return guestBookings.value.filter((item) => {
+    const matchesType = !activeType || item.type === activeType;
+    const matchesEventType = activeEventType === "all" || item.eventType === activeEventType;
+    return matchesType && matchesEventType;
+  });
 });
 
 const emptyDashboardStats = {
@@ -496,6 +513,74 @@ async function loadLiveVendorEvents() {
   } catch {
     liveVendorEvents.value = [];
   }
+}
+
+async function loadGuestBookings() {
+  const authRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  let authUser = null;
+
+  if (authRaw) {
+    try {
+      authUser = JSON.parse(authRaw);
+    } catch {
+      authUser = null;
+    }
+  }
+
+  if (!authUser) {
+    guestBookings.value = [];
+    bookingPageNotice.value = uiText.value.bookingText;
+    return;
+  }
+
+  const customerEmail = String(authUser?.email || "").trim().toLowerCase();
+  if (!customerEmail) {
+    guestBookings.value = [];
+    bookingPageNotice.value = uiText.value.bookingText;
+    return;
+  }
+
+  isLoadingGuestBookings.value = true;
+  try {
+    const result = await apiGet("bookings", { customer_email: customerEmail });
+    const rows = Array.isArray(result?.data) ? result.data : [];
+    guestBookings.value = rows.map((row) => {
+      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
+      return {
+        ...mapped,
+        primaryBtn: "View Details",
+        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
+        rawBooking: row,
+      };
+    });
+    bookingPageNotice.value = "";
+  } catch (error) {
+    guestBookings.value = [];
+    bookingPageNotice.value = error?.message || "Could not load your bookings.";
+  } finally {
+    isLoadingGuestBookings.value = false;
+  }
+}
+
+function openBookingDetails(item) {
+  selectedBookingDetails.value = item;
+}
+
+function closeBookingDetails() {
+  selectedBookingDetails.value = null;
+}
+
+function bookingPrimaryAction(item) {
+  openBookingDetails(item);
+}
+
+function bookingSecondaryAction(item) {
+  if (item?.secondaryBtn === "Message Vendor") {
+    goToSignIn();
+    return;
+  }
+
+  bookingPageNotice.value = "Reschedule will be available soon.";
 }
 
 const guestPreviewPackages = computed(() => {
@@ -880,13 +965,18 @@ const prebookCalendarCells = computed(() => {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = new Date(year, month, day);
     const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayAvailability = prebookCalendarAvailability.value[iso] || null;
+    const isBooked = dayAvailability?.status === "booked";
+    const isAvailable = dayAvailability?.status === "available";
+    const isVendorBusy = Boolean(dayAvailability?.has_another_booked || dayAvailability?.has_existing_booking);
     cells.push({
       id: iso,
       day,
       date: iso,
       inMonth: true,
-      booked: prebookCalendarAvailability.value[iso] === "booked",
-      available: prebookCalendarAvailability.value[iso] === "available",
+      booked: isBooked,
+      available: isAvailable,
+      vendorBusy: isVendorBusy,
       disabled: date < today,
     });
   }
@@ -963,7 +1053,14 @@ async function loadPrebookCalendarAvailability() {
     const result = await apiGet(`events/${activePrebookEventId.value}/availability-calendar`, { month });
     const days = Array.isArray(result.days) ? result.days : [];
     prebookCalendarAvailability.value = Object.fromEntries(
-      days.map((item) => [String(item.date), String(item.status || "available")]),
+      days.map((item) => [
+        String(item.date),
+        {
+          status: String(item.status || "available"),
+          has_another_booked: Boolean(item.has_another_booked),
+          has_existing_booking: Boolean(item.has_existing_booking),
+        },
+      ]),
     );
   } catch {
     prebookCalendarAvailability.value = {};
@@ -1296,6 +1393,19 @@ watch(
 );
 
 watch(
+  [activePrebookEventId, showPrebookCalendar],
+  ([eventId, isCalendarOpen]) => {
+    if (!isCalendarOpen) return;
+    if (!eventId) {
+      prebookCalendarAvailability.value = {};
+      return;
+    }
+    void loadPrebookCalendarAvailability();
+  },
+  { immediate: true },
+);
+
+watch(
   favoritePackages,
   (rows) => {
     if (!rows.length) {
@@ -1360,8 +1470,19 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => section.value,
+  (currentSection) => {
+    if (currentSection === "bookings") {
+      void loadGuestBookings();
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   void loadLiveVendorEvents();
+  void loadGuestBookings();
 });
 
 onUnmounted(() => {
@@ -1658,7 +1779,7 @@ function noop() {}
           <button
             type="button"
             class="confirm-selection"
-            :disabled="selectedServices.length === 0"
+            :disabled="!selectedPackage && selectedServices.length === 0"
             @click="openPrebookForm"
           >
             {{ uiText.prebookNow }}
@@ -1868,7 +1989,8 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
-                <div>
+                <img class="favorite-thumb" :src="item.image" :alt="item.title" loading="lazy" />
+                <div class="favorite-text">
                   <strong>{{ item.title }}</strong>
                   <small
                     >{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small
@@ -1892,7 +2014,8 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
-                <div>
+                <img class="favorite-thumb" :src="service.image" :alt="service.name" loading="lazy" />
+                <div class="favorite-text">
                   <strong>{{ service.name }}</strong>
                   <small
                     >${{ Number(service.price || 0).toLocaleString() }}</small
@@ -1980,17 +2103,72 @@ function noop() {}
         v-else
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
-        :notice="''"
-        :is-loading-bookings="false"
-        :filtered-bookings="[]"
+        :notice="bookingPageNotice"
+        :is-loading-bookings="isLoadingGuestBookings"
+        :filtered-bookings="filteredGuestBookings"
         :go-to-dashboard="() => goToSection('dashboard')"
         :go-to-vendor="() => goToSection('services-packages')"
         :go-to-messages="goToSignIn"
         :go-to-profile="goToSignIn"
-        :booking-secondary-action="noop"
-        :booking-primary-action="noop"
+        :booking-secondary-action="bookingSecondaryAction"
+        :booking-primary-action="bookingPrimaryAction"
       />
     </main>
+
+    <div
+      v-if="selectedBookingDetails"
+      class="package-modal-overlay"
+      @click="closeBookingDetails"
+    >
+      <div class="package-modal booking-details-modal" @click.stop>
+        <div class="package-modal-head">
+          <div>
+            <p class="package-product-type">{{ selectedBookingDetails.status }}</p>
+            <h3>{{ selectedBookingDetails.service }}</h3>
+          </div>
+          <button
+            type="button"
+            class="package-modal-close"
+            @click="closeBookingDetails"
+          >
+            &times;
+          </button>
+        </div>
+        <img
+          class="package-modal-image"
+          :src="selectedBookingDetails.image"
+          :alt="selectedBookingDetails.service"
+        />
+        <div class="booking-detail-grid">
+          <p><strong>Vendor</strong><span>{{ selectedBookingDetails.vendor }}</span></p>
+          <p><strong>Date</strong><span>{{ selectedBookingDetails.date }}</span></p>
+          <p><strong>Event Type</strong><span>{{ selectedBookingDetails.metaValue }}</span></p>
+          <p><strong>Total</strong><span>{{ selectedBookingDetails.placeValue }}</span></p>
+          <p><strong>Quantity</strong><span>{{ selectedBookingDetails.quantity }}</span></p>
+          <p><strong>Service Price</strong><span>${{ Number(selectedBookingDetails.servicePrice || 0).toLocaleString() }}</span></p>
+          <p><strong>Status</strong><span>{{ selectedBookingDetails.status }}</span></p>
+          <p><strong>Booking ID</strong><span>#{{ selectedBookingDetails.id }}</span></p>
+        </div>
+        <div class="booking-items-panel">
+          <h4>Booked Services</h4>
+          <ul v-if="selectedBookingDetails.bookedItems?.length" class="booking-items-list">
+            <li v-for="(item, index) in selectedBookingDetails.bookedItems" :key="`${selectedBookingDetails.id}-${index}`">
+              <div>
+                <strong>{{ item.name || selectedBookingDetails.service }}</strong>
+                <small>{{ item.type || "service" }} | Qty {{ Number(item.qty || 1) }}</small>
+                <small v-if="item.description" class="booking-item-description">{{ item.description }}</small>
+              </div>
+              <div class="booking-item-prices">
+                <span>${{ Number(item.totalPrice || item.unitPrice || 0).toLocaleString() }}</span>
+                <small v-if="item.unitPrice">Unit ${{ Number(item.unitPrice || 0).toLocaleString() }}</small>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="booking-detail-empty">{{ selectedBookingDetails.service }}</p>
+        </div>
+        <p class="booking-detail-note">{{ selectedBookingDetails.note }}</p>
+      </div>
+    </div>
 
     <div
       v-if="activePackage"
@@ -2072,7 +2250,7 @@ function noop() {}
     >
       <div class="prebook-modal" @click.stop>
         <div class="prebook-head">
-          <h3>Book {{ prebookTargetTitle }}</h3>
+          <h3>📘 Book {{ prebookTargetTitle }}</h3>
           <button type="button" class="prebook-close" @click="closePrebookModal">
             x
           </button>
@@ -2080,17 +2258,17 @@ function noop() {}
 
         <form class="prebook-form" @submit.prevent="submitPrebookForm">
           <label>
-            <span>Full name</span>
+            <span>👤 Full name</span>
             <input v-model.trim="prebookForm.fullName" type="text" required />
           </label>
 
           <label>
-            <span>Email</span>
+            <span>📧 Email</span>
             <input v-model.trim="prebookForm.email" type="email" required />
           </label>
 
           <label>
-            <span>Phone number</span>
+            <span>📱 Phone number</span>
             <input
               v-model.trim="prebookForm.phone"
               type="tel"
@@ -2100,7 +2278,7 @@ function noop() {}
           </label>
 
           <label>
-            <span>Location</span>
+            <span>📍 Location</span>
             <input
               v-model.trim="prebookForm.location"
               type="text"
@@ -2116,7 +2294,7 @@ function noop() {}
               :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
               @click="detectPrebookLocation"
             >
-              {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+              {{ isDetectingPrebookLocation ? "Detecting location..." : "📡 Use Current Location" }}
             </button>
             <p
               v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
@@ -2143,11 +2321,11 @@ function noop() {}
           </div>
 
           <label>
-            <span>Event date</span>
+            <span>📅 Event date</span>
             <div class="prebook-date-picker">
               <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
                 <span>{{ prebookForm.eventDate || "Select event date" }}</span>
-                <span class="prebook-date-icon">[ ]</span>
+                <span class="prebook-date-icon">📆</span>
               </button>
 
               <div v-if="showPrebookCalendar" class="prebook-calendar">
@@ -2178,6 +2356,7 @@ function noop() {}
                     :class="{
                       muted: !cell.inMonth,
                       booked: cell.booked && cell.inMonth,
+                      busy: cell.vendorBusy && cell.inMonth,
                       available: cell.available && cell.inMonth,
                       selected: isPrebookCalendarCellSelected(cell),
                     }"
@@ -2190,7 +2369,7 @@ function noop() {}
 
                 <div class="prebook-calendar-legend">
                   <span><i class="dot available"></i> Available</span>
-                  <span><i class="dot booked"></i> Booked</span>
+                  <span><i class="dot booked"></i> Already Booked</span>
                   <span><i class="dot selected"></i> Selected</span>
                 </div>
                 <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
@@ -2209,12 +2388,12 @@ function noop() {}
           </div>
 
           <label>
-            <span>Number of guests</span>
+            <span>👥 Number of guests</span>
             <input v-model.number="prebookForm.guests" type="number" min="1" required />
           </label>
 
           <label>
-            <span>Notes</span>
+            <span>📝 Notes</span>
             <textarea
               v-model.trim="prebookForm.notes"
               rows="3"
@@ -2230,7 +2409,7 @@ function noop() {}
               class="modal-action-btn modal-action-primary"
               :disabled="activePrebookEventId && !canSubmitPrebook"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "Confirm Booking" }}
+              {{ isCheckingPrebookAvailability ? "Checking..." : "✅ Confirm Booking" }}
             </button>
           </div>
         </form>
@@ -2833,21 +3012,32 @@ function noop() {}
 }
 
 .prebook-calendar-day.selected {
-  border-color: #ff8a3d;
-  background: #ff7a12;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
-  color: #fff;
+  border-color: #f49e1d;
+  background: #f49e1d;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+  color: #ffffff;
 }
 
 .prebook-calendar-day.available {
-  border-color: #d7e1ee;
-  box-shadow: inset 0 -3px 0 #22c55e;
+  background: #22c55e;
+  color: #ffffff;
+  border-color: #22c55e;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
 }
 
 .prebook-calendar-day.booked {
-  background: #f8fafc;
-  color: #94a3b8;
-  box-shadow: inset 0 -3px 0 #cbd5e1;
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.prebook-calendar-day.busy {
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(248, 113, 113, 0.04)),
+    #fff1f2;
+  color: #991b1b;
+  border-color: #fda4af;
 }
 
 .prebook-calendar-legend {
@@ -2876,11 +3066,11 @@ function noop() {}
 }
 
 .prebook-calendar-legend .dot.booked {
-  background: #cbd5e1;
+  background: #ef4444;
 }
 
 .prebook-calendar-legend .dot.selected {
-  background: #f97316;
+  background: #f4c21d;
 }
 
 .prebook-calendar-loading {
@@ -3124,18 +3314,23 @@ function noop() {}
 .favorite-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 20px;
+  align-items: start;
 }
 
 .favorite-card {
-  border: 1px solid #e2e8f3;
-  border-radius: 14px;
-  background: #fbfdff;
-  padding: 12px;
+  position: relative;
+  border: 1px solid #e4ecf8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f7faff);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  padding: 16px 18px;
 }
 
 .favorite-card h3 {
-  margin: 0;
+  margin: 0 0 6px;
+  font-size: 18px;
+  letter-spacing: -0.01em;
 }
 
 .favorite-list {
@@ -3143,23 +3338,46 @@ function noop() {}
   margin: 10px 0 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .favorite-list li {
-  border: 1px solid #e2e8f3;
-  border-radius: 10px;
-  padding: 9px 10px;
+  border: 1px solid #e6eef9;
+  border-radius: 12px;
+  padding: 12px 14px;
   background: #fff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.favorite-list li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.favorite-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f8fafc;
+  border: 1px solid #e2e8f3;
+  flex-shrink: 0;
+}
+
+.favorite-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .favorite-list strong {
   display: block;
   font-size: 14px;
+  color: #0f172a;
 }
 
 .favorite-list small {
@@ -3167,38 +3385,163 @@ function noop() {}
 }
 
 .favorite-remove {
-  border: 1px solid #d6e0ef;
-  border-radius: 8px;
-  background: #fff;
-  color: #475569;
+  border: 1px solid #f9d9c0;
+  border-radius: 999px;
+  background: #fff7f1;
+  color: #d9480f;
   font-size: 12px;
   font-weight: 700;
-  padding: 6px 8px;
+  padding: 8px 12px;
   cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
 }
 
 .favorite-remove:hover {
+  background: #ffe9dc;
+  box-shadow: 0 6px 12px rgba(217, 72, 15, 0.12);
+}
+
+.booking-details-modal {
+  max-width: 640px;
+}
+
+.booking-detail-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.booking-detail-grid p {
+  margin: 0;
+  border: 1px solid #e2e8f3;
   background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.booking-detail-grid strong {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.booking-detail-grid span {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.booking-detail-note {
+  margin: 14px 0 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.booking-items-panel {
+  margin-top: 14px;
+  border: 1px solid #e2e8f3;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.booking-items-panel h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.booking-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.booking-items-list li {
+  border: 1px solid #e2e8f3;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.booking-items-list strong {
+  display: block;
+  color: #1e293b;
+}
+
+.booking-items-list small {
+  color: #64748b;
+}
+
+.booking-item-description {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.booking-item-prices {
+  text-align: right;
+  display: grid;
+  gap: 4px;
+}
+
+.booking-items-list span {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.booking-item-prices small {
+  color: #64748b;
+}
+
+.booking-detail-empty {
+  margin: 0;
+  color: #475569;
 }
 
 .favorite-booking-card {
   margin-top: 12px;
+  border: 1px solid #f5d5bd;
+  background: radial-gradient(circle at 20% 20%, #fff6ec, #ffffff);
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(242, 92, 5, 0.08);
 }
 
 .favorite-booking-grid {
-  margin-top: 10px;
+  margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 14px;
 }
 
 .favorite-booking-grid input {
   width: 100%;
+  height: 44px;
   border: 1px solid #d7e4f3;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
-  padding: 9px 10px;
+  padding: 10px 12px;
   font: inherit;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.favorite-booking-grid select {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d7e4f3;
+  background: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 @media (max-width: 720px) {
@@ -3303,6 +3646,10 @@ function noop() {}
   }
 
   .package-modal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-detail-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -206,6 +206,14 @@ async function handleConfirmAndPay() {
       requested_event_type: booking.requestedEventType || "other",
       requested_event_date: booking.eventDate || null,
       total_amount: bookingTotal.value,
+      booked_items: bookingItems.value.map((item) => ({
+        type: item.type || "service",
+        name: item.name || "",
+        description: item.description || "",
+        qty: Math.max(1, Number(item.qty || 1)),
+        unitPrice: Number(item.unitPrice || 0),
+        totalPrice: Number(item.totalPrice || 0),
+      })),
     });
   } catch (error) {
     paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
@@ -382,8 +390,8 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
         </div>
       </div>
       <div class="checkout-steps">
-        <button type="button" class="step-link" @click="goToServices">{{ uiText.servicesStep }}</button>
-        <span class="active">{{ uiText.reviewStep }}</span>
+        <button type="button" class="step-link" @click="goToServices">🧩 {{ uiText.servicesStep }}</button>
+        <span class="active">💳 {{ uiText.reviewStep }}</span>
       </div>
       <button type="button" class="close-btn" @click="goBack">x</button>
     </header>
@@ -391,7 +399,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
     <main class="checkout-shell">
       <section class="checkout-main paper-canvas">
         <div class="section-head">
-          <h1>{{ uiText.bookingSummary }}</h1>
+          <h1>📘 {{ uiText.bookingSummary }}</h1>
           <p class="section-subtitle">{{ uiText.bookingSubtitle }}</p>
         </div>
 
@@ -411,7 +419,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
         <article class="line-item customer-item">
           <div class="line-item-copy">
-            <h3>{{ uiText.customerDetails }}</h3>
+            <h3>👤 {{ uiText.customerDetails }}</h3>
             <p>{{ booking.fullName }} | {{ booking.phone || uiText.noPhone }}</p>
             <p>{{ booking.email || uiText.noEmail }}</p>
             <small>{{ booking.notes || uiText.noNotes }}</small>
@@ -419,17 +427,17 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
         </article>
 
         <article class="guarantee-card">
-          <h3>{{ uiText.serviceGuarantees }}</h3>
+          <h3>🛡️ {{ uiText.serviceGuarantees }}</h3>
           <div class="guarantee-grid">
-            <p><strong>{{ uiText.vendorVerification }}</strong><br />{{ uiText.vendorsChecked }}</p>
-            <p><strong>{{ uiText.secureEscrow }}</strong><br />{{ uiText.escrowText }}</p>
+            <p><strong>✅ {{ uiText.vendorVerification }}</strong><br />{{ uiText.vendorsChecked }}</p>
+            <p><strong>🔒 {{ uiText.secureEscrow }}</strong><br />{{ uiText.escrowText }}</p>
           </div>
         </article>
       </section>
 
       <aside class="checkout-side">
         <article class="payment-card">
-          <h2>{{ uiText.paymentSummary }}</h2>
+          <h2>💰 {{ uiText.paymentSummary }}</h2>
           <p class="payment-subtitle">{{ uiText.paymentSubtitle }}</p>
           <div class="row"><span>{{ uiText.bookingTotal }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
           <div class="row"><span>{{ uiText.processingFee }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
@@ -437,13 +445,13 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             <p>{{ uiText.depositRequired }}</p>
             <div class="deposit-row">
               <strong>${{ deposit.toLocaleString() }}</strong>
-              <span class="deposit-icon">c</span>
+              <span class="deposit-icon">💵</span>
             </div>
           </div>
           <div class="row"><span>{{ uiText.remainingBalance }}</span><strong>${{ remaining.toLocaleString() }}</strong></div>
           <hr class="payment-divider" />
 
-          <p class="payment-method-label">{{ uiText.selectPaymentMethod }}</p>
+          <p class="payment-method-label">🏦 {{ uiText.selectPaymentMethod }}</p>
           <button
             type="button"
             class="method-card"
@@ -582,7 +590,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
           </label>
 
           <button type="button" class="pay-btn" :disabled="!agreedTerms" @click="handleConfirmAndPay">
-            {{ uiText.confirmPay }}
+            ✅ {{ uiText.confirmPay }}
           </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
           <p class="secure-note">{{ uiText.securePayment }}</p>
@@ -604,10 +612,10 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
         <p>{{ uiText.qrText }}</p>
         <div class="qr-fullscreen-actions">
           <button type="button" class="modal-btn ghost" @click="isAwaitingPayment = false">
-            {{ uiText.back }}
+            ⬅️ {{ uiText.back }}
           </button>
           <button type="button" class="modal-btn primary" @click="handleConfirmAndPay">
-            {{ uiText.completePayment }}
+            ✔️ {{ uiText.completePayment }}
           </button>
         </div>
       </div>
