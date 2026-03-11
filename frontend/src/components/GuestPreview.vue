@@ -1610,23 +1610,27 @@ function noop() {}
             <p v-if="favoritePackages.length === 0" class="guest-text">
               No packages added yet.
             </p>
-            <ul v-else class="favorite-list">
-              <li v-for="item in favoritePackages" :key="item.id">
-                <div>
-                  <strong>{{ item.title }}</strong>
-                  <small
-                    >{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small
+            <div v-else class="favorite-grid">
+              <div
+                v-for="item in favoritePackages"
+                :key="item.id"
+                class="favorite-item-card"
+              >
+                <img :src="item.image" :alt="item.title" class="favorite-item-image" />
+                <div class="favorite-item-body">
+                  <p class="favorite-item-type">{{ item.eventTypeLabel }}</p>
+                  <h4 class="favorite-item-title">{{ item.title }}</h4>
+                  <p class="favorite-item-price">{{ item.priceLabel }}</p>
+                  <button
+                    type="button"
+                    class="favorite-remove-btn"
+                    @click="toggleFavoritePackage(item.id)"
                   >
+                    <span class="remove-icon">×</span> Remove
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  class="favorite-remove"
-                  @click="toggleFavoritePackage(item.id)"
-                >
-                  Remove
-                </button>
-              </li>
-            </ul>
+              </div>
+            </div>
           </article>
 
           <article class="favorite-card">
@@ -1634,23 +1638,28 @@ function noop() {}
             <p v-if="favoriteServices.length === 0" class="guest-text">
               No services added yet.
             </p>
-            <ul v-else class="favorite-list">
-              <li v-for="service in favoriteServices" :key="service.id">
-                <div>
-                  <strong>{{ service.name }}</strong>
-                  <small
-                    >${{ Number(service.price || 0).toLocaleString() }}</small
-                  >
+            <div v-else class="favorite-grid">
+              <div
+                v-for="service in favoriteServices"
+                :key="service.id"
+                class="favorite-item-card service-card"
+              >
+                <div class="service-icon-placeholder">
+                  <span class="service-icon">⚙️</span>
                 </div>
-                <button
-                  type="button"
-                  class="favorite-remove"
-                  @click="toggleFavoriteService(service.id)"
-                >
-                  Remove
-                </button>
-              </li>
-            </ul>
+                <div class="favorite-item-body">
+                  <h4 class="favorite-item-title">{{ service.name }}</h4>
+                  <p class="favorite-item-price">${{ Number(service.price || 0).toLocaleString() }}</p>
+                  <button
+                    type="button"
+                    class="favorite-remove-btn"
+                    @click="toggleFavoriteService(service.id)"
+                  >
+                    <span class="remove-icon">×</span> Remove
+                  </button>
+                </div>
+              </div>
+            </div>
           </article>
         </div>
 
@@ -2785,65 +2794,125 @@ function noop() {}
 .favorite-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 20px;
 }
 
 .favorite-card {
-  border: 1px solid #e2e8f3;
-  border-radius: 14px;
-  background: #fbfdff;
-  padding: 12px;
+  border: 1px solid #dbe4f2;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 .favorite-card h3 {
-  margin: 0;
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  color: #1e293b;
+  font-weight: 700;
 }
 
-.favorite-list {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
+.favorite-grid {
   display: grid;
-  gap: 8px;
+  gap: 16px;
 }
 
-.favorite-list li {
+.favorite-item-card {
   border: 1px solid #e2e8f3;
-  border-radius: 10px;
-  padding: 9px 10px;
+  border-radius: 12px;
   background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.favorite-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.favorite-item-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.service-icon-placeholder {
+  height: 120px;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
 }
 
-.favorite-list strong {
-  display: block;
+.service-icon {
+  font-size: 32px;
+}
+
+.favorite-item-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.favorite-item-type {
+  margin: 0;
+  color: #e45800;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.favorite-item-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.favorite-item-price {
+  margin: 0;
   font-size: 14px;
-}
-
-.favorite-list small {
-  color: #64748b;
-}
-
-.favorite-remove {
-  border: 1px solid #d6e0ef;
-  border-radius: 8px;
-  background: #fff;
-  color: #475569;
-  font-size: 12px;
   font-weight: 700;
-  padding: 6px 8px;
-  cursor: pointer;
+  color: #059669;
 }
 
-.favorite-remove:hover {
-  background: #f8fafc;
+.favorite-remove-btn {
+  margin-top: auto;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+}
+
+.favorite-remove-btn:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+.remove-icon {
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .favorite-booking-card {
-  margin-top: 12px;
+  margin-top: 20px;
+  grid-column: 1 / -1;
 }
 
 .favorite-booking-grid {
@@ -2939,6 +3008,30 @@ function noop() {}
 
   .favorite-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .favorite-card {
+    padding: 16px;
+  }
+
+  .favorite-item-card {
+    flex-direction: row;
+  }
+
+  .favorite-item-image,
+  .service-icon-placeholder {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .favorite-item-body {
+    padding: 8px;
+  }
+
+  .favorite-item-title {
+    font-size: 14px;
   }
 
   .favorite-booking-grid {
