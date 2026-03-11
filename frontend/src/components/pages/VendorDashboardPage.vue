@@ -317,6 +317,45 @@ const normalizedIncomeChartPoints = computed(() => {
   }));
 });
 
+// Bar chart data (primary series for dual-axis)
+const barChartPoints = computed(() => {
+  const points = activeIncomePoints.value;
+  if (!points.length) return [];
+
+  const width = 100;
+  const height = 100;
+  const maxValue = Math.max(
+    ...points.map((p) => Number(p.value || 0)),
+    1,
+  );
+
+  // Professional spacing: bars should be wider with proper gaps
+  const totalBars = points.length;
+  const availableWidth = 85; // Leave margins
+  const gapRatio = 0.3; // 30% gap between bars
+  const barWidth = Math.max(6, Math.min(12, availableWidth / totalBars * (1 - gapRatio)));
+  const totalWidth = (barWidth * totalBars) + (barWidth * gapRatio * (totalBars - 1));
+  const startX = (100 - totalWidth) / 2;
+
+  return points.map((point, index) => {
+    const xPos = startX + (index * (barWidth + barWidth * gapRatio));
+    const pointValue = Number(point.value || 0);
+    const barHeight = (pointValue / maxValue) * 82;
+    const yPos = height - barHeight - 9;
+
+    return {
+      x: xPos,
+      y: yPos,
+      width: barWidth,
+      height: barHeight,
+      value: pointValue,
+      label: point.label,
+      fullLabel: point.fullLabel,
+      percentage: maxValue > 0 ? (pointValue / maxValue) * 100 : 0,
+    };
+  });
+});
+
 const showIncomeDots = computed(
   () => normalizedIncomeChartPoints.value.length <= 18,
 );
@@ -1107,7 +1146,75 @@ watch(
                         <stop offset="0%" stop-color="#f97316" />
                         <stop offset="100%" stop-color="#c2410c" />
                       </linearGradient>
+                      <!-- Professional bar gradient -->
+                      <linearGradient
+                        id="bar-gradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="0%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.9" />
+                        <stop offset="50%" stop-color="#2563eb" stop-opacity="0.8" />
+                        <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.7" />
+                      </linearGradient>
+                      <!-- Bar highlight gradient -->
+                      <linearGradient
+                        id="bar-highlight"
+                        x1="0%"
+                        y1="0%"
+                        x2="0%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.6" />
+                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.3" />
+                      </linearGradient>
+                      <!-- Bar shadow filter -->
+                      <filter id="bar-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#1e40af" flood-opacity="0.2"/>
+                      </filter>
                     </defs>
+                    <!-- Bar chart (primary series) with professional styling -->
+                    <template v-for="(bar, index) in barChartPoints" :key="`bar-${index}`">
+                      <!-- Bar shadow -->
+                      <rect
+                        class="income-bar-shadow"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="bar.height"
+                        rx="2"
+                      />
+                      <!-- Main bar -->
+                      <rect
+                        class="income-bar"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="bar.height"
+                        :style="{ animationDelay: `${index * 0.1}s` }"
+                        rx="2"
+                      />
+                      <!-- Bar highlight -->
+                      <rect
+                        class="income-bar-highlight"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="Math.min(bar.height * 0.3, 4)"
+                        rx="2"
+                      />
+                      <!-- Value label on bar (only for bars taller than 20 units) -->
+                      <text
+                        v-if="bar.height > 20"
+                        class="bar-value-label"
+                        :x="bar.x"
+                        :y="bar.y + bar.height - 3"
+                        text-anchor="middle"
+                      >
+                        {{ formatCurrency(bar.value).replace('$', '') }}
+                      </text>
+                    </template>
                     <line
                       class="income-average-line"
                       x1="0"
@@ -1850,7 +1957,75 @@ watch(
                         <stop offset="0%" stop-color="#f97316" />
                         <stop offset="100%" stop-color="#c2410c" />
                       </linearGradient>
+                      <!-- Professional bar gradient for analytics -->
+                      <linearGradient
+                        id="bar-gradient-analytics"
+                        x1="0%"
+                        y1="0%"
+                        x2="0%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.9" />
+                        <stop offset="50%" stop-color="#2563eb" stop-opacity="0.8" />
+                        <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.7" />
+                      </linearGradient>
+                      <!-- Bar highlight gradient for analytics -->
+                      <linearGradient
+                        id="bar-highlight-analytics"
+                        x1="0%"
+                        y1="0%"
+                        x2="0%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.6" />
+                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.3" />
+                      </linearGradient>
+                      <!-- Bar shadow filter for analytics -->
+                      <filter id="bar-shadow-analytics" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#1e40af" flood-opacity="0.2"/>
+                      </filter>
                     </defs>
+                    <!-- Bar chart (primary series) with professional styling -->
+                    <template v-for="(bar, index) in barChartPoints" :key="`analytics-bar-${index}`">
+                      <!-- Bar shadow -->
+                      <rect
+                        class="income-bar-shadow"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="bar.height"
+                        rx="2"
+                      />
+                      <!-- Main bar -->
+                      <rect
+                        class="income-bar"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="bar.height"
+                        :style="{ animationDelay: `${index * 0.1}s` }"
+                        rx="2"
+                      />
+                      <!-- Bar highlight -->
+                      <rect
+                        class="income-bar-highlight"
+                        :x="bar.x - bar.width / 2"
+                        :y="bar.y"
+                        :width="bar.width"
+                        :height="Math.min(bar.height * 0.3, 4)"
+                        rx="2"
+                      />
+                      <!-- Value label on bar (only for bars taller than 20 units) -->
+                      <text
+                        v-if="bar.height > 20"
+                        class="bar-value-label"
+                        :x="bar.x"
+                        :y="bar.y + bar.height - 3"
+                        text-anchor="middle"
+                      >
+                        {{ formatCurrency(bar.value).replace('$', '') }}
+                      </text>
+                    </template>
                     <line
                       class="income-average-line"
                       x1="0"
@@ -3255,6 +3430,54 @@ watch(
   stroke: rgba(148, 163, 184, 0.5);
   stroke-width: 0.65;
   stroke-dasharray: 2.5 2.5;
+}
+
+.income-bar-shadow {
+  fill: rgba(30, 64, 175, 0.15);
+  filter: url(#bar-shadow);
+  opacity: 0.6;
+}
+
+.income-bar {
+  fill: url(#bar-gradient);
+  stroke: rgba(37, 99, 235, 0.3);
+  stroke-width: 0.5;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  animation: barGrowIn 0.6s ease-out forwards;
+  opacity: 0;
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.income-bar:hover {
+  fill: url(#bar-highlight);
+  stroke: rgba(59, 130, 246, 0.5);
+  stroke-width: 0.8;
+  transform: scale(1.02) translateY(-1px);
+  filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.3));
+}
+
+@keyframes barGrowIn {
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.income-bar-highlight {
+  fill: url(#bar-highlight);
+  stroke: none;
+  opacity: 0.8;
+}
+
+.bar-value-label {
+  fill: #ffffff;
+  font-size: 3px;
+  font-weight: 700;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  user-select: none;
 }
 
 .income-dot {
