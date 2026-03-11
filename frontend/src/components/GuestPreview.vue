@@ -1556,15 +1556,13 @@ function noop() {}
                             : uiText.selectPackage
                         }}
                       </button>
-<<<<<<< HEAD
                       <button
                         type="button"
                         class="read-more-btn"
                         @click.stop="openPackageDetails(item.id)"
-                      >View Details</button>
-=======
-                      <span>{{ uiText.viewDetails }}</span>
->>>>>>> d12a1173e4941b7a545b98d160aa716f1c54076f
+                      >
+                        {{ uiText.viewDetails }}
+                      </button>
                     </div>
                   </div>
                 </div>
