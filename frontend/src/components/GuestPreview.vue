@@ -14,6 +14,7 @@ import {
   eventTypeMap,
   eventTypeOptions,
   packageImageByEventType,
+  fallbackVendorLocation,
   serviceFeeRate,
   vendorProfile,
 } from "../features/appData";
@@ -29,6 +30,7 @@ const section = computed(() => props.section);
 const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
@@ -250,6 +252,54 @@ const copyByLanguage = {
 };
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 
+// Demo seed for when API returns no events (keeps services list visible in preview)
+const fallbackDemoEvents = [
+  {
+    id: 9001,
+    title: "Signature Wedding Floral & Styling",
+    description: "Full-venue floral design, aisle & backdrop styling tailored for intimate to mid-size weddings.",
+    price: 1800,
+    event_type: "wedding",
+    location: "Phnom Penh, Cambodia",
+    starts_at: new Date().toISOString(),
+    image_url: packageImageByEventType.wedding,
+    vendor: { name: vendorProfile.name },
+  },
+  {
+    id: 9002,
+    title: "Monk Ceremony Setup",
+    description: "Respectful altar layout, seating, sound, and offering coordination with flexible timing.",
+    price: 650,
+    event_type: "monk_ceremony",
+    location: "Kandal Province",
+    starts_at: new Date().toISOString(),
+    image_url: packageImageByEventType.monk_ceremony,
+    vendor: { name: vendorProfile.name },
+  },
+  {
+    id: 9003,
+    title: "Corporate Gala Décor",
+    description: "Stage styling, centerpieces, brand color palette execution, and guest flow support.",
+    price: 2400,
+    event_type: "company_party",
+    location: "Phnom Penh, Cambodia",
+    starts_at: new Date().toISOString(),
+    image_url: packageImageByEventType.company_party,
+    vendor: { name: vendorProfile.name },
+  },
+  {
+    id: 9004,
+    title: "Birthday Backdrop & Balloon Bar",
+    description: "Photo-ready backdrop, themed props, and balloon bar for kids or adult celebrations.",
+    price: 520,
+    event_type: "birthday",
+    location: "Siem Reap, Cambodia",
+    starts_at: new Date().toISOString(),
+    image_url: packageImageByEventType.birthday,
+    vendor: { name: vendorProfile.name },
+  },
+];
+
 const pageContent = computed(() => {
   if (props.section === "favorite") {
     return {
@@ -314,6 +364,8 @@ const selectedPackageId = ref(null);
 const packageQuantity = ref(1);
 const selectedServiceIds = ref([]);
 const expandedServiceId = ref(null);
+const showVendorProfile = ref(false);
+const activeVendorProfile = ref(null);
 const packageEventType = ref("all");
 const packageSearch = ref("");
 const overallQuantity = ref(1);
@@ -423,18 +475,22 @@ const emptyDashboardStats = {
 const savedFavorites = (() => {
   try {
     const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
-    if (!raw) return { packageIds: [], serviceIds: [] };
+    if (!raw) return { packageIds: [], serviceIds: [], packageCache: {}, serviceCache: {} };
     const parsed = JSON.parse(raw);
     return {
       packageIds: Array.isArray(parsed.packageIds) ? parsed.packageIds : [],
       serviceIds: Array.isArray(parsed.serviceIds) ? parsed.serviceIds : [],
+      packageCache: parsed.packageCache && typeof parsed.packageCache === "object" ? parsed.packageCache : {},
+      serviceCache: parsed.serviceCache && typeof parsed.serviceCache === "object" ? parsed.serviceCache : {},
     };
   } catch {
-    return { packageIds: [], serviceIds: [] };
+    return { packageIds: [], serviceIds: [], packageCache: {}, serviceCache: {} };
   }
 })();
 const favoritePackageIds = ref(savedFavorites.packageIds);
 const favoriteServiceIds = ref(savedFavorites.serviceIds);
+const favoritePackageCache = ref(savedFavorites.packageCache);
+const favoriteServiceCache = ref(savedFavorites.serviceCache);
 const liveVendorEvents = ref([]);
 
 function formatEventDateLabel(value) {
@@ -452,6 +508,7 @@ function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
   const price = Number(item.price || 0);
   const vendorName = String(item.vendor?.name || "Verified Vendor");
+  const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -467,11 +524,14 @@ function mapEventToGuestPackage(item) {
     isPreview: false,
     backingEventId: Number(item.id || 0) || null,
     vendorName,
+    vendorImage,
+    vendor: item.vendor || null,
   };
 }
 
 function mapEventToGuestService(item) {
   const eventType = String(item.event_type || "other");
+  const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -483,15 +543,32 @@ function mapEventToGuestService(item) {
     vendorName: String(item.vendor?.name || "Verified Vendor"),
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
+    vendorImage,
+    vendor: item.vendor || null,
   };
 }
 
 async function loadLiveVendorEvents() {
+  // Try session cache first to avoid repeated network calls
+  try {
+    const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length) {
+        liveVendorEvents.value = parsed;
+        return;
+      }
+    }
+  } catch {
+    // ignore cache read errors
+  }
+
   try {
     const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
     if (rows.length) {
       liveVendorEvents.value = rows;
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
       return;
     }
 
@@ -510,8 +587,17 @@ async function loadLiveVendorEvents() {
       : Array.isArray(fallbackJson)
         ? fallbackJson
         : [];
-  } catch {
+    if (liveVendorEvents.value.length) {
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
+    }
+  } catch (error) {
+    console.error(error);
     liveVendorEvents.value = [];
+  }
+
+  // If nothing came back (common in guest preview), seed demo events so services show up
+  if (!liveVendorEvents.value.length) {
+    liveVendorEvents.value = fallbackDemoEvents;
   }
 }
 
@@ -1185,6 +1271,75 @@ function toggleServiceDetails(id) {
   expandedServiceId.value = expandedServiceId.value === id ? null : id;
 }
 
+function openServiceVendor(service) {
+  if (!service) return;
+  const eventTypeLabel =
+    eventTypeMap[service.eventType] || eventTypeMap[service.eventTypes?.[0]] || "Event";
+  const vendor = service.vendor || {};
+
+  activeVendorProfile.value = {
+    name: vendor.name || service.vendorName || vendorProfile.name,
+    subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
+    rating: vendor.rating || vendorProfile.rating,
+    serviceName: service.name,
+    servicePriceLabel: `$${Number(service.price || 0).toLocaleString()}`,
+    location: vendor.location || service.location || fallbackVendorLocation,
+    eventTypeLabel,
+    description: vendor.about || service.description || vendorProfile.about || vendorProfile.subtitle,
+    image:
+      vendor.cover_image_url ||
+      vendor.hero_image_url ||
+      vendor.profile_image_url ||
+      vendor.image_url ||
+      vendorProfile.heroImage ||
+      vendorProfile.image ||
+      service.vendorImage ||
+      service.vendor?.image_url ||
+      service.vendor?.profile_image_url ||
+      packageImageByEventType[service.eventType] ||
+      packageImageByEventType.other,
+    phone: vendor.phone || vendorProfile.phone,
+    email: vendor.email || vendorProfile.email,
+    website: vendor.website || vendorProfile.website,
+  };
+  showVendorProfile.value = true;
+}
+
+function openPackageVendor() {
+  if (!activePackage.value) return;
+  const vendor = activePackage.value.vendor || {};
+  activeVendorProfile.value = {
+    name: vendor.name || activePackage.value.vendorName || vendorProfile.name,
+    subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
+    rating: vendor.rating || vendorProfile.rating,
+    serviceName: activePackage.value.title,
+    servicePriceLabel: activePackage.value.priceLabel,
+    location: vendor.location || activePackage.value.location || fallbackVendorLocation,
+    eventTypeLabel: activePackage.value.eventTypeLabel,
+    description: vendor.about || activePackage.value.description || vendorProfile.about || vendorProfile.subtitle,
+    image:
+      vendor.cover_image_url ||
+      vendor.hero_image_url ||
+      vendor.profile_image_url ||
+      vendor.image_url ||
+      vendorProfile.heroImage ||
+      vendorProfile.image ||
+      activePackage.value.vendorImage ||
+      activePackage.value.vendor?.image_url ||
+      activePackage.value.vendor?.profile_image_url ||
+      activePackage.value.image,
+    phone: vendor.phone || vendorProfile.phone,
+    email: vendor.email || vendorProfile.email,
+    website: vendor.website || vendorProfile.website,
+  };
+  showVendorProfile.value = true;
+}
+
+function closeVendorProfile() {
+  showVendorProfile.value = false;
+  activeVendorProfile.value = null;
+}
+
 function clearFocusedCard() {
   if (focusedCardTimer) {
     clearTimeout(focusedCardTimer);
@@ -1283,25 +1438,46 @@ function persistFavorites() {
     JSON.stringify({
       packageIds: favoritePackageIds.value,
       serviceIds: favoriteServiceIds.value,
+      packageCache: favoritePackageCache.value,
+      serviceCache: favoriteServiceCache.value,
     }),
   );
   window.dispatchEvent(new Event("achar:favorites-updated"));
 }
 
 function syncFavoritesWithLiveCatalog() {
-  const validPackageIds = new Set(guestPreviewPackages.value.map((item) => item.id));
-  const validServiceIds = new Set(servicesCatalog.value.map((service) => service.id));
-  const nextPackageIds = favoritePackageIds.value.filter((id) => validPackageIds.has(id));
-  const nextServiceIds = favoriteServiceIds.value.filter((id) => validServiceIds.has(id));
-  const packagesChanged = nextPackageIds.length !== favoritePackageIds.value.length;
-  const servicesChanged = nextServiceIds.length !== favoriteServiceIds.value.length;
+  const packages = guestPreviewPackages.value;
+  const services = servicesCatalog.value;
+  // Avoid clearing favorites before catalogs finish loading
+  if (!packages.length && !services.length) return;
 
-  if (!packagesChanged && !servicesChanged) {
-    return;
-  }
+  const packageMap = new Map(packages.map((item) => [item.id, item]));
+  const serviceMap = new Map(services.map((service) => [service.id, service]));
 
-  favoritePackageIds.value = nextPackageIds;
-  favoriteServiceIds.value = nextServiceIds;
+  // refresh caches with latest catalog data
+  favoritePackageIds.value.forEach((id) => {
+    if (packageMap.has(id)) {
+      favoritePackageCache.value[id] = packageMap.get(id);
+    }
+  });
+  favoriteServiceIds.value.forEach((id) => {
+    if (serviceMap.has(id)) {
+      favoriteServiceCache.value[id] = serviceMap.get(id);
+    }
+  });
+
+  // prune cache entries no longer referenced
+  Object.keys(favoritePackageCache.value).forEach((id) => {
+    if (!favoritePackageIds.value.includes(id)) {
+      delete favoritePackageCache.value[id];
+    }
+  });
+  Object.keys(favoriteServiceCache.value).forEach((id) => {
+    if (!favoriteServiceIds.value.includes(id)) {
+      delete favoriteServiceCache.value[id];
+    }
+  });
+
   persistFavorites();
 }
 
@@ -1310,8 +1486,11 @@ function toggleFavoritePackage(id) {
     favoritePackageIds.value = favoritePackageIds.value.filter(
       (item) => item !== id,
     );
+    delete favoritePackageCache.value[id];
   } else {
     favoritePackageIds.value = [...favoritePackageIds.value, id];
+    const match = guestPreviewPackages.value.find((item) => item.id === id);
+    if (match) favoritePackageCache.value[id] = match;
   }
   persistFavorites();
 }
@@ -1321,8 +1500,11 @@ function toggleFavoriteService(id) {
     favoriteServiceIds.value = favoriteServiceIds.value.filter(
       (item) => item !== id,
     );
+    delete favoriteServiceCache.value[id];
   } else {
     favoriteServiceIds.value = [...favoriteServiceIds.value, id];
+    const match = servicesCatalog.value.find((service) => service.id === id);
+    if (match) favoriteServiceCache.value[id] = match;
   }
   persistFavorites();
 }
@@ -1336,15 +1518,15 @@ function isServiceFavorite(id) {
 }
 
 const favoritePackages = computed(() =>
-  guestPreviewPackages.value.filter((item) =>
-    favoritePackageIds.value.includes(item.id),
-  ),
+  favoritePackageIds.value
+    .map((id) => guestPreviewPackages.value.find((item) => item.id === id) || favoritePackageCache.value[id])
+    .filter(Boolean),
 );
 
 const favoriteServices = computed(() =>
-  servicesCatalog.value.filter((service) =>
-    favoriteServiceIds.value.includes(service.id),
-  ),
+  favoriteServiceIds.value
+    .map((id) => servicesCatalog.value.find((service) => service.id === id) || favoriteServiceCache.value[id])
+    .filter(Boolean),
 );
 const favoriteBookingPackageId = ref(null);
 const favoriteBookingQuantity = ref(1);
@@ -1884,6 +2066,7 @@ function noop() {}
                     :service-fee-rate="serviceFeeRate"
                     @toggle-service="toggleService(service.id)"
                     @toggle-details="toggleServiceDetails"
+                    @view-vendor="openServiceVendor(service)"
                     @message="goToSignIn"
                     @toggle-favorite="toggleFavoriteService"
                   />
@@ -2200,7 +2383,7 @@ function noop() {}
           <button
             type="button"
             class="modal-action-btn modal-action-neutral"
-            @click="goToVendor"
+            @click="openPackageVendor"
           >
             Vendor
           </button>
@@ -2210,6 +2393,58 @@ function noop() {}
             @click="openPrebookForm"
           >
             Pre-book Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showVendorProfile && activeVendorProfile"
+      class="package-modal-overlay"
+      @click="closeVendorProfile"
+    >
+      <div class="package-modal vendor-modal" @click.stop>
+        <div class="package-modal-head">
+          <div>
+            <p class="package-product-type">
+              {{ activeVendorProfile.eventTypeLabel }}
+            </p>
+            <h3>{{ activeVendorProfile.name }}</h3>
+            <small class="vendor-subtitle">{{ activeVendorProfile.subtitle }}</small>
+          </div>
+          <button
+            type="button"
+            class="package-modal-close"
+            @click="closeVendorProfile"
+          >
+            &times;
+          </button>
+        </div>
+        <img
+          class="package-modal-image vendor-modal-image"
+          :src="activeVendorProfile.image"
+          :alt="activeVendorProfile.name"
+        />
+        <div class="vendor-meta">
+          <p><strong>Service</strong><span>{{ activeVendorProfile.serviceName }}</span></p>
+          <p><strong>Price</strong><span>{{ activeVendorProfile.servicePriceLabel }}</span></p>
+          <p><strong>Event</strong><span>{{ activeVendorProfile.eventTypeLabel }}</span></p>
+          <p><strong>Rating</strong><span>{{ activeVendorProfile.rating }}</span></p>
+          <p><strong>Location</strong><span>{{ activeVendorProfile.location }}</span></p>
+          <p v-if="activeVendorProfile.phone"><strong>Phone</strong><span>{{ activeVendorProfile.phone }}</span></p>
+          <p v-if="activeVendorProfile.email"><strong>Email</strong><span>{{ activeVendorProfile.email }}</span></p>
+          <p v-if="activeVendorProfile.website">
+            <strong>Website</strong>
+            <span>{{ activeVendorProfile.website }}</span>
+          </p>
+        </div>
+        <p class="package-modal-desc">{{ activeVendorProfile.description }}</p>
+        <div class="package-modal-actions">
+          <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
+            Close
+          </button>
+          <button type="button" class="modal-action-btn modal-action-primary" @click="goToSignIn">
+            {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
       </div>
@@ -2456,6 +2691,111 @@ function noop() {}
   color: #64748b;
 }
 
+.customization-summary {
+  padding: 14px 16px;
+  border-radius: 18px;
+}
+
+.customization-summary h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.summary-items {
+  margin: 6px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8eef6;
+}
+
+.summary-items h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #7a869c;
+}
+
+.summary-items p {
+  margin: 4px 0 0;
+  color: #8d9bad;
+  font-size: 13px;
+}
+
+.summary-package {
+  margin-top: 4px;
+}
+
+.summary-package strong {
+  font-size: 14px;
+}
+
+.summary-package p {
+  margin: 2px 0 0;
+  color: #6b7a8f;
+  font-size: 13px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #f0f3f8;
+}
+
+.summary-row:first-of-type {
+  border-top: none;
+}
+
+.summary-row span {
+  font-weight: 700;
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.summary-row strong {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.summary-row.muted span,
+.summary-row.muted strong {
+  color: #8a96a9;
+}
+
+.summary-row input {
+  height: 36px;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.summary-total {
+  margin-top: 10px;
+  padding: 10px 0 12px;
+  border-top: 1px solid #e8edf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-total span {
+  font-size: 15px;
+}
+
+.summary-total strong {
+  font-size: 20px;
+  color: #e15c04;
+}
+
+.confirm-selection {
+  margin-top: 10px;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
+  padding: 11px;
+}
+
 .overall-count {
   border: 1px solid #d7e4f3;
   border-radius: 14px;
@@ -2479,7 +2819,7 @@ function noop() {}
 }
 
 .overall-list {
-  max-height: calc(100vh - 120px);
+  max-height: calc(100dvh - 80px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -2487,7 +2827,7 @@ function noop() {}
 .overall-summary {
   position: sticky;
   top: 12px;
-  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   height: fit-content;
@@ -2556,24 +2896,24 @@ function noop() {}
   background:
     radial-gradient(circle at 94% 14%, rgba(255, 106, 0, 0.1), transparent 35%),
     linear-gradient(180deg, #ffffff, #fbfdff);
-  padding: 18px 18px 16px;
-  margin-bottom: 10px;
+  padding: 12px 14px 12px;
+  margin-bottom: 8px;
 }
 
 .package-head-main h1 {
   margin: 0;
-  font-size: clamp(2rem, 3vw, 3rem);
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
   line-height: 1.08;
 }
 
 .package-head-main p {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   color: #64748b;
   max-width: 820px;
 }
 
 .package-toolbar {
-  margin-top: 14px;
+  margin-top: 10px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
@@ -3391,6 +3731,66 @@ function noop() {}
   gap: 10px;
 }
 
+.vendor-modal {
+  max-width: 640px;
+}
+
+.vendor-modal-image {
+  height: 260px;
+  object-fit: cover;
+}
+
+.vendor-subtitle {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.vendor-meta {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.vendor-meta p {
+  margin: 0;
+  border: 1px solid #e2e8f3;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+  display: grid;
+  gap: 6px;
+}
+
+.vendor-meta strong {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.vendor-meta span {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.vendor-modal .package-modal-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.view-vendor-btn {
+  border-color: #f5d0b5;
+  background: #fff7f1;
+  color: #c2410c;
+}
+
+.view-vendor-btn:hover {
+  background: #ffefe2;
+  border-color: #f2b98d;
+}
+
 .modal-action-btn {
   width: auto;
   min-height: 44px;
@@ -3828,7 +4228,7 @@ function noop() {}
 
 .package-layout-main {
   min-width: 0;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100dvh - 80px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -3836,7 +4236,7 @@ function noop() {}
 .package-summary {
   position: sticky;
   top: 12px;
-  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   margin-top: 0;

@@ -29,7 +29,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['toggle-service', 'toggle-details', 'message', 'toggle-favorite'])
+const emit = defineEmits(['toggle-service', 'toggle-details', 'message', 'toggle-favorite', 'view-vendor'])
 
 const copyByLanguage = {
   en: {
@@ -38,6 +38,7 @@ const copyByLanguage = {
     addService: 'Add Service',
     hideDetails: 'Hide Details',
     viewDetails: 'View Details',
+    viewVendor: 'View Vendor',
     messageVendor: 'Message Vendor',
     recommendedFor: 'Recommended for:',
     serviceFee: 'Service fee:',
@@ -46,17 +47,18 @@ const copyByLanguage = {
     preBookingValue: 'Available after selecting this service.',
   },
   km: {
-    other: 'ផ្សេងៗ',
-    selected: 'បានជ្រើស',
-    addService: 'បន្ថែមសេវាកម្ម',
-    hideDetails: 'លាក់ព័ត៌មានលម្អិត',
-    viewDetails: 'មើលព័ត៌មានលម្អិត',
-    messageVendor: 'ផ្ញើសារទៅអ្នកផ្គត់ផ្គង់',
-    recommendedFor: 'ណែនាំសម្រាប់:',
-    serviceFee: 'ថ្លៃសេវា:',
-    estimatedTotal: 'តម្លៃសរុបប៉ាន់ស្មាន:',
-    preBooking: 'ការកក់មុន:',
-    preBookingValue: 'អាចប្រើបានបន្ទាប់ពីជ្រើសរើសសេវានេះ។',
+    other: '????????',
+    selected: '????????',
+    addService: '??????????????',
+    hideDetails: '?????????????????',
+    viewDetails: '????????????????',
+    viewVendor: '?????????????????',
+    messageVendor: '?????????????????????????',
+    recommendedFor: '?????????????:',
+    serviceFee: '????????:',
+    estimatedTotal: '???????????????:',
+    preBooking: '???????????:',
+    preBookingValue: '???????????????????????????????????',
   },
   zh: {
     other: '其他',
@@ -64,6 +66,7 @@ const copyByLanguage = {
     addService: '添加服务',
     hideDetails: '隐藏详情',
     viewDetails: '查看详情',
+    viewVendor: '查看商家',
     messageVendor: '联系商家',
     recommendedFor: '推荐用于：',
     serviceFee: '服务费：',
@@ -126,6 +129,9 @@ function formatCurrency(value) {
       </button>
       <button type="button" class="read-more-btn" @click.stop="emit('toggle-details', service.id)">
         {{ isExpanded ? uiText.hideDetails : uiText.viewDetails }}
+      </button>
+      <button type="button" class="message-vendor-btn view-vendor-btn" @click.stop="emit('view-vendor', service.id)">
+        {{ uiText.viewVendor }}
       </button>
       <button type="button" class="message-vendor-btn" @click.stop="emit('message')">
         {{ uiText.messageVendor }}
