@@ -31,6 +31,18 @@ const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
 const isCreateServiceModalOpen = ref(false);
+const isCreatePackageModalOpen = ref(false);
+const selectedPackageTypes = ref([]);
+const selectedPackageServices = ref([]);
+const packageForm = ref({
+  title: "",
+  description: "",
+  price: 0,
+  starts_at: "",
+  image_url: "",
+  image_file: null,
+});
+
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
@@ -452,8 +464,6 @@ function submitServiceForm() {
 
 function handleVendorServiceImageChange(event) {
   const [file] = Array.from(event?.target?.files || []);
-  if (!props.vendorServiceForm) return;
-
   if (!file) {
     props.vendorServiceForm.image_file = null;
     return;
@@ -736,13 +746,7 @@ watch(
                 stroke-width="2"
               />
               <path
-                d="M8 2v4M16 2v4"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-              <path
-                d="M3 10h18"
+                d="M8 2v4M16 2v4M3 10h18"
                 stroke="currentColor"
                 stroke-width="2"
                 stroke-linecap="round"
@@ -854,8 +858,8 @@ watch(
     <section class="main-panel">
       <header class="dashboard-head vendor-dashboard-head">
         <div class="dashboard-head-main">
-          <span class="dash-chip">{{ uiText.dashboardEyebrow }}</span>
-          <h1>{{ uiText.dashboardTitle }}</h1>
+          <span class="dash-chip">{{ uiText.performance }}</span>
+          <h1>{{ uiText.incomeTrend }}</h1>
           <p>{{ uiText.dashboardText }}</p>
           <div class="dashboard-inline-stats">
             <span
@@ -874,15 +878,6 @@ watch(
         </div>
 
         <div class="vendor-head-actions">
-          <div class="dashboard-actions">
-            <button
-              type="button"
-              class="btn-accent"
-              @click="openCreateServiceModal"
-            >
-              {{ uiText.newService }}
-            </button>
-          </div>
           <div class="signed-user">
             <span>{{ uiText.signedInAs }}</span>
             <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
@@ -1230,216 +1225,336 @@ watch(
               <p class="eyebrow">{{ uiText.createService }}</p>
               <h2>{{ uiText.insertService }}</h2>
             </div>
-            <span class="badge">Visible to users when active</span>
-          </div>
-
-          <form class="service-form" @submit.prevent="submitServiceForm">
-            <label class="field">
-              <span>Service name</span>
-              <input
-                :value="props.vendorServiceForm?.title || ''"
-                type="text"
-                placeholder="Community Workshop"
-                @input="props.vendorServiceForm.title = $event.target.value"
-              />
-            </label>
-
-            <label class="field">
-              <span>Types</span>
-              <select
-                :value="props.vendorServiceForm?.event_type || ''"
-                @change="
-                  props.vendorServiceForm.event_type = $event.target.value
-                "
-              >
-                <option
-                  v-for="option in eventOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Number of count</span>
-              <input
-                :value="props.vendorServiceForm?.capacity ?? 1"
-                type="number"
-                min="1"
-                placeholder="50"
-                @input="
-                  props.vendorServiceForm.capacity = Number($event.target.value)
-                "
-              />
-            </label>
-
-            <label class="field">
-              <span>Price</span>
-              <input
-                :value="props.vendorServiceForm?.price ?? 0"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="150"
-                @input="
-                  props.vendorServiceForm.price = Number($event.target.value)
-                "
-              />
-            </label>
-
-            <label class="field">
-              <span>Location</span>
-              <input
-                :value="props.vendorServiceForm?.location || ''"
-                type="text"
-                placeholder="Phnom Penh"
-                @input="props.vendorServiceForm.location = $event.target.value"
-              />
-            </label>
-
-            <div class="field">
-              <span>Map location</span>
-              <button
-                type="button"
-                class="secondary-button location-button"
-                :disabled="isDetectingVendorLocation"
-                @click="detectVendorLocation"
-              >
-                {{
-                  isDetectingVendorLocation
-                    ? "Detecting location..."
-                    : "Use Current Location"
-                }}
+            <div v-if="!showServiceForm && !showPackageForm" class="action-buttons">
+              <button type="button" class="primary-button" @click="openServiceForm">
+                {{ uiText.newService }}
+              </button>
+              <button type="button" class="secondary-button" @click="openPackageForm">
+                Add Package Service
               </button>
             </div>
+          </div>
 
-            <div class="field field-full location-tools">
-              <p v-if="vendorLocationNotice" class="location-notice">
-                {{ vendorLocationNotice }}
-              </p>
-              <p
-                v-if="
-                  props.vendorServiceForm?.location_latitude !== null &&
-                  props.vendorServiceForm?.location_longitude !== null
-                "
-                class="location-coords"
-              >
-                Lat:
-                {{
-                  Number(props.vendorServiceForm.location_latitude).toFixed(6)
-                }}, Lng:
-                {{
-                  Number(props.vendorServiceForm.location_longitude).toFixed(6)
-                }}
-              </p>
-              <iframe
-                v-if="vendorLocationMapEmbedUrl"
-                class="location-map-frame"
-                :src="vendorLocationMapEmbedUrl"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
-              <a
-                v-if="vendorLocationMapLinkUrl"
-                class="location-map-link"
-                :href="vendorLocationMapLinkUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open current location in map
-              </a>
-            </div>
-
-            <label class="field">
-              <span>Start date and time</span>
-              <input
-                :value="props.vendorServiceForm?.starts_at || ''"
-                type="datetime-local"
-                @input="props.vendorServiceForm.starts_at = $event.target.value"
-              />
-            </label>
-
-            <label class="field field-full">
-              <span>Picture of services</span>
-              <input
-                type="file"
-                accept="image/*"
-                @change="handleVendorServiceImageChange"
-              />
-              <small class="field-hint"
-                >Choose an image from your device.</small
-              >
-            </label>
-
-            <label class="field field-full">
-              <span>Or paste image link</span>
-              <input
-                :value="props.vendorServiceForm?.image_url || ''"
-                type="url"
-                placeholder="https://example.com/service-photo.jpg"
-                @input="handleVendorServiceImageUrlInput"
-              />
-            </label>
-
-            <div
-              v-if="props.vendorServiceForm?.image_url"
-              class="field field-full"
-            >
-              <span>Preview</span>
-              <div class="image-preview-card">
-                <img
-                  class="image-preview"
-                  :src="props.vendorServiceForm.image_url"
-                  alt="Selected service preview"
+          <!-- Service Form Inline -->
+          <div v-if="showServiceForm">
+            <form class="service-form" @submit.prevent="submitServiceForm">
+              <label class="field">
+                <span>Service name</span>
+                <input
+                  :value="props.vendorServiceForm?.title || ''"
+                  type="text"
+                  placeholder="Community Workshop"
+                  @input="props.vendorServiceForm.title = $event.target.value"
                 />
+              </label>
+
+              <label class="field">
+                <span>Types</span>
+                <select
+                  :value="props.vendorServiceForm?.event_type || ''"
+                  @change="
+                    props.vendorServiceForm.event_type = $event.target.value
+                  "
+                >
+                  <option
+                    v-for="option in eventOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Number of count</span>
+                <input
+                  :value="props.vendorServiceForm?.capacity ?? 1"
+                  type="number"
+                  min="1"
+                  placeholder="50"
+                  @input="
+                    props.vendorServiceForm.capacity = Number($event.target.value)
+                  "
+                />
+              </label>
+
+              <label class="field">
+                <span>Price</span>
+                <input
+                  :value="props.vendorServiceForm?.price ?? 0"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="150"
+                  @input="
+                    props.vendorServiceForm.price = Number($event.target.value)
+                  "
+                />
+              </label>
+
+              <label class="field">
+                <span>Location</span>
+                <input
+                  :value="props.vendorServiceForm?.location || ''"
+                  type="text"
+                  placeholder="Phnom Penh"
+                  @input="props.vendorServiceForm.location = $event.target.value"
+                />
+              </label>
+
+              <div class="field">
+                <span>Map location</span>
+                <button
+                  type="button"
+                  class="secondary-button location-button"
+                  :disabled="isDetectingVendorLocation"
+                  @click="detectVendorLocation"
+                >
+                  {{
+                    isDetectingVendorLocation
+                      ? "Detecting location..."
+                      : "Use Current Location"
+                  }}
+                </button>
+              </div>
+
+              <div class="field field-full location-tools">
+                <p v-if="vendorLocationNotice" class="location-notice">
+                  {{ vendorLocationNotice }}
+                </p>
+                <p
+                  v-if="
+                    props.vendorServiceForm?.location_latitude !== null &&
+                    props.vendorServiceForm?.location_longitude !== null
+                  "
+                  class="location-coords"
+                >
+                  Lat:
+                  {{
+                    Number(props.vendorServiceForm.location_latitude).toFixed(6)
+                  }}, Lng:
+                  {{
+                    Number(props.vendorServiceForm.location_longitude).toFixed(6)
+                  }}
+                </p>
+                <iframe
+                  v-if="vendorLocationMapEmbedUrl"
+                  class="location-map-frame"
+                  :src="vendorLocationMapEmbedUrl"
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                ></iframe>
+                <a
+                  v-if="vendorLocationMapLinkUrl"
+                  class="location-map-link"
+                  :href="vendorLocationMapLinkUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open current location in map
+                </a>
+              </div>
+
+              <label class="field">
+                <span>Start date and time</span>
+                <input
+                  :value="props.vendorServiceForm?.starts_at || ''"
+                  type="datetime-local"
+                  @input="props.vendorServiceForm.starts_at = $event.target.value"
+                />
+              </label>
+
+              <label class="field field-full">
+                <span>Picture of services</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  @change="handleVendorServiceImageChange"
+                />
+                <small class="field-hint"
+                  >Choose an image from your device.</small>
+              </label>
+
+              <label class="field field-full">
+                <span>Or paste image link</span>
+                <input
+                  :value="props.vendorServiceForm?.image_url || ''"
+                  type="url"
+                  placeholder="https://example.com/service-photo.jpg"
+                  @input="handleVendorServiceImageUrlInput"
+                />
+              </label>
+
+              <div
+                v-if="props.vendorServiceForm?.image_url"
+                class="field field-full"
+              >
+                <span>Preview</span>
+                <div class="image-preview-card">
+                  <img
+                    class="image-preview"
+                    :src="props.vendorServiceForm.image_url"
+                    alt="Selected service preview"
+                  />
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    @click="clearVendorServiceImage"
+                  >
+                    Remove image
+                  </button>
+                </div>
+              </div>
+
+              <label class="field field-full">
+                <span>Service information</span>
+                <textarea
+                  :value="props.vendorServiceForm?.description || ''"
+                  placeholder="Describe the service, what is included, and what the customer should know."
+                  @input="
+                    props.vendorServiceForm.description = $event.target.value
+                  "
+                ></textarea>
+              </label>
+
+              <div class="form-actions">
                 <button
                   type="button"
                   class="secondary-button"
-                  @click="clearVendorServiceImage"
+                  @click="closeForms"
                 >
-                  Remove image
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="primary-button"
+                  :disabled="props.isSubmittingVendorService"
+                >
+                  {{
+                    props.isSubmittingVendorService ? "Saving..." : "Create Service"
+                  }}
                 </button>
               </div>
-            </div>
+            </form>
+            <p
+              v-if="props.vendorServiceNotice"
+              class="notice"
+              :class="{
+                'notice-success': vendorServiceNoticeTone === 'success',
+                'notice-error': vendorServiceNoticeTone === 'error',
+              }"
+            >
+              {{ props.vendorServiceNotice }}
+            </p>
+          </div>
 
-            <label class="field field-full">
-              <span>Service information</span>
-              <textarea
-                :value="props.vendorServiceForm?.description || ''"
-                placeholder="Describe the service, what is included, and what the customer should know."
-                @input="
-                  props.vendorServiceForm.description = $event.target.value
-                "
-              ></textarea>
-            </label>
+          <!-- Package Form Inline -->
+          <div v-if="showPackageForm">
+            <form class="service-form" @submit.prevent="submitPackageForm">
+              <label class="field">
+                <span>Package Name</span>
+                <input
+                  v-model="packageForm.title"
+                  type="text"
+                  placeholder="Wedding Package Bundle"
+                />
+              </label>
 
-            <div class="form-actions">
-              <button
-                type="submit"
-                class="primary-button"
-                :disabled="props.isSubmittingVendorService"
-              >
-                {{
-                  props.isSubmittingVendorService
-                    ? "Saving..."
-                    : "Create Service"
-                }}
-              </button>
-            </div>
-          </form>
+              <label class="field">
+                <span>Select Event Types</span>
+                <select multiple v-model="selectedPackageTypes">
+                  <option
+                    v-for="type in Object.keys(groupedServicesByType)"
+                    :key="type"
+                    :value="type"
+                  >
+                    {{ type }}
+                  </option>
+                </select>
+              </label>
 
-          <p
-            v-if="props.vendorServiceNotice"
-            class="notice"
-            :class="{
-              'notice-success': vendorServiceNoticeTone === 'success',
-              'notice-error': vendorServiceNoticeTone === 'error',
-            }"
-          >
-            {{ props.vendorServiceNotice }}
-          </p>
+              <div v-if="selectedPackageTypes.length" class="field field-full">
+                <span>Select Services to Include</span>
+                <div class="package-services-list">
+                  <div v-for="type in selectedPackageTypes" :key="type" class="type-group">
+                    <h4>{{ type }}</h4>
+                    <ul>
+                      <li v-for="service in groupedServicesByType[type]" :key="service.id">
+                        <label>
+                          <input
+                            type="checkbox"
+                            :value="service.id"
+                            v-model="selectedPackageServices"
+                          />
+                          {{ service.title }} ({{ service.priceLabel }})
+                        </label>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Total Package Price</span>
+                <input
+                  v-model.number="packageForm.price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="1500"
+                />
+              </label>
+
+              <label class="field">
+                <span>Start Date & Time</span>
+                <input v-model="packageForm.starts_at" type="datetime-local" />
+              </label>
+
+              <label class="field field-full">
+                <span>Package Image</span>
+                <input type="file" accept="image/*" @change="handlePackageImageChange" />
+                <small class="field-hint">Choose an image for the package.</small>
+              </label>
+
+              <label class="field field-full">
+                <span>Or Paste Image Link</span>
+                <input
+                  v-model="packageForm.image_url"
+                  type="url"
+                  placeholder="https://example.com/package-photo.jpg"
+                  @input="handlePackageImageUrlInput"
+                />
+              </label>
+
+              <div v-if="packageForm.image_url" class="field field-full">
+                <span>Preview</span>
+                <div class="image-preview-card">
+                  <img class="image-preview" :src="packageForm.image_url" alt="Package preview" />
+                  <button type="button" class="secondary-button" @click="clearPackageImage">
+                    Remove Image
+                  </button>
+                </div>
+              </div>
+
+              <label class="field field-full">
+                <span>Package Description</span>
+                <textarea
+                  v-model="packageForm.description"
+                  placeholder="Describe the package, including bundled services and benefits."
+                ></textarea>
+              </label>
+
+              <div class="form-actions">
+                <button type="button" class="secondary-button" @click="closeForms">
+                  Cancel
+                </button>
+                <button type="submit" class="primary-button">
+                  Create Package
+                </button>
+              </div>
+            </form>
+          </div>
         </article>
 
         <article class="panel">
@@ -1587,10 +1702,15 @@ watch(
                     stroke-width="1.8"
                   />
                   <path
-                    d="M8 12l3 3 5-5"
+                    d="M8 12h.01M12 12h.01M16 12h.01"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
                     stroke="currentColor"
                     stroke-width="1.8"
-                    stroke-linecap="round"
                     stroke-linejoin="round"
                   />
                 </svg>
@@ -2020,7 +2140,9 @@ watch(
             <span>Types</span>
             <select
               :value="props.vendorServiceForm?.event_type || ''"
-              @change="props.vendorServiceForm.event_type = $event.target.value"
+              @change="
+                props.vendorServiceForm.event_type = $event.target.value
+              "
             >
               <option
                 v-for="option in eventOptions"
@@ -2177,11 +2299,20 @@ watch(
             <textarea
               :value="props.vendorServiceForm?.description || ''"
               placeholder="Describe the service, what is included, and what the customer should know."
-              @input="props.vendorServiceForm.description = $event.target.value"
+              @input="
+                props.vendorServiceForm.description = $event.target.value
+              "
             ></textarea>
           </label>
 
           <div class="form-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              @click="closeForms"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               class="primary-button"
@@ -2204,6 +2335,125 @@ watch(
         >
           {{ props.vendorServiceNotice }}
         </p>
+      </section>
+    </div>
+
+    <!-- New Package Creation Modal -->
+    <div v-if="isCreatePackageModalOpen" class="modal-backdrop" @click="closeCreatePackageModal">
+      <section class="modal-card" @click.stop>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Create Package</p>
+            <h2>Add Package Service</h2>
+          </div>
+          <button type="button" class="secondary-button" @click="closeCreatePackageModal">
+            Close
+          </button>
+        </div>
+
+        <form class="service-form" @submit.prevent="submitPackageForm">
+          <label class="field">
+            <span>Package Name</span>
+            <input
+              v-model="packageForm.title"
+              type="text"
+              placeholder="Wedding Package Bundle"
+            />
+          </label>
+
+          <label class="field">
+            <span>Select Event Types</span>
+            <select multiple v-model="selectedPackageTypes">
+              <option
+                v-for="type in Object.keys(groupedServicesByType)"
+                :key="type"
+                :value="type"
+              >
+                {{ type }}
+              </option>
+            </select>
+          </label>
+
+          <div v-if="selectedPackageTypes.length" class="field field-full">
+            <span>Select Services to Include</span>
+            <div class="package-services-list">
+              <div v-for="type in selectedPackageTypes" :key="type" class="type-group">
+                <h4>{{ type }}</h4>
+                <ul>
+                  <li v-for="service in groupedServicesByType[type]" :key="service.id">
+                    <label>
+                      <input
+                        type="checkbox"
+                        :value="service.id"
+                        v-model="selectedPackageServices"
+                      />
+                      {{ service.title }} ({{ service.priceLabel }})
+                    </label>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Total Package Price</span>
+            <input
+              v-model.number="packageForm.price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="1500"
+            />
+          </label>
+
+          <label class="field">
+            <span>Start Date & Time</span>
+            <input v-model="packageForm.starts_at" type="datetime-local" />
+          </label>
+
+          <label class="field field-full">
+            <span>Package Image</span>
+            <input type="file" accept="image/*" @change="handlePackageImageChange" />
+            <small class="field-hint">Choose an image for the package.</small>
+          </label>
+
+          <label class="field field-full">
+            <span>Or Paste Image Link</span>
+            <input
+              v-model="packageForm.image_url"
+              type="url"
+              placeholder="https://example.com/package-photo.jpg"
+              @input="handlePackageImageUrlInput"
+            />
+          </label>
+
+          <div v-if="packageForm.image_url" class="field field-full">
+            <span>Preview</span>
+            <div class="image-preview-card">
+              <img class="image-preview" :src="packageForm.image_url" alt="Package preview" />
+              <button type="button" class="secondary-button" @click="clearPackageImage">
+                Remove Image
+              </button>
+            </div>
+          </div>
+
+          <label class="field field-full">
+            <span>Package Description</span>
+            <textarea
+              v-model="packageForm.description"
+              placeholder="Describe the package, including bundled services and benefits."
+            ></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="button" class="secondary-button" @click="closeForms">
+              Cancel
+            </button>
+            <button type="submit" class="primary-button">
+              Create Package
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   </main>
@@ -2491,7 +2741,7 @@ watch(
   border: 1px solid rgba(148, 163, 184, 0.18);
   box-shadow:
     0 4px 18px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
 }
 
 .vendor-avatar {

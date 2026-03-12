@@ -368,6 +368,7 @@ const showVendorProfile = ref(false);
 const activeVendorProfile = ref(null);
 const packageEventType = ref("all");
 const packageSearch = ref("");
+const overallTab = ref("services");
 const overallQuantity = ref(1);
 
 const lastQty = ref(1);
@@ -438,6 +439,17 @@ watch(
   { immediate: true },
 );
 
+watch(overallTab, (mode) => {
+  if (mode === "packages") {
+    selectedServiceIds.value = [];
+    expandedServiceId.value = null;
+    overallQuantity.value = 1;
+  } else {
+    selectedPackageId.value = null;
+    packageQuantity.value = 1;
+  }
+});
+
 const guestPreviewPackagesFiltered = computed(() => {
   const filter = packageEventType.value;
   const query = packageSearch.value.trim().toLowerCase();
@@ -454,6 +466,15 @@ const guestPreviewPackagesFiltered = computed(() => {
   }
   return rows;
 });
+
+const overallPackagesWithTotals = computed(() =>
+  guestPreviewPackagesFiltered.value.map((pkg) => {
+    const serviceCount = Array.isArray(pkg.services) ? pkg.services.length : 0;
+    const basePrice = Number(pkg.price || 0);
+    const perService = serviceCount > 0 ? Math.max(1, Math.round(basePrice / serviceCount)) : 0;
+    return { ...pkg, serviceCount, perService };
+  }),
+);
 
 const filteredGuestBookings = computed(() => {
   const activeType = bookingFilter.value;
@@ -1724,6 +1745,32 @@ function noop() {}
     <PublicNavbar />
 
     <main class="shell guest-content">
+      <section class="card service-switch">
+        <div class="service-switch-text">
+          <p class="eyebrow">Choose what to add</p>
+          <h2>Add a general service or create a package</h2>
+          <p>Start with the option you need before filling the details below.</p>
+        </div>
+        <div class="service-switch-actions">
+          <button
+            type="button"
+            class="cta-btn"
+            :class="{ active: section === 'services-overall' }"
+            @click="goToSection('services-overall')"
+          >
+            + General Services
+          </button>
+          <button
+            type="button"
+            class="cta-btn outline"
+            :class="{ active: section === 'services-packages' }"
+            @click="goToSection('services-packages')"
+          >
+            + Package Services
+          </button>
+        </div>
+      </section>
+
       <section
         v-if="section !== 'services-overall' && section !== 'services-packages'"
         class="guest-panel"
@@ -1741,6 +1788,8 @@ function noop() {}
         :recent-bookings="[]"
         :recent-conversations="[]"
         :go-to-vendor="() => goToSection('services-packages')"
+        :go-to-general-services="() => goToSection('services-overall')"
+        :go-to-package-services="() => goToSection('services-packages')"
         :go-to-bookings="() => goToSection('bookings')"
         :go-to-messages="goToSignIn"
         :go-to-package-customization="() => goToSection('customization')"
@@ -1982,7 +2031,7 @@ function noop() {}
         <section class="overall-head card">
           <div class="overall-head-main">
             <div class="flow-head-row">
-              <h1>General Services</h1>
+              <h1>{{ overallTab === "services" ? "General Services" : "Package Services" }}</h1>
               <div v-if="isFromCheckout" class="checkout-flow-steps">
                 <RouterLink
                   :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
@@ -1995,11 +2044,55 @@ function noop() {}
                 </RouterLink>
               </div>
             </div>
-            <p>
+            <p v-if="overallTab === 'services'">
               Browse all available add-on services. Filter by event type, then
               save favorites before signing in.
             </p>
-            <div class="overall-toolbar">
+            <p v-else>
+              Review packaged vendor services that bundle multiple services together and show the combined total.
+            </p>
+            <div class="add-toggle-actions" role="group" aria-label="Switch between adding services or packages">
+              <button
+                type="button"
+                class="cta-btn"
+                :class="{ active: overallTab === 'services' }"
+                @click="overallTab = 'services'"
+              >
+                + Add General Service
+              </button>
+              <button
+                type="button"
+                class="cta-btn outline"
+                :class="{ active: overallTab === 'packages' }"
+                @click="overallTab = 'packages'"
+              >
+                + Add Package
+              </button>
+            </div>
+            <div class="dual-toggle" aria-label="Choose to add services or packages">
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: overallTab === 'services' }"
+                @click="overallTab = 'services'"
+                aria-pressed="overallTab === 'services'"
+              >
+                Add Service
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: overallTab === 'packages' }"
+                @click="overallTab = 'packages'"
+                aria-pressed="overallTab === 'packages'"
+              >
+                Add Package
+              </button>
+            </div>
+            <div
+              v-if="overallTab === 'services'"
+              class="overall-toolbar"
+            >
               <label class="filter-field">
                 <span>Event type</span>
                 <select
@@ -2026,15 +2119,54 @@ function noop() {}
                   @input="customizationSearch.value = $event.target.value"
                 />
               </label>
-                <div class="overall-count">
+              <div class="overall-count">
                 {{ matchingServicesFiltered.length }} services
-                
-                </div>
               </div>
+            </div>
+
+            <div
+              v-else
+              class="overall-toolbar"
+            >
+              <label class="filter-field">
+                <span>{{ uiText.eventType }}</span>
+                <select
+                  class="event-type-select"
+                  :value="packageEventType"
+                  @change="packageEventType = $event.target.value"
+                >
+                  <option
+                    v-for="option in eventTypeOptions"
+                    :key="`overall-pkg-${option.value}`"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>{{ uiText.search }}</span>
+                <input
+                  class="customization-search"
+                  type="search"
+                  :placeholder="uiText.searchPackages"
+                  :value="packageSearch"
+                  @input="packageSearch = $event.target.value"
+                />
+              </label>
+              <div class="overall-count">
+                {{ overallPackagesWithTotals.length }}
+                {{
+                  overallPackagesWithTotals.length === 1
+                    ? uiText.packageCountSingle
+                    : uiText.packageCount
+                }}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section class="overall-layout">
+        <section v-if="overallTab === 'services'" class="overall-layout">
           <div class="overall-list">
             <article class="customization-section">
               <div class="customization-section-head">
@@ -2129,6 +2261,167 @@ function noop() {}
             {{ uiText.prebookNow }}
           </button>
         </aside>
+        </section>
+
+        <section v-else class="overall-layout">
+          <div class="overall-list">
+            <article class="customization-section">
+              <div class="customization-section-head">
+                <span>P</span>
+                <h2>Package Services</h2>
+              </div>
+
+              <div
+                v-if="overallPackagesWithTotals.length === 0"
+                class="card empty-state"
+              >
+                {{ uiText.noPackagesForEvent }}
+              </div>
+
+              <div class="package-grid">
+                <article
+                  v-for="item in overallPackagesWithTotals"
+                  :key="item.id"
+                  class="package-product-card package-compact"
+                >
+                  <div class="package-card-image-wrap">
+                    <img class="package-card-image" :src="item.image" :alt="item.title" />
+                    <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
+                    <button
+                      type="button"
+                      class="package-fav-badge"
+                      :class="{ active: isPackageFavorite(item.id) }"
+                      @click.stop="toggleFavoritePackage(item.id)"
+                      :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
+                    >
+                      {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
+                    </button>
+                  </div>
+
+                  <div class="package-product-body">
+                    <h3>{{ item.title }}</h3>
+                    <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
+
+                    <ul class="package-breakdown">
+                      <li v-for="svc in item.services" :key="svc.name">
+                        <div>
+                          <strong>{{ svc.name }}</strong>
+                          <small>{{ svc.detail }}</small>
+                        </div>
+                        <span v-if="item.perService" class="package-service-price">
+                          ~${{ item.perService.toLocaleString() }}
+                        </span>
+                      </li>
+                    </ul>
+
+                    <div class="package-meta-row">
+                      <span>{{ item.serviceCount }} services included</span>
+                      <strong>Total ${{ Number(item.price || 0).toLocaleString() }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="package-product-actions">
+                    <button
+                      type="button"
+                      class="choice-indicator package-book-btn"
+                      @click.stop="selectPackage(item.id)"
+                    >
+                      {{
+                        selectedPackageId === item.id
+                          ? uiText.selected
+                          : uiText.selectPackage
+                      }}
+                    </button>
+                    <button type="button" class="view-details-btn" @click.stop="openPackageDetails(item.id)">
+                      {{ uiText.viewDetails }}
+                    </button>
+                    <button
+                      type="button"
+                      class="favorite-btn"
+                      :class="{ active: isPackageFavorite(item.id) }"
+                      @click.stop="toggleFavoritePackage(item.id)"
+                      :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
+                    >
+                      {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </article>
+          </div>
+
+          <aside class="card customization-summary overall-summary">
+            <h2>{{ uiText.bookingSummary }}</h2>
+            <div class="summary-items">
+              <h3>{{ uiText.selectedPackage }}</h3>
+              <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
+              <div v-else class="summary-package">
+                <strong>{{ selectedPackage.title }}</strong>
+                <p>
+                  {{ selectedPackage.eventTypeLabel }} |
+                  {{ selectedPackage.location }}
+                </p>
+                <small>{{ (selectedPackage.services && selectedPackage.services.length) || 0 }} services included</small>
+              </div>
+            </div>
+
+            <div class="summary-row">
+              <span>{{ uiText.quantity }}</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                :value="packageQuantity"
+                @input="packageQtyChanged"
+              />
+            </div>
+            <div class="summary-row">
+              <span>{{ uiText.packagePrice }}</span>
+              <strong>${{ packagePrice.toLocaleString() }}</strong>
+            </div>
+
+            <div class="summary-items">
+              <h3>Included services</h3>
+              <p v-if="!selectedPackage">{{ uiText.selectPackage }}</p>
+              <ul v-else class="package-breakdown summary">
+                <li v-for="svc in selectedPackage.services" :key="svc.name">
+                  <div>
+                    <strong>{{ svc.name }}</strong>
+                    <small>{{ svc.detail }}</small>
+                  </div>
+                  <span class="package-service-price">
+                    ~${{
+                      Math.max(
+                        1,
+                        Math.round(
+                          Number(selectedPackage.price || 0) / Math.max(1, selectedPackage.services?.length || 1),
+                        ),
+                      ).toLocaleString()
+                    }}
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="summary-row muted">
+              <span>{{ uiText.serviceFee }}</span>
+              <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+            </div>
+
+            <div class="summary-total">
+              <span>{{ uiText.totalPrice }}</span>
+              <strong>${{ totalPrice.toLocaleString() }}</strong>
+            </div>
+
+            <button
+              type="button"
+              class="confirm-selection"
+              :disabled="!selectedPackage"
+              @click="openPrebookForm"
+            >
+              {{ uiText.prebookNow }}
+            </button>
+          </aside>
         </section>
       </section>
 
@@ -3248,6 +3541,168 @@ function noop() {}
   width: 34px;
   height: 34px;
   flex-shrink: 0;
+}
+
+.dual-toggle {
+  display: inline-flex;
+  gap: 10px;
+  margin: 12px 0 8px;
+  padding: 6px;
+  background: #f7fafc;
+  border-radius: 14px;
+  border: 1px solid #e2e8f3;
+}
+
+.toggle-btn {
+  border: 1px solid transparent;
+  background: #fff;
+  color: #475569;
+  font-weight: 800;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.toggle-btn:not(.active):hover {
+  border-color: #e2e8f3;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #ffe7d6, #ffd3ad);
+  border-color: #f9c089;
+  color: #b45309;
+  box-shadow: 0 8px 22px rgba(242, 92, 5, 0.16);
+  transform: translateY(-1px);
+}
+
+.add-toggle-actions {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 6px;
+  flex-wrap: wrap;
+}
+
+.cta-btn {
+  border: 1px solid #f25c05;
+  background: #f25c05;
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(242, 92, 5, 0.18);
+  transition: all 140ms ease;
+}
+
+.cta-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(242, 92, 5, 0.22);
+}
+
+.cta-btn.outline {
+  background: #fff;
+  color: #c2410c;
+  border-color: #f8c39b;
+  box-shadow: none;
+}
+
+.cta-btn.outline.active {
+  border-color: #f25c05;
+  color: #f25c05;
+  box-shadow: 0 8px 18px rgba(242, 92, 5, 0.12);
+}
+
+.service-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.service-switch-text h2 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+}
+
+.service-switch-text p {
+  margin: 0;
+  color: #475569;
+}
+
+.service-switch .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  font-size: 12px;
+  color: #c2410c;
+}
+
+.service-switch-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.package-breakdown {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.package-breakdown.summary {
+  margin-top: 8px;
+}
+
+.package-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #e6eef9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fbfdff;
+}
+
+.package-breakdown strong {
+  display: block;
+  color: #1e293b;
+}
+
+.package-breakdown small {
+  color: #64748b;
+}
+
+.package-service-price {
+  color: #c2410c;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.package-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.package-compact .package-product-body {
+  gap: 8px;
+}
+
+.package-compact .package-product-actions {
+  margin-top: 8px;
+  justify-content: flex-start;
 }
 
 .service-card-anchor {

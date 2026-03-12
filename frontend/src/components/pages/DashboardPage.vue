@@ -12,6 +12,8 @@ const props = defineProps([
   'goToMessages',
   'goToPackageCustomization',
   'openUpcomingBookings',
+  'goToGeneralServices',
+  'goToPackageServices',
 ])
 
 const copyByLanguage = {
@@ -45,6 +47,8 @@ const copyByLanguage = {
     manageUpcomingSub: 'Review confirmations and next actions',
     contactVendors: 'Contact Vendors',
     contactVendorsSub: 'Follow up and keep conversations moving',
+    addGeneralService: 'Add General Service',
+    addPackageService: 'Add Package Service',
   },
   km: {
     breadcrumbs: 'ទំព័រដើម > ផ្ទាំងគ្រប់គ្រង',
@@ -129,8 +133,20 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </div>
       </div>
       <div class="dashboard-actions">
-        <button type="button" class="btn-light" @click="props.goToVendor()">{{ uiText.viewVendors }}</button>
-        <button type="button" class="btn-accent" @click="props.goToBookings">{{ uiText.viewBookings }}</button>
+        <button
+          type="button"
+          class="btn-accent"
+          @click="props.goToGeneralServices ? props.goToGeneralServices() : props.goToVendor()"
+        >
+          {{ uiText.addGeneralService }}
+        </button>
+        <button
+          type="button"
+          class="btn-light"
+          @click="props.goToPackageServices ? props.goToPackageServices() : props.goToPackageCustomization()"
+        >
+          {{ uiText.addPackageService }}
+        </button>
       </div>
     </section>
 
