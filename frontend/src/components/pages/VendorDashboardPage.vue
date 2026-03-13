@@ -3388,7 +3388,7 @@ watch(
 .income-chart-card {
   display: grid;
   gap: 18px;
-  min-height: 180px;
+  min-height: 240px;
   padding: 22px;
   border-radius: 24px;
   background: linear-gradient(
