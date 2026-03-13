@@ -800,7 +800,8 @@ function buildNotificationQuery() {
   const userId = Number(user.id)
   if (Number.isFinite(userId) && userId > 0) query.user_id = userId
 
-  const email = String(user.email || customerEmail.value || '').trim().toLowerCase()
+  const storedEmail = localStorage.getItem('achar_customer_email') || ''
+  const email = String(user.email || customerEmail.value || storedEmail || '').trim().toLowerCase()
   if (email) query.email = email
 
   if (!query.user_id && !query.email) return null
@@ -851,6 +852,19 @@ async function loadNotifications(options = {}) {
     notifications.value = rows
     notificationsUnreadCount.value = Number(result.unread_count || 0)
   } catch (error) {
+    if (query?.email && query?.user_id) {
+      const emailOnlyQuery = { ...query }
+      delete emailOnlyQuery.user_id
+      try {
+        const result = await apiGet('notifications/bookings', emailOnlyQuery)
+        const rows = Array.isArray(result.data) ? result.data : []
+        notifications.value = rows
+        notificationsUnreadCount.value = Number(result.unread_count || 0)
+        return
+      } catch {
+        // ignore and surface fallback error
+      }
+    }
     notificationsError.value = 'Could not load notifications right now.'
   } finally {
     if (!silent) isLoadingNotifications.value = false
@@ -1073,7 +1087,7 @@ async function loadVendorBookings() {
     vendorBookings.value = rows.map(mapVendorBookingRow)
   } catch (error) {
     vendorBookings.value = []
-    notice.value = uiText.value.couldNotLoadVendorBookings
+    notice.value = error?.message ? `${uiText.value.couldNotLoadVendorBookings} (${error.message})` : uiText.value.couldNotLoadVendorBookings
   } finally {
     isLoadingVendorBookings.value = false
   }

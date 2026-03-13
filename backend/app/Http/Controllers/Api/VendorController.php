@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
+use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -202,7 +204,68 @@ class VendorController extends Controller
         ]);
         VendorCache::flushVendor($vendor->id);
 
+        // Ensure related vendor data is available for notification recipients.
+        $booking->setRelation('event', $event->loadMissing('vendor:id,name,email'));
+        $this->createBookingStatusNotifications($booking, $validated['status']);
+
         return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email']));
+    }
+
+    private function createBookingStatusNotifications(Booking $booking, string $nextStatus): void
+    {
+        $event = $booking->event;
+        if (! $event) {
+            return;
+        }
+
+        $statusLabel = ucfirst($nextStatus);
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date');
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'user',
+            'recipient_user_id' => $booking->user_id,
+            'recipient_email' => strtolower((string) $booking->customer_email),
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.",
+        ]);
+        $this->flushNotificationCache('user', $booking->user_id, strtolower((string) $booking->customer_email));
+
+        if (! $event->vendor_id) {
+            return;
+        }
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'vendor',
+            'recipient_user_id' => $event->vendor_id,
+            'recipient_email' => $event->vendor ? strtolower((string) $event->vendor->email) : null,
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
+        ]);
+        $this->flushNotificationCache(
+            'vendor',
+            $event->vendor_id,
+            $event->vendor ? strtolower((string) $event->vendor->email) : null
+        );
+    }
+
+    private function flushNotificationCache(string $role, ?int $userId, ?string $email): void
+    {
+        NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, $email));
+
+        if ($userId) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, null));
+        }
+
+        if ($email) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, null, $email));
+        }
     }
 
     public function dashboard(Request $request): JsonResponse
@@ -325,6 +388,14 @@ class VendorController extends Controller
 
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
     {
+        // If the user is authenticated and is a vendor/admin, prefer that identity by default.
+        $authUser = $request->user();
+        $inputVendorId = $request->input('vendor_user_id');
+
+        if (! $inputVendorId && $authUser && in_array($authUser->role, ['vendor', 'admin'], true)) {
+            return $authUser;
+        }
+
         $validated = $request->validate([
             'vendor_user_id' => ['required', 'integer', 'min:1'],
         ]);
