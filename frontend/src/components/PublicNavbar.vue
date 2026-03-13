@@ -460,6 +460,10 @@ const bookingLink = computed(() => {
               <strong>{{ uiText.bookingNotifications }}</strong>
               <div class="notification-actions">
                 <button type="button" class="notification-action-btn" @click="refreshNotifications">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <path d="M1 8a7 7 0 0 1 14 0" />
+                    <path d="M8 1v6l4 2" />
+                  </svg>
                   {{ uiText.refresh || 'Refresh' }}
                 </button>
                 <button
@@ -468,9 +472,15 @@ const bookingLink = computed(() => {
                   class="notification-action-btn"
                   @click="markAllNotificationsAsRead"
                 >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <path d="M2 8l4 4 8-8" />
+                  </svg>
                   {{ uiText.markAll }}
                 </button>
                 <button type="button" class="notification-action-btn is-muted" @click="closeNotificationDropdown">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <path d="M12 4L4 12M4 4l8 8" />
+                  </svg>
                   {{ uiText.close || 'Close' }}
                 </button>
               </div>
@@ -493,9 +503,16 @@ const bookingLink = computed(() => {
                       class="notification-inline-btn is-muted"
                       @click="markNotificationAsRead(item)"
                     >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
+                        <path d="M2 8l4 4 8-8" />
+                      </svg>
                       {{ uiText.markRead || 'Mark read' }}
                     </button>
                     <button type="button" class="notification-inline-btn" @click="openNotification(item)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
+                        <path d="M10 6L6 10l-4-4" />
+                        <path d="M6 10V2" />
+                      </svg>
                       {{ uiText.open || 'Open' }}
                     </button>
                   </div>
@@ -744,6 +761,17 @@ const bookingLink = computed(() => {
   border-color: #e4b892;
   background: linear-gradient(145deg, #ffffff 0%, #fff0df 100%);
   box-shadow: 0 12px 26px rgba(212, 102, 19, 0.2);
+  transform: translateY(-1px);
+}
+
+.notification-wrap:has(.notification-badge) .notification-btn {
+  animation: gentleShake 3s infinite;
+}
+
+@keyframes gentleShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-1px); }
+  20%, 40%, 60%, 80% { transform: translateX(1px); }
 }
 
 .notification-icon svg {
@@ -767,23 +795,48 @@ const bookingLink = computed(() => {
   align-items: center;
   justify-content: center;
   padding: 0 0.35rem;
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
-.notification-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(420px, 92vw);
-  max-height: 520px;
-  overflow: auto;
-  border: 1px solid #f1d0b5;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(212, 102, 19, 0.14) 0%, rgba(212, 102, 19, 0) 44%),
-    linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
-  box-shadow: 0 18px 42px rgba(146, 64, 14, 0.18);
-  padding: 10px;
-  z-index: 90;
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.notification-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-panel::-webkit-scrollbar-track {
+  background: #fffaf5;
+  border-radius: 3px;
+}
+
+.notification-panel::-webkit-scrollbar-thumb {
+  background: #d46613;
+  border-radius: 3px;
+}
+
+.notification-panel::-webkit-scrollbar-thumb:hover {
+  background: #b45309;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .notification-head {
@@ -819,15 +872,25 @@ const bookingLink = computed(() => {
   padding: 5px 9px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .notification-action-btn:hover {
   border-color: #e2b88f;
   background: linear-gradient(180deg, #ffffff 0%, #ffe9d2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(146, 64, 14, 0.2);
 }
 
 .notification-action-btn.is-muted {
   color: #7c5b40;
+  background: #f8f9fa;
+}
+
+.notification-action-btn.is-muted:hover {
+  background: #e9ecef;
 }
 
 .notification-empty {
@@ -852,6 +915,32 @@ const bookingLink = computed(() => {
   text-align: left;
   padding: 10px;
   box-shadow: 0 8px 18px rgba(146, 64, 14, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #d46613, #f59e0b);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(146, 64, 14, 0.15);
+  border-color: #e7b88f;
+}
+
+.notification-item:hover::before {
+  opacity: 1;
 }
 
 .notification-item.unread {
@@ -859,6 +948,18 @@ const bookingLink = computed(() => {
   background:
     linear-gradient(90deg, rgba(212, 102, 19, 0.2) 0 4px, transparent 4px),
     linear-gradient(180deg, #fff8f2 0%, #ffffff 100%);
+}
+
+.notification-item.unread::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
 }
 
 .notification-item-top {
@@ -890,16 +991,26 @@ const bookingLink = computed(() => {
   padding: 5px 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .notification-inline-btn:hover {
   border-color: #e2b98f;
   background: linear-gradient(180deg, #ffffff 0%, #ffe7ce 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(146, 64, 14, 0.15);
 }
 
 .notification-inline-btn.is-muted {
   background: #ffffff;
   color: #7c5b40;
+  border-color: #e9ecef;
+}
+
+.notification-inline-btn.is-muted:hover {
+  background: #f8f9fa;
 }
 
 .profile-btn {
