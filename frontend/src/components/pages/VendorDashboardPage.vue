@@ -2222,6 +2222,7 @@ watch(
   min-height: 100vh;
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
+  column-gap: 32px;
   background:
     radial-gradient(
       circle at 12% 12%,
@@ -2237,6 +2238,10 @@ watch(
     system-ui,
     -apple-system,
     sans-serif;
+  width: auto;
+  gap: 0;
+  height: 100vh;
+  align-items: stretch;
 }
 
 .vendor-dashboard::after {
@@ -2265,12 +2270,21 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 22px 16px;
-  background: var(--vd-surface);
-  border-right: 1px solid var(--vd-border);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  box-shadow: 2px 0 30px rgba(15, 23, 42, 0.07);
+  padding: 26px 22px;
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(248, 250, 252, 0.7) 100%
+    ),
+    radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.1), transparent 45%);
+  border-right: 1px solid rgba(234, 88, 12, 0.2);
+  border-radius: 0 38px 38px 0;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 40px 80px rgba(15, 23, 42, 0.08),
+    2px 0 20px rgba(15, 23, 42, 0.08);
   z-index: 10;
   overflow: hidden;
 }
@@ -2337,9 +2351,14 @@ watch(
 
 .sidebar-nav {
   display: grid;
-  gap: 3px;
+  gap: 8px;
   position: relative;
   z-index: 1;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
 }
 
 .sidebar-link {
@@ -2350,8 +2369,8 @@ watch(
   padding: 11px 13px;
   border: 1px solid transparent;
   border-radius: 14px;
-  background: transparent;
-  color: #64748b;
+  background: rgba(255, 255, 255, 0.95);
+  color: #475569;
   font-size: 14px;
   font-weight: 600;
   text-align: left;
@@ -2366,11 +2385,11 @@ watch(
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(234, 88, 12, 0.2);
-  color: #7c2d12;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
-  transform: translateX(3px);
+  background: rgba(255, 247, 237, 0.95);
+  border-color: rgba(234, 88, 12, 0.22);
+  color: #9a3412;
+  box-shadow: 0 12px 26px rgba(234, 88, 12, 0.15);
+  transform: translateX(1px);
 }
 
 .sidebar-link.active {
@@ -2424,7 +2443,7 @@ watch(
   display: grid;
   gap: 6px;
   padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
   position: relative;
   z-index: 1;
 }
@@ -2533,6 +2552,11 @@ watch(
   min-height: 0;
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .panel,
