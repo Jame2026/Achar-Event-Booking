@@ -339,6 +339,136 @@ const selectedEventType = ref('all')
 const bookingEventTypeFilter = ref('all')
 const isSubmittingVendorService = ref(false)
 const vendorServiceNotice = ref('')
+
+const packageForm = ref({
+  title: '',
+  event_type: 'wedding',
+  description: '',
+  image_url: '',
+  image_file: null,
+  location: '',
+  location_latitude: null,
+  location_longitude: null,
+  starts_at: '',
+  ends_at: '',
+  price: 0,
+  capacity: 1,
+  is_active: true,
+})
+
+const isSubmittingVendorPackage = ref(false)
+const vendorPackageNotice = ref('')
+
+const isLoadingVendorPackages = ref(false)
+
+function resetVendorPackageForm() {
+  packageForm.value = {
+    title: '',
+    event_type: 'wedding',
+    description: '',
+    image_url: '',
+    image_file: null,
+    location: '',
+    location_latitude: null,
+    location_longitude: null,
+    starts_at: '',
+    ends_at: '',
+    price: 0,
+    capacity: 1,
+    is_active: true,
+  }
+}
+
+async function submitVendorPackage() {
+  if (!isVendorAccount.value) return
+
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
+    vendorPackageNotice.value = uiText.value.vendorAccountMissing
+    return
+  }
+
+  const imageUrl = String(packageForm.value.image_url || '').trim()
+  const imageFile = packageForm.value.image_file instanceof File ? packageForm.value.image_file : null
+  const normalizedPayload = {
+    vendor_user_id: vendorUserId,
+    title: String(packageForm.value.title || '').trim(),
+    event_type: String(packageForm.value.event_type || 'other'),
+    description: String(packageForm.value.description || '').trim(),
+    image_url: imageUrl,
+    location: String(packageForm.value.location || '').trim(),
+    starts_at: packageForm.value.starts_at || null,
+    ends_at: packageForm.value.ends_at || null,
+    price: Number(packageForm.value.price || 0),
+    capacity: Number(packageForm.value.capacity || 0),
+    is_active: Boolean(packageForm.value.is_active),
+  }
+
+  if (!normalizedPayload.title || !normalizedPayload.location || !normalizedPayload.starts_at) {
+    vendorPackageNotice.value = uiText.value.fillTitleLocationStart
+    return
+  }
+
+  isSubmittingVendorPackage.value = true
+  vendorPackageNotice.value = ''
+  try {
+    const payload = imageFile
+      ? (() => {
+          const formData = new FormData()
+          Object.entries(normalizedPayload).forEach(([key, value]) => {
+            if (key === 'image_url') return
+            if (value !== null && value !== undefined) {
+              if (key === 'is_active') {
+                formData.append(key, value ? '1' : '0')
+                return
+              }
+              formData.append(key, value)
+            }
+          })
+          formData.append('image', imageFile)
+          return formData
+        })()
+      : normalizedPayload
+
+    await apiPost('vendor/packages', payload)
+    await loadVendorPackages()
+    selectedEventType.value = normalizedPayload.event_type
+    vendorPackageNotice.value = uiText.value.serviceCreated
+    resetVendorPackageForm()
+  } catch (error) {
+    vendorPackageNotice.value = error?.message || uiText.value.couldNotCreateService
+  } finally {
+    isSubmittingVendorPackage.value = false
+  }
+}
+
+async function togglePackageActive(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiPatch(`vendor/packages/${item.id}`, {
+      vendor_user_id: vendorUserId,
+      is_active: !item.isActive,
+    })
+    await loadVendorPackages()
+  } catch (error) {
+    vendorPackageNotice.value = error?.message || uiText.value.couldNotUpdateService
+  }
+}
+
+async function deletePackage(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiDelete(`vendor/packages/${item.id}`, { vendor_user_id: vendorUserId })
+    await loadVendorPackages()
+  } catch (error) {
+    vendorPackageNotice.value = error?.message || uiText.value.couldNotDeleteService
+  }
+}
+
 const vendorServiceForm = ref({
   title: '',
   event_type: 'wedding',
@@ -354,6 +484,8 @@ const vendorServiceForm = ref({
   capacity: 1,
   is_active: true,
 })
+
+const vendorPackages = ref([])
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
@@ -903,6 +1035,22 @@ async function openNotification(notification) {
   goToBookings()
 }
 
+async function loadVendorPackages() {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!isVendorAccount.value || !Number.isFinite(vendorUserId) || vendorUserId < 1) {
+    vendorPackages.value = []
+    return
+  }
+  try {
+    const result = await apiGet('vendor/packages', { vendor_user_id: vendorUserId })
+    const rows = Array.isArray(result.data) ? result.data : []
+    vendorPackages.value = rows.map((row) => mapApiEvent(row, eventTypeMap))
+  } catch (error) {
+    vendorPackages.value = []
+    notice.value = 'Could not load vendor packages.'
+  }
+}
+
 async function loadEvents() {
   isLoadingEvents.value = true
   try {
@@ -1149,7 +1297,7 @@ async function bootstrapAuthenticatedShell() {
 
   isBootstrappingAuth.value = true
   try {
-    const tasks = [loadUserProfile(), loadEvents(), loadNotifications({ silent: true })]
+    const tasks = [loadUserProfile(), loadEvents(), loadVendorPackages(), loadNotifications({ silent: true })]
     if (isVendorAccount.value) tasks.push(loadVendorBookings())
     if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
@@ -1389,7 +1537,14 @@ onBeforeUnmount(() => {
         :is-loading-vendor-bookings="isLoadingVendorBookings"
         :vendor-service-form="vendorServiceForm"
         :is-submitting-vendor-service="isSubmittingVendorService"
-        :vendor-service-notice="vendorServiceNotice"
+:vendor-service-notice="vendorServiceNotice"
+        :vendor-packages="vendorPackages"
+        :package-form="packageForm"
+        :is-submitting-vendor-package="isSubmittingVendorPackage"
+        :vendor-package-notice="vendorPackageNotice"
+        :submit-vendor-package="submitVendorPackage"
+        :toggle-package-active="togglePackageActive"
+        :delete-package="deletePackage"
         :vendor-income="vendorIncome"
         :messages-summary="messagesSummary"
         :submit-vendor-service="submitVendorService"
@@ -1399,6 +1554,7 @@ onBeforeUnmount(() => {
         :go-to-messages="goToMessages"
         :logout-user="logout"
       />
+
       <DashboardPage
       v-else-if="currentPage === 'dashboard'"
       :notice="notice"
