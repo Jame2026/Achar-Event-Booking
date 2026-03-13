@@ -30,7 +30,6 @@ const emit = defineEmits(["update:activeTab"]);
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
-const isCreateServiceModalOpen = ref(false);
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
@@ -474,15 +473,6 @@ function setActiveTab(tabKey) {
   emit("update:activeTab", tabKey);
 }
 
-function openCreateServiceModal() {
-  isCreateServiceModalOpen.value = true;
-  setActiveTab("services");
-}
-
-function closeCreateServiceModal() {
-  isCreateServiceModalOpen.value = false;
-}
-
 function submitServiceForm() {
   if (typeof props.submitVendorService === "function") {
     props.submitVendorService();
@@ -913,15 +903,6 @@ watch(
         </div>
 
         <div class="vendor-head-actions">
-          <div class="dashboard-actions">
-            <button
-              type="button"
-              class="btn-accent"
-              @click="openCreateServiceModal"
-            >
-              {{ uiText.newService }}
-            </button>
-          </div>
           <div class="signed-user">
             <span>{{ uiText.signedInAs }}</span>
             <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
@@ -2160,227 +2141,6 @@ watch(
       </section>
     </section>
 
-    <div
-      v-if="isCreateServiceModalOpen"
-      class="modal-backdrop"
-      @click="closeCreateServiceModal"
-    >
-      <section class="modal-card" @click.stop>
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">{{ uiText.createService }}</p>
-            <h2>{{ uiText.addNewService }}</h2>
-          </div>
-          <button
-            type="button"
-            class="secondary-button"
-            @click="closeCreateServiceModal"
-          >
-            Close
-          </button>
-        </div>
-
-        <form class="service-form" @submit.prevent="submitServiceForm">
-          <label class="field">
-            <span>Service name</span>
-            <input
-              :value="props.vendorServiceForm?.title || ''"
-              type="text"
-              placeholder="Community Workshop"
-              @input="props.vendorServiceForm.title = $event.target.value"
-            />
-          </label>
-
-          <label class="field">
-            <span>Types</span>
-            <select
-              :value="props.vendorServiceForm?.event_type || ''"
-              @change="props.vendorServiceForm.event_type = $event.target.value"
-            >
-              <option
-                v-for="option in eventOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Number of count</span>
-            <input
-              :value="props.vendorServiceForm?.capacity ?? 1"
-              type="number"
-              min="1"
-              placeholder="50"
-              @input="
-                props.vendorServiceForm.capacity = Number($event.target.value)
-              "
-            />
-          </label>
-
-          <label class="field">
-            <span>Price</span>
-            <input
-              :value="props.vendorServiceForm?.price ?? 0"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="150"
-              @input="
-                props.vendorServiceForm.price = Number($event.target.value)
-              "
-            />
-          </label>
-
-          <label class="field">
-            <span>Location</span>
-            <input
-              :value="props.vendorServiceForm?.location || ''"
-              type="text"
-              placeholder="Phnom Penh"
-              @input="props.vendorServiceForm.location = $event.target.value"
-            />
-          </label>
-
-          <div class="field">
-            <span>Map location</span>
-            <button
-              type="button"
-              class="secondary-button location-button"
-              :disabled="isDetectingVendorLocation"
-              @click="detectVendorLocation"
-            >
-              {{
-                isDetectingVendorLocation
-                  ? "Detecting location..."
-                  : "Use Current Location"
-              }}
-            </button>
-          </div>
-
-          <div class="field field-full location-tools">
-            <p v-if="vendorLocationNotice" class="location-notice">
-              {{ vendorLocationNotice }}
-            </p>
-            <p
-              v-if="
-                props.vendorServiceForm?.location_latitude !== null &&
-                props.vendorServiceForm?.location_longitude !== null
-              "
-              class="location-coords"
-            >
-              Lat:
-              {{
-                Number(props.vendorServiceForm.location_latitude).toFixed(6)
-              }}, Lng:
-              {{
-                Number(props.vendorServiceForm.location_longitude).toFixed(6)
-              }}
-            </p>
-            <iframe
-              v-if="vendorLocationMapEmbedUrl"
-              class="location-map-frame"
-              :src="vendorLocationMapEmbedUrl"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
-            <a
-              v-if="vendorLocationMapLinkUrl"
-              class="location-map-link"
-              :href="vendorLocationMapLinkUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open current location in map
-            </a>
-          </div>
-
-          <label class="field">
-            <span>Start date and time</span>
-            <input
-              :value="props.vendorServiceForm?.starts_at || ''"
-              type="datetime-local"
-              @input="props.vendorServiceForm.starts_at = $event.target.value"
-            />
-          </label>
-
-          <label class="field field-full">
-            <span>Picture of services</span>
-            <input
-              type="file"
-              accept="image/*"
-              @change="handleVendorServiceImageChange"
-            />
-            <small class="field-hint">Choose an image from your device.</small>
-          </label>
-
-          <label class="field field-full">
-            <span>Or paste image link</span>
-            <input
-              :value="props.vendorServiceForm?.image_url || ''"
-              type="url"
-              placeholder="https://example.com/service-photo.jpg"
-              @input="handleVendorServiceImageUrlInput"
-            />
-          </label>
-
-          <div
-            v-if="props.vendorServiceForm?.image_url"
-            class="field field-full"
-          >
-            <span>Preview</span>
-            <div class="image-preview-card">
-              <img
-                class="image-preview"
-                :src="props.vendorServiceForm.image_url"
-                alt="Selected service preview"
-              />
-              <button
-                type="button"
-                class="secondary-button"
-                @click="clearVendorServiceImage"
-              >
-                Remove image
-              </button>
-            </div>
-          </div>
-
-          <label class="field field-full">
-            <span>Service information</span>
-            <textarea
-              :value="props.vendorServiceForm?.description || ''"
-              placeholder="Describe the service, what is included, and what the customer should know."
-              @input="props.vendorServiceForm.description = $event.target.value"
-            ></textarea>
-          </label>
-
-          <div class="form-actions">
-            <button
-              type="submit"
-              class="primary-button"
-              :disabled="props.isSubmittingVendorService"
-            >
-              {{
-                props.isSubmittingVendorService ? "Saving..." : "Create Service"
-              }}
-            </button>
-          </div>
-        </form>
-
-        <p
-          v-if="props.vendorServiceNotice"
-          class="notice"
-          :class="{
-            'notice-success': vendorServiceNoticeTone === 'success',
-            'notice-error': vendorServiceNoticeTone === 'error',
-          }"
-        >
-          {{ props.vendorServiceNotice }}
-        </p>
-      </section>
-    </div>
   </main>
 </template>
 
