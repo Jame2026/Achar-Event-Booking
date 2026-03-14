@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PasswordResetPinController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
 use Illuminate\Support\Facades\Cache;
@@ -59,6 +60,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/password-reset/request', [PasswordResetPinController::class, 'requestPin']);
+Route::post('/password-reset/verify', [PasswordResetPinController::class, 'verifyPin']);
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::post('/user/profile', [UserController::class, 'updateProfile']);
 

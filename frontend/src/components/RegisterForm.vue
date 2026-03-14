@@ -138,17 +138,14 @@ const submitRegister = async () => {
       phone: registerMethod.value === 'phone' ? form.phone : '',
     }
 
-    const response = await fetch(
-      `${apiBaseUrl}/register`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payload),
+    const response = await fetch(`${apiBaseUrl}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
-    )
+      body: JSON.stringify(payload),
+    })
 
     const data = await response.json()
 
@@ -194,7 +191,6 @@ const submitRegister = async () => {
 
 <template>
   <section class="auth-shell auth-shell-form-only">
-
     <main class="auth-panel">
       <section class="auth-card">
         <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
@@ -203,14 +199,14 @@ const submitRegister = async () => {
           <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
         </div>
 
-        <div class="form-head">
-          <h2>📝 {{ uiText.title }}</h2>
+        <div class="form-head form-head-center">
+          <h2>{{ uiText.title }}</h2>
           <p>{{ uiText.subtitle }}</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitRegister">
-          <label class="field">
-            <span>🧾 {{ uiText.registerWith }}</span>
+          <label class="field field-choice">
+            <span>{{ uiText.registerWith }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: registerMethod === 'email' }">
                 <input v-model="registerMethod" type="radio" value="email" name="register_method" />
@@ -227,29 +223,29 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>👤 {{ uiText.fullName }}</span>
+            <span>{{ uiText.fullName }}</span>
             <input v-model="form.name" type="text" :placeholder="uiText.fullNamePlaceholder" required />
           </label>
 
           <label v-if="registerMethod === 'email'" class="field">
-            <span>📧 {{ uiText.emailLabel }}</span>
+            <span>{{ uiText.emailLabel }}</span>
             <input v-model="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
           </label>
 
           <label v-else class="field">
-            <span>📱 {{ uiText.phoneNumber }}</span>
+            <span>{{ uiText.phoneNumber }}</span>
             <input
               v-model="form.phone"
               type="tel"
               inputmode="tel"
               placeholder="+85512345678"
-              pattern="^\+?[0-9]{8,15}$"
+              pattern="^\\+?[0-9]{8,15}$"
               required
             />
           </label>
 
-          <label class="field">
-            <span>💼 {{ uiText.profession }}</span>
+          <label class="field field-choice">
+            <span>{{ uiText.profession }}</span>
             <div class="role-grid">
               <label class="role-card" :class="{ active: form.role === 'user' }">
                 <input v-model="form.role" type="radio" value="user" name="role" />
@@ -266,7 +262,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>🔑 {{ uiText.password }}</span>
+            <span>{{ uiText.password }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password"
@@ -275,7 +271,7 @@ const submitRegister = async () => {
                 minlength="8"
                 required
               />
-              <button type="button" class="ghost-btn" @click="showPassword = !showPassword">
+              <button type="button" class="ghost-btn" @click="showPassword = !showPassword" :aria-pressed="showPassword">
                 <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                   <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
@@ -291,7 +287,7 @@ const submitRegister = async () => {
           </label>
 
           <label class="field">
-            <span>✅ {{ uiText.confirmPassword }}</span>
+            <span>{{ uiText.confirmPassword }}</span>
             <div class="password-wrap">
               <input
                 v-model="form.password_confirmation"
@@ -300,7 +296,12 @@ const submitRegister = async () => {
                 minlength="8"
                 required
               />
-              <button type="button" class="ghost-btn" @click="showConfirmPassword = !showConfirmPassword">
+              <button
+                type="button"
+                class="ghost-btn"
+                @click="showConfirmPassword = !showConfirmPassword"
+                :aria-pressed="showConfirmPassword"
+              >
                 <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                   <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
@@ -319,7 +320,7 @@ const submitRegister = async () => {
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? uiText.creating : `✨ ${uiText.createAccount}` }}
+            {{ submitting ? uiText.creating : uiText.createAccount }}
           </button>
         </form>
 
@@ -342,4 +343,3 @@ const submitRegister = async () => {
     </main>
   </section>
 </template>
-

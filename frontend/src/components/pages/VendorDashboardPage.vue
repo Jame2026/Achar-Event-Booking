@@ -2588,7 +2588,10 @@ watch(
 }
 
 .vendor-dashboard-head.dashboard-head {
+  position: relative;
+  overflow: hidden;
   padding: 1rem 1.2rem;
+  align-items: center;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.92) 0%,
@@ -2604,6 +2607,44 @@ watch(
   -webkit-backdrop-filter: blur(14px);
 }
 
+.vendor-dashboard-head.dashboard-head::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(
+      520px 280px at 92% 18%,
+      rgba(234, 88, 12, 0.22) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      520px 260px at 8% 92%,
+      rgba(37, 99, 235, 0.16) 0%,
+      transparent 58%
+    );
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vendor-dashboard-head.dashboard-head::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 46%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vendor-dashboard-head.dashboard-head > * {
+  position: relative;
+  z-index: 1;
+}
+
 .vendor-dashboard-head h1 {
   font-size: clamp(1.6rem, 2.4vw, 2.4rem);
   line-height: 1.05;
@@ -2616,7 +2657,9 @@ watch(
 
 .vendor-dashboard-head p {
   font-size: 0.92rem;
+  line-height: 1.55;
   color: #64748b;
+  max-width: 64ch;
 }
 
 .vendor-dashboard-head .dash-chip {
@@ -2639,20 +2682,31 @@ watch(
 }
 
 .vendor-dashboard-head .dashboard-inline-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   font-size: 0.76rem;
   padding: 0.32rem 0.65rem;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 999px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
 }
 
+.vendor-dashboard-head .dashboard-inline-stats strong {
+  font-variant-numeric: tabular-nums;
+}
+
 .vendor-dashboard-head .dashboard-actions button {
-  border-radius: 12px;
-  padding: 0.55rem 0.9rem;
+  border-radius: 14px;
+  padding: 0.65rem 1.05rem;
   font-size: 0.9rem;
   background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.32);
+  box-shadow:
+    0 10px 26px rgba(234, 88, 12, 0.34),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
   border: 1px solid rgba(194, 65, 12, 0.3);
   transition:
     box-shadow 180ms ease,
@@ -2660,7 +2714,9 @@ watch(
 }
 
 .vendor-dashboard-head .dashboard-actions button:hover {
-  box-shadow: 0 8px 28px rgba(234, 88, 12, 0.44);
+  box-shadow:
+    0 12px 34px rgba(234, 88, 12, 0.44),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
   transform: translateY(-1px);
 }
 
@@ -2721,14 +2777,40 @@ watch(
 }
 
 .signed-user {
+  position: relative;
+  overflow: hidden;
   text-align: right;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 16px;
+  min-width: 176px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.86) 0%,
+    rgba(255, 255, 255, 0.74) 100%
+  );
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow:
     0 4px 6px rgba(15, 23, 42, 0.04),
     0 14px 36px rgba(15, 23, 42, 0.07);
+}
+
+.signed-user::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  opacity: 0.9;
+}
+
+.signed-user > * {
+  position: relative;
+  z-index: 1;
 }
 
 .signed-user span {

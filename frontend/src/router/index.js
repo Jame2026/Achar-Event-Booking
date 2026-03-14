@@ -8,6 +8,8 @@ import CheckoutPage from "../components/CheckoutPage.vue";
 import CheckoutConfirmedPage from "../components/CheckoutConfirmedPage.vue";
 import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
 import Home from "@/components/Home.vue";
+import ForgotPasswordForm from "../components/ForgotPasswordForm.vue";
+import ResetPasswordForm from "../components/ResetPasswordForm.vue";
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 
@@ -80,6 +82,16 @@ const routes = [
     path: "/legacy-app",
     name: "LegacyApp",
     component: LegacyAppShell,
+  },
+  {
+    path: "/forgot-password",
+    name: "ForgotPassword",
+    component: ForgotPasswordForm,
+  },
+  {
+    path: "/reset-password",
+    name: "ResetPassword",
+    component: ResetPasswordForm,
   },
   {
     path: "/vendor",
