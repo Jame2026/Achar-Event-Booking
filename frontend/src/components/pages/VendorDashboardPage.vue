@@ -435,11 +435,6 @@ function setActiveTab(tabKey) {
   emit("update:activeTab", tabKey);
 }
 
-function openCreateServiceModal() {
-  isCreateServiceModalOpen.value = true;
-  setActiveTab("services");
-}
-
 function closeCreateServiceModal() {
   isCreateServiceModalOpen.value = false;
 }
@@ -874,15 +869,6 @@ watch(
         </div>
 
         <div class="vendor-head-actions">
-          <div class="dashboard-actions">
-            <button
-              type="button"
-              class="btn-accent"
-              @click="openCreateServiceModal"
-            >
-              {{ uiText.newService }}
-            </button>
-          </div>
           <div class="signed-user">
             <span>{{ uiText.signedInAs }}</span>
             <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
@@ -2579,50 +2565,44 @@ watch(
 
 .vendor-head-actions {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.75rem;
   justify-items: end;
-}
-
-.vendor-head-actions .btn-accent {
-  white-space: nowrap;
+  align-self: start;
 }
 
 .vendor-dashboard-head.dashboard-head {
   position: relative;
   overflow: hidden;
-  padding: 1rem 1.2rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.25rem;
   align-items: center;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    rgba(255, 247, 237, 0.85) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 0.9rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow:
-    0 4px 6px rgba(15, 23, 42, 0.04),
-    0 20px 60px rgba(15, 23, 42, 0.07),
-    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+    0 2px 10px rgba(15, 23, 42, 0.05),
+    0 16px 40px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
   border-radius: 24px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+}
+
+.vendor-dashboard-head .dashboard-head-main {
+  display: grid;
+  gap: 0.4rem;
 }
 
 .vendor-dashboard-head.dashboard-head::before {
   content: "";
   position: absolute;
   inset: -2px;
-  background:
-    radial-gradient(
-      520px 280px at 92% 18%,
-      rgba(234, 88, 12, 0.22) 0%,
-      transparent 62%
-    ),
-    radial-gradient(
-      520px 260px at 8% 92%,
-      rgba(37, 99, 235, 0.16) 0%,
-      transparent 58%
-    );
-  opacity: 0.9;
+  background: linear-gradient(
+    120deg,
+    rgba(249, 115, 22, 0.08) 0%,
+    rgba(59, 130, 246, 0.06) 48%,
+    rgba(15, 23, 42, 0.02) 100%
+  );
+  opacity: 0.55;
   pointer-events: none;
   z-index: 0;
 }
@@ -2633,8 +2613,8 @@ watch(
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0) 46%
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0) 55%
   );
   pointer-events: none;
   z-index: 0;
@@ -2646,38 +2626,38 @@ watch(
 }
 
 .vendor-dashboard-head h1 {
-  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+  margin: 0;
+  font-size: clamp(1.5rem, 2.1vw, 2.25rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #0f172a 30%, #7c2d12 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #0f172a;
 }
 
 .vendor-dashboard-head p {
-  font-size: 0.92rem;
-  line-height: 1.55;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
   color: #64748b;
-  max-width: 64ch;
+  max-width: 60ch;
 }
 
 .vendor-dashboard-head .dash-chip {
-  margin-bottom: 0.5rem;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.68rem;
-  background: linear-gradient(
-    135deg,
-    rgba(249, 115, 22, 0.12) 0%,
-    rgba(234, 88, 12, 0.08) 100%
-  );
-  border: 1px solid rgba(249, 115, 22, 0.25);
+  margin-bottom: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.64rem;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 999px;
-  color: #c2410c;
+  color: #475569;
+  letter-spacing: 0.12em;
+  font-weight: 700;
 }
 
 .vendor-dashboard-head .dashboard-inline-stats {
-  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.45rem;
   gap: 0.45rem;
 }
 
@@ -2685,39 +2665,16 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  font-size: 0.76rem;
-  padding: 0.32rem 0.65rem;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  font-size: 0.74rem;
+  padding: 0.28rem 0.6rem;
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
 }
 
 .vendor-dashboard-head .dashboard-inline-stats strong {
   font-variant-numeric: tabular-nums;
-}
-
-.vendor-dashboard-head .dashboard-actions button {
-  border-radius: 14px;
-  padding: 0.65rem 1.05rem;
-  font-size: 0.9rem;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  box-shadow:
-    0 10px 26px rgba(234, 88, 12, 0.34),
-    0 1px 0 rgba(255, 255, 255, 0.35) inset;
-  border: 1px solid rgba(194, 65, 12, 0.3);
-  transition:
-    box-shadow 180ms ease,
-    transform 120ms ease;
-}
-
-.vendor-dashboard-head .dashboard-actions button:hover {
-  box-shadow:
-    0 12px 34px rgba(234, 88, 12, 0.44),
-    0 1px 0 rgba(255, 255, 255, 0.35) inset;
-  transform: translateY(-1px);
 }
 
 @supports not (
@@ -3896,6 +3853,11 @@ watch(
 
   .panel-head {
     flex-direction: column;
+  }
+
+  .vendor-dashboard-head.dashboard-head {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .vendor-head-actions {
