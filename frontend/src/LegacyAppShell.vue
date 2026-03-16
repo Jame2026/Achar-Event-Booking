@@ -1436,7 +1436,7 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-      <PublicNavbar v-if="!(isVendorAccount && currentPage === 'dashboard')" />
+      <PublicNavbar />
       <VendorDashboardPage
         v-if="isVendorAccount && currentPage === 'dashboard'"
         :app-logo-src="brandLogoSrc"

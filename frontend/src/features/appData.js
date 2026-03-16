@@ -20,6 +20,14 @@ export const vendorProfile = {
   name: 'Luxe Bloom Florals',
   subtitle: 'Premium Wedding & Event Floral Design',
   rating: '4.9 (142 reviews)',
+  phone: '+1 (555) 234-5678',
+  email: 'hello@luxebloom.com',
+  website: 'www.luxebloom.com',
+  location: '88 Flower District, New York, NY 10001',
+  about:
+    'Luxe Bloom Florals is an award-winning boutique floral design studio creating botanical experiences for weddings, cultural ceremonies, and corporate events.',
+  heroImage:
+    'https://images.unsplash.com/photo-1468327768560-75b778cbb551?auto=format&fit=crop&w=1600&q=80',
 }
 
 export const stats = [

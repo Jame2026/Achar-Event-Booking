@@ -36,8 +36,8 @@ const copyByLanguage = {
     saveProfile: 'Save Profile',
   },
   km: {
-    breadcrumbs: 'ផ្ទាំងគ្រប់គ្រង > ប្រវត្តិរូបរបស់ខ្ញុំ',
-    title: 'កែប្រែប្រវត្តិរូបរបស់ខ្ញុំ',
+    breadcrumbs: 'ក្ដារត្រួតពិនិត្យ > ព័ត៌មានផ្ទាល់ខ្លួន',
+    title: 'កែព័ត៌មានផ្ទាល់ខ្លួន',
     fullName: 'ឈ្មោះពេញ',
     fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
     email: 'អ៊ីមែល',
@@ -45,12 +45,12 @@ const copyByLanguage = {
     phone: 'ទូរស័ព្ទ',
     location: 'ទីតាំង',
     locationPlaceholder: 'ទីក្រុង, ខេត្ត',
-    detectingLocation: 'កំពុងស្វែងរកទីតាំង...',
+    detectingLocation: 'កំពុងរកទីតាំង...',
     useCurrentLocation: 'ប្រើទីតាំងបច្ចុប្បន្ន',
-    openInMap: 'បើកទីតាំងបច្ចុប្បន្នក្នុងផែនទី',
-    logout: 'ចាកចេញ',
+    openInMap: 'បើកទីតាំងបច្ចុប្បន្នលើផែនទី',
+    logout: 'ចេញពីប្រព័ន្ធ',
     reset: 'កំណត់ឡើងវិញ',
-    saveProfile: 'រក្សាទុកប្រវត្តិរូប',
+    saveProfile: 'រក្សាទុកព័ត៌មាន',
   },
   zh: {
     breadcrumbs: '仪表盘 > 我的资料',
@@ -61,7 +61,7 @@ const copyByLanguage = {
     emailPlaceholder: 'you@example.com',
     phone: '电话',
     location: '位置',
-    locationPlaceholder: '城市，省份',
+    locationPlaceholder: '城市, 省份',
     detectingLocation: '正在定位...',
     useCurrentLocation: '使用当前位置',
     openInMap: '在地图中打开当前位置',
@@ -76,241 +76,324 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
 <template>
   <main class="shell profile-page">
-    <div class="breadcrumbs">🧭 {{ uiText.breadcrumbs }}</div>
+    <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
 
-    <section class="card services profile-form">
-      <div class="profile-head">
-        <h2>🧑‍💼 {{ uiText.title }}</h2>
-        <p>Manage your account details and profile photo shown across the platform.</p>
-      </div>
-      <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
-
-      <div class="profile-identity-card">
-        <div class="profile-avatar-main">
-          <div class="profile-avatar-preview">
-            <img
-              v-if="props.bindings.userProfileDraft.value.profile_image_url"
-              :src="props.bindings.userProfileDraft.value.profile_image_url"
-              alt="Profile image"
-            />
-            <span v-else>
-              {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
-            </span>
-          </div>
-          <div class="profile-avatar-copy">
-            <strong>{{ props.bindings.userProfileDraft.value.name || 'Your Profile' }}</strong>
-            <small>{{ props.bindings.userProfileDraft.value.email || 'No email yet' }}</small>
-          </div>
-        </div>
-        <div class="profile-avatar-actions">
-          <label class="btn-light profile-upload-btn">
-            <span class="btn-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 16V4" />
-                <path d="m7 9 5-5 5 5" />
-                <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-              </svg>
-            </span>
-            🖼️ Upload Photo
-            <input
-              type="file"
-              accept="image/*"
-              @change="props.bindings.updateProfileImageFile($event.target.files?.[0] || null)"
-            />
-          </label>
-          <button type="button" class="btn-light is-danger" @click="props.bindings.removeProfileImage">
-            <span class="btn-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="M19 6l-1 14H6L5 6" />
-              </svg>
-            </span>
-            🗑️ Remove Photo
-          </button>
-        </div>
-      </div>
-
-      <h3 class="profile-section-title">🧾 Account Information</h3>
-      <div class="profile-grid">
-        <label>
-          👤 {{ uiText.fullName }}
-          <input
-            type="text"
-            :placeholder="uiText.fullNamePlaceholder"
-            :value="props.bindings.userProfileDraft.value.name"
-            @input="props.bindings.userProfileDraft.value.name = $event.target.value"
-          />
-        </label>
-        <label>
-          📧 {{ uiText.email }}
-          <input
-            type="email"
-            :placeholder="uiText.emailPlaceholder"
-            :value="props.bindings.userProfileDraft.value.email"
-            @input="props.bindings.userProfileDraft.value.email = $event.target.value"
-          />
-        </label>
-        <label>
-          📱 {{ uiText.phone }}
-          <input
-            type="text"
-            placeholder="+1 (555) 123-4567"
-            :value="props.bindings.userProfileDraft.value.phone"
-            @input="props.bindings.userProfileDraft.value.phone = $event.target.value"
-          />
-        </label>
-        <label>
-          📍 {{ uiText.location }}
-          <input
-            type="text"
-            :placeholder="uiText.locationPlaceholder"
-            :value="props.bindings.userProfileDraft.value.location"
-            @input="props.bindings.userProfileDraft.value.location = $event.target.value"
-          />
-        </label>
-      </div>
-
-      <h3 class="profile-section-title">🗺️ {{ uiText.location }}</h3>
-      <div class="profile-location-tools">
-        <button type="button" class="btn-light" :disabled="props.isDetectingLocation" @click="props.detectCurrentLocation">
-          {{ props.isDetectingLocation ? `📡 ${uiText.detectingLocation}` : `📌 ${uiText.useCurrentLocation}` }}
-        </button>
-        <p v-if="props.userLatitude !== null && props.userLongitude !== null" class="location-coords">
-          📍 Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
+    <section class="card profile-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Profile · Secure</p>
+        <h1>{{ uiText.title }}</h1>
+        <p class="hero-sub">
+          Keep your booking profile crisp: photo, contact, and location in one place.
         </p>
-        <iframe
-          v-if="props.userLocationMapEmbedUrl"
-          class="map-frame"
-          :src="props.userLocationMapEmbedUrl"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-        ></iframe>
-        <a
-          v-if="props.userLocationMapLinkUrl"
-          class="map-open-link"
-          :href="props.userLocationMapLinkUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          🧭 {{ uiText.openInMap }}
-        </a>
-      </div>
-
-      <div class="profile-actions">
-        <button type="button" class="btn-logout" @click="props.logoutUser">🚪 {{ uiText.logout }}</button>
-        <button type="button" class="btn-light" @click="props.resetUserProfile">♻️ {{ uiText.reset }}</button>
-        <button type="button" class="btn-accent" :disabled="props.isSavingProfile" @click="props.saveUserProfile">
-          {{ props.isSavingProfile ? 'Saving...' : `💾 ${uiText.saveProfile}` }}
-        </button>
+        <div class="hero-tags">
+          <span>Realtime sync</span>
+          <span>Location aware</span>
+          <span>Private by default</span>
+        </div>
+        <div class="hero-badges">
+          <span class="pill success">Verified email</span>
+          <span class="pill neutral">2FA recommended</span>
+        </div>
+        <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
       </div>
     </section>
+
+    <div class="profile-layout">
+      <section class="card profile-panel">
+        <div class="profile-identity-card">
+          <div class="profile-avatar-main">
+            <div class="profile-avatar-preview">
+              <img
+                v-if="props.bindings.userProfileDraft.value.profile_image_url"
+                :src="props.bindings.userProfileDraft.value.profile_image_url"
+                alt="Profile image"
+              />
+              <span v-else>
+                {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
+              </span>
+            </div>
+            <div class="profile-avatar-copy">
+              <strong>{{ props.bindings.userProfileDraft.value.name || 'Your Profile' }}</strong>
+              <small>{{ props.bindings.userProfileDraft.value.email || 'No email yet' }}</small>
+              <div class="profile-progress">
+                <span>Profile completeness</span>
+                <div class="progress-track">
+                  <span class="progress-bar" style="width: 82%"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="profile-avatar-actions">
+            <label class="btn-light profile-upload-btn">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 16V4" />
+                  <path d="m7 9 5-5 5 5" />
+                  <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                </svg>
+              </span>
+              Upload Photo
+              <input
+                type="file"
+                accept="image/*"
+                @change="props.bindings.updateProfileImageFile($event.target.files?.[0] || null)"
+              />
+            </label>
+            <button type="button" class="btn-light is-danger" @click="props.bindings.removeProfileImage">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14H6L5 6" />
+                </svg>
+              </span>
+              Remove Photo
+            </button>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h3 class="profile-section-title">{{ uiText.fullName }}</h3>
+          </div>
+          <button type="button" class="btn-ghost subtle" @click="props.resetUserProfile">{{ uiText.reset }}</button>
+        </div>
+
+        <div class="profile-grid">
+          <label>
+            {{ uiText.fullName }}
+            <input
+              type="text"
+              :placeholder="uiText.fullNamePlaceholder"
+              :value="props.bindings.userProfileDraft.value.name"
+              @input="props.bindings.userProfileDraft.value.name = $event.target.value"
+            />
+          </label>
+          <label>
+            {{ uiText.email }}
+            <input
+              type="email"
+              :placeholder="uiText.emailPlaceholder"
+              :value="props.bindings.userProfileDraft.value.email"
+              @input="props.bindings.userProfileDraft.value.email = $event.target.value"
+            />
+          </label>
+          <label>
+            {{ uiText.phone }}
+            <input
+              type="text"
+              placeholder="+1 (555) 123-4567"
+              :value="props.bindings.userProfileDraft.value.phone"
+              @input="props.bindings.userProfileDraft.value.phone = $event.target.value"
+            />
+          </label>
+          <label>
+            {{ uiText.location }}
+            <input
+              type="text"
+              :placeholder="uiText.locationPlaceholder"
+              :value="props.bindings.userProfileDraft.value.location"
+              @input="props.bindings.userProfileDraft.value.location = $event.target.value"
+            />
+          </label>
+        </div>
+        <p class="helper-note">Tip: use your legal name and a reachable phone so confirmations never miss you.</p>
+
+        <div class="profile-actions">
+          <button type="button" class="btn-logout" @click="props.logoutUser">{{ uiText.logout }}</button>
+          <button
+            type="button"
+            class="btn-accent"
+            :disabled="props.isSavingProfile"
+            @click="props.saveUserProfile"
+          >
+            {{ props.isSavingProfile ? 'Saving...' : uiText.saveProfile }}
+          </button>
+        </div>
+      </section>
+
+      <aside class="card profile-side">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Location</p>
+            <h3 class="profile-section-title">{{ uiText.location }}</h3>
+          </div>
+        </div>
+
+        <div class="profile-location-tools">
+          <button
+            type="button"
+            class="btn-light full"
+            :disabled="props.isDetectingLocation"
+            @click="props.detectCurrentLocation"
+          >
+            {{ props.isDetectingLocation ? uiText.detectingLocation : uiText.useCurrentLocation }}
+          </button>
+          <p v-if="props.userLatitude !== null && props.userLongitude !== null" class="location-coords">
+            Lat: {{ props.userLatitude.toFixed(6) }}, Lng: {{ props.userLongitude.toFixed(6) }}
+          </p>
+          <iframe
+            v-if="props.userLocationMapEmbedUrl"
+            class="map-frame"
+            :src="props.userLocationMapEmbedUrl"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+          <a
+            v-if="props.userLocationMapLinkUrl"
+            class="map-open-link"
+            :href="props.userLocationMapLinkUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ uiText.openInMap }}
+          </a>
+        </div>
+
+        <div class="tips-card">
+          <p class="eyebrow">Tips</p>
+          <ul>
+            <li>Use a bright, centered headshot for best clarity.</li>
+            <li>Keep phone reachable for booking confirmations.</li>
+            <li>Turn on location so vendors can suggest nearby options.</li>
+            <li>Save changes before leaving to keep everything synced.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.profile-form {
-  border: 1px solid #efd5bf;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(212, 102, 19, 0.1) 0%, rgba(212, 102, 19, 0) 42%),
-    linear-gradient(180deg, #ffffff 0%, #fff8f2 100%);
-  box-shadow: 0 20px 40px rgba(146, 64, 14, 0.08);
-  padding: 1.5rem;
-}
-
-.profile-head {
+.profile-page {
   display: grid;
-  gap: 0.45rem;
+  gap: 18px;
+  padding-bottom: 24px;
 }
 
-.profile-head p {
-  margin: 0;
-  color: #7d6650;
-  font-size: 0.95rem;
+.profile-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid #eadff5;
+  border-radius: 20px;
+  background: radial-gradient(circle at 90% 20%, rgba(255, 130, 30, 0.14), transparent 40%), linear-gradient(135deg, #ffffff 0%, #f6f8ff 100%);
+  box-shadow: 0 20px 40px rgba(28, 30, 64, 0.08);
 }
 
-.profile-form h2 {
-  margin: 0;
+.hero-copy h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.8rem, 2.8vw, 2.8rem);
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.hero-sub {
+  margin: 4px 0 10px;
+  color: #475569;
+  font-size: 1rem;
+}
+
+.hero-tags {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.hero-tags span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   color: #1f2937;
-  font-size: clamp(1.85rem, 3vw, 2.5rem);
-  line-height: 1.1;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
-.notice {
-  margin-top: 0.7rem;
-  border: 1px solid #f4cfac;
-  border-radius: 12px;
-  background: #fff5ea;
-  color: #9a3412;
-  font-weight: 700;
-  padding: 0.62rem 0.78rem;
+.hero-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 2px;
 }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.pill.success {
+  background: #ecfeff;
+  color: #0e7490;
+  border: 1px solid #a5f3fc;
+}
+
+.pill.neutral {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.profile-panel,
+.profile-side {
+  border: 1px solid #e6e9f2;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(17, 24, 39, 0.06);
+  padding: 16px 18px;
+}
+
 .profile-identity-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-
-  margin: 1.2rem 0 1.4rem;
+  margin-bottom: 1.1rem;
   padding: 1.1rem 1.2rem;
-
-  border: 1px solid #f1d5c4;
-  border-radius: 18px;
-
-  background:
-    radial-gradient(circle at top right, rgba(234, 88, 12, 0.10), transparent 45%),
-    linear-gradient(180deg, #ffffff 0%, #fff7f0 100%);
-
-  box-shadow: 
-    0 6px 16px rgba(0,0,0,0.05),
-    0 12px 28px rgba(124, 45, 18, 0.08);
-
-  transition: all 0.25s ease;
+  border: 1px solid #e7d7ff;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fdfaff 0%, #fff7ef 100%);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.08);
 }
 
-.profile-identity-card:hover {
-  transform: translateY(-3px);
-  border-color: #ea580c;
-
-  box-shadow: 
-    0 10px 22px rgba(0,0,0,0.08),
-    0 18px 36px rgba(234, 88, 12, 0.15);
-}
 .profile-avatar-main {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 1rem;
   min-width: 0;
 }
 
 .profile-avatar-preview {
-  width: 94px;
-  height: 94px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 4px solid #f3cdb3;
-
-  background: linear-gradient(135deg, #fff7f1, #ffe8d9);
+  border: 4px solid #f3e8ff;
+  background: linear-gradient(135deg, #fff8ed, #ffe1c4);
   color: #9a3412;
-
   font-size: 1.9rem;
   font-weight: 800;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   overflow: hidden;
   flex-shrink: 0;
-
-  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
-  transition: all 0.25s ease;
-}
-
-.profile-avatar-preview:hover {
-  transform: scale(1.05);
-  border-color: #ea580c;
-  box-shadow: 0 10px 20px rgba(234, 88, 12, 0.2);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .profile-avatar-preview img {
@@ -321,88 +404,124 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
 .profile-avatar-copy {
   display: grid;
-  gap: 0.3rem;
+  gap: 6px;
   min-width: 0;
 }
 
 .profile-avatar-copy strong {
-  color: #1e293b;
-  font-size: clamp(1.45rem, 2.2vw, 2.1rem);
+  color: #0f172a;
+  font-size: clamp(1.4rem, 2.2vw, 2.1rem);
   font-weight: 800;
   line-height: 1.1;
-  letter-spacing: -0.01em;
 }
 
 .profile-avatar-copy small {
-  color: #7a5a3d;
-  font-size: clamp(0.92rem, 1.7vw, 1.2rem);
+  color: #6b7280;
+  font-size: 1rem;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.profile-progress span {
+  display: block;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.progress-track {
+  margin-top: 6px;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22d3ee, #6366f1, #f97316);
+}
+
 .profile-avatar-actions {
   display: flex;
-  gap: 0.65rem;
+  gap: 0.55rem;
   flex-wrap: wrap;
-  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 700;
 }
 
 .profile-section-title {
-  margin: 1.2rem 0 0.6rem;
-  color: #9a3412;
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: 1.2rem;
+  font-weight: 800;
 }
 
-.profile-section-title::before {
-  content: "";
-  width: 4px;
-  height: 14px;
-  background: #ea580c;
-  border-radius: 4px;
-}
 .profile-grid {
-  margin-top: 0.3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .profile-grid label {
-  color: #6b4a2b;
-  font-weight: 600;
-  font-size: 0.9rem;
-  letter-spacing: 0.02em;
-
-  /* display: block; */
-  margin-bottom: 4px;
+  display: grid;
+  gap: 6px;
+  color: #1f2937;
+  font-weight: 700;
+  font-size: 0.95rem;
 }
 
 .profile-grid input {
-  border: 1px solid #edd7c4;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #ffffff;
-  color: #1f2937;
-  padding: 0.7rem 0.8rem;
+  color: #0f172a;
+  padding: 0.72rem 0.82rem;
 }
 
 .profile-grid input:focus {
   outline: none;
-  border-color: #e5a66f;
-  box-shadow: 0 0 0 3px rgba(212, 102, 19, 0.14);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.helper-note {
+  margin: -6px 0 12px;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .profile-location-tools {
-  margin-top: 0.2rem;
-  border: 1px solid #f1decc;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
+  margin-top: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
   padding: 0.9rem;
+  display: grid;
+  gap: 10px;
 }
 
 .profile-upload-btn input {
@@ -410,39 +529,40 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 }
 
 .btn-light {
-  border: 1px solid #f0ceaf;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff2e4 100%);
-  color: #9a3412;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
   font-weight: 700;
   font-size: 0.95rem;
   padding: 0.65rem 1rem;
-  
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .btn-light:hover {
-  border-color: #e5b88e;
-  background: linear-gradient(180deg, #ffffff 0%, #ffe6cc 100%);
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.15);
-  transform: translateY(-2px);
+  border-color: #c7d2fe;
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-light.full {
+  width: 100%;
 }
 
 .btn-accent {
   background: linear-gradient(135deg, #ff8c1a 0%, #ea580c 100%);
   border: 1px solid #ee7a24;
-  border-radius: 10px;
+  border-radius: 12px;
   color: #fff;
   font-weight: 800;
-  padding: 0.62rem 1.02rem;
-  box-shadow: 0 14px 26px rgba(234, 88, 12, 0.25);
+  padding: 0.65rem 1.1rem;
+  box-shadow: 0 14px 26px rgba(234, 88, 12, 0.22);
 }
 
 .btn-accent:hover:not(:disabled) {
@@ -453,6 +573,20 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 .btn-accent:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.btn-ghost {
+  border: 1px solid #e5e7eb;
+  background: transparent;
+  color: #0f172a;
+  border-radius: 12px;
+  font-weight: 700;
+  padding: 0.62rem 0.9rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.btn-ghost.subtle {
+  color: #475569;
 }
 
 .btn-icon {
@@ -467,7 +601,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   width: 16px;
   height: 16px;
 }
-/* Danger / Error Button */
+
 .is-danger {
   border: 1px solid #f4c7c7;
   border-radius: 12px;
@@ -476,18 +610,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   font-weight: 600;
   padding: 0.6rem 1rem;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .is-danger:hover {
   border-color: #eca3a3;
   background: linear-gradient(180deg, #fff 0%, #ffe7e7 100%);
   box-shadow: 0 4px 12px rgba(180, 35, 24, 0.15);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-/* Logout Button */
 .btn-logout {
   border: 1px solid #fecaca;
   border-radius: 12px;
@@ -497,17 +630,23 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   font-weight: 700;
   padding: 0.65rem 1.1rem;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .btn-logout:hover {
   background: #fee2e2;
   box-shadow: 0 4px 12px rgba(185, 28, 28, 0.15);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-/* Map Link */
+.profile-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .map-open-link {
   display: inline-block;
   font-size: 0.93rem;
@@ -522,46 +661,73 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   color: #a3470f;
 }
 
-/* Map Frame */
 .map-frame {
-  height: 280px;
-  border: 1px solid #f0d8c1;
-  border-radius: 14px;
+  height: 260px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(124, 72, 18, 0.08);
-  transition: box-shadow 0.25s ease;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.2s ease;
 }
 
 .map-frame:hover {
-  box-shadow: 0 6px 20px rgba(124, 72, 18, 0.15);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
-@media (max-width: 860px) {
-  .profile-form {
-    padding: 1rem;
+.location-coords {
+  margin: 0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.notice {
+  margin-top: 0.5rem;
+  border: 1px solid #f4cfac;
+  border-radius: 12px;
+  background: #fff5ea;
+  color: #9a3412;
+  font-weight: 700;
+  padding: 0.62rem 0.78rem;
+}
+
+.tips-card {
+  margin-top: 12px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.tips-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #475569;
+  display: grid;
+  gap: 6px;
+}
+
+@media (max-width: 980px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
   }
 
-  .profile-identity-card {
+  .hero-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .profile-hero {
     flex-direction: column;
     align-items: flex-start;
-    border-radius: 18px;
-    padding: 1rem;
   }
+}
 
+@media (max-width: 640px) {
   .profile-avatar-preview {
-    width: 76px;
-    height: 76px;
-    border-width: 3px;
+    width: 78px;
+    height: 78px;
     font-size: 1.4rem;
-  }
-
-  .profile-avatar-copy strong {
-    font-size: 1.8rem;
-  }
-
-  .profile-avatar-copy small {
-    font-size: 1rem;
-    white-space: normal;
   }
 
   .profile-actions {

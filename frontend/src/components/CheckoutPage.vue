@@ -419,7 +419,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
         <article class="line-item customer-item">
           <div class="line-item-copy">
-            <h3>👤 {{ uiText.customerDetails }}</h3>
+            <h3>{{ uiText.customerDetails }}</h3>
             <p>{{ booking.fullName }} | {{ booking.phone || uiText.noPhone }}</p>
             <p>{{ booking.email || uiText.noEmail }}</p>
             <small>{{ booking.notes || uiText.noNotes }}</small>
@@ -427,17 +427,17 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
         </article>
 
         <article class="guarantee-card">
-          <h3>🛡️ {{ uiText.serviceGuarantees }}</h3>
+          <h3>{{ uiText.serviceGuarantees }}</h3>
           <div class="guarantee-grid">
-            <p><strong>✅ {{ uiText.vendorVerification }}</strong><br />{{ uiText.vendorsChecked }}</p>
-            <p><strong>🔒 {{ uiText.secureEscrow }}</strong><br />{{ uiText.escrowText }}</p>
+            <p><strong>{{ uiText.vendorVerification }}</strong><br />{{ uiText.vendorsChecked }}</p>
+            <p><strong>{{ uiText.secureEscrow }}</strong><br />{{ uiText.escrowText }}</p>
           </div>
         </article>
       </section>
 
       <aside class="checkout-side">
         <article class="payment-card">
-          <h2>💰 {{ uiText.paymentSummary }}</h2>
+          <h2>{{ uiText.paymentSummary }}</h2>
           <p class="payment-subtitle">{{ uiText.paymentSubtitle }}</p>
           <div class="row"><span>{{ uiText.bookingTotal }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
           <div class="row"><span>{{ uiText.processingFee }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
@@ -445,94 +445,103 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             <p>{{ uiText.depositRequired }}</p>
             <div class="deposit-row">
               <strong>${{ deposit.toLocaleString() }}</strong>
-              <span class="deposit-icon">💵</span>
+              <span class="deposit-icon" aria-hidden="true">$</span>
             </div>
           </div>
           <div class="row"><span>{{ uiText.remainingBalance }}</span><strong>${{ remaining.toLocaleString() }}</strong></div>
           <hr class="payment-divider" />
 
-          <p class="payment-method-label">🏦 {{ uiText.selectPaymentMethod }}</p>
-          <button
-            type="button"
-            class="method-card"
-            :class="{ active: selectedMethod === 'aba' }"
-            @click="selectedMethod = 'aba'"
-          >
-            <span class="method-logo aba">
-              <img
-                v-if="!paymentLogoError.aba"
-                src="/ABA.png"
-                alt="ABA logo"
-                loading="lazy"
-                @error="onPaymentLogoError('aba')"
-              />
-              <span v-else>ABA</span>
-            </span>
-            <span class="method-copy">
-              <strong>ABA Pay</strong>
-              <small>Instant QR payment</small>
-            </span>
-            <span class="method-radio"></span>
-          </button>
-          <button
-            type="button"
-            class="method-card"
-            :class="{ active: selectedMethod === 'wing' }"
-            @click="selectedMethod = 'wing'"
-          >
-            <span class="method-logo wing">
-              <img
-                v-if="!paymentLogoError.wing"
-                src="/wing.png"
-                alt="Wing logo"
-                loading="lazy"
-                @error="onPaymentLogoError('wing')"
-              />
-              <span v-else>Wing</span>
-            </span>
-            <span class="method-copy">
-              <strong>Wing Bank</strong>
-              <small>Pay via Wing App or Account</small>
-            </span>
-            <span class="method-radio"></span>
-          </button>
-          <button
-            type="button"
-            class="method-card"
-            :class="{ active: selectedMethod === 'acleda' }"
-            @click="selectedMethod = 'acleda'"
-          >
-            <span class="method-logo acleda">
-              <img
-                v-if="!paymentLogoError.acleda"
-                src="/Ac.png"
-                alt="ACLEDA logo"
-                loading="lazy"
-                @error="onPaymentLogoError('acleda')"
-              />
-              <span v-else>ACLEDA</span>
-            </span>
-            <span class="method-copy">
-              <strong>ACLEDA Bank</strong>
-              <small>ACLEDA Mobile / QR</small>
-            </span>
-            <span class="method-radio"></span>
-          </button>
-          <button
-            type="button"
-            class="method-card"
-            :class="{ active: selectedMethod === 'card' }"
-            @click="selectedMethod = 'card'"
-          >
-            <span class="method-logo card">
-              <span>VISA</span>
-            </span>
-            <span class="method-copy">
-              <strong>Credit / Visa Card</strong>
-              <small>Secure card payment</small>
-            </span>
-            <span class="method-radio"></span>
-          </button>
+          <p class="payment-method-label">{{ uiText.selectPaymentMethod }}</p>
+          <div class="method-stack" role="list">
+            <button
+              type="button"
+              class="method-card"
+              :class="{ active: selectedMethod === 'aba' }"
+              :aria-pressed="selectedMethod === 'aba'"
+              @click="selectedMethod = 'aba'"
+            >
+              <span class="method-logo aba">
+                <img
+                  v-if="!paymentLogoError.aba"
+                  src="/ABA.png"
+                  alt="ABA logo"
+                  loading="lazy"
+                  @error="onPaymentLogoError('aba')"
+                />
+                <span v-else>ABA</span>
+              </span>
+              <span class="method-copy">
+                <strong>ABA Pay</strong>
+                <small>Instant QR payment</small>
+              </span>
+              <span class="method-radio" aria-hidden="true"></span>
+            </button>
+
+            <button
+              type="button"
+              class="method-card"
+              :class="{ active: selectedMethod === 'wing' }"
+              :aria-pressed="selectedMethod === 'wing'"
+              @click="selectedMethod = 'wing'"
+            >
+              <span class="method-logo wing">
+                <img
+                  v-if="!paymentLogoError.wing"
+                  src="/wing.png"
+                  alt="Wing logo"
+                  loading="lazy"
+                  @error="onPaymentLogoError('wing')"
+                />
+                <span v-else>Wing</span>
+              </span>
+              <span class="method-copy">
+                <strong>Wing Bank</strong>
+                <small>Pay via Wing App or Account</small>
+              </span>
+              <span class="method-radio" aria-hidden="true"></span>
+            </button>
+
+            <button
+              type="button"
+              class="method-card"
+              :class="{ active: selectedMethod === 'acleda' }"
+              :aria-pressed="selectedMethod === 'acleda'"
+              @click="selectedMethod = 'acleda'"
+            >
+              <span class="method-logo acleda">
+                <img
+                  v-if="!paymentLogoError.acleda"
+                  src="/Ac.png"
+                  alt="ACLEDA logo"
+                  loading="lazy"
+                  @error="onPaymentLogoError('acleda')"
+                />
+                <span v-else>ACLEDA</span>
+              </span>
+              <span class="method-copy">
+                <strong>ACLEDA Bank</strong>
+                <small>ACLEDA Mobile / QR</small>
+              </span>
+              <span class="method-radio" aria-hidden="true"></span>
+            </button>
+
+            <button
+              type="button"
+              class="method-card"
+              :class="{ active: selectedMethod === 'card' }"
+              :aria-pressed="selectedMethod === 'card'"
+              @click="selectedMethod = 'card'"
+            >
+              <span class="method-logo card">
+                <span>VISA</span>
+              </span>
+              <span class="method-copy">
+                <strong>Credit / Visa Card</strong>
+                <small>Secure card payment</small>
+              </span>
+              <span class="method-radio" aria-hidden="true"></span>
+            </button>
+          </div>
 
           <div v-if="selectedMethod === 'card'" class="card-panel">
               <label class="card-field">
@@ -590,7 +599,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
           </label>
 
           <button type="button" class="pay-btn" :disabled="!agreedTerms" @click="handleConfirmAndPay">
-            ✅ {{ uiText.confirmPay }}
+            {{ uiText.confirmPay }}
           </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
           <p class="secure-note">{{ uiText.securePayment }}</p>
@@ -612,7 +621,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
         <p>{{ uiText.qrText }}</p>
         <div class="qr-fullscreen-actions">
           <button type="button" class="modal-btn ghost" @click="isAwaitingPayment = false">
-            ⬅️ {{ uiText.back }}
+            {{ uiText.back }}
           </button>
           <button type="button" class="modal-btn primary" @click="handleConfirmAndPay">
             ✔️ {{ uiText.completePayment }}
@@ -925,7 +934,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
   color: #fff;
   display: grid;
   place-items: center;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .payment-divider {
@@ -936,56 +945,75 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
 .payment-method-label {
   margin: 0 0 8px;
-  color: #94a3b8;
+  color: #64748b;
   text-transform: uppercase;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.method-stack {
+  display: grid;
+  gap: 8px;
 }
 
 .method-card {
   width: 100%;
-  border: 1px solid #d8e2ef;
-  border-radius: 14px;
-  background: #fff;
-  padding: 11px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.78)) padding-box,
+    linear-gradient(135deg, rgba(255, 107, 0, 0.42), rgba(59, 130, 246, 0.18)) border-box;
+  padding: 10px 10px;
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) 22px;
   gap: 10px;
   align-items: center;
-  margin-bottom: 8px;
   text-align: left;
   cursor: pointer;
   transition:
-    border-color 0.2s ease,
+    background 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease;
 }
 
 .method-card:hover {
-  border-color: #f5c39d;
-  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.12);
+  box-shadow:
+    0 18px 44px rgba(15, 23, 42, 0.12),
+    0 10px 24px rgba(255, 107, 0, 0.12);
   transform: translateY(-1px);
 }
 
+.method-card:focus-visible {
+  outline: 2px solid rgba(255, 107, 0, 0.75);
+  outline-offset: 2px;
+}
+
 .method-card.active {
-  border-color: #f59b23;
-  box-shadow: inset 0 0 0 1px rgba(245, 155, 35, 0.25);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)) padding-box,
+    linear-gradient(135deg, rgba(255, 107, 0, 0.7), rgba(59, 130, 246, 0.2)) border-box;
+  box-shadow:
+    0 22px 58px rgba(15, 23, 42, 0.14),
+    0 12px 30px rgba(255, 107, 0, 0.14);
 }
 
 .method-logo {
-  width: 64px;
-  height: 40px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
   overflow: hidden;
-  border: 1px solid #dbe4f1;
-  background: #fff;
-  padding: 3px;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 5px;
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
 }
 
 .method-logo img {
@@ -995,33 +1023,37 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 }
 
 .method-logo.aba img {
-  transform: scale(1.12);
+  transform: scale(1.08);
 }
 
 .method-logo.aba {
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.55), rgba(255, 255, 255, 0.96));
   color: #003a75;
 }
 
 .method-logo.wing {
-  color: #4d7f18;
+  background: linear-gradient(135deg, rgba(209, 250, 229, 0.42), rgba(255, 255, 255, 0.96));
+  color: #2f6a12;
 }
 
 .method-logo.acleda {
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.5), rgba(255, 255, 255, 0.96));
   color: #173b9f;
 }
 
 .method-logo.card {
   background: linear-gradient(135deg, #1e3a8a, #2563eb);
   color: #fff;
-  border-color: #1d4ed8;
-  padding: 0;
+  border-color: rgba(29, 78, 216, 0.55);
+  padding: 5px;
   font-size: 13px;
   letter-spacing: 0.03em;
 }
 
 .method-copy strong {
   display: block;
-  font-size: 15px;
+  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
   line-height: 1.2;
   color: #0f172a;
 }
@@ -1033,15 +1065,31 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 }
 
 .method-radio {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  border: 2px solid #c9d5e6;
+  border: 1.5px solid rgba(203, 213, 225, 0.95);
+  background: rgba(255, 255, 255, 0.8);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
 }
 
 .method-card.active .method-radio {
-  border-color: #f59b23;
-  box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 10px #f59b23;
+  border-color: rgba(255, 107, 0, 0.65);
+  background: rgba(255, 247, 237, 0.95);
+  box-shadow:
+    0 0 0 4px rgba(255, 107, 0, 0.12),
+    0 16px 30px rgba(255, 107, 0, 0.12);
+}
+
+.method-card.active .method-radio::after {
+  content: "";
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #c2410c;
+  border-bottom: 2px solid #c2410c;
+  transform: rotate(-45deg);
 }
 
 .qr-panel {

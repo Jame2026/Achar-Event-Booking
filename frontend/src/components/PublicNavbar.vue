@@ -607,6 +607,28 @@ const bookingLink = computed(() => {
   gap: 0.45rem;
 }
 
+.nav-link {
+  position: relative;
+}
+
+.nav-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-label {
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .fav-badge {
   min-width: 20px;
   height: 20px;

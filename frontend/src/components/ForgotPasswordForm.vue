@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
 
+const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
 const apiBaseUrl = `${apiOrigin}/api`
@@ -15,11 +17,11 @@ const copyByLanguage = {
   en: {
     backToSignIn: 'Back to Sign in',
     title: 'Forgot password',
-    subtitle: 'Enter your email and we will send you a password reset link.',
-    email: 'Email',
-    emailPlaceholder: 'you@example.com',
+    subtitle: 'Enter your email or phone number to get a 6-digit verification code.',
+    email: 'Email or Phone',
+    emailPlaceholder: 'you@example.com or +85512345678',
     sending: 'Sending...',
-    sendResetLink: 'Send Reset Link',
+    sendResetLink: 'Continue',
   },
   km: {
     backToSignIn: 'ត្រឡប់ទៅចូលគណនី',
@@ -54,13 +56,13 @@ async function submitForgotPassword() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`${apiBaseUrl}/forgot-password`, {
+    const response = await fetch(`${apiBaseUrl}/password-reset/request`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ email: form.email }),
+      body: JSON.stringify({ login: form.email }),
     })
 
     const data = await response.json().catch(() => ({}))
@@ -70,7 +72,8 @@ async function submitForgotPassword() {
       return
     }
 
-    successMessage.value = data?.message ?? 'Password reset link sent.'
+    successMessage.value = data?.message ?? 'Verification code sent.'
+    router.push({ path: '/reset-password', query: { login: form.email } }).catch(() => {})
   } catch {
     errorMessage.value = 'Unable to connect to server.'
   } finally {
@@ -90,21 +93,21 @@ async function submitForgotPassword() {
         </div>
 
         <div class="form-head">
-          <h2>Forgot password</h2>
-          <p>Enter your email and we will send you a password reset link.</p>
+          <h2>{{ uiText.title }}</h2>
+          <p>{{ uiText.subtitle }}</p>
         </div>
 
         <form class="auth-form" @submit.prevent="submitForgotPassword">
           <label class="field">
-            <span>Email</span>
-            <input v-model.trim="form.email" type="email" placeholder="you@example.com" required />
+            <span>{{ uiText.email }}</span>
+            <input v-model.trim="form.email" type="text" :placeholder="uiText.emailPlaceholder" required />
           </label>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="form-alert form-alert-success">{{ successMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Sending...' : 'Send Reset Link' }}
+            {{ submitting ? uiText.sending : uiText.sendResetLink }}
           </button>
         </form>
       </section>
