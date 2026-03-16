@@ -7,6 +7,8 @@ use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,49 +17,71 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'role' => 'admin',
-        ]);
+        $makeUser = function (array $overrides) {
+            return array_merge([
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
+            ], $overrides);
+        };
 
-        $vendor1 = User::factory()->create([
-            'name' => 'Skyline Grand Atrium',
-            'email' => 'vendor1@example.com',
-            'role' => 'vendor',
-        ]);
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            $makeUser([
+                'name' => 'Admin User',
+                'role' => 'admin',
+            ])
+        );
 
-        $vendor2 = User::factory()->create([
-            'name' => 'Artisan Palate',
-            'email' => 'vendor2@example.com',
-            'role' => 'vendor',
-        ]);
+        $vendor1 = User::firstOrCreate(
+            ['email' => 'vendor1@example.com'],
+            $makeUser([
+                'name' => 'Skyline Grand Atrium',
+                'role' => 'vendor',
+            ])
+        );
 
-        $vendor3 = User::factory()->create([
-            'name' => 'Lumina Studios',
-            'email' => 'vendor3@example.com',
-            'role' => 'vendor',
-        ]);
+        $vendor2 = User::firstOrCreate(
+            ['email' => 'vendor2@example.com'],
+            $makeUser([
+                'name' => 'Artisan Palate',
+                'role' => 'vendor',
+            ])
+        );
 
-        $vendor4 = User::factory()->create([
-            'name' => 'Elegant Events Co',
-            'email' => 'vendor4@example.com',
-            'role' => 'vendor',
-        ]);
+        $vendor3 = User::firstOrCreate(
+            ['email' => 'vendor3@example.com'],
+            $makeUser([
+                'name' => 'Lumina Studios',
+                'role' => 'vendor',
+            ])
+        );
 
-        $vendor5 = User::factory()->create([
-            'name' => 'Prime Venues',
-            'email' => 'vendor5@example.com',
-            'role' => 'vendor',
-        ]);
+        $vendor4 = User::firstOrCreate(
+            ['email' => 'vendor4@example.com'],
+            $makeUser([
+                'name' => 'Elegant Events Co',
+                'role' => 'vendor',
+            ])
+        );
 
-        $customer = User::factory()->create([
-            'name' => 'Customer User',
-            'email' => 'user@example.com',
-            'role' => 'user',
-        ]);
+        $vendor5 = User::firstOrCreate(
+            ['email' => 'vendor5@example.com'],
+            $makeUser([
+                'name' => 'Prime Venues',
+                'role' => 'vendor',
+            ])
+        );
 
-        Event::query()->insert([
+        $customer = User::firstOrCreate(
+            ['email' => 'user@example.com'],
+            $makeUser([
+                'name' => 'Customer User',
+                'role' => 'user',
+            ])
+        );
+
+        $events = [
             // Wedding Events
             [
                 'vendor_id' => $vendor1->id,
@@ -309,6 +333,16 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ]);
+        ];
+
+        foreach ($events as $event) {
+            Event::firstOrCreate(
+                [
+                    'vendor_id' => $event['vendor_id'],
+                    'title' => $event['title'],
+                ],
+                $event
+            );
+        }
     }
 }
