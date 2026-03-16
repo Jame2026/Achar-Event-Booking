@@ -12,6 +12,7 @@ const props = defineProps([
   "vendorBookings",
   "isLoadingEvents",
   "isLoadingVendorBookings",
+  "notice",
   "vendorServiceForm",
   "isSubmittingVendorService",
   "vendorServiceNotice",
@@ -92,6 +93,10 @@ const copyByLanguage = {
     openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    vendorDataHintServices:
+      "Create and publish at least one service so bookings can link to your vendor dashboard.",
+    vendorDataHintBookings: "Bookings will appear here as soon as customers submit requests for your services.",
+    vendorDataError: "We couldn't load your vendor data. Please try again.",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -151,6 +156,10 @@ const copyByLanguage = {
     openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
+    vendorDataHintServices:
+      "បង្កើត និងបង្ហោះសេវាកម្មយ៉ាងហោចណាស់មួយ ដើម្បីភ្ជាប់ការកក់ទៅផ្ទាំងអ្នកផ្គត់ផ្គង់។",
+    vendorDataHintBookings: "ការកក់នឹងបង្ហាញទីនេះ នៅពេលអតិថិជនដាក់សំណើសេវាកម្មរបស់អ្នក។",
+    vendorDataError: "មិនអាចផ្ទុកទិន្នន័យអ្នកផ្គត់ផ្គង់បានទេ សូមព្យាយាមម្ដងទៀត។",
   },
   zh: {
     overview: "概览",
@@ -209,9 +218,25 @@ const copyByLanguage = {
     openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
+    vendorDataHintServices: "先创建并上架至少 1 项服务，预订才能关联到您的商家仪表盘。",
+    vendorDataHintBookings: "当客户提交预订请求时，它们会显示在这里。",
+    vendorDataError: "无法获取商家数据，请稍后重试。",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
+
+const effectiveNotice = computed(() => {
+  if (props.notice) return props.notice;
+  if (props.isLoadingEvents || props.isLoadingVendorBookings) return "";
+
+  const hasServices = Array.isArray(props.vendorEvents) && props.vendorEvents.length > 0;
+  if (!hasServices) return uiText.value.vendorDataHintServices;
+
+  const hasBookings = Array.isArray(props.vendorBookings) && props.vendorBookings.length > 0;
+  if (!hasBookings) return uiText.value.vendorDataHintBookings;
+
+  return "";
+});
 
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
@@ -932,6 +957,15 @@ watch(
           </div>
         </div>
       </header>
+
+      <div
+        v-if="effectiveNotice"
+        class="vendor-inline-notice"
+        :class="{ 'is-error': !!props.notice }"
+        role="status"
+      >
+        {{ effectiveNotice }}
+      </div>
 
       <section v-show="localActiveTab === 'overview'" class="stats-grid">
         <article class="stat-card stat-income">
@@ -3699,6 +3733,23 @@ watch(
 }
 
 .notice-error {
+  color: #b91c1c;
+}
+
+.vendor-inline-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  color: #075985;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.vendor-inline-notice.is-error {
+  background: #fef2f2;
+  border-color: #fecdd3;
   color: #b91c1c;
 }
 
