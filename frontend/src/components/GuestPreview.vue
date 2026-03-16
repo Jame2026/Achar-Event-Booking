@@ -552,14 +552,13 @@ function mapEventToGuestService(item) {
 }
 
 async function loadLiveVendorEvents() {
-  // Try session cache first to avoid repeated network calls
+  // Use session cache for fast paint, but still fetch fresh data
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length) {
         liveVendorEvents.value = parsed;
-        return;
       }
     }
   } catch {
@@ -567,7 +566,7 @@ async function loadLiveVendorEvents() {
   }
 
   try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
     if (rows.length) {
       liveVendorEvents.value = rows;

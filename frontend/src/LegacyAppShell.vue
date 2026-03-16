@@ -35,6 +35,7 @@ const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
 const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
+const EVENTS_CACHE_KEY = 'achar_guest_events_cache_v1'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -945,6 +946,14 @@ function resetVendorServiceForm() {
   }
 }
 
+function clearGuestEventsCache() {
+  try {
+    sessionStorage.removeItem(EVENTS_CACHE_KEY)
+  } catch {
+    // ignore storage errors
+  }
+}
+
 async function submitVendorService() {
   if (!isVendorAccount.value) return
 
@@ -1000,6 +1009,7 @@ async function submitVendorService() {
 
     await apiPost('vendor/services', payload)
     await loadEvents()
+    clearGuestEventsCache()
     selectedEventType.value = normalizedPayload.event_type
     vendorServiceNotice.value = uiText.value.serviceCreated
     resetVendorServiceForm()
@@ -1020,6 +1030,7 @@ async function toggleVendorServiceActive(item) {
       is_active: !item.isActive,
     })
     await loadEvents()
+    clearGuestEventsCache()
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotUpdateService
   }
@@ -1032,6 +1043,7 @@ async function deleteVendorService(item) {
   try {
     await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
     await loadEvents()
+    clearGuestEventsCache()
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotDeleteService
   }
@@ -1039,11 +1051,24 @@ async function deleteVendorService(item) {
 
 function mapVendorBookingRow(row) {
   const event = row.event || {}
+  const user = row.user || {}
   const bookingDate = row.requested_event_date || event.starts_at
+  const customerEmail = row.customer_email || user.email || ''
   return {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
-    customer_name: row.customer_name || row.user?.name || uiText.value.customer,
+    customer_id: user.id || null,
+    customer_name: row.customer_name || user.name || uiText.value.customer,
+    customer_email: customerEmail,
+    customer_phone: row.customer_phone || user.phone || '',
+    customer_location: row.customer_location || user.location || '',
+    customer_avatar: user.profile_image_url || '',
+    event_location: row.event_location || event.location || '',
+    event_type: event.event_type || row.requested_event_type || '',
+    event_image: event.image_url || '',
+    requested_event_type: row.requested_event_type || event.event_type || '',
+    quantity: Number(row.quantity || 0),
+    booked_items: Array.isArray(row.booked_items) ? row.booked_items : [],
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
@@ -1346,6 +1371,16 @@ watch([currentPage, activeVendorTab, vendorDashboardTab], () => {
   closeNotificationDropdown()
   syncRouteQueryFromState()
 })
+
+watch(
+  vendorDashboardTab,
+  async (tab) => {
+    if (tab === 'services') {
+      await loadEvents()
+    }
+  },
+  { flush: 'post' },
+)
 
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick)
