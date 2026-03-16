@@ -37,7 +37,7 @@ const copyByLanguage = {
     home: 'Home',
     about: 'About',
     service: 'Service',
-    myBooking: 'My Booking',
+    myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
     paymentPartners: 'Payment Partners',

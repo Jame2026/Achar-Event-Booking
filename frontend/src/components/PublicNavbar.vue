@@ -32,7 +32,7 @@ const copyByLanguage = {
     packages: 'Packages',
     overallService: 'Overall Service',
     dashboard: 'Dashboard',
-    myBooking: 'My Booking',
+    myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
     searchPlaceholder: 'Search bookings...',

@@ -37,7 +37,7 @@ const copyByLanguage = {
     favorite: "Favorite",
     favoriteSub: "Your saved packages and services.",
     favoriteText: "Favorites are saved on this device. Sign in to sync across your account.",
-    myBooking: "My Booking",
+    myBooking: "My Bookings",
     bookingSub: "No booking data yet.",
     bookingText: "Sign in to view your booking history, upcoming events, and confirmations.",
     servicePackages: "Service Packages",
@@ -302,6 +302,162 @@ const fallbackDemoEvents = [
     vendor: { name: vendorProfile.name },
   },
 ];
+
+const DEMO_BOOKINGS_STORAGE_KEY = "achar_demo_bookings";
+function shouldShowDemoBookings() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") return true;
+    if (params.get("demoBookings") === "1") return true;
+  } catch {
+    // ignore
+  }
+
+  try {
+    return localStorage.getItem(DEMO_BOOKINGS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const fallbackDemoBookings = [
+  {
+    id: 71001,
+    status: "pending",
+    customer_name: "Sarah Lee",
+    customer_email: "sarah.lee@example.com",
+    quantity: 1,
+    total_amount: 1800,
+    requested_event_type: "wedding",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 35).toISOString(),
+    service_name: "Signature Wedding Floral & Styling",
+    booked_items: [
+      {
+        type: "package",
+        name: "Signature Wedding Floral & Styling",
+        qty: 1,
+        unitPrice: 1800,
+        totalPrice: 1800,
+        description: "Full-venue floral design and coordinated ceremony styling.",
+      },
+    ],
+    event: {
+      id: 9001,
+      title: "Signature Wedding Floral & Styling",
+      event_type: "wedding",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 35).toISOString(),
+      image_url: packageImageByEventType.wedding,
+      vendor: { name: vendorProfile.name },
+    },
+  },
+  {
+    id: 71002,
+    status: "confirmed",
+    customer_name: "David Chen",
+    customer_email: "david.chen@example.com",
+    quantity: 2,
+    total_amount: 1040,
+    requested_event_type: "birthday",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
+    service_name: "Birthday Backdrop & Balloon Bar",
+    booked_items: [
+      {
+        type: "service",
+        name: "Backdrop setup",
+        qty: 1,
+        unitPrice: 420,
+        totalPrice: 420,
+        description: "Photo-ready backdrop with themed props.",
+      },
+      {
+        type: "service",
+        name: "Balloon bar",
+        qty: 1,
+        unitPrice: 620,
+        totalPrice: 620,
+        description: "Custom balloon palette + installation.",
+      },
+    ],
+    event: {
+      id: 9004,
+      title: "Birthday Backdrop & Balloon Bar",
+      event_type: "birthday",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
+      image_url: packageImageByEventType.birthday,
+      vendor: { name: "Golden Lotus Decor" },
+    },
+  },
+  {
+    id: 71003,
+    status: "confirmed",
+    customer_name: "Amina Rahman",
+    customer_email: "amina.rahman@example.com",
+    quantity: 1,
+    total_amount: 650,
+    requested_event_type: "monk_ceremony",
+    requested_event_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 42).toISOString(),
+    service_name: "Monk Ceremony Setup",
+    booked_items: [
+      {
+        type: "package",
+        name: "Monk Ceremony Setup",
+        qty: 1,
+        unitPrice: 650,
+        totalPrice: 650,
+        description: "Respectful altar layout + coordination support.",
+      },
+    ],
+    event: {
+      id: 9002,
+      title: "Monk Ceremony Setup",
+      event_type: "monk_ceremony",
+      starts_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 42).toISOString(),
+      image_url: packageImageByEventType.monk_ceremony,
+      vendor: { name: vendorProfile.name },
+    },
+  },
+  {
+    id: 71004,
+    status: "cancelled",
+    customer_name: "Michael Rivera",
+    customer_email: "michael.rivera@example.com",
+    quantity: 1,
+    total_amount: 2400,
+    requested_event_type: "company_party",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString(),
+    service_name: "Corporate Gala Décor",
+    booked_items: [
+      {
+        type: "package",
+        name: "Corporate Gala Décor",
+        qty: 1,
+        unitPrice: 2400,
+        totalPrice: 2400,
+        description: "Stage styling, centerpieces, and guest flow support.",
+      },
+    ],
+    event: {
+      id: 9003,
+      title: "Corporate Gala Décor",
+      event_type: "company_party",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString(),
+      image_url: packageImageByEventType.company_party,
+      vendor: { name: "Achar Pro Events" },
+    },
+  },
+];
+
+function mapRowsToGuestBookings(rows) {
+  return rows.map((row) => {
+    const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
+    return {
+      ...mapped,
+      primaryBtn: "View Details",
+      secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
+      rawBooking: row,
+    };
+  });
+}
 
 const pageContent = computed(() => {
   if (props.section === "favorite") {
@@ -617,6 +773,11 @@ async function loadGuestBookings() {
   }
 
   if (!authUser) {
+    if (shouldShowDemoBookings()) {
+      guestBookings.value = mapRowsToGuestBookings(fallbackDemoBookings);
+      bookingPageNotice.value = "";
+      return;
+    }
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
     return;
@@ -633,15 +794,7 @@ async function loadGuestBookings() {
   try {
     const result = await apiGet("bookings", { customer_email: customerEmail });
     const rows = Array.isArray(result?.data) ? result.data : [];
-    guestBookings.value = rows.map((row) => {
-      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
-      return {
-        ...mapped,
-        primaryBtn: "View Details",
-        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
-        rawBooking: row,
-      };
-    });
+    guestBookings.value = mapRowsToGuestBookings(rows);
     bookingPageNotice.value = "";
   } catch (error) {
     guestBookings.value = [];
@@ -1776,7 +1929,7 @@ function noop() {}
 
     <main class="shell guest-content">
       <section
-        v-if="section !== 'services-overall' && section !== 'services-packages'"
+        v-if="section !== 'services-overall' && section !== 'services-packages' && section !== 'bookings'"
         class="guest-panel"
       >
         <h1>{{ pageContent.title }}</h1>
@@ -1914,6 +2067,7 @@ function noop() {}
 	                      <button
 	                        type="button"
 	                        class="choice-indicator package-book-btn"
+	                        :class="{ selected: selectedPackageId === item.id }"
 	                        @click.stop="selectPackage(item.id)"
 	                      >
 	                        {{
@@ -2317,6 +2471,7 @@ function noop() {}
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
         :notice="bookingPageNotice"
+        :is-guest="true"
         :is-loading-bookings="isLoadingGuestBookings"
         :filtered-bookings="filteredGuestBookings"
         :go-to-dashboard="() => goToSection('dashboard')"
@@ -3340,17 +3495,52 @@ function noop() {}
   line-height: 1.2;
 }
 
+.package-rating .star {
+  color: #f59e0b;
+  filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.25));
+}
+
+.package-rating strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.package-rating small {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
 .package-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 10px;
+  padding: 10px 10px;
+  border: 1px solid #e2e8f3;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 58%),
+    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.12), transparent 52%),
+    #ffffff;
 }
 
 .package-price-stack {
   display: grid;
   gap: 1px;
+  position: relative;
+  padding-left: 10px;
+}
+
+.package-price-stack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), #ff9a55);
 }
 
 .package-price-stack small {
@@ -3359,6 +3549,60 @@ function noop() {}
   letter-spacing: 0.04em;
   color: #8a94a8;
   font-size: 11px;
+}
+
+.package-product-card .package-book-btn {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0.65rem 1.05rem;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #ff8529, var(--accent));
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  box-shadow: 0 14px 26px rgba(255, 106, 0, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  white-space: nowrap;
+}
+
+.package-product-card .package-book-btn::after {
+  content: "›";
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.9;
+  transform: translateY(-0.02em);
+}
+
+.package-product-card .package-book-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 30px rgba(255, 106, 0, 0.26);
+}
+
+.package-product-card .package-book-btn.selected {
+  background: linear-gradient(160deg, #0f172a, #1f2937);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.22);
+}
+
+.package-product-card .package-book-btn.selected::after {
+  content: "✓";
+  font-size: 1.05rem;
+}
+
+@media (max-width: 520px) {
+  .package-bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .package-product-card .package-book-btn {
+    width: 100%;
+  }
 }
 
 .package-product-footer {
