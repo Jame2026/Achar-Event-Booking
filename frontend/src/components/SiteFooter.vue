@@ -286,16 +286,16 @@ function onBankLogoError(name) {
 .payments {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px;
 }
 
 .payment-card {
-  border: 1px solid #d9e2ef;
-  border-radius: 10px;
-  background: #ffffff;
-  padding: 10px 16px;
-  min-height: 48px;
+  border: 1px solid #cbe0f1;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff7ef, #fff);
+  padding: 14px 18px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -328,8 +328,8 @@ function onBankLogoError(name) {
 }
 
 .payment-logo {
-  width: 56px;
-  height: 40px;
+  width: 88px;
+  height: 52px;
   object-fit: contain;
   flex: 0 0 auto;
 }

@@ -70,11 +70,12 @@ const copyByLanguage = {
     favoriteBundle: "Favorite Services Bundle",
     noPackagesForEvent: "No packages available for this event.",
     signInLoadDashboard: "Sign in to load your dashboard data.",
-    packagePageTitle: "Service Packages",
-    packagePageText: "Browse available packages by event type. Search quickly and choose the best fit for your event.",
-    eventType: "Event type",
-    search: "Search",
-    searchPackages: "Search packages...",
+	    packagePageTitle: "Service Packages",
+	    packagePageText: "Browse available packages by event type. Search quickly and choose the best fit for your event.",
+	    packageCatalog: "Package Catalog",
+	    eventType: "Event type",
+	    search: "Search",
+	    searchPackages: "Search packages...",
     selected: "Selected",
     selectPackage: "Select Package",
     viewDetails: "View Details",
@@ -142,11 +143,12 @@ const copyByLanguage = {
     favoriteBundle: "កញ្ចប់សេវាកម្មដែលចូលចិត្ត",
     noPackagesForEvent: "មិនមានកញ្ចប់សម្រាប់ព្រឹត្តិការណ៍នេះទេ។",
     signInLoadDashboard: "សូមចូលគណនីដើម្បីផ្ទុកទិន្នន័យផ្ទាំងគ្រប់គ្រងរបស់អ្នក។",
-    packagePageTitle: "កញ្ចប់សេវាកម្ម",
-    packagePageText: "រកមើលកញ្ចប់ដែលមានតាមប្រភេទព្រឹត្តិការណ៍។ ស្វែងរកយ៉ាងរហ័ស ហើយជ្រើសរើសអ្វីដែលសមបំផុតសម្រាប់ព្រឹត្តិការណ៍របស់អ្នក។",
-    eventType: "ប្រភេទព្រឹត្តិការណ៍",
-    search: "ស្វែងរក",
-    searchPackages: "ស្វែងរកកញ្ចប់...",
+	    packagePageTitle: "កញ្ចប់សេវាកម្ម",
+	    packagePageText: "រកមើលកញ្ចប់ដែលមានតាមប្រភេទព្រឹត្តិការណ៍។ ស្វែងរកយ៉ាងរហ័ស ហើយជ្រើសរើសអ្វីដែលសមបំផុតសម្រាប់ព្រឹត្តិការណ៍របស់អ្នក។",
+	    packageCatalog: "បញ្ជីកញ្ចប់",
+	    eventType: "ប្រភេទព្រឹត្តិការណ៍",
+	    search: "ស្វែងរក",
+	    searchPackages: "ស្វែងរកកញ្ចប់...",
     selected: "បានជ្រើស",
     selectPackage: "ជ្រើសរើសកញ្ចប់",
     viewDetails: "មើលព័ត៌មានលម្អិត",
@@ -214,11 +216,12 @@ const copyByLanguage = {
     favoriteBundle: "收藏服务组合",
     noPackagesForEvent: "当前活动没有可用套餐。",
     signInLoadDashboard: "请登录以加载您的仪表盘数据。",
-    packagePageTitle: "服务套餐",
-    packagePageText: "按活动类型浏览可用套餐。快速搜索并选择最适合您活动的方案。",
-    eventType: "活动类型",
-    search: "搜索",
-    searchPackages: "搜索套餐...",
+	    packagePageTitle: "服务套餐",
+	    packagePageText: "按活动类型浏览可用套餐。快速搜索并选择最适合您活动的方案。",
+	    packageCatalog: "套餐目录",
+	    eventType: "活动类型",
+	    search: "搜索",
+	    searchPackages: "搜索套餐...",
     selected: "已选择",
     selectPackage: "选择套餐",
     viewDetails: "查看详情",
@@ -703,6 +706,54 @@ const serviceFeeAmount = computed(() =>
 );
 
 const totalPrice = computed(() => packagePrice.value + servicesSubtotal.value + serviceFeeAmount.value);
+
+function formatPrebookMoney(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return "$0";
+  const abs = Math.abs(num);
+  const hasCents = Math.round(abs * 100) % 100 !== 0;
+  return `$${num.toLocaleString(undefined, {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+const prebookSummaryQuantity = computed(() => {
+  const usingOverallFlow = section.value === "services-overall";
+  const raw = usingOverallFlow ? Number(overallQuantity.value || 1) : Number(packageQuantity.value || 1);
+  return Number.isFinite(raw) && raw >= 1 ? raw : 1;
+});
+
+const prebookSummaryPackage = computed(() => {
+  const byTarget = guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) || null;
+  return byTarget || selectedPackage.value || null;
+});
+
+const prebookSummaryPackageSubtotal = computed(() => {
+  const pkg = prebookSummaryPackage.value;
+  if (!pkg) return 0;
+  return Number(pkg.price || 0) * prebookSummaryQuantity.value;
+});
+
+const prebookSummaryServicesSubtotal = computed(() => {
+  const perUnit = selectedServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0);
+  return perUnit * prebookSummaryQuantity.value;
+});
+
+const prebookSummaryServicesLabel = computed(() => {
+  const count = selectedServices.value.length;
+  if (count === 1) return String(selectedServices.value[0]?.name || "Service");
+  if (count > 1) return `Services (${count})`;
+  return "Selected services";
+});
+
+const prebookSummaryServiceFee = computed(() =>
+  Number(((prebookSummaryPackageSubtotal.value + prebookSummaryServicesSubtotal.value) * serviceFeeRate).toFixed(2)),
+);
+
+const prebookSummaryTotal = computed(
+  () => prebookSummaryPackageSubtotal.value + prebookSummaryServicesSubtotal.value + prebookSummaryServiceFee.value,
+);
 
 const activePackageId = ref(null);
 const showPrebookModal = ref(false);
@@ -1747,17 +1798,17 @@ function noop() {}
         :open-upcoming-bookings="() => goToSection('bookings')"
       />
 
-      <section
-        v-else-if="section === 'services-packages'"
-        class="package-layout"
-      >
-        <section class="package-head card">
-          <div class="package-head-main">
-            <div class="flow-head-row">
-              <h1>{{ uiText.packagePageTitle }}</h1>
-              <div v-if="isFromCheckout" class="checkout-flow-steps">
-                <RouterLink
-                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+	      <section
+	        v-else-if="section === 'services-packages'"
+	        class="overall-service-page packages-service-page"
+	      >
+	        <section class="overall-head card">
+	          <div class="overall-head-main">
+	            <div class="flow-head-row">
+	              <h1>{{ uiText.packagePageTitle }}</h1>
+	              <div v-if="isFromCheckout" class="checkout-flow-steps">
+	                <RouterLink
+	                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
                   class="step-link active"
                 >
                   {{ uiText.servicesStep || '1 Services' }}
@@ -1767,14 +1818,14 @@ function noop() {}
                 </RouterLink>
               </div>
             </div>
-            <p>
-              {{ uiText.packagePageText }}
-            </p>
-            <div class="package-toolbar">
-              <label class="filter-field">
-                <span>{{ uiText.eventType }}</span>
-                <select
-                  class="event-type-select"
+	            <p>
+	              {{ uiText.packagePageText }}
+	            </p>
+	            <div class="overall-toolbar">
+	              <label class="filter-field">
+	                <span>{{ uiText.eventType }}</span>
+	                <select
+	                  class="event-type-select"
                   :value="packageEventType"
                   @change="packageEventType = $event.target.value"
                 >
@@ -1796,88 +1847,94 @@ function noop() {}
                   :value="packageSearch"
                   @input="packageSearch = $event.target.value"
                 />
-              </label>
-              <div class="package-count">
-                {{ guestPreviewPackagesFiltered.length }}
-                {{ guestPreviewPackagesFiltered.length === 1 ? uiText.packageCountSingle : uiText.packageCount }}
-              </div>
-            </div>
-          </div>
-        </section>
+	              </label>
+	              <div class="overall-count">
+	                {{ guestPreviewPackagesFiltered.length }}
+	                {{ guestPreviewPackagesFiltered.length === 1 ? uiText.packageCountSingle : uiText.packageCount }}
+	              </div>
+	            </div>
+	          </div>
+	        </section>
 
-        <div class="package-layout-main">
-          <div class="package-catalog">
-            <div class="package-grid">
-              <p
-                v-if="guestPreviewPackagesFiltered.length === 0"
-                class="guest-text package-empty"
-              >
-                {{ uiText.noPackagesForEvent }}
-              </p>
-              <article
-                v-for="item in guestPreviewPackagesFiltered"
-                :key="item.id"
-                class="package-product-card"
-                :id="`package-card-${item.id}`"
-                :class="{ 'focused-target-card': focusedCardKey === `package-card-${item.id}` }"
-                role="button"
-                tabindex="0"
-                @click="openPackageDetails(item.id)"
-                @keyup.enter="openPackageDetails(item.id)"
-              >
-                <div class="package-card-image-wrap">
-                  <img class="package-card-image" :src="item.image" :alt="item.title" />
-                  <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
-                  <button
-                    type="button"
-                    class="package-fav-badge"
-                    :class="{ active: isPackageFavorite(item.id) }"
-                    @click.stop="toggleFavoritePackage(item.id)"
-                    :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
-                  >
-                    {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
-                  </button>
-                </div>
+	        <section class="overall-layout">
+	          <div class="overall-list">
+	            <article class="customization-section">
+	              <div class="customization-section-head">
+	                <span>P</span>
+	                <h2>{{ uiText.packageCatalog }}</h2>
+	              </div>
 
-                <div class="package-product-body">
-                  <h3>{{ item.title }}</h3>
-                  <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
-                  <div class="package-rating">
-                    <span class="star">★</span>
-                    <strong>{{ (item.rating || 4.7).toFixed ? (item.rating || 4.7).toFixed(1) : '4.7' }}</strong>
-                    <small>{{ uiText.reviewsLabel || '0 reviews' }}</small>
-                  </div>
+	              <div
+	                v-if="guestPreviewPackagesFiltered.length === 0"
+	                class="card empty-state"
+	              >
+	                {{ uiText.noPackagesForEvent }}
+	              </div>
 
-                  <div class="package-bottom">
-                    <div class="package-price-stack">
-                      <small>{{ uiText.startsFrom || 'Starts from' }}</small>
-                      <strong class="package-price">{{ item.priceLabel }}</strong>
-                    </div>
-                    <button
-                      type="button"
-                      class="choice-indicator package-book-btn"
-                      @click.stop="selectPackage(item.id)"
-                    >
-                      {{
-                        selectedPackageId === item.id
-                          ? uiText.selected
-                          : uiText.selectPackage
-                      }}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            </div>
-            <!-- services below packages on the same page -->
-          </div>
-        </div>
+	              <div v-else class="package-grid">
+	                <article
+	                  v-for="item in guestPreviewPackagesFiltered"
+	                  :key="item.id"
+	                  class="package-product-card"
+	                  :id="`package-card-${item.id}`"
+	                  :class="{ 'focused-target-card': focusedCardKey === `package-card-${item.id}` }"
+	                  role="button"
+	                  tabindex="0"
+	                  @click="openPackageDetails(item.id)"
+	                  @keyup.enter="openPackageDetails(item.id)"
+	                >
+	                  <div class="package-card-image-wrap">
+	                    <img class="package-card-image" :src="item.image" :alt="item.title" />
+	                    <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
+	                    <button
+	                      type="button"
+	                      class="package-fav-badge"
+	                      :class="{ active: isPackageFavorite(item.id) }"
+	                      @click.stop="toggleFavoritePackage(item.id)"
+	                      :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
+	                    >
+	                      {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
+	                    </button>
+	                  </div>
 
-        <aside class="card customization-summary package-summary">
-          <h2>{{ uiText.bookingSummary }}</h2>
-          <div class="summary-items">
-            <h3>{{ uiText.selectedPackage }}</h3>
-            <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
-            <div v-else class="summary-package">
+	                  <div class="package-product-body">
+	                    <h3>{{ item.title }}</h3>
+	                    <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
+	                    <div class="package-rating">
+	                      <span class="star">★</span>
+	                      <strong>{{ (item.rating || 4.7).toFixed ? (item.rating || 4.7).toFixed(1) : '4.7' }}</strong>
+	                      <small>{{ uiText.reviewsLabel || '0 reviews' }}</small>
+	                    </div>
+
+	                    <div class="package-bottom">
+	                      <div class="package-price-stack">
+	                        <small>{{ uiText.startsFrom || 'Starts from' }}</small>
+	                        <strong class="package-price">{{ item.priceLabel }}</strong>
+	                      </div>
+	                      <button
+	                        type="button"
+	                        class="choice-indicator package-book-btn"
+	                        @click.stop="selectPackage(item.id)"
+	                      >
+	                        {{
+	                          selectedPackageId === item.id
+	                            ? uiText.selected
+	                            : uiText.selectPackage
+	                        }}
+	                      </button>
+	                    </div>
+	                  </div>
+	                </article>
+	              </div>
+	            </article>
+	          </div>
+
+	          <aside class="card customization-summary overall-summary package-summary">
+	            <h2>{{ uiText.bookingSummary }}</h2>
+	          <div class="summary-items">
+	            <h3>{{ uiText.selectedPackage }}</h3>
+	            <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
+	            <div v-else class="summary-package">
               <strong>{{ selectedPackage.title }}</strong>
               <p>
                 {{ selectedPackage.eventTypeLabel }} |
@@ -1936,10 +1993,11 @@ function noop() {}
             :disabled="!selectedPackage && selectedServices.length === 0"
             @click="openPrebookForm"
           >
-            {{ uiText.prebookNow }}
-          </button>
-        </aside>
-      </section>
+	            {{ uiText.prebookNow }}
+	          </button>
+	        </aside>
+	        </section>
+	      </section>
 
       <CustomizationPage
         v-else-if="section === 'customization'"
@@ -2457,166 +2515,289 @@ function noop() {}
     >
       <div class="prebook-modal" @click.stop>
         <div class="prebook-head">
-          <h3>📘 Book {{ prebookTargetTitle }}</h3>
-          <button type="button" class="prebook-close" @click="closePrebookModal">
-            x
+          <div class="prebook-head-main">
+            <span class="prebook-head-badge" aria-hidden="true">
+              <svg class="prebook-head-icon" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M7 8.5h10M7 12h10M7 15.5h6M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <div class="prebook-head-copy">
+              <h3>Book {{ prebookTargetTitle }}</h3>
+              <p>Fill in the details below—then review everything at checkout.</p>
+              <div class="prebook-steps" aria-hidden="true">
+                <span class="prebook-step prebook-step-active">1 Details</span>
+                <span class="prebook-step">2 Location</span>
+                <span class="prebook-step">3 Checkout</span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="prebook-close"
+            @click="closePrebookModal"
+            aria-label="Close booking form"
+          >
+            <svg class="prebook-close-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
           </button>
         </div>
 
         <form class="prebook-form" @submit.prevent="submitPrebookForm">
-          <label>
-            <span>👤 Full name</span>
-            <input v-model.trim="prebookForm.fullName" type="text" required />
-          </label>
-
-          <label>
-            <span>📧 Email</span>
-            <input v-model.trim="prebookForm.email" type="email" required />
-          </label>
-
-          <label>
-            <span>📱 Phone number</span>
-            <input
-              v-model.trim="prebookForm.phone"
-              type="tel"
-              required
-              placeholder="+1 555 234 5678"
-            />
-          </label>
-
-          <label>
-            <span>📍 Location</span>
-            <input
-              v-model.trim="prebookForm.location"
-              type="text"
-              required
-              placeholder="City / Venue address"
-              @input="scheduleTypedPrebookLocationResolve"
-            />
-          </label>
-          <div class="prebook-location-tools">
-            <button
-              type="button"
-              class="modal-action-btn modal-action-neutral"
-              :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
-              @click="detectPrebookLocation"
-            >
-              {{ isDetectingPrebookLocation ? "Detecting location..." : "📡 Use Current Location" }}
-            </button>
-            <p
-              v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
-              class="prebook-location-coords"
-            >
-              Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng: {{ Number(prebookForm.longitude).toFixed(6) }}
-            </p>
-            <iframe
-              v-if="prebookLocationMapEmbedUrl"
-              class="prebook-map-frame"
-              :src="prebookLocationMapEmbedUrl"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
-            <a
-              v-if="prebookLocationMapLinkUrl"
-              class="prebook-map-link"
-              :href="prebookLocationMapLinkUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open current location in map
-            </a>
-          </div>
-
-          <label>
-            <span>📅 Event date</span>
-            <div class="prebook-date-picker">
-              <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
-                <span>{{ prebookForm.eventDate || "Select event date" }}</span>
-                <span class="prebook-date-icon">📆</span>
-              </button>
-
-              <div v-if="showPrebookCalendar" class="prebook-calendar">
-                <div class="prebook-calendar-head">
-                  <div>
-                    <strong>{{ prebookCalendarMonthLabel }}</strong>
-                    <small>{{ prebookCalendarSelectedLabel }}</small>
-                  </div>
-                  <div class="prebook-calendar-nav">
-                    <button type="button" @click="previousPrebookCalendarMonth">&lt;</button>
-                    <button type="button" @click="nextPrebookCalendarMonth">&gt;</button>
-                    <button type="button" class="prebook-calendar-close" @click="closePrebookCalendar">x</button>
-                  </div>
+          <div class="prebook-layout">
+            <div class="prebook-col prebook-col-main">
+              <section class="prebook-section">
+                <div class="prebook-section-head">
+                  <h4>Contact</h4>
+                  <p>So the vendor can reach you quickly.</p>
                 </div>
+                <div class="prebook-grid">
+                  <label class="prebook-field">
+                    <span>Full name</span>
+                    <input v-model.trim="prebookForm.fullName" type="text" placeholder="Your name" required />
+                  </label>
 
-                <div class="prebook-calendar-weekdays">
-                  <span v-for="label in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="label">
-                    {{ label }}
-                  </span>
+                  <label class="prebook-field">
+                    <span>Email</span>
+                    <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" required />
+                  </label>
+
+                  <label class="prebook-field prebook-span-2">
+                    <span>Phone number</span>
+                    <input
+                      v-model.trim="prebookForm.phone"
+                      type="tel"
+                      required
+                      placeholder="+1 555 234 5678"
+                    />
+                  </label>
                 </div>
+              </section>
 
-                <div class="prebook-calendar-grid">
-                  <button
-                    v-for="cell in prebookCalendarCells"
-                    :key="cell.id"
-                    type="button"
-                    class="prebook-calendar-day"
+              <section class="prebook-section">
+                <div class="prebook-section-head">
+                  <h4>Event details</h4>
+                  <p>Choose the date and add any important notes.</p>
+                </div>
+                <div class="prebook-grid">
+                  <label class="prebook-field prebook-span-2">
+                    <span>Event date</span>
+                    <div class="prebook-date-picker">
+                      <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
+                        <span>{{ prebookForm.eventDate || "Select event date" }}</span>
+                        <span class="prebook-date-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M7 3v3M17 3v3M4.5 9h15M6.5 6h11A2.5 2.5 0 0 1 20 8.5v10A2.5 2.5 0 0 1 17.5 21h-11A2.5 2.5 0 0 1 4 18.5v-10A2.5 2.5 0 0 1 6.5 6Z"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                            />
+                          </svg>
+                        </span>
+                      </button>
+
+                      <div v-if="showPrebookCalendar" class="prebook-calendar">
+                        <div class="prebook-calendar-head">
+                          <div>
+                            <strong>{{ prebookCalendarMonthLabel }}</strong>
+                            <small>{{ prebookCalendarSelectedLabel }}</small>
+                          </div>
+                          <div class="prebook-calendar-nav">
+                            <button type="button" @click="previousPrebookCalendarMonth" aria-label="Previous month">
+                              &lt;
+                            </button>
+                            <button type="button" @click="nextPrebookCalendarMonth" aria-label="Next month">
+                              &gt;
+                            </button>
+                            <button
+                              type="button"
+                              class="prebook-calendar-close"
+                              @click="closePrebookCalendar"
+                              aria-label="Close calendar"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path
+                                  d="M6.5 6.5l11 11M17.5 6.5l-11 11"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  stroke-linecap="round"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="prebook-calendar-weekdays">
+                          <span v-for="label in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="label">
+                            {{ label }}
+                          </span>
+                        </div>
+
+                        <div class="prebook-calendar-grid">
+                          <button
+                            v-for="cell in prebookCalendarCells"
+                            :key="cell.id"
+                            type="button"
+                            class="prebook-calendar-day"
+                            :class="{
+                              muted: !cell.inMonth,
+                              booked: cell.booked && cell.inMonth,
+                              busy: cell.vendorBusy && cell.inMonth,
+                              available: cell.available && cell.inMonth,
+                              selected: isPrebookCalendarCellSelected(cell),
+                            }"
+                            :disabled="!cell.inMonth || cell.disabled || cell.booked"
+                            @click="selectPrebookCalendarDate(cell)"
+                          >
+                            {{ cell.day || "" }}
+                          </button>
+                        </div>
+
+                        <div class="prebook-calendar-legend">
+                          <span><i class="dot available"></i> Available</span>
+                          <span><i class="dot booked"></i> Already Booked</span>
+                          <span><i class="dot selected"></i> Selected</span>
+                        </div>
+                        <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
+                      </div>
+                    </div>
+                  </label>
+
+                  <div
+                    class="prebook-availability-state prebook-span-2"
                     :class="{
-                      muted: !cell.inMonth,
-                      booked: cell.booked && cell.inMonth,
-                      busy: cell.vendorBusy && cell.inMonth,
-                      available: cell.available && cell.inMonth,
-                      selected: isPrebookCalendarCellSelected(cell),
+                      available: prebookAvailabilityTone === 'available',
+                      booked: prebookAvailabilityTone === 'booked',
                     }"
-                    :disabled="!cell.inMonth || cell.disabled || cell.booked"
-                    @click="selectPrebookCalendarDate(cell)"
                   >
-                    {{ cell.day || '' }}
-                  </button>
-                </div>
+                    {{ prebookAvailabilityLabel }}
+                  </div>
 
-                <div class="prebook-calendar-legend">
-                  <span><i class="dot available"></i> Available</span>
-                  <span><i class="dot booked"></i> Already Booked</span>
-                  <span><i class="dot selected"></i> Selected</span>
+                  <label class="prebook-field">
+                    <span>Guests</span>
+                    <input v-model.number="prebookForm.guests" type="number" min="1" required />
+                  </label>
+
+                  <label class="prebook-field prebook-span-2">
+                    <span>Notes</span>
+                    <textarea
+                      v-model.trim="prebookForm.notes"
+                      rows="3"
+                      placeholder="Add preferences or requests"
+                    ></textarea>
+                  </label>
                 </div>
-                <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
-              </div>
+              </section>
+
+              <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
             </div>
-          </label>
 
-          <div
-            class="prebook-availability-state"
-            :class="{
-              available: prebookAvailabilityTone === 'available',
-              booked: prebookAvailabilityTone === 'booked',
-            }"
-          >
-            {{ prebookAvailabilityLabel }}
+            <div class="prebook-col prebook-col-aside">
+              <div class="prebook-summary" aria-label="Booking summary">
+                <div class="prebook-summary-top">
+                  <div class="prebook-summary-title">{{ prebookTargetTitle }}</div>
+                  <div class="prebook-summary-pill">Qty {{ prebookSummaryQuantity }}</div>
+                </div>
+                <div class="prebook-summary-lines">
+                  <div v-if="prebookSummaryPackage" class="prebook-summary-line">
+                    <span>Package</span>
+                    <strong>{{ prebookSummaryPackage.title }}</strong>
+                  </div>
+                  <div v-if="prebookSummaryPackageSubtotal > 0" class="prebook-summary-line">
+                    <span>Package subtotal</span>
+                    <strong>{{ formatPrebookMoney(prebookSummaryPackageSubtotal) }}</strong>
+                  </div>
+                  <div v-if="prebookSummaryServicesSubtotal > 0" class="prebook-summary-line">
+                    <span>{{ prebookSummaryServicesLabel }}</span>
+                    <strong>{{ formatPrebookMoney(prebookSummaryServicesSubtotal) }}</strong>
+                  </div>
+                  <div v-if="prebookSummaryServiceFee > 0" class="prebook-summary-line prebook-summary-muted">
+                    <span>Service fee ({{ Math.round(serviceFeeRate * 100) }}%)</span>
+                    <strong>{{ formatPrebookMoney(prebookSummaryServiceFee) }}</strong>
+                  </div>
+                  <div class="prebook-summary-total">
+                    <span>Estimated total</span>
+                    <strong>{{ formatPrebookMoney(prebookSummaryTotal) }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <section class="prebook-section">
+                <div class="prebook-section-head">
+                  <h4>Location</h4>
+                  <p>Pin your venue so the vendor can plan ahead.</p>
+                </div>
+                <div class="prebook-grid">
+                  <label class="prebook-field prebook-span-2">
+                    <span>Venue</span>
+                    <input
+                      v-model.trim="prebookForm.location"
+                      type="text"
+                      required
+                      placeholder="City / Venue address"
+                      @input="scheduleTypedPrebookLocationResolve"
+                    />
+                  </label>
+
+                  <div class="prebook-location-tools prebook-span-2">
+                    <div class="prebook-location-row">
+                      <button
+                        type="button"
+                        class="modal-action-btn modal-action-neutral"
+                        :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
+                        @click="detectPrebookLocation"
+                      >
+                        {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+                      </button>
+
+                      <a
+                        v-if="prebookLocationMapLinkUrl"
+                        class="prebook-map-link"
+                        :href="prebookLocationMapLinkUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open in map
+                      </a>
+                    </div>
+
+                    <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
+                    <p
+                      v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
+                      class="prebook-location-coords"
+                    >
+                      Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng: {{ Number(prebookForm.longitude).toFixed(6) }}
+                    </p>
+                    <iframe
+                      v-if="prebookLocationMapEmbedUrl"
+                      class="prebook-map-frame"
+                      :src="prebookLocationMapEmbedUrl"
+                      loading="lazy"
+                      referrerpolicy="no-referrer-when-downgrade"
+                    ></iframe>
+                    <div v-else class="prebook-map-placeholder">
+                      Map preview appears after a location is found.
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
-
-          <label>
-            <span>👥 Number of guests</span>
-            <input v-model.number="prebookForm.guests" type="number" min="1" required />
-          </label>
-
-          <label>
-            <span>📝 Notes</span>
-            <textarea
-              v-model.trim="prebookForm.notes"
-              rows="3"
-              placeholder="Add preferences or requests"
-            ></textarea>
-          </label>
-
-          <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
 
           <div class="prebook-actions">
+            <p class="prebook-actions-hint">You’ll review details before placing your order.</p>
             <button
               type="submit"
               class="modal-action-btn modal-action-primary"
               :disabled="activePrebookEventId && !canSubmitPrebook"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "✅ Confirm Booking" }}
+              {{ isCheckingPrebookAvailability ? "Checking..." : "Continue to Checkout" }}
             </button>
           </div>
         </form>
@@ -3300,7 +3481,9 @@ function noop() {}
   position: fixed;
   inset: 0;
   z-index: 95;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -3309,52 +3492,323 @@ function noop() {}
 }
 
 .prebook-modal {
-  width: min(680px, 100%);
+  width: min(760px, 100%);
   max-height: calc(100dvh - 28px);
   margin: auto 0;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #dbe4f2;
-  box-shadow: 0 26px 56px rgba(15, 23, 42, 0.24);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 107, 0, 0.14), transparent 46%),
+    radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
+  border-radius: 24px;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  box-shadow:
+    0 40px 110px rgba(15, 23, 42, 0.36),
+    0 18px 44px rgba(255, 107, 0, 0.14);
   overflow: hidden;
 }
 
 .prebook-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid #e2e8f3;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.prebook-head-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.prebook-head-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--text);
+  background:
+    linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(255, 255, 255, 0.7) 100%
+      )
+      padding-box,
+    linear-gradient(135deg, rgba(255, 107, 0, 0.6), rgba(59, 130, 246, 0.22))
+      border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+}
+
+.prebook-head-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.prebook-head-copy {
+  min-width: 0;
 }
 
 .prebook-head h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.prebook-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.prebook-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prebook-step {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(31, 41, 55, 0.78);
+}
+
+.prebook-step-active {
+  border-color: rgba(255, 107, 0, 0.32);
+  background: rgba(255, 247, 237, 0.92);
+  color: #c2410c;
 }
 
 .prebook-close {
   width: 38px;
   height: 38px;
-  border: 1px solid #d7e1ee;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 18px;
-  color: #334155;
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  color: rgba(31, 41, 55, 0.88);
   cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.06);
+  padding: 0;
+}
+
+.prebook-close-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.prebook-close:hover {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
 }
 
 .prebook-form {
-  padding: 16px 18px 18px;
-  display: grid;
-  gap: 10px;
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   overflow-y: auto;
 }
 
-.prebook-form label {
+.prebook-layout {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.prebook-col {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.prebook-col-aside .prebook-grid {
+  grid-template-columns: 1fr;
+}
+
+.prebook-section {
+  border-radius: 20px;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 106, 0, 0.08), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.06), transparent 46%),
+    rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.prebook-section-head {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.prebook-section-head h4 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+.prebook-section-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.prebook-section .prebook-grid {
+  padding: 12px 14px 14px;
+}
+
+.prebook-summary {
+  border-radius: 20px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  padding: 14px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 0, 0.22), transparent 56%),
+    radial-gradient(circle at 100% 90%, rgba(59, 130, 246, 0.16), transparent 52%),
+    rgba(255, 255, 255, 0.74);
+  box-shadow:
+    0 22px 56px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: grid;
+  gap: 12px;
+}
+
+.prebook-summary-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prebook-summary-title {
+  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.prebook-summary-pill {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(31, 41, 55, 0.82);
+}
+
+.prebook-summary-lines {
+  display: grid;
+  gap: 10px;
+}
+
+.prebook-summary-line,
+.prebook-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prebook-summary-line span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 64%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prebook-summary-line strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prebook-summary-muted strong {
+  color: #475569;
+}
+
+.prebook-summary-total {
+  padding-top: 12px;
+  border-top: 1px solid rgba(229, 231, 235, 0.92);
+}
+
+.prebook-summary-total span {
+  color: rgba(31, 41, 55, 0.86);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.prebook-summary-total strong {
+  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--accent-dark);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.prebook-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prebook-span-2 {
+  grid-column: 1 / -1;
+}
+
+.prebook-field {
+  display: grid;
+  gap: 8px;
+}
+
+.prebook-field span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(107, 114, 128, 0.95);
 }
 
 .prebook-date-picker {
@@ -3367,13 +3821,16 @@ function noop() {}
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid #d7e1ee;
-  border-radius: 12px;
-  background: #fff;
-  color: #0f172a;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text);
   font: inherit;
   padding: 12px 14px;
   cursor: pointer;
+  box-shadow:
+    0 12px 24px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .prebook-date-trigger span:first-child {
@@ -3381,17 +3838,28 @@ function noop() {}
 }
 
 .prebook-date-icon {
-  color: #64748b;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  width: 34px;
+  height: 34px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  color: rgba(31, 41, 55, 0.84);
+}
+
+.prebook-date-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .prebook-calendar {
   margin-top: 10px;
-  border: 1px solid #dbe4f2;
+  border: 1px solid rgba(229, 231, 235, 0.92);
   border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
   padding: 16px;
   display: grid;
   gap: 14px;
@@ -3413,7 +3881,7 @@ function noop() {}
 .prebook-calendar-head small {
   display: block;
   margin-top: 6px;
-  color: #64748b;
+  color: var(--muted);
   font-size: 14px;
 }
 
@@ -3425,19 +3893,25 @@ function noop() {}
 .prebook-calendar-nav button {
   width: 40px;
   height: 40px;
-  border: 1px solid #d7e1ee;
+  border: 1px solid rgba(229, 231, 235, 0.92);
   border-radius: 12px;
   background: #fff;
-  color: #334155;
+  color: rgba(31, 41, 55, 0.9);
   font: inherit;
   font-size: 18px;
   cursor: pointer;
 }
 
 .prebook-calendar-close {
-  font-size: 14px !important;
-  font-weight: 800;
-  text-transform: uppercase;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.prebook-calendar-close svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .prebook-calendar-weekdays {
@@ -3448,7 +3922,7 @@ function noop() {}
 
 .prebook-calendar-weekdays span {
   text-align: center;
-  color: #b07a56;
+  color: rgba(107, 114, 128, 0.9);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -3462,10 +3936,10 @@ function noop() {}
 
 .prebook-calendar-day {
   min-height: 56px;
-  border: 1px solid #d7e1ee;
+  border: 1px solid rgba(229, 231, 235, 0.92);
   border-radius: 14px;
   background: #fff;
-  color: #1f2937;
+  color: var(--text);
   font: inherit;
   font-size: 22px;
   cursor: pointer;
@@ -3516,7 +3990,7 @@ function noop() {}
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  color: #64748b;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -3547,15 +4021,15 @@ function noop() {}
 
 .prebook-calendar-loading {
   margin: 0;
-  color: #64748b;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .prebook-availability-state {
   border-radius: 12px;
-  border: 1px solid #dbe4f1;
-  background: #f8fbff;
-  color: #475569;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  background: rgba(248, 250, 252, 0.8);
+  color: rgba(75, 85, 99, 0.96);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
@@ -3576,50 +4050,108 @@ function noop() {}
 
 .prebook-location-tools {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  background: rgba(248, 250, 252, 0.66);
+  box-shadow:
+    0 18px 46px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.prebook-location-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .prebook-location-notice,
 .prebook-location-coords {
   margin: 0;
-  color: #475569;
+  color: rgba(75, 85, 99, 0.98);
   font-size: 13px;
   font-weight: 600;
+}
+
+.prebook-map-placeholder {
+  height: 220px;
+  border: 1px dashed rgba(209, 213, 219, 0.95);
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(234, 88, 12, 0.08), transparent 55%),
+    radial-gradient(circle at 90% 90%, rgba(37, 99, 235, 0.06), transparent 55%),
+    rgba(226, 232, 240, 0.45);
+  color: rgba(75, 85, 99, 0.86);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px;
 }
 
 .prebook-map-frame {
   width: 100%;
   height: 220px;
-  border: 1px solid #d6dfec;
-  border-radius: 12px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 18px;
+  background: #e2e8f0;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 }
 
 .prebook-map-link {
-  display: inline-block;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #c25c13;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--accent-dark);
   text-decoration: none;
 }
 
 .prebook-map-link:hover {
   text-decoration: underline;
-}
-
-.prebook-form span {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f2937;
+  text-underline-offset: 3px;
 }
 
 .prebook-form input,
 .prebook-form textarea {
   width: 100%;
-  border: 1px solid #d7e1ef;
-  border-radius: 12px;
-  padding: 11px 12px;
+  min-height: 46px;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 16px;
+  padding: 12px 14px;
   font: inherit;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text);
+  outline: none;
+  box-shadow:
+    0 12px 24px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.prebook-form input:focus,
+.prebook-form textarea:focus {
+  border-color: rgba(255, 107, 0, 0.6);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 0 0 4px rgba(255, 107, 0, 0.18),
+    0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.prebook-form textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 .prebook-success {
@@ -3632,11 +4164,34 @@ function noop() {}
 .prebook-actions {
   position: sticky;
   bottom: 0;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 4px;
-  padding-top: 8px;
-  background: #fff;
+  margin: 4px -16px -18px;
+  padding: 12px 16px 14px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(229, 231, 235, 0.95);
+}
+
+.prebook-actions-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prebook-actions .modal-action-btn {
+  width: 100%;
+  border-radius: 16px;
+  min-height: 54px;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 18px 44px rgba(255, 107, 0, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)) padding-box,
+    linear-gradient(90deg, #ff6b00 0%, #ff7a1f 45%, #ff6b00 100%) border-box;
+  border: 1px solid transparent;
 }
 
 .package-modal {
@@ -4132,12 +4687,25 @@ function noop() {}
 
   .prebook-form {
     padding: 12px;
-    gap: 8px;
+    gap: 10px;
+  }
+
+  .prebook-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .prebook-actions {
+    margin: 4px -12px -12px;
+    padding: 10px 12px 12px;
   }
 
   .prebook-form input,
   .prebook-form textarea {
     padding: 10px 11px;
+  }
+
+  .prebook-grid {
+    grid-template-columns: 1fr;
   }
 
   .prebook-calendar-head {

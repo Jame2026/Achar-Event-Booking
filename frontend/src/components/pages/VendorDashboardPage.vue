@@ -213,14 +213,6 @@ const copyByLanguage = {
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
 
-const navItems = computed(() => [
-  { key: "overview", label: uiText.value.overview },
-  { key: "services", label: uiText.value.myServices },
-  { key: "bookings", label: uiText.value.bookings },
-  { key: "messages", label: uiText.value.messages },
-  { key: "income", label: uiText.value.analytics },
-]);
-
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
   confirmedCount: Number(props.vendorIncome?.confirmedCount || 0),
@@ -238,6 +230,25 @@ const safeVendorEvents = computed(() =>
 const safeVendorBookings = computed(() =>
   Array.isArray(props.vendorBookings) ? props.vendorBookings : [],
 );
+const navItems = computed(() => [
+  { key: "overview", label: uiText.value.overview },
+  {
+    key: "services",
+    label: uiText.value.myServices,
+    meta: safeVendorEvents.value.length,
+  },
+  {
+    key: "bookings",
+    label: uiText.value.bookings,
+    meta: safeVendorBookings.value.length,
+  },
+  {
+    key: "messages",
+    label: uiText.value.messages,
+    meta: safeMessagesSummary.value,
+  },
+  { key: "income", label: uiText.value.analytics },
+]);
 const vendorServiceNoticeTone = computed(() => {
   const message = String(props.vendorServiceNotice || "")
     .trim()
@@ -636,6 +647,7 @@ watch(
           type="button"
           class="sidebar-link"
           :class="{ active: localActiveTab === item.key }"
+          :aria-current="localActiveTab === item.key ? 'page' : undefined"
           @click="setActiveTab(item.key)"
         >
           <span class="sidebar-icon" aria-hidden="true">
@@ -811,7 +823,17 @@ watch(
               />
             </svg>
           </span>
-          <span>{{ item.label }}</span>
+          <span class="sidebar-label">{{ item.label }}</span>
+          <span
+            v-if="
+              item.meta !== undefined &&
+              item.meta !== null &&
+              Number(item.meta) > 0
+            "
+            class="sidebar-meta"
+          >
+            {{ item.meta }}
+          </span>
         </button>
       </nav>
 
@@ -842,24 +864,20 @@ watch(
     </aside>
 
     <section class="main-panel">
-      <header class="dashboard-head vendor-dashboard-head">
+      <header
+        v-if="localActiveTab === 'overview'"
+        class="dashboard-head vendor-dashboard-head"
+      >
         <div class="dashboard-head-main">
-          <span class="dash-chip">{{ uiText.dashboardEyebrow }}</span>
-          <h1>{{ uiText.dashboardTitle }}</h1>
-          <p>{{ uiText.dashboardText }}</p>
-          <div class="dashboard-inline-stats">
-            <span
-              ><strong>{{ safeIncome.activeServices }}</strong>
-              {{ uiText.activeServicesListed }}</span
-            >
-            <span
-              ><strong>{{ safeIncome.newBookings }}</strong>
-              {{ uiText.newRequests }}</span
-            >
-            <span
-              ><strong>{{ safeMessagesSummary }}</strong>
-              {{ uiText.unreadMessages }}</span
-            >
+          <div class="dash-meta-row">
+            <span class="dash-pill">{{ uiText.dashboardEyebrow }}</span>
+            <span class="dash-pill">{{ uiText.verifiedWorkspace }}</span>
+          </div>
+          <div class="dash-title-row">
+            <div class="dash-title-stack">
+              <h1>{{ uiText.dashboardTitle }}</h1>
+              <p class="dash-subtitle">{{ uiText.dashboardText }}</p>
+            </div>
           </div>
         </div>
 
@@ -868,10 +886,54 @@ watch(
             <span>{{ uiText.signedInAs }}</span>
             <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
           </div>
+          <div class="dash-actions">
+            <button
+              type="button"
+              class="secondary-button header-action"
+              @click="setActiveTab('services')"
+            >
+              <span class="action-icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 5v14M5 12h14"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              {{ uiText.addNewService }}
+            </button>
+            <button
+              type="button"
+              class="primary-button header-action"
+              @click="openMessages"
+            >
+              <span class="action-icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              {{ uiText.openMessages }}
+            </button>
+          </div>
         </div>
       </header>
 
-      <section class="stats-grid">
+      <section v-show="localActiveTab === 'overview'" class="stats-grid">
         <article class="stat-card stat-income">
           <div class="stat-header-row">
             <span class="stat-icon">
@@ -1475,7 +1537,7 @@ watch(
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'bookings'" class="panel">
+      <section v-show="localActiveTab === 'bookings'" class="panel tab-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">{{ uiText.bookingRequests }}</p>
@@ -1483,8 +1545,8 @@ watch(
           </div>
         </div>
 
-        <div class="mini-stats-row">
-          <div class="mini-stat-card mini-stat-green">
+        <section class="stats-grid stats-grid-compact">
+          <article class="stat-card stat-green">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1520,8 +1582,8 @@ watch(
             </div>
             <strong>{{ safeVendorBookings.length }}</strong>
             <span>All booking requests</span>
-          </div>
-          <div class="mini-stat-card mini-stat-orange">
+          </article>
+          <article class="stat-card stat-orange">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1551,8 +1613,8 @@ watch(
               safeVendorBookings.filter((b) => b.status === "pending").length
             }}</strong>
             <span>Awaiting confirmation</span>
-          </div>
-          <div class="mini-stat-card mini-stat-blue">
+          </article>
+          <article class="stat-card stat-blue">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1582,8 +1644,8 @@ watch(
               safeVendorBookings.filter((b) => b.status === "confirmed").length
             }}</strong>
             <span>Active bookings</span>
-          </div>
-          <div class="mini-stat-card mini-stat-red">
+          </article>
+          <article class="stat-card stat-red">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1612,8 +1674,8 @@ watch(
               safeVendorBookings.filter((b) => b.status === "cancelled").length
             }}</strong>
             <span>Cancelled requests</span>
-          </div>
-        </div>
+          </article>
+        </section>
 
         <p v-if="props.isLoadingVendorBookings" class="notice">
           {{ uiText.loadingBookings }}
@@ -1664,7 +1726,7 @@ watch(
         </table>
       </section>
 
-      <section v-show="localActiveTab === 'messages'" class="panel">
+      <section v-show="localActiveTab === 'messages'" class="panel tab-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -1673,8 +1735,8 @@ watch(
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
 
-        <div class="mini-stats-row">
-          <div class="mini-stat-card mini-stat-orange">
+        <section class="stats-grid stats-grid-compact">
+          <article class="stat-card stat-orange">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1694,8 +1756,8 @@ watch(
             </div>
             <strong>{{ safeMessagesSummary }}</strong>
             <span>Messages to review</span>
-          </div>
-          <div class="mini-stat-card mini-stat-blue">
+          </article>
+          <article class="stat-card stat-blue">
             <div class="stat-header-row">
               <span class="stat-icon">
                 <svg
@@ -1721,8 +1783,8 @@ watch(
             </div>
             <strong>Open</strong>
             <span>Customer conversations</span>
-          </div>
-        </div>
+          </article>
+        </section>
 
         <p class="panel-copy">
           Respond quickly to customer questions and booking confirmations.
@@ -1982,6 +2044,7 @@ watch(
   min-height: 100vh;
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
+  column-gap: 32px;
   background:
     radial-gradient(
       circle at 12% 12%,
@@ -1997,6 +2060,10 @@ watch(
     system-ui,
     -apple-system,
     sans-serif;
+  width: auto;
+  gap: 0;
+  height: 100vh;
+  align-items: stretch;
 }
 
 .vendor-dashboard::after {
@@ -2025,12 +2092,21 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 22px 16px;
-  background: var(--vd-surface);
-  border-right: 1px solid var(--vd-border);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  box-shadow: 2px 0 30px rgba(15, 23, 42, 0.07);
+  padding: 26px 22px;
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(248, 250, 252, 0.7) 100%
+    ),
+    radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.1), transparent 45%);
+  border-right: 1px solid rgba(234, 88, 12, 0.2);
+  border-radius: 0 38px 38px 0;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 40px 80px rgba(15, 23, 42, 0.08),
+    2px 0 20px rgba(15, 23, 42, 0.08);
   z-index: 10;
   overflow: hidden;
 }
@@ -2097,26 +2173,47 @@ watch(
 
 .sidebar-nav {
   display: grid;
-  gap: 3px;
+  gap: 8px;
   position: relative;
   z-index: 1;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
 }
 
 .sidebar-link {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   width: 100%;
   padding: 11px 13px;
   border: 1px solid transparent;
   border-radius: 14px;
-  background: transparent;
-  color: #64748b;
+  background: rgba(255, 255, 255, 0.95);
+  color: #475569;
   font-size: 14px;
   font-weight: 600;
   text-align: left;
   transition: all 170ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+}
+
+.sidebar-link::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 4px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.35);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 170ms ease;
 }
 
 .sidebar-link:focus-visible,
@@ -2126,11 +2223,15 @@ watch(
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(234, 88, 12, 0.2);
-  color: #7c2d12;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
-  transform: translateX(3px);
+  background: rgba(255, 247, 237, 0.95);
+  border-color: rgba(234, 88, 12, 0.22);
+  color: #9a3412;
+  box-shadow: 0 12px 26px rgba(234, 88, 12, 0.15);
+  transform: translateX(1px);
+}
+
+.sidebar-link:hover::before {
+  opacity: 0.45;
 }
 
 .sidebar-link.active {
@@ -2144,6 +2245,42 @@ watch(
   box-shadow:
     0 8px 24px rgba(234, 88, 12, 0.13),
     0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.sidebar-link.active::before {
+  opacity: 1;
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+}
+
+.sidebar-label {
+  font-weight: 600;
+}
+
+.sidebar-meta {
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.sidebar-link:hover .sidebar-meta {
+  background: rgba(234, 88, 12, 0.12);
+  color: #9a3412;
+}
+
+.sidebar-link.active .sidebar-meta {
+  background: rgba(234, 88, 12, 0.18);
+  color: #7c2d12;
+  border: 1px solid rgba(234, 88, 12, 0.24);
 }
 
 .sidebar-icon {
@@ -2184,7 +2321,7 @@ watch(
   display: grid;
   gap: 6px;
   padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
   position: relative;
   z-index: 1;
 }
@@ -2293,6 +2430,12 @@ watch(
   min-height: 0;
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .panel,
@@ -2315,90 +2458,157 @@ watch(
 
 .vendor-head-actions {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.75rem;
   justify-items: end;
-}
-
-.vendor-head-actions .btn-accent {
-  white-space: nowrap;
+  align-self: start;
 }
 
 .vendor-dashboard-head.dashboard-head {
-  padding: 1rem 1.2rem;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.15rem 1.5rem;
+  min-height: 190px;
   background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    rgba(255, 247, 237, 0.85) 100%
+    140deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 247, 237, 0.88) 55%,
+    rgba(255, 255, 255, 0.96) 100%
   );
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow:
-    0 4px 6px rgba(15, 23, 42, 0.04),
-    0 20px 60px rgba(15, 23, 42, 0.07),
-    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+    0 2px 10px rgba(15, 23, 42, 0.05),
+    0 16px 40px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
   border-radius: 24px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+}
+
+.vendor-dashboard-head .dashboard-head-main {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.vendor-dashboard-head.dashboard-head::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(
+    120deg,
+    rgba(249, 115, 22, 0.08) 0%,
+    rgba(59, 130, 246, 0.06) 48%,
+    rgba(15, 23, 42, 0.02) 100%
+  );
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vendor-dashboard-head.dashboard-head::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0) 55%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vendor-dashboard-head.dashboard-head > * {
+  position: relative;
+  z-index: 1;
 }
 
 .vendor-dashboard-head h1 {
-  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+  margin: 0;
+  font-size: clamp(1.5rem, 2.1vw, 2.25rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #0f172a 30%, #7c2d12 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #0f172a;
 }
 
-.vendor-dashboard-head p {
-  font-size: 0.92rem;
+.vendor-dashboard-head .dash-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
   color: #64748b;
+  max-width: 60ch;
 }
 
-.vendor-dashboard-head .dash-chip {
-  margin-bottom: 0.5rem;
+.dash-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 0.2rem 0.6rem;
-  font-size: 0.68rem;
-  background: linear-gradient(
-    135deg,
-    rgba(249, 115, 22, 0.12) 0%,
-    rgba(234, 88, 12, 0.08) 100%
-  );
-  border: 1px solid rgba(249, 115, 22, 0.25);
   border-radius: 999px;
-  color: #c2410c;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #475569;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.vendor-dashboard-head .dashboard-inline-stats {
-  margin-top: 0.7rem;
-  gap: 0.45rem;
+
+.dash-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
 
-.vendor-dashboard-head .dashboard-inline-stats span {
-  font-size: 0.76rem;
-  padding: 0.32rem 0.65rem;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+.dash-title-stack {
+  display: grid;
+  gap: 0.35rem;
 }
 
-.vendor-dashboard-head .dashboard-actions button {
+.dash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
   border-radius: 12px;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.9rem;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.32);
-  border: 1px solid rgba(194, 65, 12, 0.3);
-  transition:
-    box-shadow 180ms ease,
-    transform 120ms ease;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.vendor-dashboard-head .dashboard-actions button:hover {
-  box-shadow: 0 8px 28px rgba(234, 88, 12, 0.44);
-  transform: translateY(-1px);
+.header-action .action-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.header-action .action-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+
 
 @supports not (
   (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
@@ -2457,14 +2667,40 @@ watch(
 }
 
 .signed-user {
+  position: relative;
+  overflow: hidden;
   text-align: right;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 16px;
+  min-width: 176px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.86) 0%,
+    rgba(255, 255, 255, 0.74) 100%
+  );
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow:
     0 4px 6px rgba(15, 23, 42, 0.04),
     0 14px 36px rgba(15, 23, 42, 0.07);
+}
+
+.signed-user::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  opacity: 0.9;
+}
+
+.signed-user > * {
+  position: relative;
+  z-index: 1;
 }
 
 .signed-user span {
@@ -2535,6 +2771,10 @@ watch(
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.stats-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 /* Mini stat cards inside booking/messages panels */
@@ -2698,6 +2938,18 @@ watch(
 .stat-messages::before {
   background: linear-gradient(180deg, #ea580c, #fb923c);
 }
+.stat-green::before {
+  background: linear-gradient(180deg, #16a34a, #4ade80);
+}
+.stat-orange::before {
+  background: linear-gradient(180deg, #ea580c, #fb923c);
+}
+.stat-blue::before {
+  background: linear-gradient(180deg, #2563eb, #60a5fa);
+}
+.stat-red::before {
+  background: linear-gradient(180deg, #dc2626, #f87171);
+}
 
 /* Header row: icon + label inline */
 .stat-header-row {
@@ -2739,6 +2991,26 @@ watch(
   background: rgba(234, 88, 12, 0.1);
   border-color: rgba(234, 88, 12, 0.18);
   color: #ea580c;
+}
+.stat-green .stat-icon {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.16);
+  color: #16a34a;
+}
+.stat-orange .stat-icon {
+  background: rgba(234, 88, 12, 0.08);
+  border-color: rgba(234, 88, 12, 0.16);
+  color: #ea580c;
+}
+.stat-blue .stat-icon {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.16);
+  color: #2563eb;
+}
+.stat-red .stat-icon {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.16);
+  color: #dc2626;
 }
 
 .stat-icon svg {
@@ -2794,6 +3066,10 @@ watch(
 .panel {
   padding: 22px;
   min-height: 360px;
+}
+
+.tab-panel {
+  min-height: clamp(360px, 52vh, 560px);
 }
 
 .panel-wide {
@@ -3124,7 +3400,7 @@ watch(
 .income-chart-card {
   display: grid;
   gap: 18px;
-  min-height: 180px;
+  min-height: 240px;
   padding: 22px;
   border-radius: 24px;
   background: linear-gradient(
@@ -3552,9 +3828,33 @@ watch(
     flex-direction: column;
   }
 
+  .tab-panel {
+    min-height: 0;
+  }
+
+  .vendor-dashboard-head.dashboard-head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
   .vendor-head-actions {
     width: 100%;
     justify-items: start;
+  }
+
+  .dash-title-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .dash-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .signed-user {
