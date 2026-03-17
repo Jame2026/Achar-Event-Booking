@@ -409,7 +409,7 @@ const localizedJourneyCards = computed(() => {
 .about-banner-title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.4rem, 5.2vw, 4.7rem);
+  font-size: clamp(2.0rem, 4.2vw, 3.7rem);
   line-height: 0.98;
   letter-spacing: -0.03em;
   max-width: 16ch;

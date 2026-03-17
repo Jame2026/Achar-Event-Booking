@@ -6,6 +6,7 @@ import { useLanguageCopy } from "../../features/language";
 const props = defineProps([
   "appLogoSrc",
   "vendorDisplayName",
+  "vendorProfileImage",
   "activeTab",
   "eventTypeOptions",
   "vendorEvents",
@@ -328,6 +329,15 @@ const incomeAverageValue = computed(() =>
       ) / activeIncomePoints.value.length
     : 0,
 );
+const profileCard = computed(() => {
+  const name = String(props.vendorDisplayName || uiText.value.vendor).trim();
+  return {
+    name,
+    role: uiText.value.verifiedWorkspace,
+    initial: (name || "V").slice(0, 1).toUpperCase(),
+    image: props.vendorProfileImage || "",
+  };
+});
 const incomeMidValue = computed(() => incomePeakValue.value / 2);
 const topIncomePoint = computed(() => {
   if (!activeIncomePoints.value.length) return null;
@@ -384,6 +394,15 @@ const chartTooltipTop = computed(() => {
   if (y > 92) y = 92;
   return `${y}%`;
 });
+const showProfileMenu = ref(false);
+
+function toggleProfileMenu() {
+  showProfileMenu.value = !showProfileMenu.value;
+}
+
+function closeProfileMenu() {
+  showProfileMenu.value = false;
+}
 
 function updateChartHover(event) {
   const points = normalizedIncomeChartPoints.value;
@@ -863,27 +882,50 @@ watch(
       </nav>
 
       <div class="sidebar-footer">
-        <RouterLink class="side-utility home" to="/">{{
-          uiText.backHome
-        }}</RouterLink>
+        <RouterLink class="side-utility home" to="/">
+          <span class="side-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12L12 3l9 9" />
+              <path d="M5 10v10h5v-6h4v6h5V10" />
+            </svg>
+          </span>
+          <span class="side-label">{{ uiText.backHome }}</span>
+        </RouterLink>
         <button type="button" class="side-utility">
-          {{ uiText.settings }}
+          <span class="side-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.7 0 1.32.4 1.6 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+              />
+            </svg>
+          </span>
+          <span class="side-label">{{ uiText.settings }}</span>
         </button>
         <button
           type="button"
           class="side-utility logout"
           @click="props.logoutUser"
         >
-          {{ uiText.logout }}
+          <span class="side-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+          </span>
+          <span class="side-label">{{ uiText.logout }}</span>
         </button>
         <div class="vendor-card">
-          <span class="vendor-avatar">{{
-            (props.vendorDisplayName || "V").slice(0, 1).toUpperCase()
-          }}</span>
-          <div>
-            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
-            <small>{{ uiText.verifiedWorkspace }}</small>
+          <span class="vendor-avatar">
+            <img v-if="profileCard.image" :src="profileCard.image" :alt="profileCard.name" />
+            <span v-else>{{ profileCard.initial }}</span>
+          </span>
+          <div class="vendor-meta">
+            <strong>{{ profileCard.name }}</strong>
+            <small>{{ profileCard.role }}</small>
           </div>
+          <span class="vendor-verified" aria-label="Verified workspace"></span>
         </div>
       </div>
     </aside>
@@ -954,6 +996,52 @@ watch(
               </span>
               {{ uiText.openMessages }}
             </button>
+          </div>
+          <div class="profile-menu-wrap">
+            <button
+              type="button"
+              class="profile-trigger"
+              @click="toggleProfileMenu"
+              :aria-expanded="showProfileMenu"
+              aria-haspopup="true"
+            >
+              <img
+                v-if="profileCard.image"
+                :src="profileCard.image"
+                :alt="profileCard.name"
+              />
+              <span v-else>{{ profileCard.initial }}</span>
+            </button>
+            <div
+              v-if="showProfileMenu"
+              class="profile-menu"
+              role="menu"
+            >
+              <div class="profile-menu__user">
+                <img
+                  v-if="profileCard.image"
+                  :src="profileCard.image"
+                  :alt="profileCard.name"
+                />
+                <span v-else class="profile-menu__initial">{{ profileCard.initial }}</span>
+                <div>
+                  <strong>{{ profileCard.name }}</strong>
+                  <small>{{ profileCard.role }}</small>
+                </div>
+              </div>
+              <button type="button" class="profile-menu__action" @click="setActiveTab('overview'); closeProfileMenu()" role="menuitem">
+                <span class="dot dot-orange"></span>
+                {{ uiText.dashboardEyebrow }}
+              </button>
+              <button type="button" class="profile-menu__action" @click="setActiveTab('services'); closeProfileMenu()" role="menuitem">
+                <span class="dot dot-blue"></span>
+                {{ uiText.myServices }}
+              </button>
+              <button type="button" class="profile-menu__action danger" @click="props.logoutUser; closeProfileMenu()" role="menuitem">
+                <span class="dot dot-red"></span>
+                {{ uiText.logout }}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -2318,8 +2406,8 @@ watch(
 }
 
 .sidebar-icon {
-  width: 36px;
-  height: 36px;
+    width: 32px;
+    height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2332,8 +2420,8 @@ watch(
 }
 
 .sidebar-icon svg {
-  width: 17px;
-  height: 17px;
+    width: 15px;
+    height: 15px;
   display: block;
 }
 
@@ -2354,27 +2442,51 @@ watch(
   margin-top: auto;
   display: grid;
   gap: 6px;
-  padding-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   position: relative;
   z-index: 1;
 }
 
-.side-utility {
-  display: block;
-  width: 100%;
-  padding: 10px 13px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #334155;
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: left;
-  text-decoration: none;
-  transition: all 150ms ease;
-  cursor: pointer;
-}
+  .side-utility {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    color: #334155;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+    transition: all 150ms ease;
+    cursor: pointer;
+    }
+
+  .side-utility .side-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 10px;
+    display: inline-grid;
+    place-items: center;
+    background: rgba(148, 163, 184, 0.16);
+    color: #475569;
+    margin-right: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+  }
+
+  .side-utility.home .side-icon {
+    background: rgba(249, 115, 22, 0.1);
+    color: #c2410c;
+    border-color: rgba(249, 115, 22, 0.22);
+  }
+
+  .side-utility.logout .side-icon {
+    background: rgba(248, 113, 113, 0.12);
+    color: #b91c1c;
+    border-color: rgba(248, 113, 113, 0.24);
+  }
 
 .side-utility:hover {
   background: #fff;
@@ -2384,7 +2496,7 @@ watch(
 }
 
 .side-utility.home {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  background: linear-gradient(135deg, #fffaf4 0%, #ffecd8 100%);
   border-color: rgba(234, 88, 12, 0.22);
   color: #9a3412;
   font-weight: 700;
@@ -2409,10 +2521,11 @@ watch(
 }
 
 .vendor-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 10px 10px;
   border-radius: 16px;
   background: linear-gradient(
     135deg,
@@ -2426,18 +2539,60 @@ watch(
 }
 
 .vendor-avatar {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #d8e7ff 0%, #8fbaff 100%);
+    color: #0f3c89;
+    font-weight: 800;
+    font-size: 15px;
+    flex-shrink: 0;
+    border: 2px solid rgba(37, 99, 235, 0.18);
+    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.16);
+    overflow: hidden;
+  }
+
+  .vendor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+.vendor-meta strong {
+  display: block;
+  margin: 0;
+  font-size: 14px;
+}
+
+.vendor-meta small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.vendor-verified {
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
-  font-weight: 800;
-  font-size: 16px;
-  flex-shrink: 0;
-  border: 2px solid rgba(59, 130, 246, 0.22);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+  position: relative;
+}
+
+.vendor-verified::after {
+  content: "";
+  position: absolute;
+  inset: 3px 3px 3px 4px;
+  border: 2px solid #fff;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+
+.side-label {
+  font-weight: 700;
 }
 
 .vendor-card strong {
@@ -2492,7 +2647,9 @@ watch(
 
 .vendor-head-actions {
   display: grid;
+  grid-template-columns: auto auto auto;
   gap: 0.75rem;
+  align-items: center;
   justify-items: end;
   align-self: start;
 }
@@ -2640,6 +2797,182 @@ watch(
 .header-action .action-icon svg {
   width: 16px;
   height: 16px;
+}
+
+.profile-menu-wrap {
+  position: relative;
+  justify-self: end;
+}
+
+.profile-trigger {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+    padding: 0;
+    overflow: visible;
+    position: relative;
+  }
+
+  .profile-trigger {
+  position: relative;
+  border-radius: 16px;
+  z-index: 1;
+}
+
+/* animated glow ring */
+.profile-trigger::before {
+  content: "";
+  position: absolute;
+  inset: -3px; /* tighter = cleaner */
+  border-radius: inherit;
+
+  background: conic-gradient(
+    from 0deg,
+    #ff6a00,
+    #fbbf24,
+    #fb923c,
+    #ff6a00
+  );
+
+  /* controlled glow */
+  filter: blur(4px);
+  opacity: 0.65;
+
+  animation: dashSpin 6s linear infinite;
+
+  z-index: -1;
+}
+
+/* clean inner surface (important for pro look) */
+.profile-trigger::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit; /* matches button/card */
+  z-index: -1;
+}
+
+/* smooth spin */
+@keyframes dashSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+  .profile-trigger > * {
+    position: relative;
+    z-index: 1;
+  }
+
+.profile-trigger img,
+.profile-menu__user img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-trigger span,
+.profile-menu__initial {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #fff;
+  box-shadow:
+    0 18px 50px rgba(15, 23, 42, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  display: grid;
+  gap: 10px;
+  z-index: 20;
+}
+
+.profile-menu__user {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.profile-menu__user img,
+.profile-menu__initial {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #0f3c89;
+  font-weight: 800;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.profile-menu__user strong {
+  display: block;
+  margin: 0;
+}
+
+.profile-menu__user small {
+  color: #64748b;
+}
+
+.profile-menu__action {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.profile-menu__action:hover {
+  background: #fff7ed;
+  border-color: rgba(234, 88, 12, 0.28);
+  color: #9a3412;
+}
+
+.profile-menu__action.danger {
+  background: #fef2f2;
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #b91c1c;
+}
+
+.profile-menu__action .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 2px solid currentColor;
+}
+
+.dot-orange {
+  color: #ea580c;
+}
+.dot-blue {
+  color: #2563eb;
+}
+.dot-red {
+  color: #dc2626;
 }
 
 
@@ -3928,6 +4261,12 @@ watch(
 
   .period-switcher {
     justify-content: flex-start;
+  }
+}
+
+@keyframes dashSpin {
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

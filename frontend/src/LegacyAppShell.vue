@@ -1415,6 +1415,7 @@ onBeforeUnmount(() => {
       :go-to-messages="goToMessages"
       :go-to-package-customization="goToPackageCustomization"
       :open-upcoming-bookings="openUpcomingBookings"
+      :logout-user="logout"
     />
 
       <VendorPage
