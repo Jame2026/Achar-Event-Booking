@@ -26,6 +26,7 @@ export function useCustomizationFeature({
 
   const catalogPackages = computed(() => {
     return vendorEvents.value
+      .filter((event) => event.serviceMode === 'package')
       .filter((event) => customizationEventType.value === 'all' || event.eventType === customizationEventType.value)
       .map((event) => ({
         id: String(event.id),
@@ -39,6 +40,7 @@ export function useCustomizationFeature({
         location: event.location || 'Location TBD',
         date: event.date || 'Date TBD',
         backingEventId: event.id || null,
+        qrCodeUrl: event.qrCodeUrl || '',
       }))
   })
 
@@ -63,6 +65,7 @@ export function useCustomizationFeature({
   const filteredMatchingServices = computed(() => {
     const q = customizationSearch.value.trim().toLowerCase()
     return vendorEvents.value
+      .filter((event) => event.serviceMode === 'overall')
       .filter((event) => {
         const matchesEvent =
           effectiveCustomizationEventType.value === 'all' ||
@@ -83,6 +86,7 @@ export function useCustomizationFeature({
         backingEventId: event.id || null,
         vendorName: event.vendorName || 'Vendor',
         location: event.location || 'Location TBD',
+        qrCodeUrl: event.qrCodeUrl || '',
       }))
   })
   const selectedMatchingServices = computed(() =>

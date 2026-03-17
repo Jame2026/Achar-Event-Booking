@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\CarbonPeriod;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
@@ -170,6 +171,7 @@ class BookingController extends Controller
             'booked_items.*.qty' => ['nullable', 'integer', 'min:1'],
             'booked_items.*.unitPrice' => ['nullable', 'numeric', 'min:0'],
             'booked_items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
+            'payment_method' => ['nullable', 'string', 'max:40'],
         ]);
 
         $eventId = $validated['event_id'] ?? null;
@@ -204,10 +206,13 @@ class BookingController extends Controller
             }
         }
 
+        $paymentToken = Str::uuid()->toString();
         $booking = Booking::create([
             ...$validated,
             'user_id' => $request->user() ? $request->user()->id : null,
             'status' => 'pending',
+            'payment_status' => 'pending',
+            'payment_token' => $paymentToken,
             'service_name' => $validated['service_name'] ?? ($event?->title ?? 'Custom Booking'),
             'requested_event_date' => $requestedDate,
             'total_amount' => $totalAmount,
@@ -218,7 +223,12 @@ class BookingController extends Controller
         $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
-        return response()->json($booking->load('event.vendor:id,name'), 201);
+        return response()->json(
+            $booking
+                ->load('event.vendor:id,name')
+                ->makeVisible('payment_token'),
+            201
+        );
     }
 
     public function show(Booking $booking): JsonResponse
@@ -272,6 +282,42 @@ class BookingController extends Controller
 
         if (array_key_exists('status', $validated) && $validated['status'] !== $previousStatus) {
             $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
+        }
+
+        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));
+    }
+
+    public function confirmPayment(Request $request, Booking $booking): JsonResponse
+    {
+        $validated = $request->validate([
+            'payment_token' => ['required', 'string', 'max:120'],
+            'payment_method' => ['nullable', 'string', 'max:40'],
+            'payment_reference' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $providedToken = (string) $validated['payment_token'];
+        $storedToken = (string) ($booking->payment_token ?? '');
+        if ($storedToken === '' || ! hash_equals($storedToken, $providedToken)) {
+            return response()->json(['message' => 'Invalid payment token.'], 403);
+        }
+
+        $previousStatus = (string) ($booking->status ?? 'pending');
+        $nextStatus = 'confirmed';
+
+        if ($booking->status !== $nextStatus || $booking->payment_status !== 'confirmed') {
+            $booking->update([
+                'status' => $nextStatus,
+                'payment_status' => 'confirmed',
+                'payment_method' => $validated['payment_method'] ?? $booking->payment_method,
+                'payment_reference' => $validated['payment_reference'] ?? $booking->payment_reference,
+                'paid_at' => now(),
+            ]);
+        }
+
+        $updatedBooking = $booking->fresh()->load('event.vendor:id,name,email');
+
+        if ($previousStatus !== $nextStatus) {
+            $this->createBookingStatusNotifications($updatedBooking, $nextStatus);
         }
 
         return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));

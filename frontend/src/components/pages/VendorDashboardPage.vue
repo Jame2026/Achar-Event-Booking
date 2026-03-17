@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useLanguageCopy } from "../../features/language";
 
@@ -29,6 +29,9 @@ const emit = defineEmits(["update:activeTab"]);
 
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
+);
+const serviceMode = ref(
+  props.vendorServiceForm?.service_mode === "package" ? "package" : "overall",
 );
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
@@ -83,6 +86,16 @@ const copyByLanguage = {
     noConfirmedIncome: "No confirmed income yet for this period.",
     createService: "Create service",
     insertService: "Insert Service",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "Current listings",
     loadingServices: "Loading services...",
     bookingRequests: "Requests",
@@ -92,6 +105,25 @@ const copyByLanguage = {
     openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    listingPreview: "Listing Preview",
+    quickTips: "Quick Tips",
+    checklist: "Checklist",
+    previewTitleFallback: "Service Title",
+    previewLocationFallback: "Location",
+    previewAddPrice: "Add price",
+    previewEventTypeFallback: "Event type",
+    previewStatusActive: "Active",
+    previewStatusDraft: "Draft",
+    previewHint: "This is a quick look at how customers see your card.",
+    tipShortName: "Use a short, clear service name.",
+    tipAddPhoto: "Add a cover photo to boost clicks.",
+    tipAddLocation: "Include location for better matching.",
+    tipSetPrice: "Set a price so customers can book faster.",
+    tipAddDescription: "Write a short description of what is included.",
+    checklistBasics: "Title and description added",
+    checklistPricing: "Price and capacity set",
+    checklistMedia: "Cover photo uploaded",
+    checklistPayment: "Payment QR added",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -142,6 +174,16 @@ const copyByLanguage = {
     noConfirmedIncome: "មិនទាន់មានចំណូលដែលបានបញ្ជាក់សម្រាប់រយៈពេលនេះទេ។",
     createService: "បង្កើតសេវាកម្ម",
     insertService: "បញ្ចូលសេវាកម្ម",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "បញ្ជីបច្ចុប្បន្ន",
     loadingServices: "កំពុងផ្ទុកសេវាកម្ម...",
     bookingRequests: "សំណើ",
@@ -151,6 +193,25 @@ const copyByLanguage = {
     openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
+    listingPreview: "Listing Preview",
+    quickTips: "Quick Tips",
+    checklist: "Checklist",
+    previewTitleFallback: "Service Title",
+    previewLocationFallback: "Location",
+    previewAddPrice: "Add price",
+    previewEventTypeFallback: "Event type",
+    previewStatusActive: "Active",
+    previewStatusDraft: "Draft",
+    previewHint: "This is a quick look at how customers see your card.",
+    tipShortName: "Use a short, clear service name.",
+    tipAddPhoto: "Add a cover photo to boost clicks.",
+    tipAddLocation: "Include location for better matching.",
+    tipSetPrice: "Set a price so customers can book faster.",
+    tipAddDescription: "Write a short description of what is included.",
+    checklistBasics: "Title and description added",
+    checklistPricing: "Price and capacity set",
+    checklistMedia: "Cover photo uploaded",
+    checklistPayment: "Payment QR added",
   },
   zh: {
     overview: "概览",
@@ -200,6 +261,16 @@ const copyByLanguage = {
     noConfirmedIncome: "该时段暂无已确认收入。",
     createService: "创建服务",
     insertService: "录入服务",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "当前列表",
     loadingServices: "正在加载服务...",
     bookingRequests: "请求",
@@ -209,6 +280,25 @@ const copyByLanguage = {
     openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
+    listingPreview: "Listing Preview",
+    quickTips: "Quick Tips",
+    checklist: "Checklist",
+    previewTitleFallback: "Service Title",
+    previewLocationFallback: "Location",
+    previewAddPrice: "Add price",
+    previewEventTypeFallback: "Event type",
+    previewStatusActive: "Active",
+    previewStatusDraft: "Draft",
+    previewHint: "This is a quick look at how customers see your card.",
+    tipShortName: "Use a short, clear service name.",
+    tipAddPhoto: "Add a cover photo to boost clicks.",
+    tipAddLocation: "Include location for better matching.",
+    tipSetPrice: "Set a price so customers can book faster.",
+    tipAddDescription: "Write a short description of what is included.",
+    checklistBasics: "Title and description added",
+    checklistPricing: "Price and capacity set",
+    checklistMedia: "Cover photo uploaded",
+    checklistPayment: "Payment QR added",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -264,6 +354,22 @@ const vendorServiceNoticeTone = computed(() => {
   }
   return "error";
 });
+
+watch(
+  () => props.vendorServiceNotice,
+  (message) => {
+    const normalized = String(message || "").toLowerCase();
+    if (!normalized) return;
+    if (
+      normalized.includes("success") ||
+      normalized.includes("created") ||
+      normalized.includes("updated") ||
+      normalized.includes("saved")
+    ) {
+      editingServiceId.value = null;
+    }
+  },
+);
 const eventOptions = computed(() =>
   Array.isArray(props.eventTypeOptions)
     ? props.eventTypeOptions.filter(
@@ -271,6 +377,13 @@ const eventOptions = computed(() =>
       )
     : [],
 );
+const eventTypeSelectOpen = ref(false);
+const eventTypeSelectRef = ref(null);
+const selectedEventTypeLabel = computed(() => {
+  const current = String(props.vendorServiceForm?.event_type || "");
+  const match = eventOptions.value.find((option) => option.value === current);
+  return match?.label || "Select type";
+});
 const incomePeriodOptions = computed(() => [
   { key: "week", label: uiText.value.week },
   { key: "month", label: uiText.value.month },
@@ -436,6 +549,122 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+const hasServiceTitle = computed(() =>
+  Boolean(String(props.vendorServiceForm?.title || "").trim()),
+);
+const hasServiceDescription = computed(() =>
+  Boolean(String(props.vendorServiceForm?.description || "").trim()),
+);
+const hasServiceLocation = computed(() =>
+  Boolean(String(props.vendorServiceForm?.location || "").trim()),
+);
+const hasServicePrice = computed(() =>
+  Number(props.vendorServiceForm?.price ?? 0) > 0,
+);
+const hasServiceCapacity = computed(() =>
+  Number(props.vendorServiceForm?.capacity ?? 0) > 0,
+);
+const hasServiceImage = computed(() =>
+  Boolean(String(props.vendorServiceForm?.image_url || "").trim()),
+);
+const hasServiceQr = computed(() =>
+  Boolean(String(props.vendorServiceForm?.qr_code_url || "").trim()),
+);
+
+const previewTitle = computed(() => {
+  const title = String(props.vendorServiceForm?.title || "").trim();
+  return title || uiText.value.previewTitleFallback;
+});
+
+const previewLocation = computed(() => {
+  const location = String(props.vendorServiceForm?.location || "").trim();
+  return location || uiText.value.previewLocationFallback;
+});
+
+const previewEventTypeLabel = computed(() => {
+  const value = props.vendorServiceForm?.event_type;
+  const option = eventOptions.value.find((entry) => entry.value === value);
+  return option?.label || uiText.value.previewEventTypeFallback;
+});
+
+const previewPriceLabel = computed(() =>
+  hasServicePrice.value
+    ? formatCurrency(props.vendorServiceForm?.price ?? 0)
+    : uiText.value.previewAddPrice,
+);
+
+const previewImage = computed(() =>
+  String(props.vendorServiceForm?.image_url || "").trim(),
+);
+
+const previewStatusLabel = computed(() =>
+  props.vendorServiceForm?.is_active
+    ? uiText.value.previewStatusActive
+    : uiText.value.previewStatusDraft,
+);
+
+const smartTips = computed(() => {
+  const tips = [];
+  const pushUnique = (tip) => {
+    if (tip && !tips.includes(tip)) tips.push(tip);
+  };
+
+  if (!hasServiceTitle.value) pushUnique(uiText.value.tipShortName);
+  if (!hasServiceImage.value) pushUnique(uiText.value.tipAddPhoto);
+  if (!hasServiceDescription.value) pushUnique(uiText.value.tipAddDescription);
+  if (!hasServiceLocation.value) pushUnique(uiText.value.tipAddLocation);
+  if (!hasServicePrice.value) pushUnique(uiText.value.tipSetPrice);
+
+  [uiText.value.tipShortName, uiText.value.tipAddPhoto, uiText.value.tipAddLocation].forEach(
+    (tip) => pushUnique(tip),
+  );
+
+  return tips.slice(0, 3);
+});
+
+const checklistItems = computed(() => [
+  {
+    label: uiText.value.checklistBasics,
+    done: hasServiceTitle.value && hasServiceDescription.value,
+  },
+  {
+    label: uiText.value.checklistPricing,
+    done: hasServicePrice.value && hasServiceCapacity.value,
+  },
+  {
+    label: uiText.value.checklistMedia,
+    done: hasServiceImage.value,
+  },
+  {
+    label: uiText.value.checklistPayment,
+    done: hasServiceQr.value,
+  },
+]);
+
+function toggleEventTypeSelect() {
+  eventTypeSelectOpen.value = !eventTypeSelectOpen.value;
+}
+
+function setEventType(value) {
+  props.vendorServiceForm.event_type = value;
+  eventTypeSelectOpen.value = false;
+}
+
+function handleEventTypeClickOutside(event) {
+  if (!eventTypeSelectRef.value) return;
+  if (!eventTypeSelectRef.value.contains(event.target)) {
+    eventTypeSelectOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("click", handleEventTypeClickOutside);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", handleEventTypeClickOutside);
+});
+
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -446,9 +675,186 @@ function setActiveTab(tabKey) {
 }
 
 function submitServiceForm() {
+  if (props.vendorServiceForm) {
+    props.vendorServiceForm.service_mode = serviceMode.value;
+  }
+  if (
+    serviceMode.value === "overall" &&
+    props.vendorServiceForm &&
+    Array.isArray(props.vendorServiceForm.packages)
+  ) {
+    props.vendorServiceForm.packages = [];
+  }
   if (typeof props.submitVendorService === "function") {
     props.submitVendorService();
   }
+}
+
+const vendorServicePackages = computed(() =>
+  Array.isArray(props.vendorServiceForm?.packages)
+    ? props.vendorServiceForm.packages
+    : [],
+);
+
+const showPackageBuilder = ref(false);
+const packageDraft = ref({
+  name: "",
+  price: 0,
+  details: "",
+});
+const editingServiceId = ref(null);
+const isEditingService = computed(() => Number(editingServiceId.value) > 0);
+
+function ensureVendorPackages() {
+  if (!props.vendorServiceForm) return null;
+  if (!Array.isArray(props.vendorServiceForm.packages)) {
+    props.vendorServiceForm.packages = [];
+  }
+  return props.vendorServiceForm.packages;
+}
+
+function setServiceMode(nextMode) {
+  serviceMode.value = nextMode;
+  if (props.vendorServiceForm) {
+    props.vendorServiceForm.service_mode = nextMode;
+  }
+  if (nextMode === "package") {
+    ensureVendorPackages();
+  }
+}
+
+function addVendorPackage() {
+  openPackageBuilder();
+}
+
+function removeVendorPackage(index) {
+  const packages = ensureVendorPackages();
+  if (!packages) return;
+  packages.splice(index, 1);
+}
+
+function resetVendorServiceForm() {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.id = null;
+  props.vendorServiceForm.title = "";
+  props.vendorServiceForm.event_type = "wedding";
+  props.vendorServiceForm.description = "";
+  props.vendorServiceForm.packages = [];
+  props.vendorServiceForm.qr_code_url = "";
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.service_mode = "overall";
+  props.vendorServiceForm.image_url = "";
+  props.vendorServiceForm.image_file = null;
+  props.vendorServiceForm.location = "";
+  props.vendorServiceForm.location_latitude = null;
+  props.vendorServiceForm.location_longitude = null;
+  props.vendorServiceForm.starts_at = "";
+  props.vendorServiceForm.ends_at = "";
+  props.vendorServiceForm.price = 0;
+  props.vendorServiceForm.capacity = 1;
+  props.vendorServiceForm.is_active = true;
+  serviceMode.value = "overall";
+}
+
+function startEditService(item) {
+  if (!props.vendorServiceForm || !item) return;
+  editingServiceId.value = item.id;
+  const nextMode = item.serviceMode === "package" ? "package" : "overall";
+  setServiceMode(nextMode);
+
+  props.vendorServiceForm.id = item.id || null;
+  props.vendorServiceForm.title = item.title || "";
+  props.vendorServiceForm.event_type = item.eventType || "other";
+  props.vendorServiceForm.description = item.description || "";
+  props.vendorServiceForm.location = item.location || "";
+  props.vendorServiceForm.location_latitude = item.locationLatitude ?? null;
+  props.vendorServiceForm.location_longitude = item.locationLongitude ?? null;
+  props.vendorServiceForm.starts_at = item.startsAt || "";
+  props.vendorServiceForm.ends_at = item.endsAt || "";
+  props.vendorServiceForm.price = Number(item.price || 0);
+  props.vendorServiceForm.capacity = Number.isFinite(Number(item.capacity))
+    ? Number(item.capacity)
+    : 1;
+  props.vendorServiceForm.is_active = Boolean(item.isActive);
+  props.vendorServiceForm.image_url = item.imageUrl || "";
+  props.vendorServiceForm.image_file = null;
+  props.vendorServiceForm.qr_code_url = item.qrCodeUrl || "";
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.packages =
+    nextMode === "package" && Array.isArray(item.packages)
+      ? item.packages.map((pkg) => ({
+          name: String(pkg?.name || "").trim(),
+          price: Number(pkg?.price || 0),
+          details: String(pkg?.details || "").trim(),
+        }))
+      : [];
+
+  showPackageBuilder.value = false;
+  if (typeof window !== "undefined") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
+function cancelEditService() {
+  editingServiceId.value = null;
+  resetVendorServiceForm();
+}
+
+function openPackageBuilder() {
+  packageDraft.value = {
+    name: "",
+    price: 0,
+    details: "",
+  };
+  showPackageBuilder.value = true;
+}
+
+function closePackageBuilder() {
+  showPackageBuilder.value = false;
+}
+
+function savePackageDraft() {
+  const packages = ensureVendorPackages();
+  if (!packages) return;
+  const payload = {
+    name: String(packageDraft.value.name || "").trim(),
+    price: Number(packageDraft.value.price || 0),
+    details: String(packageDraft.value.details || "").trim(),
+  };
+  if (!payload.name) return;
+  packages.push(payload);
+  closePackageBuilder();
+}
+
+function handleVendorQrChange(event) {
+  const [file] = Array.from(event?.target?.files || []);
+  if (!props.vendorServiceForm) return;
+
+  if (!file) {
+    props.vendorServiceForm.qr_code_file = null;
+    return;
+  }
+
+  props.vendorServiceForm.qr_code_file = file;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    props.vendorServiceForm.qr_code_url =
+      typeof reader.result === "string" ? reader.result : "";
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearVendorQrCode() {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.qr_code_url = "";
+}
+
+function handleVendorQrUrlInput(event) {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.qr_code_url = event?.target?.value || "";
 }
 
 function handleVendorServiceImageChange(event) {
@@ -1267,211 +1673,498 @@ watch(
         v-show="localActiveTab === 'services'"
         class="content-grid services-grid"
       >
-        <article class="panel">
+        <article class="panel panel-service">
           <div class="panel-head">
             <div>
               <p class="eyebrow">{{ uiText.createService }}</p>
-              <h2>{{ uiText.insertService }}</h2>
+              <h2>{{ isEditingService ? uiText.editService : uiText.insertService }}</h2>
             </div>
             <span class="badge">Visible to users when active</span>
           </div>
 
-          <form class="service-form" @submit.prevent="submitServiceForm">
-            <label class="field">
-              <span>Service name</span>
-              <input
-                :value="props.vendorServiceForm?.title || ''"
-                type="text"
-                placeholder="Community Workshop"
-                @input="props.vendorServiceForm.title = $event.target.value"
-              />
-            </label>
+          <form class="service-form service-form-template" @submit.prevent="submitServiceForm">
+            <div class="service-form-layout">
+              <div class="service-form-main">
+                <section class="form-card mode-picker">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">S</span>
+                    <h3>{{ uiText.serviceType }}</h3>
+                  </div>
+                  <div class="mode-grid">
+                    <button
+                      type="button"
+                      class="mode-option"
+                      :class="{ active: serviceMode === 'overall' }"
+                      @click="setServiceMode('overall')"
+                    >
+                      <strong>{{ uiText.overallService }}</strong>
+                      <p>{{ uiText.overallServiceHint }}</p>
+                    </button>
+                    <button
+                      type="button"
+                      class="mode-option"
+                      :class="{ active: serviceMode === 'package' }"
+                      @click="setServiceMode('package')"
+                    >
+                      <strong>{{ uiText.packageService }}</strong>
+                      <p>{{ uiText.packageServiceHint }}</p>
+                    </button>
+                  </div>
+                </section>
 
-            <label class="field">
-              <span>Types</span>
-              <select
-                :value="props.vendorServiceForm?.event_type || ''"
-                @change="
-                  props.vendorServiceForm.event_type = $event.target.value
-                "
-              >
-                <option
-                  v-for="option in eventOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
+                <section class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">i</span>
+                    <h3>Service Information</h3>
+                  </div>
+                  <label class="field">
+                    <span>Service name</span>
+                    <input
+                      :value="props.vendorServiceForm?.title || ''"
+                      type="text"
+                      placeholder="Community Workshop"
+                      @input="props.vendorServiceForm.title = $event.target.value"
+                    />
+                  </label>
+                  <div class="form-row">
+                    <label class="field">
+                      <span>Types</span>
+                      <div
+                        class="select-field"
+                        ref="eventTypeSelectRef"
+                        @keydown.escape="eventTypeSelectOpen = false"
+                      >
+                        <button
+                          type="button"
+                          class="select-trigger"
+                          :aria-expanded="eventTypeSelectOpen"
+                          @click="toggleEventTypeSelect"
+                        >
+                          <span>{{ selectedEventTypeLabel }}</span>
+                        </button>
+                        <div
+                          v-if="eventTypeSelectOpen"
+                          class="select-menu"
+                          role="listbox"
+                        >
+                          <button
+                            v-for="option in eventOptions"
+                            :key="option.value"
+                            type="button"
+                            class="select-option"
+                            :class="{ selected: option.value === props.vendorServiceForm?.event_type }"
+                            @click="setEventType(option.value)"
+                          >
+                            {{ option.label }}
+                          </button>
+                        </div>
+                      </div>
+                    </label>
+                    <label class="field">
+                      <span>Start date and time</span>
+                      <input
+                        :value="props.vendorServiceForm?.starts_at || ''"
+                        type="datetime-local"
+                        @input="props.vendorServiceForm.starts_at = $event.target.value"
+                      />
+                    </label>
+                  </div>
+                  <label class="field">
+                    <span>Location</span>
+                    <input
+                      :value="props.vendorServiceForm?.location || ''"
+                      type="text"
+                      placeholder="Phnom Penh"
+                      @input="props.vendorServiceForm.location = $event.target.value"
+                    />
+                  </label>
+                  <div class="field">
+                    <span>Map location</span>
+                    <button
+                      type="button"
+                      class="secondary-button location-button"
+                      :disabled="isDetectingVendorLocation"
+                      @click="detectVendorLocation"
+                    >
+                      {{
+                        isDetectingVendorLocation
+                          ? "Detecting location..."
+                          : "Use Current Location"
+                      }}
+                    </button>
+                  </div>
+                  <div class="field field-full location-tools">
+                    <p v-if="vendorLocationNotice" class="location-notice">
+                      {{ vendorLocationNotice }}
+                    </p>
+                    <p
+                      v-if="
+                        props.vendorServiceForm?.location_latitude !== null &&
+                        props.vendorServiceForm?.location_longitude !== null
+                      "
+                      class="location-coords"
+                    >
+                      Lat:
+                      {{
+                        Number(props.vendorServiceForm.location_latitude).toFixed(6)
+                      }}, Lng:
+                      {{
+                        Number(props.vendorServiceForm.location_longitude).toFixed(6)
+                      }}
+                    </p>
+                    <iframe
+                      v-if="vendorLocationMapEmbedUrl"
+                      class="location-map-frame"
+                      :src="vendorLocationMapEmbedUrl"
+                      loading="lazy"
+                      referrerpolicy="no-referrer-when-downgrade"
+                    ></iframe>
+                    <a
+                      v-if="vendorLocationMapLinkUrl"
+                      class="location-map-link"
+                      :href="vendorLocationMapLinkUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open current location in map
+                    </a>
+                  </div>
+                  <label class="field field-full">
+                    <span>Service information</span>
+                    <textarea
+                      :value="props.vendorServiceForm?.description || ''"
+                      placeholder="Describe the service, what is included, and what the customer should know."
+                      @input="props.vendorServiceForm.description = $event.target.value"
+                    ></textarea>
+                  </label>
+                </section>
 
-            <label class="field">
-              <span>Number of count</span>
-              <input
-                :value="props.vendorServiceForm?.capacity ?? 1"
-                type="number"
-                min="1"
-                placeholder="50"
-                @input="
-                  props.vendorServiceForm.capacity = Number($event.target.value)
-                "
-              />
-            </label>
+                <section v-if="serviceMode === 'overall'" class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">%</span>
+                    <h3>{{ uiText.overallPricing }}</h3>
+                  </div>
+                  <div class="form-row">
+                    <label class="field">
+                      <span>
+                        {{ serviceMode === "package" ? "Starting price" : "Price" }}
+                      </span>
+                      <input
+                        :value="props.vendorServiceForm?.price ?? 0"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="150"
+                        @input="props.vendorServiceForm.price = Number($event.target.value)"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Number of count</span>
+                      <input
+                        :value="props.vendorServiceForm?.capacity ?? 1"
+                        type="number"
+                        min="1"
+                        placeholder="50"
+                        @input="props.vendorServiceForm.capacity = Number($event.target.value)"
+                      />
+                    </label>
+                  </div>
+                  <p class="form-helper">
+                    Vendors who list clear pricing receive more booking inquiries.
+                  </p>
+                </section>
 
-            <label class="field">
-              <span>Price</span>
-              <input
-                :value="props.vendorServiceForm?.price ?? 0"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="150"
-                @input="
-                  props.vendorServiceForm.price = Number($event.target.value)
-                "
-              />
-            </label>
-
-            <label class="field">
-              <span>Location</span>
-              <input
-                :value="props.vendorServiceForm?.location || ''"
-                type="text"
-                placeholder="Phnom Penh"
-                @input="props.vendorServiceForm.location = $event.target.value"
-              />
-            </label>
-
-            <div class="field">
-              <span>Map location</span>
-              <button
-                type="button"
-                class="secondary-button location-button"
-                :disabled="isDetectingVendorLocation"
-                @click="detectVendorLocation"
-              >
-                {{
-                  isDetectingVendorLocation
-                    ? "Detecting location..."
-                    : "Use Current Location"
-                }}
-              </button>
-            </div>
-
-            <div class="field field-full location-tools">
-              <p v-if="vendorLocationNotice" class="location-notice">
-                {{ vendorLocationNotice }}
-              </p>
-              <p
-                v-if="
-                  props.vendorServiceForm?.location_latitude !== null &&
-                  props.vendorServiceForm?.location_longitude !== null
-                "
-                class="location-coords"
-              >
-                Lat:
-                {{
-                  Number(props.vendorServiceForm.location_latitude).toFixed(6)
-                }}, Lng:
-                {{
-                  Number(props.vendorServiceForm.location_longitude).toFixed(6)
-                }}
-              </p>
-              <iframe
-                v-if="vendorLocationMapEmbedUrl"
-                class="location-map-frame"
-                :src="vendorLocationMapEmbedUrl"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
-              <a
-                v-if="vendorLocationMapLinkUrl"
-                class="location-map-link"
-                :href="vendorLocationMapLinkUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open current location in map
-              </a>
-            </div>
-
-            <label class="field">
-              <span>Start date and time</span>
-              <input
-                :value="props.vendorServiceForm?.starts_at || ''"
-                type="datetime-local"
-                @input="props.vendorServiceForm.starts_at = $event.target.value"
-              />
-            </label>
-
-            <label class="field field-full">
-              <span>Picture of services</span>
-              <input
-                type="file"
-                accept="image/*"
-                @change="handleVendorServiceImageChange"
-              />
-              <small class="field-hint"
-                >Choose an image from your device.</small
-              >
-            </label>
-
-            <label class="field field-full">
-              <span>Or paste image link</span>
-              <input
-                :value="props.vendorServiceForm?.image_url || ''"
-                type="url"
-                placeholder="https://example.com/service-photo.jpg"
-                @input="handleVendorServiceImageUrlInput"
-              />
-            </label>
-
-            <div
-              v-if="props.vendorServiceForm?.image_url"
-              class="field field-full"
-            >
-              <span>Preview</span>
-              <div class="image-preview-card">
-                <img
-                  class="image-preview"
-                  :src="props.vendorServiceForm.image_url"
-                  alt="Selected service preview"
-                />
-                <button
-                  type="button"
-                  class="secondary-button"
-                  @click="clearVendorServiceImage"
-                >
-                  Remove image
-                </button>
+                <section v-else class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">%</span>
+                    <h3>{{ uiText.packageBuilder }}</h3>
+                  </div>
+                  <div class="package-editor">
+                    <div class="package-editor-head">
+                      <p class="package-hint">
+                        Add package tiers so clients can choose the best fit.
+                      </p>
+                      <button
+                        type="button"
+                        class="secondary-button package-add"
+                        @click="addVendorPackage"
+                      >
+                        + Add package
+                      </button>
+                    </div>
+                    <p v-if="!vendorServicePackages.length" class="package-empty">
+                      No packages added yet.
+                    </p>
+                    <div
+                      v-for="(pkg, index) in vendorServicePackages"
+                      :key="`package-${index}`"
+                      class="package-row"
+                    >
+                      <div class="package-row-head">
+                        <strong>Package {{ index + 1 }}</strong>
+                        <button
+                          type="button"
+                          class="text-button danger"
+                          @click="removeVendorPackage(index)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div class="package-row-grid">
+                        <label class="field">
+                          <span>Package name</span>
+                          <input
+                            :value="pkg?.name || ''"
+                            type="text"
+                            placeholder="Basic / Standard / Premium"
+                            @input="pkg.name = $event.target.value"
+                          />
+                        </label>
+                        <label class="field">
+                          <span>Package price</span>
+                          <input
+                            :value="pkg?.price ?? 0"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="250"
+                            @input="pkg.price = Number($event.target.value)"
+                          />
+                        </label>
+                      </div>
+                      <label class="field">
+                        <span>What is included</span>
+                        <textarea
+                          :value="pkg?.details || ''"
+                          placeholder="List what this package covers."
+                          @input="pkg.details = $event.target.value"
+                        ></textarea>
+                      </label>
+                    </div>
+                  </div>
+                </section>
               </div>
-            </div>
 
-            <label class="field field-full">
-              <span>Service information</span>
-              <textarea
-                :value="props.vendorServiceForm?.description || ''"
-                placeholder="Describe the service, what is included, and what the customer should know."
-                @input="
-                  props.vendorServiceForm.description = $event.target.value
-                "
-              ></textarea>
-            </label>
+              <aside class="service-form-side">
+                <section class="form-card media-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">M</span>
+                    <h3>Media</h3>
+                  </div>
+                  <label class="media-upload">
+                    <input type="file" accept="image/*" @change="handleVendorServiceImageChange" />
+                    <span>Click to upload cover photo</span>
+                    <small>PNG, JPG (MAX. 5MB)</small>
+                  </label>
+                  <div v-if="props.vendorServiceForm?.image_url" class="media-preview">
+                    <img
+                      class="image-preview"
+                      :src="props.vendorServiceForm.image_url"
+                      alt="Selected service preview"
+                    />
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      @click="clearVendorServiceImage"
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                  <label class="field">
+                    <span>Or paste image link</span>
+                    <input
+                      :value="props.vendorServiceForm?.image_url || ''"
+                      type="url"
+                      placeholder="https://example.com/service-photo.jpg"
+                      @input="handleVendorServiceImageUrlInput"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Payment QR code</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      @change="handleVendorQrChange"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Or paste QR code link</span>
+                    <input
+                      :value="props.vendorServiceForm?.qr_code_url || ''"
+                      type="url"
+                      placeholder="https://example.com/payment-qr.png"
+                      @input="handleVendorQrUrlInput"
+                    />
+                  </label>
+                  <div
+                    v-if="props.vendorServiceForm?.qr_code_url"
+                    class="qr-preview-card"
+                  >
+                    <img
+                      class="qr-preview"
+                      :src="props.vendorServiceForm.qr_code_url"
+                      alt="Selected payment QR preview"
+                    />
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      @click="clearVendorQrCode"
+                    >
+                      Remove QR
+                    </button>
+                  </div>
+                </section>
 
-            <div class="form-actions">
-              <button
-                type="submit"
-                class="primary-button"
-                :disabled="props.isSubmittingVendorService"
-              >
-                {{
-                  props.isSubmittingVendorService
-                    ? "Saving..."
-                    : "Create Service"
-                }}
-              </button>
+                <section class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">V</span>
+                    <h3>Visibility</h3>
+                  </div>
+                  <div class="toggle-row">
+                    <div>
+                      <strong>Active listing</strong>
+                      <p>Visible to users when enabled.</p>
+                    </div>
+                    <label class="switch">
+                      <input
+                        :checked="props.vendorServiceForm?.is_active"
+                        type="checkbox"
+                        @change="props.vendorServiceForm.is_active = $event.target.checked"
+                      />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="form-card help-card">
+                  <h3>Need Help?</h3>
+                  <p>Our vendor support team is here to help you optimize your listing.</p>
+                  <button type="button" class="help-button">Chat with Support</button>
+                </section>
+
+                <div class="form-actions form-actions-template">
+                  <button
+                    type="submit"
+                    class="primary-button"
+                    :disabled="props.isSubmittingVendorService"
+                  >
+                    {{
+                      props.isSubmittingVendorService
+                        ? "Saving..."
+                        : isEditingService
+                          ? uiText.updateService
+                          : uiText.createService
+                    }}
+                  </button>
+                  <button
+                    v-if="isEditingService"
+                    type="button"
+                    class="secondary-button"
+                    @click="cancelEditService"
+                  >
+                    {{ uiText.cancelEdit }}
+                  </button>
+                </div>
+              </aside>
+
+              <aside class="service-form-extra">
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">P</span>
+                    <h3>{{ uiText.listingPreview }}</h3>
+                  </div>
+                  <div class="preview-card">
+                    <div v-if="previewImage" class="preview-cover" :style="{ backgroundImage: `url('${previewImage}')` }"></div>
+                    <strong>{{ previewTitle }}</strong>
+                    <small>{{ previewLocation }}</small>
+                    <span class="preview-price">{{ previewPriceLabel }}</span>
+                    <span class="preview-meta">{{ previewEventTypeLabel }}</span>
+                    <span
+                      class="preview-status"
+                      :class="{ live: props.vendorServiceForm?.is_active }"
+                    >
+                      {{ previewStatusLabel }}
+                    </span>
+                  </div>
+                  <p class="info-note">{{ uiText.previewHint }}</p>
+                </section>
+
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">T</span>
+                    <h3>{{ uiText.quickTips }}</h3>
+                  </div>
+                  <ul class="info-list">
+                    <li v-for="(tip, index) in smartTips" :key="`tip-${index}`">
+                      {{ tip }}
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">C</span>
+                    <h3>{{ uiText.checklist }}</h3>
+                  </div>
+                  <ul class="info-list info-list-check">
+                    <li
+                      v-for="item in checklistItems"
+                      :key="item.label"
+                      :class="{ 'is-done': item.done }"
+                    >
+                      <span class="checkmark" aria-hidden="true"></span>
+                      {{ item.label }}
+                    </li>
+                  </ul>
+                </section>
+              </aside>
             </div>
           </form>
+
+          <div v-if="showPackageBuilder" class="package-modal" @click.self="closePackageBuilder">
+            <div class="package-builder">
+              <div class="package-builder-head">
+                <div>
+                  <p class="eyebrow">{{ uiText.addNewService }}</p>
+                  <h3>Add Package</h3>
+                </div>
+                <div class="package-builder-actions">
+                  <button type="button" class="secondary-button" @click="closePackageBuilder">Cancel</button>
+                  <button type="button" class="primary-button" @click="savePackageDraft">Save Package</button>
+                </div>
+              </div>
+              <div class="package-builder-body">
+                <label class="field">
+                  <span>Package name</span>
+                  <input
+                    :value="packageDraft.name"
+                    type="text"
+                    placeholder="Basic / Standard / Premium"
+                    @input="packageDraft.name = $event.target.value"
+                  />
+                </label>
+                <label class="field">
+                  <span>Package price</span>
+                  <input
+                    :value="packageDraft.price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="250"
+                    @input="packageDraft.price = Number($event.target.value)"
+                  />
+                </label>
+                <label class="field field-full">
+                  <span>What is included</span>
+                  <textarea
+                    :value="packageDraft.details"
+                    placeholder="List what this package covers."
+                    @input="packageDraft.details = $event.target.value"
+                  ></textarea>
+                </label>
+              </div>
+            </div>
+          </div>
 
           <p
             v-if="props.vendorServiceNotice"
@@ -1515,9 +2208,18 @@ watch(
                   </span>
                 </div>
                 <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
+                <small v-if="item.packages?.length" class="service-packages">
+                  Packages: {{ item.packages.length }}
+                </small>
                 <p>{{ item.description }}</p>
               </div>
               <div class="row-actions">
+                <button
+                  type="button"
+                  @click="startEditService(item)"
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   @click="props.toggleVendorServiceActive(item)"
@@ -1696,7 +2398,12 @@ watch(
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
               <td>{{ item.service_name }}</td>
-              <td>{{ item.customer_name }}</td>
+              <td>
+                <div class="client-cell">
+                  <strong>{{ item.customer_name }}</strong>
+                  <small v-if="item.customer_email">{{ item.customer_email }}</small>
+                </div>
+              </td>
               <td>{{ item.date_label }}</td>
               <td>
                 <span
@@ -2033,8 +2740,8 @@ watch(
 
 <style scoped>
 .vendor-dashboard {
-  --vd-accent: #ea580c;
-  --vd-accent-strong: #c2410c;
+  --vd-accent: var(--accent);
+  --vd-accent-strong: var(--accent-dark);
   --vd-border: rgba(148, 163, 184, 0.22);
   --vd-surface: rgba(255, 255, 255, 0.72);
   --vd-text: #0f172a;
@@ -2056,9 +2763,11 @@ watch(
   color: var(--vd-text);
   isolation: isolate;
   font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
+    "Manrope",
+    "Segoe UI",
+    Tahoma,
+    Geneva,
+    Verdana,
     sans-serif;
   width: auto;
   gap: 0;
@@ -3056,7 +3765,7 @@ watch(
 }
 
 .services-grid {
-  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: 1fr;
 }
 
 .overview-grid {
@@ -3066,6 +3775,15 @@ watch(
 .panel {
   padding: 22px;
   min-height: 360px;
+}
+
+.panel-service {
+  padding: 18px;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(251, 146, 60, 0.08), transparent 42%),
+    radial-gradient(circle at 90% 0%, rgba(59, 130, 246, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 242, 0.92));
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .tab-panel {
@@ -3459,11 +4177,710 @@ watch(
   border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+.service-form-template {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.service-form-template .service-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.95fr) minmax(220px, 0.7fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.service-form-template .service-form-main,
+.service-form-template .service-form-side {
+  display: grid;
+  gap: 18px;
+}
+
+.service-form-template .form-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #0f172a;
+  position: relative;
+  overflow: hidden;
+}
+
+.service-form-template .mode-picker {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.service-form-template .mode-option {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.service-form-template .mode-option strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.service-form-template .mode-option p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .mode-option.active {
+  border-color: rgba(251, 146, 60, 0.55);
+  box-shadow:
+    0 10px 22px rgba(251, 146, 60, 0.14),
+    inset 0 0 0 1px rgba(251, 146, 60, 0.2);
+  background: linear-gradient(140deg, #fffaf5, #ffffff);
+}
+
+.service-form-template .mode-option:hover:not(.active) {
+  border-color: rgba(251, 146, 60, 0.4);
+  transform: translateY(-1px);
+}
+
+.service-form-template .form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(251, 146, 60, 0.08), transparent 55%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.service-form-template .info-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.service-form-template .info-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .info-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.service-form-template .info-list li {
+  margin-bottom: 6px;
+}
+
+.service-form-template .info-list-check {
+  list-style: none;
+  padding-left: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.service-form-template .info-list-check li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.service-form-template .info-list-check .checkmark {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  display: grid;
+  place-items: center;
+}
+
+.service-form-template .info-list-check .checkmark::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.service-form-template .info-list-check li.is-done {
+  color: rgba(134, 239, 172, 0.9);
+}
+
+.service-form-template .info-list-check li.is-done .checkmark {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(22, 101, 52, 0.35);
+}
+
+.service-form-template .info-list-check li.is-done .checkmark::after {
+  background: #86efac;
+}
+
+.service-form-template .preview-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+}
+
+.service-form-template .preview-card strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.service-form-template .preview-card small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.service-form-template .preview-price {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.service-form-template .preview-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-form-template .preview-cover {
+  width: 100%;
+  height: 120px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: none;
+}
+
+.service-form-template .preview-status {
+  margin-top: 6px;
+  align-self: start;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-form-template .preview-status.live {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #166534;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.service-form-template .form-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.service-form-template .form-card-head h3 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.service-form-template .form-card-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(251, 191, 36, 0.12));
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 12px;
+  box-shadow: 0 6px 14px rgba(251, 146, 60, 0.16);
+}
+
+.service-form-template .field span {
+  font-size: 11.5px;
+  color: #f97316;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.service-form-template .field input,
+.service-form-template .field select,
+.service-form-template .field textarea {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.service-form-template .field input[type="datetime-local"] {
+  color-scheme: light;
+  accent-color: #fb923c;
+}
+
+.service-form-template .field input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  filter: sepia(22%) saturate(1800%) hue-rotate(6deg) brightness(98%) contrast(96%);
+}
+
+.service-form-template .field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #f97316 50%),
+    linear-gradient(135deg, #f97316 50%, transparent 50%),
+    linear-gradient(to right, rgba(226, 232, 240, 0.9), rgba(226, 232, 240, 0.9));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%,
+    calc(100% - 34px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px,
+    1px 18px;
+  background-repeat: no-repeat;
+}
+
+.service-form-template .field select option {
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.service-form-template .field textarea {
+  min-height: 120px;
+}
+
+.service-form-template .field input:focus-visible,
+.service-form-template .field select:focus-visible,
+.service-form-template .field textarea:focus-visible {
+  outline: none;
+  border-color: rgba(251, 146, 60, 0.6);
+  box-shadow:
+    0 0 0 3px rgba(251, 146, 60, 0.18);
+  background: #ffffff;
+}
+
+.service-form-template .select-field {
+  position: relative;
+}
+
+.service-form-template .select-trigger {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 38px 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+  position: relative;
+}
+
+.service-form-template .select-trigger::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #f97316;
+  border-bottom: 2px solid #f97316;
+  transform: translateY(-60%) rotate(45deg);
+}
+
+.service-form-template .select-menu {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.service-form-template .select-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-form-template .select-option:hover,
+.service-form-template .select-option.selected {
+  background: #fff1e6;
+  color: #c2410c;
+}
+
+.service-form-template .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.service-form-template .pricing-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .mode-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.service-form-template .mode-btn.active {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.3);
+}
+
+.service-form-template .form-helper {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #64748b;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .package-editor {
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .package-row {
+  background: #ffffff;
+}
+
+.service-form-template .location-tools {
+  background: #f8fafc;
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .location-notice,
+.service-form-template .location-coords {
+  color: #64748b;
+}
+
+.service-form-template .location-map-link {
+  background: rgba(251, 146, 60, 0.12);
+  color: #c2410c;
+}
+
+.service-form-template .media-upload {
+  position: relative;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px 14px;
+  border-radius: 16px;
+  border: 1px dashed rgba(226, 232, 240, 0.9);
+  background: #f8fafc;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.service-form-template .media-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.service-form-template .media-upload span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.service-form-template .media-upload small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.service-form-template .media-preview {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.service-form-template .qr-preview-card {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.service-form-template .toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .toggle-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.service-form-template .switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.service-form-template .slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  transition: 0.2s;
+}
+
+.service-form-template .slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.service-form-template .switch input:checked + .slider {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.service-form-template .switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+.service-form-template .help-card {
+  background: linear-gradient(160deg, #fff3e6, #ffffff);
+  color: #7c2d12;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.service-form-template .help-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.service-form-template .help-card p {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.service-form-template .help-button {
+  border: none;
+  background: #ffffff;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #c2410c;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-actions-template {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.form-actions-template .primary-button {
+  width: 100%;
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: #111827;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.25);
+}
+
+.service-mode-toggle {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.mode-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.mode-btn:hover {
+  color: #0f172a;
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #9a3412;
+  box-shadow:
+    0 8px 16px rgba(234, 88, 12, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.service-mode-note {
+  margin: 10px 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+}
+
 .service-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
+}
+
+.service-form.service-form-template {
+  grid-template-columns: 1fr;
+}
+
+.service-form-extra {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.package-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 80;
+}
+
+.package-builder {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 22px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(35, 25, 12, 0.95), rgba(12, 12, 10, 0.98));
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  box-shadow:
+    0 30px 70px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.package-builder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.package-builder-head h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.package-builder-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.package-builder-body {
+  display: grid;
+  gap: 14px;
 }
 
 .field {
@@ -3565,6 +4982,93 @@ watch(
   grid-column: 1 / -1;
 }
 
+.package-editor {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.95));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+}
+
+.package-hint {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.package-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.8);
+  color: #64748b;
+  font-size: 13px;
+}
+
+.package-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+}
+
+.package-row:first-of-type {
+  margin-top: 0;
+}
+
+.package-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.package-row-head strong {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.package-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 12px;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.text-button.danger {
+  color: #b91c1c;
+}
+
+.text-button:hover {
+  color: #0f172a;
+}
+
+.text-button.danger:hover {
+  color: #991b1b;
+}
+
+.package-add {
+  justify-self: start;
+}
+
 .image-preview-card {
   display: grid;
   gap: 12px;
@@ -3581,6 +5085,26 @@ watch(
   object-fit: cover;
   border-radius: 16px;
   background: #e2e8f0;
+}
+
+.qr-preview-card {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.qr-preview {
+  width: min(220px, 100%);
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 8px;
 }
 
 .location-button {
@@ -3694,6 +5218,13 @@ watch(
   color: #64748b;
 }
 
+.service-packages {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
 .notice-success {
   color: #15803d;
 }
@@ -3732,6 +5263,21 @@ watch(
   padding: 12px 10px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   text-align: left;
+}
+
+.client-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.client-cell strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.client-cell small {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .table th {
@@ -3817,6 +5363,11 @@ watch(
   .analytics-chart-layout {
     grid-template-columns: 1fr;
   }
+
+  .service-form-template .service-form-layout {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -3863,6 +5414,14 @@ watch(
 
   .service-form,
   .service-item {
+    grid-template-columns: 1fr;
+  }
+
+  .service-form-template .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .package-row-grid {
     grid-template-columns: 1fr;
   }
 

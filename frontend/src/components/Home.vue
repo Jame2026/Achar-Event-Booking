@@ -24,8 +24,8 @@ const copyByLanguage = {
     heroLede:
       "Discover and book trusted vendors, venues, and specialists for both traditional and modern celebrations.",
     exploreServices: "Explore Services & Packages",
-    browseByEvent: "Browse Live Services",
-    suitedTitle: "Real vendor services available right now",
+    browseByEvent: "Browse Package Services",
+    suitedTitle: "Package services available right now",
     eventsSubtitle: "Services posted by vendors are shown here.",
     showLess: "Show less",
     showAllEvents: "Show all services",
@@ -34,10 +34,11 @@ const copyByLanguage = {
     noLiveServices: "No live vendor services available yet.",
     exploreStyle: "Explore style >",
     recommendedVendors: "Recommended Vendors",
-    handpickedTitle: "Handpicked services, ready to book",
-    showAllServices: "See all services",
-    showLessServices: "Show fewer services",
-    postedServicesSubtitle: "Every service posted by vendors is available here.",
+    handpickedTitle: "Handpicked overall services, ready to book",
+    showAllServices: "See all overall services",
+    showLessServices: "Show fewer overall services",
+    postedServicesSubtitle:
+      "Every overall service posted by vendors is available here.",
     bookingYouAre: "You are booking",
     bookingRequestSent: "Booking Request Sent",
     bookingRequestBodyA: "Your request to book",
@@ -90,8 +91,8 @@ const copyByLanguage = {
     heroLede:
       "ស្វែងរក និងកក់អ្នកផ្គត់ផ្គង់ទីតាំង និងអ្នកជំនាញដែលទុកចិត្តបាន សម្រាប់ពិធីប្រពៃណី និងទំនើប។",
     exploreServices: "ស្វែងរកសេវាកម្ម និងកញ្ចប់",
-    browseByEvent: "រកមើលសេវាកម្មផ្ទាល់",
-    suitedTitle: "សេវាកម្មពិតពីអ្នកផ្គត់ផ្គង់ដែលអាចកក់បានឥឡូវនេះ",
+    browseByEvent: "រកមើលសេវាកម្មកញ្ចប់",
+    suitedTitle: "សេវាកម្មកញ្ចប់ដែលអាចកក់បានឥឡូវនេះ",
     eventsSubtitle: "សេវាកម្មដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះត្រូវបានបង្ហាញនៅទីនេះ។",
     showLess: "បង្ហាញតិច",
     showAllEvents: "បង្ហាញសេវាកម្មទាំងអស់",
@@ -100,10 +101,11 @@ const copyByLanguage = {
     noLiveServices: "មិនទាន់មានសេវាកម្មផ្ទាល់ពីអ្នកផ្គត់ផ្គង់ទេ។",
     exploreStyle: "មើលរចនាប័ទ្ម >",
     recommendedVendors: "អ្នកផ្គត់ផ្គង់ណែនាំ",
-    handpickedTitle: "សេវាកម្មជ្រើសរើសរួច រៀបចំសម្រាប់ការកក់",
-    showAllServices: "មើលសេវាកម្មទាំងអស់",
-    showLessServices: "បង្ហាញសេវាកម្មតិច",
-    postedServicesSubtitle: "សេវាកម្មទាំងអស់ដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះមាននៅទីនេះ។",
+    handpickedTitle: "សេវាកម្មទូទៅជ្រើសរើសរួច រៀបចំសម្រាប់ការកក់",
+    showAllServices: "មើលសេវាកម្មទូទៅទាំងអស់",
+    showLessServices: "បង្ហាញសេវាកម្មទូទៅតិច",
+    postedServicesSubtitle:
+      "សេវាកម្មទូទៅទាំងអស់ដែលអ្នកផ្គត់ផ្គង់បានបង្ហោះមាននៅទីនេះ។",
     bookingYouAre: "អ្នកកំពុងកក់",
     bookingRequestSent: "សំណើកក់ត្រូវបានផ្ញើ",
     bookingRequestBodyA: "សំណើរបស់អ្នកសម្រាប់កក់",
@@ -155,8 +157,8 @@ const copyByLanguage = {
     heroTitleSuffix: "到位",
     heroLede: "发现并预订值得信赖的供应商、场地和专家，适用于传统与现代庆典。",
     exploreServices: "探索服务与套餐",
-    browseByEvent: "浏览实时服务",
-    suitedTitle: "当前可预订的真实商家服务",
+    browseByEvent: "浏览套餐服务",
+    suitedTitle: "当前可预订的套餐服务",
     eventsSubtitle: "这里显示商家发布的真实服务。",
     showLess: "收起",
     showAllEvents: "显示全部服务",
@@ -165,10 +167,10 @@ const copyByLanguage = {
     noLiveServices: "暂无实时商家服务。",
     exploreStyle: "查看风格 >",
     recommendedVendors: "推荐商家",
-    handpickedTitle: "精选服务，随时预订",
-    showAllServices: "查看全部服务",
-    showLessServices: "收起服务",
-    postedServicesSubtitle: "这里会显示商家发布的全部服务。",
+    handpickedTitle: "精选整体服务，随时预订",
+    showAllServices: "查看全部整体服务",
+    showLessServices: "收起整体服务",
+    postedServicesSubtitle: "这里会显示商家发布的全部整体服务。",
     bookingYouAre: "您正在预订",
     bookingRequestSent: "预订请求已发送",
     bookingRequestBodyA: "您对",
@@ -398,9 +400,22 @@ const steps = computed(() => [
   },
 ]);
 
+function normalizeServiceMode(item) {
+  const mode = String(item?.service_mode || item?.serviceMode || "overall").toLowerCase();
+  return mode === "package" ? "package" : "overall";
+}
+
+const packageRows = computed(() =>
+  eventRows.value.filter((item) => normalizeServiceMode(item) === "package"),
+);
+
+const overallRows = computed(() =>
+  eventRows.value.filter((item) => normalizeServiceMode(item) === "overall"),
+);
+
 const eventTypes = computed(() => {
-  if (!eventRows.value.length) return [];
-  return eventRows.value.map((item, index) => {
+  if (!packageRows.value.length) return [];
+  return packageRows.value.map((item, index) => {
     const eventTypeKey = String(item.event_type || "other").toLowerCase();
     const price = Number(item.price || 0);
     return {
@@ -426,8 +441,8 @@ const displayedEvents = computed(() => {
 });
 
 const vendors = computed(() => {
-  if (!eventRows.value.length) return [];
-  return eventRows.value.map((item, index) => {
+  if (!overallRows.value.length) return [];
+  return overallRows.value.map((item, index) => {
     const eventTypeKey = String(item.event_type || "other").toLowerCase();
     const price = Number(item.price || 0);
     return {
@@ -508,9 +523,6 @@ function goToEvent(event) {
 
   if (eventType && eventType !== "other") query.event = eventType;
   if (title) query.q = title;
-  if (Number.isFinite(eventId) && eventId > 0) {
-    query.prebookEventId = String(eventId);
-  }
 
   router.push({ path: "/services/packages", query });
 }
@@ -660,18 +672,6 @@ onMounted(loadHomeData);
             {{ showAllVendors ? uiText.showLessServices : uiText.showAllServices }}
             <span aria-hidden="true">&gt;</span>
           </button>
-          <button
-            :aria-label="uiText.previous"
-            class="pill-btn"
-            :disabled="showAllVendors || currentVendorIndex === 0"
-            @click="prevVendors"
-          >&lt;</button>
-          <button
-            :aria-label="uiText.next"
-            class="pill-btn"
-            :disabled="showAllVendors || currentVendorIndex + VENDOR_PAGE_SIZE >= vendors.length"
-            @click="nextVendors"
-          >&gt;</button>
         </div>
       </div>
 
@@ -683,34 +683,32 @@ onMounted(loadHomeData);
         {{ uiText.noLiveServices }}
       </div>
 
-      <div v-else class="vendor-grid">
-        <article class="vendor-card" v-for="vendor in displayedVendors" :key="vendor.id || vendor.title">
-          <span class="vendor-tag">{{ vendor.tag }}</span>
-          <div class="vendor-media">
-            <img :src="vendor.image" :alt="vendor.title" />
+      <div v-else class="event-grid">
+        <article
+          class="event-card"
+          v-for="vendor in displayedVendors"
+          :key="vendor.id || vendor.title"
+          role="button"
+          tabindex="0"
+          @click="goToEvent(vendor)"
+          @keyup.enter="goToEvent(vendor)"
+        >
+          <div class="event-img-container">
+            <img class="event-img" :src="vendor.image" :alt="vendor.title" />
           </div>
-          <div class="vendor-body">
-            <div>
-              <p class="vendor-title">{{ vendor.title }}</p>
-              <p v-if="vendor.vendorName" class="vendor-subtitle">{{ vendor.vendorName }}</p>
-              <p class="vendor-meta">
-                <span class="dot" v-for="category in vendor.categories" :key="category">{{ category }}</span>
-              </p>
+          <div class="event-info">
+            <div class="event-copy">
+              <p class="event-type">{{ vendor.categories[0] }}</p>
+              <p class="event-title">{{ vendor.title }}</p>
+              <p v-if="vendor.vendorName" class="event-note">{{ vendor.vendorName }}</p>
+              <p class="event-desc">{{ vendor.location }}</p>
             </div>
-            <div class="vendor-rating">
-              <span class="star">*</span>
-              <strong>{{ vendor.rating }}</strong>
-              <span class="reviews">{{ vendor.reviews?.toLocaleString() || "0" }} {{ uiText.reviews }}</span>
-            </div>
-            <div class="vendor-footer">
-              <div class="pricing">
-                <p class="price-caption">{{ vendor.priceCaption }}</p>
-                <p class="price">{{ vendor.price }}</p>
-              </div>
+            <div class="event-card-footer">
+              <strong>{{ vendor.priceCaption }} {{ vendor.price }}</strong>
               <button
                 type="button"
                 class="outline-btn"
-                @click="goToEvent(vendor)"
+                @click.stop="goToEvent(vendor)"
               >
                 {{ vendor.cta }}
               </button>

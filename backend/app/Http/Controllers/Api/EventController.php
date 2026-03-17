@@ -28,6 +28,9 @@ class EventController extends Controller
                     'title',
                     'event_type',
                     'description',
+                    'packages',
+                    'qr_code_url',
+                    'service_mode',
                     'image_url',
                     'location',
                     'starts_at',
@@ -54,6 +57,9 @@ class EventController extends Controller
                     'title',
                     'event_type',
                     'description',
+                    'packages',
+                    'qr_code_url',
+                    'service_mode',
                     'image_url',
                     'location',
                     'starts_at',
@@ -76,10 +82,18 @@ class EventController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizePackages($request);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'event_type' => ['required', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
+            'packages' => ['nullable', 'array'],
+            'packages.*.name' => ['nullable', 'string', 'max:255'],
+            'packages.*.price' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.details' => ['nullable', 'string'],
+            'qr_code_url' => ['nullable', 'string', 'max:2048'],
+            'qr_code' => ['nullable', 'file'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'image' => ['nullable', 'file'],
             'location' => ['required', 'string', 'max:255'],
@@ -99,7 +113,17 @@ class EventController extends Controller
             $validated['image_url'] = $this->storeEventImage($request->file('image'));
         }
 
+        if ($request->hasFile('qr_code')) {
+            $imageValidationError = $this->validateUploadedImage($request->file('qr_code'));
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+
+            $validated['qr_code_url'] = $this->storeEventImage($request->file('qr_code'));
+        }
+
         unset($validated['image']);
+        unset($validated['qr_code']);
 
         $event = Event::create($validated);
         PublicEventCache::invalidate();
@@ -116,10 +140,18 @@ class EventController extends Controller
 
     public function update(Request $request, Event $event): JsonResponse
     {
+        $this->normalizePackages($request);
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'event_type' => ['sometimes', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
+            'packages' => ['nullable', 'array'],
+            'packages.*.name' => ['nullable', 'string', 'max:255'],
+            'packages.*.price' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.details' => ['nullable', 'string'],
+            'qr_code_url' => ['nullable', 'string', 'max:2048'],
+            'qr_code' => ['nullable', 'file'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'image' => ['nullable', 'file'],
             'location' => ['sometimes', 'string', 'max:255'],
@@ -140,7 +172,18 @@ class EventController extends Controller
             $validated['image_url'] = $this->storeEventImage($request->file('image'));
         }
 
+        if ($request->hasFile('qr_code')) {
+            $imageValidationError = $this->validateUploadedImage($request->file('qr_code'));
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+
+            $this->deleteStoredEventImage($event->qr_code_url);
+            $validated['qr_code_url'] = $this->storeEventImage($request->file('qr_code'));
+        }
+
         unset($validated['image']);
+        unset($validated['qr_code']);
 
         if (array_key_exists('ends_at', $validated) && $validated['ends_at'] !== null) {
             $startsAt = $validated['starts_at'] ?? $event->starts_at;
@@ -182,6 +225,21 @@ class EventController extends Controller
             'festival',
             'other',
         ];
+    }
+
+    private function normalizePackages(Request $request): void
+    {
+        $rawPackages = $request->input('packages');
+        if (! is_string($rawPackages)) {
+            return;
+        }
+
+        $decoded = json_decode($rawPackages, true);
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            return;
+        }
+
+        $request->merge(['packages' => $decoded]);
     }
 
     private function storeEventImage(UploadedFile $image): string

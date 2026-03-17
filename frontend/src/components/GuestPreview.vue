@@ -304,6 +304,8 @@ const fallbackDemoEvents = [
 ];
 
 const DEMO_BOOKINGS_STORAGE_KEY = "achar_demo_bookings";
+const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
+const LAST_BOOKING_EMAIL_KEY = "achar_last_booking_email";
 function shouldShowDemoBookings() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -447,15 +449,66 @@ const fallbackDemoBookings = [
   },
 ];
 
+function getLocalBookingsByEmail(email) {
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return [];
+    if (!email) return rows;
+    return rows.filter(
+      (row) => String(row?.customerEmail || "").trim().toLowerCase() === email.trim().toLowerCase(),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function mapLocalBookingRow(row) {
+  const status = String(row?.status || "pending").toLowerCase();
+  const statusText =
+    status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending Approval";
+  const statusClass =
+    status === "confirmed" ? "confirmed" : status === "cancelled" ? "done" : "pending";
+  return {
+    id: row?.id || `local-${Date.now()}`,
+    vendor: row?.vendor || "Selected Vendor",
+    service: row?.service || "Service Booking",
+    servicePrice: Number(row?.total || row?.total_amount || 0),
+    quantity: Number(row?.quantity || 1),
+    date: row?.dateLabel || row?.eventDate || "Date TBD",
+    metaLabel: "Event Type",
+    metaValue: eventTypeMap[row?.eventType] || "Other",
+    placeLabel: "Total",
+    placeValue: `$${Number(row?.total || row?.total_amount || 0).toLocaleString()}`,
+    status: statusText,
+    statusClass,
+    type: row?.type || "Upcoming",
+    eventType: row?.eventType || "other",
+    eventId: row?.eventId || null,
+    image:
+      row?.image ||
+      "https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80",
+    bookedItems: Array.isArray(row?.booked_items) ? row.booked_items : [],
+    primaryBtn: "View Details",
+    secondaryBtn: statusClass === "pending" ? "Message Vendor" : "Reschedule",
+    note: [row?.customerName, row?.customerEmail].filter(Boolean).join(" | "),
+    rawBooking: row,
+  };
+}
+
 function mapRowsToGuestBookings(rows) {
   return rows.map((row) => {
-    const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
-    return {
-      ...mapped,
-      primaryBtn: "View Details",
-      secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
-      rawBooking: row,
-    };
+    if (row?.event || row?.service_name || row?.requested_event_date) {
+      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
+      return {
+        ...mapped,
+        primaryBtn: "View Details",
+        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
+        rawBooking: row,
+      };
+    }
+    return mapLocalBookingRow(row);
   });
 }
 
@@ -665,6 +718,7 @@ function formatEventDateLabel(value) {
 
 function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
+  const serviceMode = String(item.service_mode || "overall");
   const price = Number(item.price || 0);
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
@@ -685,11 +739,14 @@ function mapEventToGuestPackage(item) {
     vendorName,
     vendorImage,
     vendor: item.vendor || null,
+    serviceMode,
+    qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
 }
 
 function mapEventToGuestService(item) {
   const eventType = String(item.event_type || "other");
+  const serviceMode = String(item.service_mode || "overall");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   return {
     id: `live-service-${item.id}`,
@@ -704,57 +761,71 @@ function mapEventToGuestService(item) {
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
     vendorImage,
     vendor: item.vendor || null,
+    serviceMode,
+    qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
 }
 
 async function loadLiveVendorEvents() {
-  // Try session cache first to avoid repeated network calls
+  // Use cached rows first (stale-while-revalidate) so the page renders fast.
+  let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length) {
-        liveVendorEvents.value = parsed;
-        return;
+      if (Array.isArray(parsed)) {
+        cachedRows = parsed;
+      } else if (parsed && Array.isArray(parsed.data)) {
+        cachedRows = parsed.data;
       }
     }
   } catch {
     // ignore cache read errors
   }
 
-  try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
-    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    if (rows.length) {
-      liveVendorEvents.value = rows;
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
-      return;
-    }
-
-    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-    if (!fallbackResponse.ok) {
-      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
-    }
-
-    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
-    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
-      ? fallbackJson.data
-      : Array.isArray(fallbackJson)
-        ? fallbackJson
-        : [];
-    if (liveVendorEvents.value.length) {
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
-    }
-  } catch (error) {
-    console.error(error);
-    liveVendorEvents.value = [];
+  if (cachedRows.length) {
+    liveVendorEvents.value = cachedRows;
   }
 
-  // If nothing came back (common in guest preview), seed demo events so services show up
+  let rows = [];
+  try {
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
+    rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error(error);
+  }
+
+  if (!rows.length) {
+    try {
+      const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      if (!fallbackResponse.ok) {
+        throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+      }
+
+      const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+      rows = Array.isArray(fallbackJson?.data)
+        ? fallbackJson.data
+        : Array.isArray(fallbackJson)
+          ? fallbackJson
+          : [];
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  if (rows.length) {
+    liveVendorEvents.value = rows;
+    sessionStorage.setItem(
+      EVENTS_CACHE_KEY,
+      JSON.stringify({ data: rows, cachedAt: Date.now() }),
+    );
+    return;
+  }
+
   if (!liveVendorEvents.value.length) {
     liveVendorEvents.value = fallbackDemoEvents;
   }
@@ -773,6 +844,15 @@ async function loadGuestBookings() {
   }
 
   if (!authUser) {
+    const fallbackEmail =
+      String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim() ||
+      String(localStorage.getItem("achar_customer_email") || "").trim();
+    const localRows = getLocalBookingsByEmail(fallbackEmail);
+    if (localRows.length) {
+      guestBookings.value = mapRowsToGuestBookings(localRows);
+      bookingPageNotice.value = "";
+      return;
+    }
     if (shouldShowDemoBookings()) {
       guestBookings.value = mapRowsToGuestBookings(fallbackDemoBookings);
       bookingPageNotice.value = "";
@@ -783,7 +863,12 @@ async function loadGuestBookings() {
     return;
   }
 
-  const customerEmail = String(authUser?.email || "").trim().toLowerCase();
+  const typedEmail = String(localStorage.getItem("achar_customer_email") || "").trim();
+  const loggedEmail = String(authUser?.email || "").trim();
+  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim();
+  const primaryEmail = typedEmail || loggedEmail || lastEmail;
+  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : "";
+  const customerEmail = primaryEmail.trim().toLowerCase();
   if (!customerEmail) {
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
@@ -793,8 +878,19 @@ async function loadGuestBookings() {
   isLoadingGuestBookings.value = true;
   try {
     const result = await apiGet("bookings", { customer_email: customerEmail });
-    const rows = Array.isArray(result?.data) ? result.data : [];
-    guestBookings.value = mapRowsToGuestBookings(rows);
+    let rows = Array.isArray(result?.data) ? result.data : [];
+    if (!rows.length && fallbackEmail) {
+      const fallbackResult = await apiGet("bookings", { customer_email: fallbackEmail });
+      rows = Array.isArray(fallbackResult?.data) ? fallbackResult.data : [];
+    }
+    const localRows = [
+      ...getLocalBookingsByEmail(customerEmail),
+      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+    ];
+    const apiMapped = mapRowsToGuestBookings(rows);
+    const apiKeys = new Set(apiMapped.map((row) => row.id));
+    const extraLocal = localRows.filter((row) => !apiKeys.has(row.id));
+    guestBookings.value = [...apiMapped, ...mapRowsToGuestBookings(extraLocal)];
     bookingPageNotice.value = "";
   } catch (error) {
     guestBookings.value = [];
@@ -826,11 +922,15 @@ function bookingSecondaryAction(item) {
 }
 
 const guestPreviewPackages = computed(() => {
-  return liveVendorEvents.value.map(mapEventToGuestPackage);
+  return liveVendorEvents.value
+    .map(mapEventToGuestPackage)
+    .filter((item) => item.serviceMode === "package");
 });
 
 const servicesCatalog = computed(() => {
-  return liveVendorEvents.value.map(mapEventToGuestService);
+  return liveVendorEvents.value
+    .map(mapEventToGuestService)
+    .filter((item) => item.serviceMode === "overall");
 });
 
 const selectedPackage = computed(
@@ -1133,6 +1233,8 @@ async function submitPrebookForm() {
         qty: quantity,
         unitPrice: Number(pkg.price || 0),
         totalPrice: Number(pkg.price || 0) * quantity,
+        eventId: pkg.backingEventId || null,
+        qrCodeUrl: pkg.qrCodeUrl || "",
       });
     }
   }
@@ -1145,8 +1247,16 @@ async function submitPrebookForm() {
       qty: quantity,
       unitPrice: Number(svc.price || 0),
       totalPrice: Number(svc.price || 0) * quantity,
+      eventId: svc.backingEventId || null,
+      qrCodeUrl: svc.qrCodeUrl || "",
     });
   });
+
+  const paymentQrCodeUrl =
+    checkoutItems.find((item) => item.qrCodeUrl)?.qrCodeUrl ||
+    targetPackage?.qrCodeUrl ||
+    primaryService?.qrCodeUrl ||
+    "";
 
   const payload = {
     vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
@@ -1181,6 +1291,7 @@ async function submitPrebookForm() {
       ? customizationEventType.value
       : targetPackage?.eventType || "other",
     items: checkoutItems,
+    qrCodeUrl: paymentQrCodeUrl,
   };
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
   showPrebookModal.value = false;
@@ -1458,6 +1569,11 @@ function detectPrebookLocation() {
 }
 
 function selectPackage(id) {
+  if (selectedPackageId.value === id) {
+    selectedPackageId.value = null;
+    packageQuantity.value = 1;
+    return;
+  }
   selectedPackageId.value = id;
   packageQuantity.value = 1;
 }

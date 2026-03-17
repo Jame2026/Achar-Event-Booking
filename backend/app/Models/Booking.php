@@ -18,6 +18,11 @@ class Booking extends Model
         'quantity',
         'total_amount',
         'status',
+        'payment_status',
+        'payment_method',
+        'payment_reference',
+        'payment_token',
+        'paid_at',
         'customer_name',
         'customer_email',
         'service_name',
@@ -26,12 +31,17 @@ class Booking extends Model
         'booked_items',
     ];
 
+    protected $hidden = [
+        'payment_token',
+    ];
+
     protected function casts(): array
     {
         return [
             'total_amount' => 'decimal:2',
             'requested_event_date' => 'date',
             'booked_items' => 'array',
+            'paid_at' => 'datetime',
         ];
     }
 

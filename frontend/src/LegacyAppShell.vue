@@ -34,6 +34,7 @@ const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
 const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
 const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
+const LAST_BOOKING_EMAIL_KEY = 'achar_last_booking_email'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
 const router = useRouter()
 const route = useRoute()
@@ -53,8 +54,11 @@ const copyByLanguage = {
     loadEventsFailed: 'Could not load events from backend API. Please start backend server.',
     vendorAccountMissing: 'Vendor account is missing.',
     fillTitleLocationStart: 'Please fill title, location, and start date.',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'Service created successfully and is now visible to users.',
+    serviceUpdated: 'Service updated successfully.',
     couldNotCreateService: 'Could not create service.',
+    couldNotUpdateServiceDetails: 'Could not update service.',
     couldNotUpdateService: 'Could not update service status.',
     couldNotDeleteService: 'Could not delete service.',
     couldNotLoadVendorBookings: 'Could not load vendor bookings right now.',
@@ -90,8 +94,11 @@ const copyByLanguage = {
     loadEventsFailed: 'មិនអាចផ្ទុកព្រឹត្តិការណ៍ពី backend API បានទេ។ សូមបើកម៉ាស៊ីនមេ backend។',
     vendorAccountMissing: 'គណនីអ្នកផ្គត់ផ្គង់បាត់។',
     fillTitleLocationStart: 'សូមបំពេញចំណងជើង ទីតាំង និងថ្ងៃចាប់ផ្តើម។',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'សេវាកម្មត្រូវបានបង្កើតដោយជោគជ័យ ហើយអាចមើលឃើញដោយអ្នកប្រើហើយ។',
+    serviceUpdated: 'បានធ្វើបច្ចុប្បន្នភាពសេវាកម្មដោយជោគជ័យ។',
     couldNotCreateService: 'មិនអាចបង្កើតសេវាកម្មបានទេ។',
+    couldNotUpdateServiceDetails: 'មិនអាចធ្វើបច្ចុប្បន្នភាពសេវាកម្មបានទេ។',
     couldNotUpdateService: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពសេវាកម្មបានទេ។',
     couldNotDeleteService: 'មិនអាចលុបសេវាកម្មបានទេ។',
     couldNotLoadVendorBookings: 'មិនអាចផ្ទុកការកក់របស់អ្នកផ្គត់ផ្គង់បានទេ។',
@@ -127,8 +134,11 @@ const copyByLanguage = {
     loadEventsFailed: '无法从后端 API 加载活动。请启动后端服务。',
     vendorAccountMissing: '缺少商家账户。',
     fillTitleLocationStart: '请填写标题、地点和开始日期。',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: '服务已成功创建，并且用户现在可以看到它。',
+    serviceUpdated: '服务已成功更新。',
     couldNotCreateService: '无法创建服务。',
+    couldNotUpdateServiceDetails: '无法更新服务。',
     couldNotUpdateService: '无法更新服务状态。',
     couldNotDeleteService: '无法删除服务。',
     couldNotLoadVendorBookings: '暂时无法加载商家预订。',
@@ -241,6 +251,13 @@ function normalizePage(value) {
   return page
 }
 
+function normalizeAuthView(value) {
+  const view = String(value || '').trim().toLowerCase()
+  if (view === 'register') return 'register'
+  if (view === 'login') return 'login'
+  return ''
+}
+
 function normalizeVendorTab(value) {
   const tab = firstQueryValue(value)
   return allowedVendorTabs.includes(tab) ? tab : 'about'
@@ -254,6 +271,10 @@ function normalizeVendorDashboardTab(value) {
 function applyRouteStateFromQuery(query) {
   const nextPage = normalizePage(query.page)
   currentPage.value = nextPage
+  if (!loggedInUser.value) {
+    const authView = normalizeAuthView(firstQueryValue(query.view))
+    if (authView) currentView.value = authView
+  }
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
   if (isVendorAccount.value && nextPage === 'dashboard') {
     vendorDashboardTab.value = normalizeVendorDashboardTab(query.vtab)
@@ -343,6 +364,10 @@ const vendorServiceForm = ref({
   title: '',
   event_type: 'wedding',
   description: '',
+  packages: [],
+  qr_code_url: '',
+  qr_code_file: null,
+  service_mode: 'overall',
   image_url: '',
   image_file: null,
   location: '',
@@ -707,6 +732,30 @@ function getLocalBookingsByEmail(email) {
   }
 }
 
+function getBookingMatchKey(row) {
+  const eventId = row?.eventId || row?.event_id || row?.event?.id || null
+  const date =
+    row?.date ||
+    row?.dateLabel ||
+    row?.requested_event_date ||
+    row?.event?.starts_at ||
+    ''
+  if (eventId) {
+    return `event:${eventId}|${String(date).trim().toLowerCase()}`
+  }
+  const service =
+    row?.service ||
+    row?.service_name ||
+    row?.name ||
+    ''
+  const total =
+    row?.total ||
+    row?.total_amount ||
+    row?.servicePrice ||
+    0
+  return `service:${String(service).trim().toLowerCase()}|${Number(total || 0)}|${String(date).trim().toLowerCase()}`
+}
+
 function clearLocalBookingsByEmail(email) {
   if (!email) return
 
@@ -903,8 +952,11 @@ async function openNotification(notification) {
   goToBookings()
 }
 
-async function loadEvents() {
-  isLoadingEvents.value = true
+async function loadEvents(options = {}) {
+  const { silent = false } = options
+  if (!silent) {
+    isLoadingEvents.value = true
+  }
   try {
     const vendorUserId = Number(loggedInUser.value?.id || 0)
     const result =
@@ -923,15 +975,37 @@ async function loadEvents() {
   } catch (error) {
     notice.value = uiText.value.loadEventsFailed
   } finally {
-    isLoadingEvents.value = false
+    if (!silent) {
+      isLoadingEvents.value = false
+    }
+  }
+}
+
+function upsertVendorEvent(row) {
+  if (!row) return
+  const mapped = mapApiEvent(row, eventTypeMap)
+  const index = vendorEvents.value.findIndex((item) => item.id === mapped.id)
+  if (index >= 0) {
+    vendorEvents.value.splice(index, 1, mapped)
+  } else {
+    vendorEvents.value = [mapped, ...vendorEvents.value]
+  }
+  selectedQuantities.value = {
+    ...selectedQuantities.value,
+    [mapped.id]: selectedQuantities.value[mapped.id] || 1,
   }
 }
 
 function resetVendorServiceForm() {
   vendorServiceForm.value = {
+    id: null,
     title: '',
     event_type: 'wedding',
     description: '',
+    packages: [],
+    qr_code_url: '',
+    qr_code_file: null,
+    service_mode: 'overall',
     image_url: '',
     image_file: null,
     location: '',
@@ -956,11 +1030,26 @@ async function submitVendorService() {
 
   const imageUrl = String(vendorServiceForm.value.image_url || '').trim()
   const imageFile = vendorServiceForm.value.image_file instanceof File ? vendorServiceForm.value.image_file : null
+  const qrCodeUrl = String(vendorServiceForm.value.qr_code_url || '').trim()
+  const qrCodeFile = vendorServiceForm.value.qr_code_file instanceof File ? vendorServiceForm.value.qr_code_file : null
+  const normalizedPackages = Array.isArray(vendorServiceForm.value.packages)
+    ? vendorServiceForm.value.packages
+        .map((pkg) => ({
+          name: String(pkg?.name || '').trim(),
+          price: Number(pkg?.price || 0),
+          details: String(pkg?.details || '').trim(),
+        }))
+        .filter((pkg) => pkg.name || pkg.details)
+    : []
+
   const normalizedPayload = {
     vendor_user_id: vendorUserId,
     title: String(vendorServiceForm.value.title || '').trim(),
     event_type: String(vendorServiceForm.value.event_type || 'other'),
     description: String(vendorServiceForm.value.description || '').trim(),
+    packages: normalizedPackages,
+    qr_code_url: qrCodeUrl,
+    service_mode: String(vendorServiceForm.value.service_mode || 'overall'),
     image_url: imageUrl,
     location: String(vendorServiceForm.value.location || '').trim(),
     starts_at: vendorServiceForm.value.starts_at || null,
@@ -975,14 +1064,29 @@ async function submitVendorService() {
     return
   }
 
+  if (!qrCodeFile && !qrCodeUrl) {
+    vendorServiceNotice.value = uiText.value.qrCodeRequired
+    return
+  }
+
   isSubmittingVendorService.value = true
   vendorServiceNotice.value = ''
   try {
+    const serviceId = Number(vendorServiceForm.value.id || 0)
     const payload = imageFile
       ? (() => {
           const formData = new FormData()
           Object.entries(normalizedPayload).forEach(([key, value]) => {
             if (key === 'image_url') {
+              return
+            }
+            if (key === 'qr_code_url' && qrCodeFile) {
+              return
+            }
+            if (key === 'packages') {
+              if (Array.isArray(value) && value.length > 0) {
+                formData.append(key, JSON.stringify(value))
+              }
               return
             }
             if (value !== null && value !== undefined) {
@@ -994,17 +1098,29 @@ async function submitVendorService() {
             }
           })
           formData.append('image', imageFile)
+          if (qrCodeFile) {
+            formData.append('qr_code', qrCodeFile)
+          }
           return formData
         })()
       : normalizedPayload
 
-    await apiPost('vendor/services', payload)
-    await loadEvents()
+    if (Number.isFinite(serviceId) && serviceId > 0) {
+      const result = await apiPatch(`vendor/services/${serviceId}`, payload)
+      upsertVendorEvent(result?.data || result)
+      vendorServiceNotice.value = uiText.value.serviceUpdated
+    } else {
+      const result = await apiPost('vendor/services', payload)
+      upsertVendorEvent(result?.data || result)
+      vendorServiceNotice.value = uiText.value.serviceCreated
+    }
+    loadEvents({ silent: true })
     selectedEventType.value = normalizedPayload.event_type
-    vendorServiceNotice.value = uiText.value.serviceCreated
     resetVendorServiceForm()
   } catch (error) {
-    vendorServiceNotice.value = error?.message || uiText.value.couldNotCreateService
+    vendorServiceNotice.value =
+      error?.message ||
+      (vendorServiceForm.value.id ? uiText.value.couldNotUpdateServiceDetails : uiText.value.couldNotCreateService)
   } finally {
     isSubmittingVendorService.value = false
   }
@@ -1044,6 +1160,7 @@ function mapVendorBookingRow(row) {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
     customer_name: row.customer_name || row.user?.name || uiText.value.customer,
+    customer_email: row.customer_email || row.user?.email || '',
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
@@ -1118,7 +1235,12 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  const typedEmail = customerEmail.value.trim()
+  const loggedEmail = String(loggedInUser.value?.email || '').trim()
+  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || '').trim()
+  const primaryEmail = typedEmail || loggedEmail || lastEmail
+  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : ''
+  const email = primaryEmail
   if (!email) {
     bookings.value = []
     return
@@ -1128,11 +1250,24 @@ async function loadBookings() {
   try {
     const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
-    const apiMappedRows = rows.map((row) =>
+    let apiRows = rows
+    if (!apiRows.length && fallbackEmail) {
+      const fallbackResult = await apiGet('bookings', { customer_email: fallbackEmail })
+      apiRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : []
+    }
+    const apiMappedRows = apiRows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    bookings.value = apiMappedRows
-    clearLocalBookingsByEmail(email)
+    const localRows = [
+      ...getLocalBookingsByEmail(email),
+      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+    ]
+    const apiKeys = new Set(apiMappedRows.map((row) => getBookingMatchKey(row)))
+    const extraLocalRows = localRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)))
+    bookings.value = [...apiMappedRows, ...extraLocalRows]
+    if (extraLocalRows.length === 0) {
+      clearLocalBookingsByEmail(email)
+    }
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
