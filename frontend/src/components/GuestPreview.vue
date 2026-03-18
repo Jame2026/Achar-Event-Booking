@@ -1,4 +1,4 @@
-﻿<script setup>
+﻿﻿<script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
@@ -27,10 +27,13 @@ const props = defineProps({
   },
 });
 const section = computed(() => props.section);
-const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
-const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
-const AUTH_USER_STORAGE_KEY = "achar_auth_user";
-const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
+  const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+  const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+  const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const MESSAGE_VENDOR_TARGET_KEY = "achar_message_vendor_target";
+  const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+  const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
@@ -96,6 +99,7 @@ const copyByLanguage = {
     availableTimeSlots: "Available Time Slots",
     selectedDate: "Selected Date",
     prebookNow: "Pre-book Now",
+    messageVendor: "Message Vendor",
     noMatchingServicesFilter: "No matching services for this filter.",
     morning: "Morning",
     afternoon: "Afternoon",
@@ -169,6 +173,7 @@ const copyByLanguage = {
     availableTimeSlots: "ម៉ោងទំនេរ",
     selectedDate: "កាលបរិច្ឆេទដែលបានជ្រើស",
     prebookNow: "កក់ជាមុនឥឡូវ",
+    messageVendor: "ផ្ញើសារទៅអ្នកផ្គត់ផ្គង់",
     noMatchingServicesFilter: "មិនមានសេវាកម្មដែលត្រូវនឹងតម្រងនេះទេ។",
     morning: "ព្រឹក",
     afternoon: "រសៀល",
@@ -242,6 +247,7 @@ const copyByLanguage = {
     availableTimeSlots: "可用时间段",
     selectedDate: "已选日期",
     prebookNow: "立即预订",
+    messageVendor: "联系商家",
     noMatchingServicesFilter: "没有符合此筛选条件的服务。",
     morning: "早晨",
     afternoon: "下午",
@@ -512,6 +518,7 @@ function mapEventToGuestPackage(item) {
   const price = Number(item.price || 0);
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -528,6 +535,7 @@ function mapEventToGuestPackage(item) {
     backingEventId: Number(item.id || 0) || null,
     vendorName,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
   };
 }
@@ -535,6 +543,7 @@ function mapEventToGuestPackage(item) {
 function mapEventToGuestService(item) {
   const eventType = String(item.event_type || "other");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -547,19 +556,19 @@ function mapEventToGuestService(item) {
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
   };
 }
 
 async function loadLiveVendorEvents() {
-  // Try session cache first to avoid repeated network calls
+  // Use session cache for fast paint, but still fetch fresh data
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length) {
         liveVendorEvents.value = parsed;
-        return;
       }
     }
   } catch {
@@ -567,7 +576,7 @@ async function loadLiveVendorEvents() {
   }
 
   try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
     if (rows.length) {
       liveVendorEvents.value = rows;
@@ -1329,6 +1338,8 @@ function openServiceVendor(service) {
   const vendor = service.vendor || {};
 
   activeVendorProfile.value = {
+    vendorId: Number(service.vendorId || vendor.id || 0) || null,
+    eventId: Number(service.backingEventId || 0) || null,
     name: vendor.name || service.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1360,6 +1371,8 @@ function openPackageVendor() {
   if (!activePackage.value) return;
   const vendor = activePackage.value.vendor || {};
   activeVendorProfile.value = {
+    vendorId: Number(activePackage.value.vendorId || vendor.id || 0) || null,
+    eventId: Number(activePackage.value.backingEventId || 0) || null,
     name: vendor.name || activePackage.value.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1384,6 +1397,62 @@ function openPackageVendor() {
     website: vendor.website || vendorProfile.website,
   };
   showVendorProfile.value = true;
+}
+
+function queueVendorMessageTarget(target) {
+  if (!target || typeof target !== "object") return;
+  const vendorId = Number(target.vendorId || 0);
+  const vendorEmail = String(target.vendorEmail || "").trim();
+  const eventId = Number(target.eventId || 0);
+  if (!Number.isFinite(vendorId) && !vendorEmail && !Number.isFinite(eventId)) return;
+  if (!vendorId && !vendorEmail && !eventId) return;
+
+  sessionStorage.setItem(MESSAGE_VENDOR_TARGET_KEY, JSON.stringify({
+      vendorId: Number.isFinite(vendorId) && vendorId > 0 ? vendorId : null,
+      vendorName: String(target.vendorName || "").trim() || undefined,
+      vendorEmail: vendorEmail || undefined,
+      serviceName: String(target.serviceName || "").trim() || undefined,
+      eventId: Number.isFinite(eventId) && eventId > 0 ? eventId : null,
+    }));
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/legacy-app?page=messages");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
+    router.push("/legacy-app?page=messages");
+  }
+
+function messageVendorFromPackage() {
+  if (!activePackage.value) return;
+  const vendor = activePackage.value.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: activePackage.value.vendorId || vendor.id || null,
+    vendorName: activePackage.value.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: activePackage.value.title || "",
+    eventId: activePackage.value.backingEventId || null,
+  });
+}
+
+function messageVendorFromService(service) {
+  if (!service) return;
+  const vendor = service.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: service.vendorId || vendor.id || null,
+    vendorName: service.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: service.name || "",
+    eventId: service.backingEventId || null,
+  });
+}
+
+function messageVendorFromProfile() {
+  const profile = activeVendorProfile.value;
+  if (!profile) return;
+  queueVendorMessageTarget({
+    vendorId: profile.vendorId || null,
+    vendorName: profile.name || "Vendor",
+    vendorEmail: profile.email || "",
+    serviceName: profile.serviceName || "",
+    eventId: profile.eventId || null,
+  });
 }
 
 function closeVendorProfile() {
@@ -2125,7 +2194,7 @@ function noop() {}
                     @toggle-service="toggleService(service.id)"
                     @toggle-details="toggleServiceDetails"
                     @view-vendor="openServiceVendor(service)"
-                    @message="goToSignIn"
+                    @message="messageVendorFromService(service)"
                     @toggle-favorite="toggleFavoriteService"
                   />
                 </div>
@@ -2447,6 +2516,13 @@ function noop() {}
           </button>
           <button
             type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="messageVendorFromPackage"
+          >
+            {{ uiText.messageVendor || "Message Vendor" }}
+          </button>
+          <button
+            type="button"
             class="modal-action-btn modal-action-primary"
             @click="openPrebookForm"
           >
@@ -2501,7 +2577,7 @@ function noop() {}
           <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
             Close
           </button>
-          <button type="button" class="modal-action-btn modal-action-primary" @click="goToSignIn">
+          <button type="button" class="modal-action-btn modal-action-primary" @click="messageVendorFromProfile">
             {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
@@ -4282,7 +4358,7 @@ function noop() {}
 .package-modal-actions {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
 }
 
@@ -4422,34 +4498,38 @@ function noop() {}
 
 .favorite-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 16px 0 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .favorite-list li {
-  border: 1px solid #e6eef9;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-  display: flex;
+  border: 1px solid #e6edf8;
+  border-radius: 18px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 195, 113, 0.14), transparent 42%),
+    radial-gradient(circle at 90% 0%, rgba(99, 179, 237, 0.14), transparent 42%),
+    #ffffff;
+  box-shadow:
+    0 12px 30px rgba(15, 23, 42, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 14px;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
 .favorite-list li:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
 }
 
 .favorite-thumb {
-  width: 56px;
-  height: 56px;
+  width: 78px;
+  height: 78px;
   aspect-ratio: 1;
   border-radius: 12px;
   object-fit: cover;
@@ -4465,30 +4545,34 @@ function noop() {}
 
 .favorite-list strong {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .favorite-list small {
-  color: #64748b;
+  color: #556177;
+  font-size: 13px;
 }
 
 .favorite-remove {
-  border: 1px solid #f9d9c0;
+  border: 1px solid #f4c7a0;
   border-radius: 999px;
-  background: #fff7f1;
+  background: linear-gradient(180deg, #fff5ec 0%, #ffe8d6 100%);
   color: #d9480f;
   font-size: 12px;
-  font-weight: 700;
-  padding: 8px 12px;
+  font-weight: 800;
+  padding: 10px 16px;
   cursor: pointer;
-  transition: background 160ms ease, box-shadow 160ms ease;
+  transition: background 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   flex-shrink: 0;
+  box-shadow: 0 10px 22px rgba(234, 88, 12, 0.12);
 }
 
 .favorite-remove:hover {
-  background: #ffe9dc;
-  box-shadow: 0 6px 12px rgba(217, 72, 15, 0.12);
+  background: #ffe0c7;
+  border-color: #eca26b;
+  box-shadow: 0 12px 24px rgba(217, 72, 15, 0.16);
 }
 
 .booking-details-modal {
@@ -4779,6 +4863,7 @@ function noop() {}
 
   .favorite-list li {
     gap: 10px;
+    grid-template-columns: auto 1fr;
   }
 }
 
@@ -4830,6 +4915,3 @@ function noop() {}
   }
 }
 </style>
-
-
-

@@ -39,6 +39,9 @@ export function useCustomizationFeature({
         location: event.location || 'Location TBD',
         date: event.date || 'Date TBD',
         backingEventId: event.id || null,
+        vendorId: event.vendorId || null,
+        vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
       }))
   })
 
@@ -81,7 +84,9 @@ export function useCustomizationFeature({
         price: Number(event.price || 0),
         eventTypes: [event.eventType || 'other'],
         backingEventId: event.id || null,
+        vendorId: event.vendorId || null,
         vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
         location: event.location || 'Location TBD',
       }))
   })

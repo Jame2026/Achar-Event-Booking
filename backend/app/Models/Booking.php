@@ -20,6 +20,8 @@ class Booking extends Model
         'status',
         'customer_name',
         'customer_email',
+        'customer_phone',
+        'customer_location',
         'service_name',
         'requested_event_type',
         'requested_event_date',

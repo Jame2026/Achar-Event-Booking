@@ -186,7 +186,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
               @select="props.selectCustomizationPackage"
               @toggle-details="props.togglePackageDetails"
               @check-availability="props.goToAvailability"
-              @message="props.goToMessages(props.vendorProfile.name)"
+              @message="props.goToMessages({ vendorId: item.vendorId, vendorName: item.vendorName, vendorEmail: item.vendorEmail, serviceName: item.title, eventId: item.backingEventId })"
               @toggle-favorite="props.toggleFavoritePackage ? props.toggleFavoritePackage(item.id) : null"
             />
           </div>
@@ -214,7 +214,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
               :service-fee-rate="props.serviceFeeRate"
               @toggle-service="props.toggleMatchingService"
               @toggle-details="props.toggleServiceDetails"
-              @message="props.goToMessages(props.vendorProfile.name)"
+              @message="props.goToMessages({ vendorId: service.vendorId, vendorName: service.vendorName, vendorEmail: service.vendorEmail, serviceName: service.name, eventId: service.backingEventId })"
               @toggle-favorite="props.toggleFavoriteService ? props.toggleFavoriteService(service.id) : null"
             />
           </div>

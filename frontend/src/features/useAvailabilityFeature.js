@@ -147,6 +147,10 @@ export function useAvailabilityFeature({ currentPage, notice, vendorName, goToMe
       return
     }
     notice.value = `Availability request sent for ${availabilityContext.value.title} on ${selectedAvailabilityDateLabel.value} at ${selectedAvailabilitySlotInfo.value.value}.`
+    if (availabilityContext.value.eventId) {
+      goToMessages({ eventId: availabilityContext.value.eventId, vendorName })
+      return
+    }
     goToMessages(vendorName)
   }
 

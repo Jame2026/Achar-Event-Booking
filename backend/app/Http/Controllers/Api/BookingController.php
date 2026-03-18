@@ -25,7 +25,11 @@ class BookingController extends Controller
         ]);
 
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
+            ->with([
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+                'event.vendor:id,name,email',
+                'user:id,name,email',
+            ])
             ->when(
                 $validated['customer_email'] ?? null,
                 fn ($query, $email) => $query->where('customer_email', $email)
@@ -50,7 +54,11 @@ class BookingController extends Controller
     public function index(): JsonResponse
     {
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
+            ->with([
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+                'event.vendor:id,name,email',
+                'user:id,name,email',
+            ])
             ->latest()
             ->paginate(15);
 
@@ -159,6 +167,8 @@ class BookingController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:20'],
+            'customer_location' => ['nullable', 'string', 'max:255'],
             'service_name' => ['nullable', 'string', 'max:255'],
             'requested_event_type' => ['nullable', 'string', 'max:60'],
             'requested_event_date' => ['nullable', 'date'],
@@ -218,12 +228,12 @@ class BookingController extends Controller
         $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
-        return response()->json($booking->load('event.vendor:id,name'), 201);
+        return response()->json($booking->load('event.vendor:id,name,email'), 201);
     }
 
     public function show(Booking $booking): JsonResponse
     {
-        return response()->json($booking->load(['event.vendor:id,name', 'user:id,name,email']));
+        return response()->json($booking->load(['event.vendor:id,name,email', 'user:id,name,email,phone,location']));
     }
 
     public function update(Request $request, Booking $booking): JsonResponse
@@ -233,6 +243,8 @@ class BookingController extends Controller
             'status' => ['sometimes', Rule::in(['pending', 'confirmed', 'cancelled'])],
             'customer_name' => ['sometimes', 'string', 'max:255'],
             'customer_email' => ['sometimes', 'email', 'max:255'],
+            'customer_phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'customer_location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'service_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_event_type' => ['sometimes', 'nullable', 'string', 'max:60'],
             'booked_items' => ['sometimes', 'nullable', 'array'],
@@ -274,7 +286,7 @@ class BookingController extends Controller
             $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
         }
 
-        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));
+        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email,phone,location']));
     }
 
     public function destroy(Booking $booking): JsonResponse

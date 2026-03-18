@@ -88,6 +88,12 @@ Route::prefix('vendor')->group(function () {
     Route::post('/chats/{conversation}/messages', [ChatController::class, 'vendorSendMessage']);
 });
 
+Route::prefix('user')->group(function () {
+    Route::post('/chats', [ChatController::class, 'userCreate']);
+    Route::get('/chats', [ChatController::class, 'userIndex']);
+    Route::post('/chats/{conversation}/messages', [ChatController::class, 'userSendMessage']);
+});
+
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);

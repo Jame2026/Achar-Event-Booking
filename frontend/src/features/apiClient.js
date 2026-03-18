@@ -78,6 +78,7 @@ async function requestApi(method, path, { payload, query } = {}) {
       headers,
       body: payload === undefined ? undefined : isFormData ? payload : JSON.stringify(payload),
       signal: controller.signal,
+      credentials: 'include', // send cookies for Sanctum/session auth
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
