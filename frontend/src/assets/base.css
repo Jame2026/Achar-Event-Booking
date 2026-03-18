@@ -1,0 +1,41 @@
+:root {
+  --color-background: #f7f7fb;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-muted: #6b7280;
+  --color-primary: #ff6b00;
+  --color-border: #e5e7eb;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  font-family: 'Manrope', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
