@@ -4498,34 +4498,38 @@ function noop() {}
 
 .favorite-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 16px 0 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .favorite-list li {
-  border: 1px solid #e6eef9;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-  display: flex;
+  border: 1px solid #e6edf8;
+  border-radius: 18px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 195, 113, 0.14), transparent 42%),
+    radial-gradient(circle at 90% 0%, rgba(99, 179, 237, 0.14), transparent 42%),
+    #ffffff;
+  box-shadow:
+    0 12px 30px rgba(15, 23, 42, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 14px;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
 .favorite-list li:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
 }
 
 .favorite-thumb {
-  width: 56px;
-  height: 56px;
+  width: 78px;
+  height: 78px;
   aspect-ratio: 1;
   border-radius: 12px;
   object-fit: cover;
@@ -4541,30 +4545,34 @@ function noop() {}
 
 .favorite-list strong {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .favorite-list small {
-  color: #64748b;
+  color: #556177;
+  font-size: 13px;
 }
 
 .favorite-remove {
-  border: 1px solid #f9d9c0;
+  border: 1px solid #f4c7a0;
   border-radius: 999px;
-  background: #fff7f1;
+  background: linear-gradient(180deg, #fff5ec 0%, #ffe8d6 100%);
   color: #d9480f;
   font-size: 12px;
-  font-weight: 700;
-  padding: 8px 12px;
+  font-weight: 800;
+  padding: 10px 16px;
   cursor: pointer;
-  transition: background 160ms ease, box-shadow 160ms ease;
+  transition: background 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   flex-shrink: 0;
+  box-shadow: 0 10px 22px rgba(234, 88, 12, 0.12);
 }
 
 .favorite-remove:hover {
-  background: #ffe9dc;
-  box-shadow: 0 6px 12px rgba(217, 72, 15, 0.12);
+  background: #ffe0c7;
+  border-color: #eca26b;
+  box-shadow: 0 12px 24px rgba(217, 72, 15, 0.16);
 }
 
 .booking-details-modal {
@@ -4855,6 +4863,7 @@ function noop() {}
 
   .favorite-list li {
     gap: 10px;
+    grid-template-columns: auto 1fr;
   }
 }
 
