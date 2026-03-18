@@ -25,7 +25,11 @@ class BookingController extends Controller
         ]);
 
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
+            ->with([
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+                'event.vendor:id,name,email',
+                'user:id,name,email',
+            ])
             ->when(
                 $validated['customer_email'] ?? null,
                 fn ($query, $email) => $query->where('customer_email', $email)
@@ -50,7 +54,11 @@ class BookingController extends Controller
     public function index(): JsonResponse
     {
         $bookings = Booking::query()
-            ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'event.vendor:id,name', 'user:id,name,email'])
+            ->with([
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+                'event.vendor:id,name,email',
+                'user:id,name,email',
+            ])
             ->latest()
             ->paginate(15);
 
@@ -220,12 +228,12 @@ class BookingController extends Controller
         $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
-        return response()->json($booking->load('event.vendor:id,name'), 201);
+        return response()->json($booking->load('event.vendor:id,name,email'), 201);
     }
 
     public function show(Booking $booking): JsonResponse
     {
-        return response()->json($booking->load(['event.vendor:id,name', 'user:id,name,email,phone,location']));
+        return response()->json($booking->load(['event.vendor:id,name,email', 'user:id,name,email,phone,location']));
     }
 
     public function update(Request $request, Booking $booking): JsonResponse

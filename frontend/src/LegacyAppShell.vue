@@ -33,6 +33,7 @@ const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
 const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
 const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
+const MESSAGE_VENDOR_TARGET_KEY = 'achar_message_vendor_target'
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
 const EVENTS_CACHE_KEY = 'achar_guest_events_cache_v1'
@@ -77,6 +78,8 @@ const copyByLanguage = {
     last7Days: 'Last 7 days',
     last30Days: 'Last 30 days',
     last12Months: 'Last 12 months',
+    janToDec: 'Jan - Dec',
+    lastAndCurrentYear: 'Last & current year',
   },
   km: {
     signInToContinue: 'សូមចូលគណនីដើម្បីបន្តការកក់។',
@@ -114,6 +117,8 @@ const copyByLanguage = {
     last7Days: '7 ថ្ងៃចុងក្រោយ',
     last30Days: '30 ថ្ងៃចុងក្រោយ',
     last12Months: '12 ខែចុងក្រោយ',
+    janToDec: 'មករា - ធ្នូ',
+    lastAndCurrentYear: 'ឆ្នាំមុន និងឆ្នាំនេះ',
   },
   zh: {
     signInToContinue: '请先登录再继续预订。',
@@ -151,6 +156,8 @@ const copyByLanguage = {
     last7Days: '最近 7 天',
     last30Days: '最近 30 天',
     last12Months: '最近 12 个月',
+    janToDec: '1月 - 12月',
+    lastAndCurrentYear: '去年与今年',
   },
 }
 const { uiText } = useLanguageCopy(copyByLanguage)
@@ -182,7 +189,9 @@ function onLoginSuccess(user) {
     const target = role === 'vendor' || role === 'admin' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
     router.push(target).catch(() => {})
   }
-  void bootstrapAuthenticatedShell()
+  void bootstrapAuthenticatedShell().then(() => {
+    consumeMessageVendorTarget()
+  })
 }
 
 function handlePostAuthRedirect() {
@@ -197,6 +206,36 @@ function handlePostAuthRedirect() {
   if (!isFresh || !isSafePath) return false
   router.push(redirectPath).catch(() => {})
   return true
+}
+
+function consumeMessageVendorTarget() {
+  const raw = sessionStorage.getItem(MESSAGE_VENDOR_TARGET_KEY)
+  if (!raw) return
+  sessionStorage.removeItem(MESSAGE_VENDOR_TARGET_KEY)
+
+  let payload = null
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    return
+  }
+
+  if (!payload || typeof payload !== 'object') return
+
+  const vendorIdRaw = Number(payload.vendorId || 0)
+  const vendorId = Number.isFinite(vendorIdRaw) && vendorIdRaw > 0 ? vendorIdRaw : null
+  const vendorEmail = String(payload.vendorEmail || '').trim()
+  const eventIdRaw = Number(payload.eventId || 0)
+  const eventId = Number.isFinite(eventIdRaw) && eventIdRaw > 0 ? eventIdRaw : null
+  if (!vendorId && !vendorEmail && !eventId) return
+
+  goToMessages({
+    vendorId,
+    vendorEmail: vendorEmail || undefined,
+    vendorName: String(payload.vendorName || '').trim() || undefined,
+    serviceName: String(payload.serviceName || '').trim() || undefined,
+    eventId: eventId || undefined,
+  })
 }
 
 function requireLogin(message = uiText.value.signInToContinue) {
@@ -420,7 +459,7 @@ const {
   deleteMessage,
   isLoadingMessages,
   messagesError,
-} = useVendorMessagesFeature(currentPage, loggedInUser, notice)
+} = useVendorMessagesFeature(currentPage, loggedInUser, notice, vendorDashboardTab)
 const {
   availabilityMonthCursor,
   selectedAvailabilityDate,
@@ -554,8 +593,13 @@ const recentBookings = computed(() => bookings.value.slice(0, 3))
 const vendorDisplayName = computed(
   () => String(loggedInUser.value?.name || vendorProfile.name || 'Vendor').trim() || 'Vendor',
 )
-const messagesSummary = computed(
-  () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
+const messagesSummary = computed(() =>
+  conversations.value.filter((item) => {
+    if (item?.unread) return true
+    const messages = Array.isArray(item?.messages) ? item.messages : []
+    const lastMessage = messages[messages.length - 1]
+    return lastMessage?.from === 'them'
+  }).length,
 )
 function getIncomeDateParts(value) {
   const date = value ? new Date(value) : null
@@ -588,6 +632,91 @@ function createDailyIncomeSeries(bookings, days) {
     if (!parts) return
     const key = `${parts.year}-${parts.month}-${parts.day}`
     const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function getWeekStartMonday(date) {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = (day + 6) % 7
+  start.setDate(start.getDate() - diff)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+function createWeeklyIncomeSeries(bookings) {
+  const weekStart = getWeekStartMonday(new Date())
+  const buckets = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + index)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createCalendarYearIncomeSeries(bookings, year = new Date().getFullYear()) {
+  const buckets = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(year, index, 1)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createYearComparisonSeries(bookings, year = new Date().getFullYear()) {
+  const years = [year - 1, year]
+  const buckets = years.map((targetYear) => {
+    const date = new Date(targetYear, 0, 1)
+    return {
+      key: `${targetYear}`,
+      label: date.toLocaleDateString('en-US', { year: 'numeric' }),
+      fullLabel: `Calendar year ${targetYear}`,
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const target = bucketMap.get(String(parts.year))
     if (target) target.value += Number(booking.total_amount || 0)
   })
 
@@ -641,9 +770,9 @@ const vendorIncome = computed(() => {
     if (!parts) return sum
     return parts.year === now.getFullYear() ? sum + Number(item.total_amount || 0) : sum
   }, 0)
-  const weekSeries = createDailyIncomeSeries(confirmedBookings, 7)
-  const monthSeries = createDailyIncomeSeries(confirmedBookings, 30)
-  const yearSeries = createMonthlyIncomeSeries(confirmedBookings, 12)
+  const weekSeries = createWeeklyIncomeSeries(confirmedBookings)
+  const monthSeries = createCalendarYearIncomeSeries(confirmedBookings, now.getFullYear())
+  const yearSeries = createYearComparisonSeries(confirmedBookings, now.getFullYear())
   const periodTotal = (series) => series.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return {
     total,
@@ -659,12 +788,12 @@ const vendorIncome = computed(() => {
         total: periodTotal(weekSeries),
       },
       month: {
-        label: uiText.value.last30Days,
+        label: uiText.value.janToDec,
         points: monthSeries,
         total: periodTotal(monthSeries),
       },
       year: {
-        label: uiText.value.last12Months,
+        label: uiText.value.lastAndCurrentYear,
         points: yearSeries,
         total: periodTotal(yearSeries),
       },
@@ -1306,7 +1435,12 @@ async function bookPackage(item) {
 
 function bookingPrimaryAction(item) {
   if (item.primaryBtn === 'Message Vendor') {
-    goToMessages(item.vendor)
+    goToMessages({
+      vendorId: item.vendorId,
+      vendorName: item.vendor,
+      vendorEmail: item.vendorEmail,
+      serviceName: item.service,
+    })
     return
   }
   if (item.primaryBtn === 'View Details') {
@@ -1378,8 +1512,11 @@ watch(
     if (tab === 'services') {
       await loadEvents()
     }
+    if (tab === 'messages') {
+      await loadVendorConversations({ preserveSelection: true })
+    }
   },
-  { flush: 'post' },
+  { flush: 'post', immediate: true },
 )
 
 onMounted(async () => {
@@ -1397,6 +1534,7 @@ onMounted(async () => {
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   handlePostAuthRedirect()
   await bootstrapAuthenticatedShell()
+  consumeMessageVendorTarget()
 })
 
 onBeforeUnmount(() => {
@@ -1427,11 +1565,23 @@ onBeforeUnmount(() => {
         :vendor-service-notice="vendorServiceNotice"
         :vendor-income="vendorIncome"
         :messages-summary="messagesSummary"
+        :messages-bindings="messagesBindings"
+        :filtered-conversations="filteredConversations"
+        :active-conversation="activeConversation"
+        :select-conversation="selectConversation"
+        :send-message="sendMessage"
+        :send-files="sendFiles"
+        :send-location="sendLocation"
+        :is-sharing-location="isSharingLocation"
+        :save-document="saveDocument"
+        :delete-message="deleteMessage"
+        :is-loading-messages="isLoadingMessages"
+        :messages-error="messagesError"
+        :load-vendor-conversations="loadVendorConversations"
         :submit-vendor-service="submitVendorService"
         :toggle-vendor-service-active="toggleVendorServiceActive"
         :delete-vendor-service="deleteVendorService"
         :update-vendor-booking-status="updateVendorBookingStatus"
-        :go-to-messages="goToMessages"
         :logout-user="logout"
       />
       <DashboardPage

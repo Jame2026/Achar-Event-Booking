@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
@@ -74,6 +75,41 @@ const copyByLanguage = {
 }
 
 const { uiText } = useLanguageCopy(copyByLanguage)
+
+function normalizeInfo(value) {
+  const trimmed = String(value || '').trim()
+  return trimmed !== '' ? trimmed : ''
+}
+
+function buildContactLine(conversation) {
+  if (!conversation) return ''
+  const vendorParts = [conversation.vendorEmail, conversation.vendorPhone, conversation.vendorLocation]
+    .map(normalizeInfo)
+    .filter(Boolean)
+  if (vendorParts.length) return vendorParts.join(' - ')
+  const customerParts = [conversation.customerEmail, conversation.customerPhone, conversation.customerLocation]
+    .map(normalizeInfo)
+    .filter(Boolean)
+  if (customerParts.length) return customerParts.join(' - ')
+  return ''
+}
+
+const hasActiveConversation = computed(() => {
+  const active = props.activeConversation
+  return Boolean(active && active.id)
+})
+
+const primaryLine = computed(() => {
+  const active = props.activeConversation || {}
+  const serviceName = normalizeInfo(active.serviceName)
+  const bookingId = active.bookingId
+  const hasBookingId = bookingId !== null && bookingId !== undefined && String(bookingId).trim() !== ''
+  if (serviceName && hasBookingId) return `Booking #${bookingId} - ${serviceName}`
+  if (serviceName) return serviceName
+  return ''
+})
+
+const contactLine = computed(() => buildContactLine(props.activeConversation))
 </script>
 
 <template>
@@ -115,22 +151,18 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       </aside>
 
       <section class="chat-panel">
-        <header class="chat-header">
+        <header v-if="hasActiveConversation" class="chat-header">
           <div class="chat-person">
             <img :src="props.activeConversation.image" :alt="props.activeConversation.name" />
             <div>
               <h3>{{ props.activeConversation.name }}</h3>
-              <p v-if="props.activeConversation.serviceName">
-                Booking #{{ props.activeConversation.bookingId || '-' }} · {{ props.activeConversation.serviceName }}
-              </p>
-              <p v-else>{{ props.activeConversation.online ? uiText.online : uiText.offline }}</p>
+              <p v-if="primaryLine">{{ primaryLine }}</p>
+              <p v-if="contactLine" class="chat-subline">{{ contactLine }}</p>
             </div>
           </div>
         </header>
 
-        <div class="chat-stream">
-          <span class="chat-day">{{ uiText.today }}</span>
-
+        <div v-if="hasActiveConversation" class="chat-stream">
           <div
             v-for="msg in props.activeConversation.messages"
             :key="msg.id"
@@ -173,7 +205,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           </div>
         </div>
 
-        <footer class="chat-composer">
+        <footer v-if="hasActiveConversation" class="chat-composer">
           <label class="composer-icon composer-file">
             +
             <input

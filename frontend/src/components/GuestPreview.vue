@@ -27,10 +27,13 @@ const props = defineProps({
   },
 });
 const section = computed(() => props.section);
-const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
-const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
-const AUTH_USER_STORAGE_KEY = "achar_auth_user";
-const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
+  const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+  const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+  const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const MESSAGE_VENDOR_TARGET_KEY = "achar_message_vendor_target";
+  const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+  const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
@@ -96,6 +99,7 @@ const copyByLanguage = {
     availableTimeSlots: "Available Time Slots",
     selectedDate: "Selected Date",
     prebookNow: "Pre-book Now",
+    messageVendor: "Message Vendor",
     noMatchingServicesFilter: "No matching services for this filter.",
     morning: "Morning",
     afternoon: "Afternoon",
@@ -169,6 +173,7 @@ const copyByLanguage = {
     availableTimeSlots: "ម៉ោងទំនេរ",
     selectedDate: "កាលបរិច្ឆេទដែលបានជ្រើស",
     prebookNow: "កក់ជាមុនឥឡូវ",
+    messageVendor: "ផ្ញើសារទៅអ្នកផ្គត់ផ្គង់",
     noMatchingServicesFilter: "មិនមានសេវាកម្មដែលត្រូវនឹងតម្រងនេះទេ។",
     morning: "ព្រឹក",
     afternoon: "រសៀល",
@@ -242,6 +247,7 @@ const copyByLanguage = {
     availableTimeSlots: "可用时间段",
     selectedDate: "已选日期",
     prebookNow: "立即预订",
+    messageVendor: "联系商家",
     noMatchingServicesFilter: "没有符合此筛选条件的服务。",
     morning: "早晨",
     afternoon: "下午",
@@ -512,6 +518,7 @@ function mapEventToGuestPackage(item) {
   const price = Number(item.price || 0);
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -528,6 +535,7 @@ function mapEventToGuestPackage(item) {
     backingEventId: Number(item.id || 0) || null,
     vendorName,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
   };
 }
@@ -535,6 +543,7 @@ function mapEventToGuestPackage(item) {
 function mapEventToGuestService(item) {
   const eventType = String(item.event_type || "other");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -547,6 +556,7 @@ function mapEventToGuestService(item) {
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
   };
 }
@@ -1328,6 +1338,8 @@ function openServiceVendor(service) {
   const vendor = service.vendor || {};
 
   activeVendorProfile.value = {
+    vendorId: Number(service.vendorId || vendor.id || 0) || null,
+    eventId: Number(service.backingEventId || 0) || null,
     name: vendor.name || service.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1359,6 +1371,8 @@ function openPackageVendor() {
   if (!activePackage.value) return;
   const vendor = activePackage.value.vendor || {};
   activeVendorProfile.value = {
+    vendorId: Number(activePackage.value.vendorId || vendor.id || 0) || null,
+    eventId: Number(activePackage.value.backingEventId || 0) || null,
     name: vendor.name || activePackage.value.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1383,6 +1397,62 @@ function openPackageVendor() {
     website: vendor.website || vendorProfile.website,
   };
   showVendorProfile.value = true;
+}
+
+function queueVendorMessageTarget(target) {
+  if (!target || typeof target !== "object") return;
+  const vendorId = Number(target.vendorId || 0);
+  const vendorEmail = String(target.vendorEmail || "").trim();
+  const eventId = Number(target.eventId || 0);
+  if (!Number.isFinite(vendorId) && !vendorEmail && !Number.isFinite(eventId)) return;
+  if (!vendorId && !vendorEmail && !eventId) return;
+
+  sessionStorage.setItem(MESSAGE_VENDOR_TARGET_KEY, JSON.stringify({
+      vendorId: Number.isFinite(vendorId) && vendorId > 0 ? vendorId : null,
+      vendorName: String(target.vendorName || "").trim() || undefined,
+      vendorEmail: vendorEmail || undefined,
+      serviceName: String(target.serviceName || "").trim() || undefined,
+      eventId: Number.isFinite(eventId) && eventId > 0 ? eventId : null,
+    }));
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/legacy-app?page=messages");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
+    router.push("/legacy-app?page=messages");
+  }
+
+function messageVendorFromPackage() {
+  if (!activePackage.value) return;
+  const vendor = activePackage.value.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: activePackage.value.vendorId || vendor.id || null,
+    vendorName: activePackage.value.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: activePackage.value.title || "",
+    eventId: activePackage.value.backingEventId || null,
+  });
+}
+
+function messageVendorFromService(service) {
+  if (!service) return;
+  const vendor = service.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: service.vendorId || vendor.id || null,
+    vendorName: service.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: service.name || "",
+    eventId: service.backingEventId || null,
+  });
+}
+
+function messageVendorFromProfile() {
+  const profile = activeVendorProfile.value;
+  if (!profile) return;
+  queueVendorMessageTarget({
+    vendorId: profile.vendorId || null,
+    vendorName: profile.name || "Vendor",
+    vendorEmail: profile.email || "",
+    serviceName: profile.serviceName || "",
+    eventId: profile.eventId || null,
+  });
 }
 
 function closeVendorProfile() {
@@ -2124,7 +2194,7 @@ function noop() {}
                     @toggle-service="toggleService(service.id)"
                     @toggle-details="toggleServiceDetails"
                     @view-vendor="openServiceVendor(service)"
-                    @message="goToSignIn"
+                    @message="messageVendorFromService(service)"
                     @toggle-favorite="toggleFavoriteService"
                   />
                 </div>
@@ -2446,6 +2516,13 @@ function noop() {}
           </button>
           <button
             type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="messageVendorFromPackage"
+          >
+            {{ uiText.messageVendor || "Message Vendor" }}
+          </button>
+          <button
+            type="button"
             class="modal-action-btn modal-action-primary"
             @click="openPrebookForm"
           >
@@ -2500,7 +2577,7 @@ function noop() {}
           <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
             Close
           </button>
-          <button type="button" class="modal-action-btn modal-action-primary" @click="goToSignIn">
+          <button type="button" class="modal-action-btn modal-action-primary" @click="messageVendorFromProfile">
             {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
@@ -4281,7 +4358,7 @@ function noop() {}
 .package-modal-actions {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
 }
 

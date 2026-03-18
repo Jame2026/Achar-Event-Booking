@@ -172,7 +172,6 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </div>
       </div>
       <div class="hero-buttons">
-        <button type="button" class="btn-light" @click="props.goToMessages(props.vendorProfile.name)">{{ uiText.message }}</button>
         <button type="button" class="btn-accent">{{ uiText.share }}</button>
       </div>
     </section>
@@ -347,15 +346,13 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   />
                   <button
                     type="button"
-                    :disabled="!item.isPreview && props.bookingSubmittingEventId === item.id"
-                    @click="item.isPreview ? props.goToMessages(props.vendorProfile.name) : props.bookPackage(item)"
+                    :disabled="item.isPreview || props.bookingSubmittingEventId === item.id"
+                    @click="item.isPreview ? null : props.bookPackage(item)"
                   >
                     {{
-                      item.isPreview
-                        ? uiText.messageVendor
-                        : props.bookingSubmittingEventId === item.id
-                          ? uiText.booking
-                          : uiText.bookNow
+                      props.bookingSubmittingEventId === item.id
+                        ? uiText.booking
+                        : uiText.bookNow
                     }}
                   </button>
                   <button

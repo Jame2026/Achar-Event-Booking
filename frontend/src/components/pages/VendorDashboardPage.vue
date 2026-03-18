@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import MessagesPage from "./MessagesPage.vue";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
@@ -17,11 +18,23 @@ const props = defineProps([
   "vendorServiceNotice",
   "vendorIncome",
   "messagesSummary",
+  "messagesBindings",
+  "filteredConversations",
+  "activeConversation",
+  "selectConversation",
+  "sendMessage",
+  "sendFiles",
+  "sendLocation",
+  "isSharingLocation",
+  "saveDocument",
+  "deleteMessage",
+  "isLoadingMessages",
+  "messagesError",
+  "loadVendorConversations",
   "submitVendorService",
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
-  "goToMessages",
   "logoutUser",
 ]);
 
@@ -29,6 +42,9 @@ const emit = defineEmits(["update:activeTab"]);
 
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
+);
+const hasMessagesPanel = computed(
+  () => props.messagesBindings && Array.isArray(props.filteredConversations),
 );
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
@@ -91,7 +107,6 @@ const copyByLanguage = {
     newBookingRequests: "New Booking Requests",
     loadingBookings: "Loading bookings...",
     customerMessages: "Customer Messages",
-    openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
     bookingDetails: "Booking Details",
@@ -164,7 +179,6 @@ const copyByLanguage = {
     newBookingRequests: "សំណើកក់ថ្មី",
     loadingBookings: "កំពុងផ្ទុកការកក់...",
     customerMessages: "សារអតិថិជន",
-    openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
     bookingDetails: "Booking Details",
@@ -236,7 +250,6 @@ const copyByLanguage = {
     newBookingRequests: "新的预订请求",
     loadingBookings: "正在加载预订...",
     customerMessages: "客户消息",
-    openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
     bookingDetails: "Booking Details",
@@ -401,12 +414,24 @@ const showIncomeDots = computed(
 );
 const incomeLabelStep = computed(() => {
   const count = activeIncomePoints.value.length;
+  if (incomePeriod.value === "month") return 1;
   if (count <= 8) return 1;
   if (count <= 16) return 2;
   if (count <= 24) return 3;
   if (count <= 32) return 4;
   return Math.max(5, Math.ceil(count / 8));
 });
+const isMonthIncomePeriod = computed(() => incomePeriod.value === "month");
+const chartShellMinWidth = computed(() => {
+  if (!isMonthIncomePeriod.value) return "";
+  const count = activeIncomePoints.value.length;
+  if (!count) return "";
+  return `${Math.max(560, count * 56)}px`;
+});
+const isChartScrollable = computed(() => Boolean(chartShellMinWidth.value));
+const chartShellStyle = computed(() =>
+  isChartScrollable.value ? { minWidth: chartShellMinWidth.value } : null,
+);
 const chartHoverIndex = ref(-1);
 const chartHoverPoint = computed(() => {
   const points = normalizedIncomeChartPoints.value;
@@ -692,13 +717,6 @@ async function detectVendorLocation() {
   );
 }
 
-function openMessages() {
-  setActiveTab("messages");
-  if (typeof props.goToMessages === "function") {
-    props.goToMessages();
-  }
-}
-
 function bookingStatusClass(status) {
   const value = String(status || "").toLowerCase();
   if (value === "confirmed") return "ok";
@@ -713,6 +731,16 @@ watch(
       localActiveTab.value = value;
     }
   },
+);
+
+watch(
+  () => localActiveTab.value,
+  (tab) => {
+    if (tab === "messages" && typeof props.loadVendorConversations === "function") {
+      props.loadVendorConversations({ preserveSelection: true });
+    }
+  },
+  { immediate: true },
 );
 </script>
 
@@ -938,15 +966,6 @@ watch(
         >
           {{ uiText.logout }}
         </button>
-        <div class="vendor-card">
-          <span class="vendor-avatar">{{
-            (props.vendorDisplayName || "V").slice(0, 1).toUpperCase()
-          }}</span>
-          <div>
-            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
-            <small>{{ uiText.verifiedWorkspace }}</small>
-          </div>
-        </div>
       </div>
     </aside>
 
@@ -958,7 +977,6 @@ watch(
         <div class="dashboard-head-main">
           <div class="dash-meta-row">
             <span class="dash-pill">{{ uiText.dashboardEyebrow }}</span>
-            <span class="dash-pill">{{ uiText.verifiedWorkspace }}</span>
           </div>
           <div class="dash-title-row">
             <div class="dash-title-stack">
@@ -994,27 +1012,6 @@ watch(
                 </svg>
               </span>
               {{ uiText.addNewService }}
-            </button>
-            <button
-              type="button"
-              class="primary-button header-action"
-              @click="openMessages"
-            >
-              <span class="action-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              {{ uiText.openMessages }}
             </button>
           </div>
         </div>
@@ -1192,8 +1189,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1202,6 +1203,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -1311,19 +1313,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -2048,7 +2051,7 @@ watch(
         </div>
       </section>
 
-      <section v-show="localActiveTab === 'messages'" class="panel tab-panel">
+      <section v-show="localActiveTab === 'messages'" class="tab-panel messages-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -2057,63 +2060,23 @@ watch(
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
 
-        <section class="stats-grid stats-grid-compact">
-          <article class="stat-card stat-orange">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Unread</small>
-            </div>
-            <strong>{{ safeMessagesSummary }}</strong>
-            <span>Messages to review</span>
-          </article>
-          <article class="stat-card stat-blue">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8 12h.01M12 12h.01M16 12h.01"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Inbox</small>
-            </div>
-            <strong>Open</strong>
-            <span>Customer conversations</span>
-          </article>
-        </section>
-
-        <p class="panel-copy">
-          Respond quickly to customer questions and booking confirmations.
-        </p>
-        <button type="button" class="primary-button" @click="openMessages">
-          {{ uiText.openMessages }}
-        </button>
+        <div v-if="hasMessagesPanel" class="messages-embed">
+          <MessagesPage
+            class="messages-embedded"
+            :bindings="props.messagesBindings"
+            :filtered-conversations="props.filteredConversations"
+            :active-conversation="props.activeConversation"
+            :select-conversation="props.selectConversation"
+            :send-message="props.sendMessage"
+            :send-files="props.sendFiles"
+            :send-location="props.sendLocation"
+            :is-sharing-location="props.isSharingLocation"
+            :save-document="props.saveDocument"
+            :delete-message="props.deleteMessage"
+            :is-loading-messages="props.isLoadingMessages"
+            :messages-error="props.messagesError"
+          />
+        </div>
       </section>
 
       <section v-show="localActiveTab === 'income'" class="income-layout">
@@ -2170,8 +2133,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -2180,6 +2147,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -2289,19 +2257,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`analytics-${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`analytics-${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -2694,54 +2663,6 @@ watch(
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.3);
   box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
-}
-
-.vendor-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.9) 100%
-  );
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow:
-    0 4px 18px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
-
-.vendor-avatar {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
-  font-weight: 800;
-  font-size: 16px;
-  flex-shrink: 0;
-  border: 2px solid rgba(59, 130, 246, 0.22);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-}
-
-.vendor-card strong {
-  display: block;
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.vendor-card small {
-  display: block;
-  color: #94a3b8;
-  font-size: 11px;
-  margin-top: 2px;
-  font-weight: 500;
 }
 
 /* ─── Main Panel ──────────────────────────────────────────────── */
@@ -3402,6 +3323,40 @@ watch(
   min-height: clamp(360px, 52vh, 560px);
 }
 
+.messages-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.messages-embed {
+  margin-top: 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:deep(.messages-page.messages-embedded) {
+  height: auto;
+}
+
+:deep(.messages-page.messages-embedded .messages-layout) {
+  min-height: 540px;
+}
+
+:deep(.messages-page.messages-embedded .messages-sidebar) {
+  border-right-color: rgba(148, 163, 184, 0.18);
+}
+
+:deep(.messages-page.messages-embedded .chat-panel) {
+  min-height: 540px;
+}
+
 .panel-wide {
   min-height: 360px;
 }
@@ -3552,6 +3507,19 @@ watch(
   overflow: visible;
 }
 
+.chart-shell-scroll {
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-shell-scroll.scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
 .chart-plot {
   position: relative;
   height: 220px;
@@ -3590,6 +3558,15 @@ watch(
   z-index: 1;
   touch-action: none;
   cursor: pointer;
+}
+
+.income-chart.scrollable {
+  touch-action: pan-x;
+  cursor: grab;
+}
+
+.income-chart.scrollable:active {
+  cursor: grabbing;
 }
 
 .income-area {
@@ -3664,6 +3641,7 @@ watch(
   stroke: #ffffff;
   stroke-width: 1.1;
 }
+
 
 .chart-labels {
   display: grid;
