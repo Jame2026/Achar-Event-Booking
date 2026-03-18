@@ -223,7 +223,7 @@ const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
-const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
@@ -357,6 +357,11 @@ const vendorServiceForm = ref({
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
+const vendorSettings = ref(null)
+const vendorSettingsServiceId = ref('all')
+const isLoadingVendorSettings = ref(false)
+const isSavingVendorSettings = ref(false)
+const vendorSettingsNotice = ref('')
 const bookings = ref([])
 const selectedQuantities = ref({})
 const availabilityByEvent = ref({})
@@ -927,6 +932,101 @@ async function loadEvents() {
   }
 }
 
+const weekDayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+function defaultVendorSettings() {
+  const timezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    String(import.meta.env.VITE_APP_TIMEZONE || 'UTC')
+
+  return {
+    timezone,
+    weekly_schedule: weekDayOrder.map((day) => ({
+      day,
+      closed: false,
+      slots: [{ start: '09:00', end: '17:00' }],
+    })),
+    blocked_dates: [],
+    blocked_ranges: [],
+  }
+}
+
+function normalizeVendorSettings(payload = {}) {
+  const base = defaultVendorSettings()
+  const incomingSchedule = Array.isArray(payload.weekly_schedule) ? payload.weekly_schedule : []
+  const normalizedSchedule = weekDayOrder.map((day) => {
+    const entry = incomingSchedule.find((item) => item?.day === day) || {}
+    const slot = Array.isArray(entry.slots) && entry.slots[0] ? entry.slots[0] : { start: '09:00', end: '17:00' }
+    return {
+      day,
+      closed: Boolean(entry.closed),
+      slots: entry.closed ? [] : [{ start: slot.start || '09:00', end: slot.end || '17:00' }],
+    }
+  })
+
+  const blockedDates = Array.isArray(payload.blocked_dates) ? payload.blocked_dates.filter(Boolean) : []
+  const blockedRanges = Array.isArray(payload.blocked_ranges) ? payload.blocked_ranges : []
+
+  return {
+    timezone: payload.timezone || base.timezone,
+    weekly_schedule: normalizedSchedule,
+    blocked_dates: blockedDates,
+    blocked_ranges: blockedRanges,
+  }
+}
+
+async function loadVendorSettings({ eventId = null, silent = false } = {}) {
+  if (!isVendorAccount.value) return
+  isLoadingVendorSettings.value = true
+  if (!silent) vendorSettingsNotice.value = ''
+  try {
+    const targetEventId =
+      eventId !== null && eventId !== undefined
+        ? eventId
+        : vendorSettingsServiceId.value === 'all'
+          ? null
+          : Number(vendorSettingsServiceId.value)
+
+    const result = await apiGet('vendor/settings', targetEventId ? { event_id: targetEventId } : {})
+    const settings = result?.settings || result?.data || result
+    vendorSettings.value = normalizeVendorSettings(settings)
+    if (targetEventId !== null && targetEventId !== undefined) {
+      vendorSettingsServiceId.value = targetEventId
+    }
+  } catch (error) {
+    vendorSettingsNotice.value = error?.message || 'Could not load vendor settings.'
+    if (!vendorSettings.value) {
+      vendorSettings.value = defaultVendorSettings()
+    }
+  } finally {
+    isLoadingVendorSettings.value = false
+  }
+}
+
+async function saveVendorSettings(payload) {
+  if (!isVendorAccount.value) return
+  isSavingVendorSettings.value = true
+  vendorSettingsNotice.value = ''
+  try {
+    const targetEventId =
+      payload?.event_id !== undefined
+        ? payload.event_id
+        : vendorSettingsServiceId.value === 'all'
+          ? null
+          : Number(vendorSettingsServiceId.value)
+    const normalizedPayload = { ...payload, event_id: targetEventId }
+    const result = await apiPatch('vendor/settings', normalizedPayload)
+    const settings = result?.settings || result?.data || result
+    vendorSettings.value = normalizeVendorSettings(settings)
+    vendorSettingsNotice.value = uiText.value.settingsSaved || 'Settings saved.'
+  } catch (error) {
+    vendorSettingsNotice.value = error?.message || 'Could not save settings.'
+    throw error
+  } finally {
+    isSavingVendorSettings.value = false
+  }
+}
+
 function resetVendorServiceForm() {
   vendorServiceForm.value = {
     title: '',
@@ -1150,7 +1250,10 @@ async function bootstrapAuthenticatedShell() {
   isBootstrappingAuth.value = true
   try {
     const tasks = [loadUserProfile(), loadEvents(), loadNotifications({ silent: true })]
-    if (isVendorAccount.value) tasks.push(loadVendorBookings())
+    if (isVendorAccount.value) {
+      tasks.push(loadVendorBookings())
+      tasks.push(loadVendorSettings({ silent: true }))
+    }
     if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
@@ -1165,6 +1268,18 @@ function goToDashboard() {
 
 function setVendorDashboardTab(tab) {
   vendorDashboardTab.value = normalizeVendorDashboardTab(tab)
+}
+
+function selectVendorSettingsService(serviceId = 'all') {
+  const normalized =
+    serviceId === 'all' || serviceId === null || serviceId === undefined
+      ? 'all'
+      : Number(serviceId)
+  vendorSettingsServiceId.value =
+    normalized === 'all' || Number.isFinite(normalized) ? normalized : 'all'
+  loadVendorSettings({
+    eventId: vendorSettingsServiceId.value === 'all' ? null : vendorSettingsServiceId.value,
+  })
 }
 
 function goToVendor(tab = 'about') {
@@ -1391,11 +1506,19 @@ onBeforeUnmount(() => {
         :is-submitting-vendor-service="isSubmittingVendorService"
         :vendor-service-notice="vendorServiceNotice"
         :vendor-income="vendorIncome"
+        :vendor-settings="vendorSettings"
+        :vendor-settings-service-id="vendorSettingsServiceId"
+        :is-loading-vendor-settings="isLoadingVendorSettings"
+        :is-saving-vendor-settings="isSavingVendorSettings"
+        :vendor-settings-notice="vendorSettingsNotice"
         :messages-summary="messagesSummary"
         :submit-vendor-service="submitVendorService"
         :toggle-vendor-service-active="toggleVendorServiceActive"
         :delete-vendor-service="deleteVendorService"
         :update-vendor-booking-status="updateVendorBookingStatus"
+        :save-vendor-settings="saveVendorSettings"
+        :refresh-vendor-settings="loadVendorSettings"
+        :select-vendor-settings-service="selectVendorSettingsService"
         :go-to-messages="goToMessages"
         :logout-user="logout"
       />

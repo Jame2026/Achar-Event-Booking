@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import { apiPatch } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
@@ -16,11 +17,19 @@ const props = defineProps([
   "isSubmittingVendorService",
   "vendorServiceNotice",
   "vendorIncome",
+  "vendorSettings",
+  "vendorSettingsServiceId",
+  "isLoadingVendorSettings",
+  "isSavingVendorSettings",
+  "vendorSettingsNotice",
   "messagesSummary",
   "submitVendorService",
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
+  "saveVendorSettings",
+  "refreshVendorSettings",
+  "selectVendorSettingsService",
   "goToMessages",
   "logoutUser",
 ]);
@@ -33,6 +42,31 @@ const localActiveTab = ref(
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
+const settingsForm = reactive({
+  timezone: "UTC",
+  autoAccept: false,
+  bookingLeadTimeHours: 24,
+  bufferMinutesBetween: 30,
+  maxBookingsPerDay: null,
+  depositPercent: 20,
+  cancellationPolicyHours: 72,
+  reschedulePolicyHours: 48,
+  notifyEmail: true,
+  notifySms: false,
+  quietHoursStart: "",
+  quietHoursEnd: "",
+  vacationEnabled: false,
+  vacationStart: "",
+  vacationEnd: "",
+});
+const passwordForm = reactive({
+  current: "",
+  next: "",
+  confirm: "",
+  saving: false,
+  notice: "",
+  error: "",
+});
 const copyByLanguage = {
   en: {
     overview: "Overview",
@@ -92,6 +126,47 @@ const copyByLanguage = {
     openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint: "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -151,6 +226,47 @@ const copyByLanguage = {
     openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint: "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
   },
   zh: {
     overview: "概览",
@@ -209,9 +325,177 @@ const copyByLanguage = {
     openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint: "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
+
+function applySettingsFromProps(settings) {
+  const source = settings && typeof settings === "object" ? settings : {};
+
+  settingsForm.timezone =
+    typeof source.timezone === "string" && source.timezone.trim() !== ""
+      ? source.timezone
+      : settingsForm.timezone || "UTC";
+
+  const rangeSource = Array.isArray(source.blocked_ranges) ? source.blocked_ranges.find((r) => r && typeof r === "object") : null;
+  const singleDate = rangeSource?.date;
+  const startDate = rangeSource?.start_date || singleDate || "";
+  const endDate = rangeSource?.end_date || singleDate || "";
+  settingsForm.vacationStart = typeof startDate === "string" ? startDate : "";
+  settingsForm.vacationEnd = typeof endDate === "string" ? endDate : "";
+  settingsForm.vacationEnabled = Boolean(settingsForm.vacationStart || settingsForm.vacationEnd);
+  settingsForm.autoAccept = Boolean(source.auto_accept_bookings ?? settingsForm.autoAccept);
+  settingsForm.bookingLeadTimeHours = Number.isFinite(Number(source.booking_lead_time_hours))
+    ? Number(source.booking_lead_time_hours)
+    : settingsForm.bookingLeadTimeHours;
+  settingsForm.bufferMinutesBetween = Number.isFinite(Number(source.buffer_minutes_between_bookings))
+    ? Number(source.buffer_minutes_between_bookings)
+    : settingsForm.bufferMinutesBetween;
+  settingsForm.maxBookingsPerDay = source.max_bookings_per_day ?? settingsForm.maxBookingsPerDay;
+  settingsForm.depositPercent = Number.isFinite(Number(source.deposit_percent))
+    ? Number(source.deposit_percent)
+    : settingsForm.depositPercent;
+  settingsForm.cancellationPolicyHours = Number.isFinite(Number(source.cancellation_policy_hours))
+    ? Number(source.cancellation_policy_hours)
+    : settingsForm.cancellationPolicyHours;
+  settingsForm.reschedulePolicyHours = Number.isFinite(Number(source.reschedule_policy_hours))
+    ? Number(source.reschedule_policy_hours)
+    : settingsForm.reschedulePolicyHours;
+  settingsForm.notifyEmail = source.notify_email ?? settingsForm.notifyEmail;
+  settingsForm.notifySms = source.notify_sms ?? settingsForm.notifySms;
+  settingsForm.quietHoursStart =
+    typeof source.quiet_hours_start === "string" ? source.quiet_hours_start : settingsForm.quietHoursStart;
+  settingsForm.quietHoursEnd =
+    typeof source.quiet_hours_end === "string" ? source.quiet_hours_end : settingsForm.quietHoursEnd;
+}
+
+function buildSettingsPayload() {
+  return {
+    timezone: settingsForm.timezone || "UTC",
+    weekly_schedule: [],
+    auto_accept_bookings: Boolean(settingsForm.autoAccept),
+    booking_lead_time_hours: Number(settingsForm.bookingLeadTimeHours ?? 0),
+    buffer_minutes_between_bookings: Number(settingsForm.bufferMinutesBetween ?? 0),
+    max_bookings_per_day:
+      settingsForm.maxBookingsPerDay === "" || settingsForm.maxBookingsPerDay === null
+        ? null
+        : Number(settingsForm.maxBookingsPerDay),
+    deposit_percent: Number(settingsForm.depositPercent ?? 0),
+    cancellation_policy_hours: Number(settingsForm.cancellationPolicyHours ?? 0),
+    reschedule_policy_hours: Number(settingsForm.reschedulePolicyHours ?? 0),
+    notify_email: Boolean(settingsForm.notifyEmail),
+    notify_sms: Boolean(settingsForm.notifySms),
+    quiet_hours_start: settingsForm.quietHoursStart || null,
+    quiet_hours_end: settingsForm.quietHoursEnd || null,
+    blocked_dates: [],
+    blocked_ranges: buildBlockedRanges(),
+  };
+}
+
+function buildBlockedRanges() {
+  const start = (settingsForm.vacationStart || "").trim();
+  const end = (settingsForm.vacationEnd || "").trim();
+  if (!settingsForm.vacationEnabled || !start || !end) return [];
+
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  return [
+    {
+      start_date: from,
+      end_date: to,
+      note: "Vacation mode",
+    },
+  ];
+}
+
+async function updatePassword() {
+  passwordForm.error = "";
+  passwordForm.notice = "";
+  passwordForm.saving = true;
+  try {
+    await apiPatch("user/password", {
+      current_password: passwordForm.current,
+      new_password: passwordForm.next,
+      new_password_confirmation: passwordForm.confirm,
+    });
+    passwordForm.notice = uiText.value.passwordSaved;
+    passwordForm.current = "";
+    passwordForm.next = "";
+    passwordForm.confirm = "";
+  } catch (error) {
+    passwordForm.error = error?.message || "Failed to update password.";
+  } finally {
+    passwordForm.saving = false;
+  }
+}
+
+async function submitVendorSettings() {
+  if (typeof props.saveVendorSettings !== "function") return;
+  try {
+    await props.saveVendorSettings(buildSettingsPayload());
+  } catch (error) {
+    // Error message is handled by parent via vendorSettingsNotice.
+  }
+}
+
+const serviceSelectValue = computed(
+  () => (props.vendorSettingsServiceId === undefined ? "all" : props.vendorSettingsServiceId),
+);
+
+function onServiceChange(event) {
+  const value = event?.target?.value ?? "all";
+  if (typeof props.selectVendorSettingsService === "function") {
+    props.selectVendorSettingsService(value === "all" ? "all" : Number(value));
+  }
+}
+
+watch(
+  () => props.vendorSettings,
+  (next) => {
+    applySettingsFromProps(next || {});
+  },
+  { deep: true, immediate: true },
+);
 
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
@@ -841,7 +1125,12 @@ watch(
         <RouterLink class="side-utility home" to="/">{{
           uiText.backHome
         }}</RouterLink>
-        <button type="button" class="side-utility">
+        <button
+          type="button"
+          class="side-utility"
+          :class="{ active: localActiveTab === 'settings' }"
+          @click="setActiveTab('settings')"
+        >
           {{ uiText.settings }}
         </button>
         <button
@@ -2026,6 +2315,202 @@ watch(
           </article>
         </section>
       </section>
+
+      <section
+        v-show="localActiveTab === 'settings'"
+        class="panel tab-panel settings-panel"
+      >
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">{{ uiText.availabilitySettings }}</p>
+            <h2>{{ uiText.settings }}</h2>
+            <p class="panel-subtitle">{{ uiText.availabilityIntro }}</p>
+          </div>
+          <div class="action-row settings-actions">
+            <label class="field compact">
+              <span>{{ uiText.applyToService }}</span>
+              <select :value="serviceSelectValue" @change="onServiceChange">
+                <option value="all">{{ uiText.allServices }}</option>
+                <option
+                  v-for="item in safeVendorEvents"
+                  :key="`svc-${item.id}`"
+                  :value="item.id"
+                >
+                  {{ item.title || item.name || item.event_type }}
+                </option>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="secondary-button"
+              :disabled="props.isLoadingVendorSettings"
+              @click="props.refreshVendorSettings && props.refreshVendorSettings()"
+            >
+              {{ props.isLoadingVendorSettings ? uiText.loadingServices : "Refresh" }}
+            </button>
+            <button
+              type="button"
+              class="primary-button"
+              :disabled="props.isSavingVendorSettings"
+              @click="submitVendorSettings"
+            >
+              {{
+                props.isSavingVendorSettings
+                  ? uiText.saving
+                  : uiText.saveSettings
+              }}
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <article class="settings-card vacation-card">
+            <div class="settings-card-head vacation-head">
+              <div>
+                <p class="eyebrow">{{ uiText.vacationMode }}</p>
+                <h3>{{ uiText.vacationMode }}</h3>
+                <p class="panel-subtitle">{{ uiText.vacationHint }}</p>
+              </div>
+              <label class="toggle-row">
+                <input type="checkbox" v-model="settingsForm.vacationEnabled" />
+                <span>{{ settingsForm.vacationEnabled ? "On" : "Off" }}</span>
+              </label>
+            </div>
+            <div class="grid-2 vacation-grid">
+              <label class="field compact">
+                <span>{{ uiText.startDate }}</span>
+                <input
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  v-model="settingsForm.vacationStart"
+                  :disabled="!settingsForm.vacationEnabled"
+                />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.endDate }}</span>
+                <input
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  v-model="settingsForm.vacationEnd"
+                  :disabled="!settingsForm.vacationEnabled"
+                />
+              </label>
+            </div>
+            <p class="vacation-note">{{ uiText.vacationNote }}</p>
+          </article>
+
+          <article class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">{{ uiText.bookingRules }}</p>
+                <h3>{{ uiText.bookingRules }}</h3>
+                <p class="panel-subtitle">Control lead times and booking limits.</p>
+              </div>
+            </div>
+            <div class="grid-2">
+              <label class="field compact">
+                <span>{{ uiText.leadTime }}</span>
+                <input type="number" min="0" max="168" v-model.number="settingsForm.bookingLeadTimeHours" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.bufferTime }}</span>
+                <input type="number" min="0" max="1440" v-model.number="settingsForm.bufferMinutesBetween" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.maxPerDay }}</span>
+                <input type="number" min="1" max="500" v-model.number="settingsForm.maxBookingsPerDay" />
+              </label>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">{{ uiText.paymentsPolicies }}</p>
+                <h3>{{ uiText.paymentsPolicies }}</h3>
+                <p class="panel-subtitle">Set payment requirements and policy windows.</p>
+              </div>
+            </div>
+            <div class="grid-2">
+              <label class="field compact">
+                <span>{{ uiText.depositPercent }}</span>
+                <input type="number" min="0" max="100" step="1" v-model.number="settingsForm.depositPercent" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.cancellationWindow }}</span>
+                <input type="number" min="0" max="1440" v-model.number="settingsForm.cancellationPolicyHours" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.rescheduleWindow }}</span>
+                <input type="number" min="0" max="1440" v-model.number="settingsForm.reschedulePolicyHours" />
+              </label>
+            </div>
+          </article>
+
+          <article class="settings-card notifications-card">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">{{ uiText.notifications }}</p>
+                <h3>{{ uiText.notifications }}</h3>
+                <p class="panel-subtitle">Choose how you get booking alerts.</p>
+              </div>
+            </div>
+            <div class="grid-2">
+              <label class="field compact checkbox-row">
+                <input type="checkbox" v-model="settingsForm.notifyEmail" />
+                <span>{{ uiText.notifyEmail }}</span>
+              </label>
+              <label class="field compact checkbox-row">
+                <input type="checkbox" v-model="settingsForm.notifySms" />
+                <span>{{ uiText.notifySms }}</span>
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.quietStart }}</span>
+                <input type="time" v-model="settingsForm.quietHoursStart" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.quietEnd }}</span>
+                <input type="time" v-model="settingsForm.quietHoursEnd" />
+              </label>
+            </div>
+          </article>
+
+          <article class="settings-card account-card">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">{{ uiText.accountManagement }}</p>
+                <h3>{{ uiText.updatePassword }}</h3>
+                <p class="panel-subtitle">{{ uiText.passwordHint }}</p>
+              </div>
+            </div>
+            <div class="grid-2">
+              <label class="field compact">
+                <span>{{ uiText.currentPassword }}</span>
+                <input type="password" autocomplete="current-password" v-model="passwordForm.current" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.newPassword }}</span>
+                <input type="password" autocomplete="new-password" v-model="passwordForm.next" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.confirmPassword }}</span>
+                <input type="password" autocomplete="new-password" v-model="passwordForm.confirm" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="primary-button" :disabled="passwordForm.saving" @click="updatePassword">
+                {{ passwordForm.saving ? uiText.saving : uiText.updatePassword }}
+              </button>
+              <p v-if="passwordForm.notice" class="notice notice-success">{{ passwordForm.notice }}</p>
+              <p v-else-if="passwordForm.error" class="notice notice-error">{{ passwordForm.error }}</p>
+            </div>
+          </article>
+        </div>
+
+        <p v-if="props.vendorSettingsNotice" class="notice">
+          {{ props.vendorSettingsNotice }}
+        </p>
+      </section>
     </section>
 
   </main>
@@ -2062,14 +2547,16 @@ watch(
     sans-serif;
   width: auto;
   gap: 0;
-  height: 100vh;
+  min-height: 100vh;
+  height: auto;
   align-items: stretch;
+  background-attachment: fixed;
 }
 
 .vendor-dashboard::after {
   content: "";
   position: absolute;
-  inset: -40% -30% auto auto;
+  inset: -40% -30% -20% auto;
   width: 520px;
   height: 520px;
   border-radius: 999px;
@@ -2340,6 +2827,13 @@ watch(
   text-decoration: none;
   transition: all 150ms ease;
   cursor: pointer;
+}
+
+.side-utility.active {
+  background: #fff7ed;
+  color: var(--vd-accent-strong);
+  border-color: rgba(234, 88, 12, 0.35);
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.16);
 }
 
 .side-utility:hover {
@@ -2620,6 +3114,227 @@ watch(
   .panel,
   .stat-card {
     background: rgba(255, 255, 255, 0.96);
+  }
+}
+
+.settings-panel .panel-head {
+  align-items: flex-start;
+}
+
+.panel-subtitle {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  align-items: start;
+}
+
+.settings-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 14px;
+}
+.notifications-card .checkbox-row {
+  align-items: flex-start;
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.grid-2 {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.pill-list {
+  display: grid;
+  gap: 10px;
+}
+
+.weekly-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.day-row {
+  display: grid;
+  grid-template-columns: 68px 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #f8fafc;
+}
+
+.day-label {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.time-range {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px;
+  align-items: center;
+  justify-content: start;
+}
+
+.time-range input[type="time"] {
+  width: 120px;
+  padding: 9px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.time-range.disabled {
+  opacity: 0.55;
+}
+
+.add-off-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-off-row input[type="date"] {
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  color: #0f172a;
+}
+
+.range-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pill-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill-note {
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid rgba(234, 88, 12, 0.24);
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.pill-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.notice-muted {
+  color: #94a3b8;
+}
+
+.field.compact select {
+  min-width: 180px;
+  padding: 9px 10px;
+}
+
+@media (max-width: 1180px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .day-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .time-range {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .time-range span {
+    display: none;
+  }
+
+  .add-off-row {
+    width: 100%;
+  }
+
+  .add-off-row input[type="date"],
+  .add-off-row input[type="text"],
+  .add-off-row .secondary-button {
+    width: 100%;
+  }
+
+  .add-off-row {
+    align-items: stretch;
   }
 }
 
@@ -3785,6 +4500,43 @@ watch(
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.22);
 }
 
+.vacation-card {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.vacation-head {
+  align-items: center;
+}
+
+.toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.toggle-row input {
+  width: 44px;
+  height: 22px;
+}
+
+.vacation-grid input:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.vacation-note {
+  margin-top: 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
 @media (max-width: 1180px) {
   .vendor-dashboard {
     grid-template-columns: 1fr;
@@ -3880,3 +4632,5 @@ watch(
   }
 }
 </style>
+
+

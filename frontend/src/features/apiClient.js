@@ -81,7 +81,16 @@ async function requestApi(method, path, { payload, query } = {}) {
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error(`Request timeout after ${Math.floor(DEFAULT_API_TIMEOUT_MS / 1000)}s for ${requestPath}.`)
+      throw new Error(
+        `The server did not respond within ${Math.floor(DEFAULT_API_TIMEOUT_MS / 1000)}s. ` +
+          `Please verify the API is running at ${API_BASE_URL} and the database is reachable.`,
+      )
+    }
+    // Network / CORS / refused connection
+    if (error?.name === 'TypeError' || error?.message === 'Failed to fetch') {
+      throw new Error(
+        `Could not reach the API. Please make sure the backend server is running and reachable at ${API_BASE_URL}.`,
+      )
     }
     throw error
   } finally {
