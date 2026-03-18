@@ -397,7 +397,6 @@ const vendorServiceForm = ref({
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
-const vendorDashboardNotice = ref('')
 const bookings = ref([])
 const selectedQuantities = ref({})
 const availabilityByEvent = ref({})
@@ -1218,19 +1217,17 @@ async function loadVendorBookings() {
   const vendorUserId = Number(loggedInUser.value?.id || 0)
   if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
     vendorBookings.value = []
-    vendorDashboardNotice.value = uiText.value.vendorAccountMissing
     return
   }
 
   isLoadingVendorBookings.value = true
-  vendorDashboardNotice.value = ''
   try {
     const result = await apiGet('vendor/bookings', { vendor_user_id: vendorUserId })
     const rows = Array.isArray(result.data) ? result.data : []
     vendorBookings.value = rows.map(mapVendorBookingRow)
   } catch (error) {
     vendorBookings.value = []
-    vendorDashboardNotice.value = error?.message || uiText.value.couldNotLoadVendorBookings
+    notice.value = uiText.value.couldNotLoadVendorBookings
   } finally {
     isLoadingVendorBookings.value = false
   }
@@ -1563,7 +1560,6 @@ onBeforeUnmount(() => {
         :vendor-bookings="vendorBookings"
         :is-loading-events="isLoadingEvents"
         :is-loading-vendor-bookings="isLoadingVendorBookings"
-        :notice="vendorDashboardNotice"
         :vendor-service-form="vendorServiceForm"
         :is-submitting-vendor-service="isSubmittingVendorService"
         :vendor-service-notice="vendorServiceNotice"
@@ -1600,7 +1596,6 @@ onBeforeUnmount(() => {
       :go-to-messages="goToMessages"
       :go-to-package-customization="goToPackageCustomization"
       :open-upcoming-bookings="openUpcomingBookings"
-      :logout-user="logout"
     />
 
       <VendorPage
