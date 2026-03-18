@@ -22,7 +22,9 @@ const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
 const { language, updateLanguage } = useLanguage()
 let notificationPollTimer = null
+let searchAutofillTimer = null
 const NOTIFICATION_POLL_INTERVAL_MS = 60000
+const NAV_SEARCH_AUTOFILL_GUARD_DELAY_MS = 250
 
 const copyByLanguage = {
   en: {
@@ -112,6 +114,23 @@ function refreshAuthState() {
     isLoggedIn.value = false
     currentUser.value = null
   }
+}
+
+function clearAutofilledSearchValue() {
+  const searchValue = String(navSearch.value || '').trim().toLowerCase()
+  const signedInEmail = String(currentUser.value?.email || '').trim().toLowerCase()
+  if (searchValue && signedInEmail && searchValue === signedInEmail) {
+    navSearch.value = ''
+  }
+}
+
+function guardSearchAutofill() {
+  clearAutofilledSearchValue()
+  if (searchAutofillTimer) clearTimeout(searchAutofillTimer)
+  searchAutofillTimer = setTimeout(() => {
+    clearAutofilledSearchValue()
+    searchAutofillTimer = null
+  }, NAV_SEARCH_AUTOFILL_GUARD_DELAY_MS)
 }
 
 function runSearch() {
@@ -336,6 +355,7 @@ const isContactActive = computed(() => route.path === '/contact')
 
 onMounted(() => {
   refreshAuthState()
+  guardSearchAutofill()
   refreshFavoriteCount()
   if (isLoggedIn.value) {
     loadNotifications({ silent: true })
@@ -348,6 +368,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (searchAutofillTimer) clearTimeout(searchAutofillTimer)
   stopNotificationPolling()
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -421,7 +442,15 @@ const bookingLink = computed(() => {
           v-model="navSearch"
           type="search"
           class="nav-search"
+          name="booking-search"
           :placeholder="uiText.searchPlaceholder"
+          autocomplete="off"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+          inputmode="search"
+          enterkeyhint="search"
+          @focus="clearAutofilledSearchValue"
           @keyup.enter="runSearch"
         />
         <div v-if="isLoggedIn" ref="notificationMenuRef" class="notification-wrap">

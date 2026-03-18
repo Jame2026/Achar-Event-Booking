@@ -1,20 +1,19 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import MessagesPage from "./MessagesPage.vue";
 import { apiPatch } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
   "appLogoSrc",
   "vendorDisplayName",
-  "vendorProfileImage",
   "activeTab",
   "eventTypeOptions",
   "vendorEvents",
   "vendorBookings",
   "isLoadingEvents",
   "isLoadingVendorBookings",
-  "notice",
   "vendorServiceForm",
   "isSubmittingVendorService",
   "vendorServiceNotice",
@@ -25,6 +24,19 @@ const props = defineProps([
   "isSavingVendorSettings",
   "vendorSettingsNotice",
   "messagesSummary",
+  "messagesBindings",
+  "filteredConversations",
+  "activeConversation",
+  "selectConversation",
+  "sendMessage",
+  "sendFiles",
+  "sendLocation",
+  "isSharingLocation",
+  "saveDocument",
+  "deleteMessage",
+  "isLoadingMessages",
+  "messagesError",
+  "loadVendorConversations",
   "submitVendorService",
   "toggleVendorServiceActive",
   "deleteVendorService",
@@ -32,7 +44,6 @@ const props = defineProps([
   "saveVendorSettings",
   "refreshVendorSettings",
   "selectVendorSettingsService",
-  "goToMessages",
   "logoutUser",
 ]);
 
@@ -41,9 +52,14 @@ const emit = defineEmits(["update:activeTab"]);
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
+const hasMessagesPanel = computed(
+  () => props.messagesBindings && Array.isArray(props.filteredConversations),
+);
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
+const activeBookingDetail = ref(null);
+const isBookingDetailOpen = ref(false);
 const settingsForm = reactive({
   timezone: "UTC",
   autoAccept: false,
@@ -125,7 +141,6 @@ const copyByLanguage = {
     newBookingRequests: "New Booking Requests",
     loadingBookings: "Loading bookings...",
     customerMessages: "Customer Messages",
-    openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
     availabilitySettings: "Availability & calendar",
@@ -142,7 +157,8 @@ const copyByLanguage = {
     vacationHint: "Temporarily block your availability for all services.",
     startDate: "Start date",
     endDate: "End date",
-    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
     bookingRules: "Booking rules",
     autoAccept: "Auto-accept bookings",
     leadTime: "Lead time (hours)",
@@ -159,7 +175,8 @@ const copyByLanguage = {
     quietStart: "Start (HH:MM)",
     quietEnd: "End (HH:MM)",
     accountManagement: "Account management",
-    passwordHint: "Update your login password. You will use it next time you sign in.",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
     currentPassword: "Current password",
     newPassword: "New password",
     confirmPassword: "Confirm new password",
@@ -169,10 +186,20 @@ const copyByLanguage = {
     saving: "Saving...",
     settingsSaved: "Settings saved.",
     unavailableHint: "Customers won't be able to book these dates.",
-    vendorDataHintServices:
-      "Create and publish at least one service so bookings can link to your vendor dashboard.",
-    vendorDataHintBookings: "Bookings will appear here as soon as customers submit requests for your services.",
-    vendorDataError: "We couldn't load your vendor data. Please try again.",
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -229,7 +256,6 @@ const copyByLanguage = {
     newBookingRequests: "សំណើកក់ថ្មី",
     loadingBookings: "កំពុងផ្ទុកការកក់...",
     customerMessages: "សារអតិថិជន",
-    openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
     availabilitySettings: "Availability & calendar",
@@ -246,7 +272,8 @@ const copyByLanguage = {
     vacationHint: "Temporarily block your availability for all services.",
     startDate: "Start date",
     endDate: "End date",
-    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
     bookingRules: "Booking rules",
     autoAccept: "Auto-accept bookings",
     leadTime: "Lead time (hours)",
@@ -263,7 +290,8 @@ const copyByLanguage = {
     quietStart: "Start (HH:MM)",
     quietEnd: "End (HH:MM)",
     accountManagement: "Account management",
-    passwordHint: "Update your login password. You will use it next time you sign in.",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
     currentPassword: "Current password",
     newPassword: "New password",
     confirmPassword: "Confirm new password",
@@ -273,10 +301,20 @@ const copyByLanguage = {
     saving: "Saving...",
     settingsSaved: "Settings saved.",
     unavailableHint: "Customers won't be able to book these dates.",
-    vendorDataHintServices:
-      "បង្កើត និងបង្ហោះសេវាកម្មយ៉ាងហោចណាស់មួយ ដើម្បីភ្ជាប់ការកក់ទៅផ្ទាំងអ្នកផ្គត់ផ្គង់។",
-    vendorDataHintBookings: "ការកក់នឹងបង្ហាញទីនេះ នៅពេលអតិថិជនដាក់សំណើសេវាកម្មរបស់អ្នក។",
-    vendorDataError: "មិនអាចផ្ទុកទិន្នន័យអ្នកផ្គត់ផ្គង់បានទេ សូមព្យាយាមម្ដងទៀត។",
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
   },
   zh: {
     overview: "概览",
@@ -332,7 +370,6 @@ const copyByLanguage = {
     newBookingRequests: "新的预订请求",
     loadingBookings: "正在加载预订...",
     customerMessages: "客户消息",
-    openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
     availabilitySettings: "Availability & calendar",
@@ -349,7 +386,8 @@ const copyByLanguage = {
     vacationHint: "Temporarily block your availability for all services.",
     startDate: "Start date",
     endDate: "End date",
-    vacationNote: "Existing bookings within this period will remain active. New bookings will be disabled.",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
     bookingRules: "Booking rules",
     autoAccept: "Auto-accept bookings",
     leadTime: "Lead time (hours)",
@@ -366,7 +404,8 @@ const copyByLanguage = {
     quietStart: "Start (HH:MM)",
     quietEnd: "End (HH:MM)",
     accountManagement: "Account management",
-    passwordHint: "Update your login password. You will use it next time you sign in.",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
     currentPassword: "Current password",
     newPassword: "New password",
     confirmPassword: "Confirm new password",
@@ -376,9 +415,20 @@ const copyByLanguage = {
     saving: "Saving...",
     settingsSaved: "Settings saved.",
     unavailableHint: "Customers won't be able to book these dates.",
-    vendorDataHintServices: "先创建并上架至少 1 项服务，预订才能关联到您的商家仪表盘。",
-    vendorDataHintBookings: "当客户提交预订请求时，它们会显示在这里。",
-    vendorDataError: "无法获取商家数据，请稍后重试。",
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -391,64 +441,64 @@ function applySettingsFromProps(settings) {
       ? source.timezone
       : settingsForm.timezone || "UTC";
 
-  const rangeSource = Array.isArray(source.blocked_ranges) ? source.blocked_ranges.find((r) => r && typeof r === "object") : null;
+  const rangeSource = Array.isArray(source.blocked_ranges)
+    ? source.blocked_ranges.find((item) => item && typeof item === "object")
+    : null;
   const singleDate = rangeSource?.date;
   const startDate = rangeSource?.start_date || singleDate || "";
   const endDate = rangeSource?.end_date || singleDate || "";
-  settingsForm.vacationStart = typeof startDate === "string" ? startDate : "";
+
+  settingsForm.vacationStart =
+    typeof startDate === "string" ? startDate : "";
   settingsForm.vacationEnd = typeof endDate === "string" ? endDate : "";
-  settingsForm.vacationEnabled = Boolean(settingsForm.vacationStart || settingsForm.vacationEnd);
-  settingsForm.autoAccept = Boolean(source.auto_accept_bookings ?? settingsForm.autoAccept);
-  settingsForm.bookingLeadTimeHours = Number.isFinite(Number(source.booking_lead_time_hours))
+  settingsForm.vacationEnabled = Boolean(
+    settingsForm.vacationStart || settingsForm.vacationEnd,
+  );
+  settingsForm.autoAccept = Boolean(
+    source.auto_accept_bookings ?? settingsForm.autoAccept,
+  );
+  settingsForm.bookingLeadTimeHours = Number.isFinite(
+    Number(source.booking_lead_time_hours),
+  )
     ? Number(source.booking_lead_time_hours)
     : settingsForm.bookingLeadTimeHours;
-  settingsForm.bufferMinutesBetween = Number.isFinite(Number(source.buffer_minutes_between_bookings))
+  settingsForm.bufferMinutesBetween = Number.isFinite(
+    Number(source.buffer_minutes_between_bookings),
+  )
     ? Number(source.buffer_minutes_between_bookings)
     : settingsForm.bufferMinutesBetween;
-  settingsForm.maxBookingsPerDay = source.max_bookings_per_day ?? settingsForm.maxBookingsPerDay;
-  settingsForm.depositPercent = Number.isFinite(Number(source.deposit_percent))
+  settingsForm.maxBookingsPerDay =
+    source.max_bookings_per_day ?? settingsForm.maxBookingsPerDay;
+  settingsForm.depositPercent = Number.isFinite(
+    Number(source.deposit_percent),
+  )
     ? Number(source.deposit_percent)
     : settingsForm.depositPercent;
-  settingsForm.cancellationPolicyHours = Number.isFinite(Number(source.cancellation_policy_hours))
+  settingsForm.cancellationPolicyHours = Number.isFinite(
+    Number(source.cancellation_policy_hours),
+  )
     ? Number(source.cancellation_policy_hours)
     : settingsForm.cancellationPolicyHours;
-  settingsForm.reschedulePolicyHours = Number.isFinite(Number(source.reschedule_policy_hours))
+  settingsForm.reschedulePolicyHours = Number.isFinite(
+    Number(source.reschedule_policy_hours),
+  )
     ? Number(source.reschedule_policy_hours)
     : settingsForm.reschedulePolicyHours;
   settingsForm.notifyEmail = source.notify_email ?? settingsForm.notifyEmail;
   settingsForm.notifySms = source.notify_sms ?? settingsForm.notifySms;
   settingsForm.quietHoursStart =
-    typeof source.quiet_hours_start === "string" ? source.quiet_hours_start : settingsForm.quietHoursStart;
+    typeof source.quiet_hours_start === "string"
+      ? source.quiet_hours_start
+      : settingsForm.quietHoursStart;
   settingsForm.quietHoursEnd =
-    typeof source.quiet_hours_end === "string" ? source.quiet_hours_end : settingsForm.quietHoursEnd;
-}
-
-function buildSettingsPayload() {
-  return {
-    timezone: settingsForm.timezone || "UTC",
-    weekly_schedule: [],
-    auto_accept_bookings: Boolean(settingsForm.autoAccept),
-    booking_lead_time_hours: Number(settingsForm.bookingLeadTimeHours ?? 0),
-    buffer_minutes_between_bookings: Number(settingsForm.bufferMinutesBetween ?? 0),
-    max_bookings_per_day:
-      settingsForm.maxBookingsPerDay === "" || settingsForm.maxBookingsPerDay === null
-        ? null
-        : Number(settingsForm.maxBookingsPerDay),
-    deposit_percent: Number(settingsForm.depositPercent ?? 0),
-    cancellation_policy_hours: Number(settingsForm.cancellationPolicyHours ?? 0),
-    reschedule_policy_hours: Number(settingsForm.reschedulePolicyHours ?? 0),
-    notify_email: Boolean(settingsForm.notifyEmail),
-    notify_sms: Boolean(settingsForm.notifySms),
-    quiet_hours_start: settingsForm.quietHoursStart || null,
-    quiet_hours_end: settingsForm.quietHoursEnd || null,
-    blocked_dates: [],
-    blocked_ranges: buildBlockedRanges(),
-  };
+    typeof source.quiet_hours_end === "string"
+      ? source.quiet_hours_end
+      : settingsForm.quietHoursEnd;
 }
 
 function buildBlockedRanges() {
-  const start = (settingsForm.vacationStart || "").trim();
-  const end = (settingsForm.vacationEnd || "").trim();
+  const start = String(settingsForm.vacationStart || "").trim();
+  const end = String(settingsForm.vacationEnd || "").trim();
   if (!settingsForm.vacationEnabled || !start || !end) return [];
 
   const [from, to] = start <= end ? [start, end] : [end, start];
@@ -461,10 +511,41 @@ function buildBlockedRanges() {
   ];
 }
 
+function buildSettingsPayload() {
+  return {
+    timezone: settingsForm.timezone || "UTC",
+    weekly_schedule: [],
+    auto_accept_bookings: Boolean(settingsForm.autoAccept),
+    booking_lead_time_hours: Number(settingsForm.bookingLeadTimeHours ?? 0),
+    buffer_minutes_between_bookings: Number(
+      settingsForm.bufferMinutesBetween ?? 0,
+    ),
+    max_bookings_per_day:
+      settingsForm.maxBookingsPerDay === "" ||
+      settingsForm.maxBookingsPerDay === null
+        ? null
+        : Number(settingsForm.maxBookingsPerDay),
+    deposit_percent: Number(settingsForm.depositPercent ?? 0),
+    cancellation_policy_hours: Number(
+      settingsForm.cancellationPolicyHours ?? 0,
+    ),
+    reschedule_policy_hours: Number(
+      settingsForm.reschedulePolicyHours ?? 0,
+    ),
+    notify_email: Boolean(settingsForm.notifyEmail),
+    notify_sms: Boolean(settingsForm.notifySms),
+    quiet_hours_start: settingsForm.quietHoursStart || null,
+    quiet_hours_end: settingsForm.quietHoursEnd || null,
+    blocked_dates: [],
+    blocked_ranges: buildBlockedRanges(),
+  };
+}
+
 async function updatePassword() {
   passwordForm.error = "";
   passwordForm.notice = "";
   passwordForm.saving = true;
+
   try {
     await apiPatch("user/password", {
       current_password: passwordForm.current,
@@ -484,15 +565,18 @@ async function updatePassword() {
 
 async function submitVendorSettings() {
   if (typeof props.saveVendorSettings !== "function") return;
+
   try {
     await props.saveVendorSettings(buildSettingsPayload());
-  } catch (error) {
-    // Error message is handled by parent via vendorSettingsNotice.
+  } catch {
+    // Parent notice handles errors.
   }
 }
 
-const serviceSelectValue = computed(
-  () => (props.vendorSettingsServiceId === undefined ? "all" : props.vendorSettingsServiceId),
+const serviceSelectValue = computed(() =>
+  props.vendorSettingsServiceId === undefined
+    ? "all"
+    : props.vendorSettingsServiceId,
 );
 
 function onServiceChange(event) {
@@ -509,18 +593,6 @@ watch(
   },
   { deep: true, immediate: true },
 );
-const effectiveNotice = computed(() => {
-  if (props.notice) return props.notice;
-  if (props.isLoadingEvents || props.isLoadingVendorBookings) return "";
-
-  const hasServices = Array.isArray(props.vendorEvents) && props.vendorEvents.length > 0;
-  if (!hasServices) return uiText.value.vendorDataHintServices;
-
-  const hasBookings = Array.isArray(props.vendorBookings) && props.vendorBookings.length > 0;
-  if (!hasBookings) return uiText.value.vendorDataHintBookings;
-
-  return "";
-});
 
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
@@ -539,6 +611,69 @@ const safeVendorEvents = computed(() =>
 const safeVendorBookings = computed(() =>
   Array.isArray(props.vendorBookings) ? props.vendorBookings : [],
 );
+const selectedSettingsServiceLabel = computed(() => {
+  if (serviceSelectValue.value === "all") return uiText.value.allServices;
+
+  const match = safeVendorEvents.value.find(
+    (item) => String(item?.id) === String(serviceSelectValue.value),
+  );
+
+  return (
+    match?.title ||
+    match?.name ||
+    match?.eventTypeLabel ||
+    uiText.value.allServices
+  );
+});
+const vacationStatusLabel = computed(() => {
+  if (!settingsForm.vacationEnabled) return "Off";
+  if (settingsForm.vacationStart && settingsForm.vacationEnd) {
+    return `${settingsForm.vacationStart} - ${settingsForm.vacationEnd}`;
+  }
+  return "On";
+});
+const quietHoursStatusLabel = computed(() => {
+  if (settingsForm.quietHoursStart && settingsForm.quietHoursEnd) {
+    return `${settingsForm.quietHoursStart} - ${settingsForm.quietHoursEnd}`;
+  }
+  return "Quiet hours off";
+});
+const notificationStatusLabel = computed(() => {
+  const channels = [];
+  if (settingsForm.notifyEmail) channels.push("Email");
+  if (settingsForm.notifySms) channels.push("SMS");
+  return channels.length ? channels.join(" + ") : "No alerts";
+});
+const bookingCapacityLabel = computed(() => {
+  const max = Number(settingsForm.maxBookingsPerDay || 0);
+  if (Number.isFinite(max) && max > 0) return `${max} / day`;
+  return "Open schedule";
+});
+const bookingDetail = computed(() => activeBookingDetail.value || {});
+const bookingDetailLocation = computed(() => {
+  const detail = bookingDetail.value;
+  return String(detail.event_location || detail.customer_location || "").trim();
+});
+const bookingItems = computed(() =>
+  Array.isArray(bookingDetail.value.booked_items)
+    ? bookingDetail.value.booked_items
+    : [],
+);
+const customerEmailLink = computed(() => {
+  const email = String(bookingDetail.value.customer_email || "").trim();
+  return email ? `mailto:${email}` : "";
+});
+const customerPhoneLink = computed(() => {
+  const phone = String(bookingDetail.value.customer_phone || "").trim();
+  if (!phone) return "";
+  return `tel:${phone.replace(/\s+/g, "")}`;
+});
+const bookingDirectionsUrl = computed(() => {
+  if (!bookingDetailLocation.value) return "";
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    bookingDetailLocation.value,
+  )}`;
+});
 const navItems = computed(() => [
   { key: "overview", label: uiText.value.overview },
   {
@@ -612,15 +747,6 @@ const incomeAverageValue = computed(() =>
       ) / activeIncomePoints.value.length
     : 0,
 );
-const profileCard = computed(() => {
-  const name = String(props.vendorDisplayName || uiText.value.vendor).trim();
-  return {
-    name,
-    role: uiText.value.verifiedWorkspace,
-    initial: (name || "V").slice(0, 1).toUpperCase(),
-    image: props.vendorProfileImage || "",
-  };
-});
 const incomeMidValue = computed(() => incomePeakValue.value / 2);
 const topIncomePoint = computed(() => {
   if (!activeIncomePoints.value.length) return null;
@@ -650,12 +776,24 @@ const showIncomeDots = computed(
 );
 const incomeLabelStep = computed(() => {
   const count = activeIncomePoints.value.length;
+  if (incomePeriod.value === "month") return 1;
   if (count <= 8) return 1;
   if (count <= 16) return 2;
   if (count <= 24) return 3;
   if (count <= 32) return 4;
   return Math.max(5, Math.ceil(count / 8));
 });
+const isMonthIncomePeriod = computed(() => incomePeriod.value === "month");
+const chartShellMinWidth = computed(() => {
+  if (!isMonthIncomePeriod.value) return "";
+  const count = activeIncomePoints.value.length;
+  if (!count) return "";
+  return `${Math.max(560, count * 56)}px`;
+});
+const isChartScrollable = computed(() => Boolean(chartShellMinWidth.value));
+const chartShellStyle = computed(() =>
+  isChartScrollable.value ? { minWidth: chartShellMinWidth.value } : null,
+);
 const chartHoverIndex = ref(-1);
 const chartHoverPoint = computed(() => {
   const points = normalizedIncomeChartPoints.value;
@@ -677,15 +815,6 @@ const chartTooltipTop = computed(() => {
   if (y > 92) y = 92;
   return `${y}%`;
 });
-const showProfileMenu = ref(false);
-
-function toggleProfileMenu() {
-  showProfileMenu.value = !showProfileMenu.value;
-}
-
-function closeProfileMenu() {
-  showProfileMenu.value = false;
-}
 
 function updateChartHover(event) {
   const points = normalizedIncomeChartPoints.value;
@@ -763,6 +892,14 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+function formatEventType(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -770,6 +907,16 @@ function setIncomePeriod(periodKey) {
 function setActiveTab(tabKey) {
   localActiveTab.value = tabKey;
   emit("update:activeTab", tabKey);
+}
+
+function openBookingDetail(item) {
+  activeBookingDetail.value = item || null;
+  isBookingDetailOpen.value = true;
+}
+
+function closeBookingDetail() {
+  isBookingDetailOpen.value = false;
+  activeBookingDetail.value = null;
 }
 
 function submitServiceForm() {
@@ -932,13 +1079,6 @@ async function detectVendorLocation() {
   );
 }
 
-function openMessages() {
-  setActiveTab("messages");
-  if (typeof props.goToMessages === "function") {
-    props.goToMessages();
-  }
-}
-
 function bookingStatusClass(status) {
   const value = String(status || "").toLowerCase();
   if (value === "confirmed") return "ok";
@@ -953,6 +1093,16 @@ watch(
       localActiveTab.value = value;
     }
   },
+);
+
+watch(
+  () => localActiveTab.value,
+  (tab) => {
+    if (tab === "messages" && typeof props.loadVendorConversations === "function") {
+      props.loadVendorConversations({ preserveSelection: true });
+    }
+  },
+  { immediate: true },
 );
 </script>
 
@@ -1165,35 +1315,24 @@ watch(
       </nav>
 
       <div class="sidebar-footer">
-        <RouterLink class="side-utility home" to="/">
-          <span class="side-label">{{ uiText.backHome }}</span>
-        </RouterLink>
+        <RouterLink class="side-utility home" to="/">{{
+          uiText.backHome
+        }}</RouterLink>
         <button
           type="button"
           class="side-utility"
           :class="{ active: localActiveTab === 'settings' }"
           @click="setActiveTab('settings')"
         >
-          <span class="side-label">{{ uiText.settings }}</span>
+          {{ uiText.settings }}
         </button>
         <button
           type="button"
           class="side-utility logout"
           @click="props.logoutUser"
         >
-          <span class="side-label">{{ uiText.logout }}</span>
+          {{ uiText.logout }}
         </button>
-        <div class="vendor-card">
-          <span class="vendor-avatar">
-            <img v-if="profileCard.image" :src="profileCard.image" :alt="profileCard.name" />
-            <span v-else>{{ profileCard.initial }}</span>
-          </span>
-          <div class="vendor-meta">
-            <strong>{{ profileCard.name }}</strong>
-            <small>{{ profileCard.role }}</small>
-          </div>
-          <span class="vendor-verified" aria-label="Verified workspace"></span>
-        </div>
       </div>
     </aside>
 
@@ -1205,7 +1344,6 @@ watch(
         <div class="dashboard-head-main">
           <div class="dash-meta-row">
             <span class="dash-pill">{{ uiText.dashboardEyebrow }}</span>
-            <span class="dash-pill">{{ uiText.verifiedWorkspace }}</span>
           </div>
           <div class="dash-title-row">
             <div class="dash-title-stack">
@@ -1242,85 +1380,9 @@ watch(
               </span>
               {{ uiText.addNewService }}
             </button>
-            <button
-              type="button"
-              class="primary-button header-action"
-              @click="openMessages"
-            >
-              <span class="action-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              {{ uiText.openMessages }}
-            </button>
-          </div>
-          <div class="profile-menu-wrap">
-            <button
-              type="button"
-              class="profile-trigger"
-              @click="toggleProfileMenu"
-              :aria-expanded="showProfileMenu"
-              aria-haspopup="true"
-            >
-              <img
-                v-if="profileCard.image"
-                :src="profileCard.image"
-                :alt="profileCard.name"
-              />
-              <span v-else>{{ profileCard.initial }}</span>
-            </button>
-            <div
-              v-if="showProfileMenu"
-              class="profile-menu"
-              role="menu"
-            >
-              <div class="profile-menu__user">
-                <img
-                  v-if="profileCard.image"
-                  :src="profileCard.image"
-                  :alt="profileCard.name"
-                />
-                <span v-else class="profile-menu__initial">{{ profileCard.initial }}</span>
-                <div>
-                  <strong>{{ profileCard.name }}</strong>
-                  <small>{{ profileCard.role }}</small>
-                </div>
-              </div>
-              <button type="button" class="profile-menu__action" @click="setActiveTab('overview'); closeProfileMenu()" role="menuitem">
-                <span class="dot dot-orange"></span>
-                {{ uiText.dashboardEyebrow }}
-              </button>
-              <button type="button" class="profile-menu__action" @click="setActiveTab('services'); closeProfileMenu()" role="menuitem">
-                <span class="dot dot-blue"></span>
-                {{ uiText.myServices }}
-              </button>
-              <button type="button" class="profile-menu__action danger" @click="props.logoutUser; closeProfileMenu()" role="menuitem">
-                <span class="dot dot-red"></span>
-                {{ uiText.logout }}
-              </button>
-            </div>
           </div>
         </div>
       </header>
-
-      <div
-        v-if="effectiveNotice"
-        class="vendor-inline-notice"
-        :class="{ 'is-error': !!props.notice }"
-        role="status"
-      >
-        {{ effectiveNotice }}
-      </div>
 
       <section v-show="localActiveTab === 'overview'" class="stats-grid">
         <article class="stat-card stat-income">
@@ -1494,8 +1556,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1504,6 +1570,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -1613,19 +1680,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -1926,7 +1994,10 @@ watch(
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'bookings'" class="panel tab-panel">
+      <section
+        v-show="localActiveTab === 'bookings'"
+        class="panel tab-panel booking-panel"
+      >
         <div class="panel-head">
           <div>
             <p class="eyebrow">{{ uiText.bookingRequests }}</p>
@@ -2073,20 +2144,76 @@ watch(
           No booking requests yet.
         </p>
         <table v-else class="table">
+          <colgroup>
+            <col style="width: 34%" />
+            <col style="width: 26%" />
+            <col style="width: 12%" />
+            <col style="width: 12%" />
+            <col style="width: 16%" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Service Name</th>
+              <th>Service</th>
               <th>Client</th>
-              <th>Date & Time</th>
+              <th>Date</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
-              <td>{{ item.service_name }}</td>
-              <td>{{ item.customer_name }}</td>
-              <td>{{ item.date_label }}</td>
+              <td>
+                <div class="service-cell">
+                  <div class="service-thumb">
+                    <img
+                      v-if="item.event_image"
+                      :src="item.event_image"
+                      :alt="item.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (item.service_name || "S").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="service-meta">
+                    <strong>{{ item.service_name }}</strong>
+                    <span v-if="item.event_type" class="service-sub"
+                      >Type: {{ formatEventType(item.event_type) }}</span
+                    >
+                    <span v-if="item.event_location" class="service-sub"
+                      >Location: {{ item.event_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="client-cell">
+                  <div class="client-avatar">
+                    <img
+                      v-if="item.customer_avatar"
+                      :src="item.customer_avatar"
+                      :alt="item.customer_name || 'Customer'"
+                    />
+                    <span v-else>{{
+                      (item.customer_name || "C").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="client-details">
+                    <strong>{{ item.customer_name }}</strong>
+                    <span v-if="item.customer_email" class="client-meta">{{
+                      item.customer_email
+                    }}</span>
+                    <span v-if="item.customer_phone" class="client-meta">{{
+                      item.customer_phone
+                    }}</span>
+                    <span v-if="item.customer_location" class="client-meta"
+                      >Location: {{ item.customer_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="date-only">{{ item.date_label }}</span>
+              </td>
               <td>
                 <span
                   class="status-chip"
@@ -2095,16 +2222,24 @@ watch(
                   {{ item.status }}
                 </span>
               </td>
-              <td class="row-actions">
+              <td class="row-actions booking-actions">
                 <button
                   type="button"
+                  class="action-view"
+                  @click="openBookingDetail(item)"
+                >
+                  {{ uiText.viewDetails }}
+                </button>
+                <button
+                  type="button"
+                  class="action-confirm"
                   @click="props.updateVendorBookingStatus(item, 'confirmed')"
                 >
                   Confirm
                 </button>
                 <button
                   type="button"
-                  class="danger"
+                  class="action-cancel"
                   @click="props.updateVendorBookingStatus(item, 'cancelled')"
                 >
                   Cancel
@@ -2113,9 +2248,177 @@ watch(
             </tr>
           </tbody>
         </table>
+
+        <div
+          v-if="isBookingDetailOpen"
+          class="modal-backdrop"
+          @click.self="closeBookingDetail"
+        >
+          <div class="modal-card booking-detail-card">
+            <div class="booking-detail-head">
+              <div>
+                <p class="eyebrow">{{ uiText.bookingDetails }}</p>
+                <h3>{{ bookingDetail.service_name || uiText.bookingRequests }}</h3>
+                <p class="detail-subtitle">
+                  {{ bookingDetail.date_label || uiText.noData }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="secondary-button"
+                @click="closeBookingDetail"
+              >
+                {{ uiText.close }}
+              </button>
+            </div>
+
+            <div class="booking-detail-grid">
+              <section class="detail-block">
+                <h4>{{ uiText.serviceDetails }}</h4>
+                <div class="detail-service-card">
+                  <div class="detail-service-thumb">
+                    <img
+                      v-if="bookingDetail.event_image"
+                      :src="bookingDetail.event_image"
+                      :alt="bookingDetail.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (bookingDetail.service_name || "S")
+                        .slice(0, 1)
+                        .toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="detail-service-info">
+                    <strong>{{
+                      bookingDetail.service_name || uiText.bookingRequests
+                    }}</strong>
+                    <span
+                      v-if="
+                        bookingDetail.event_type || bookingDetail.requested_event_type
+                      "
+                    >
+                      Type:
+                      {{
+                        formatEventType(
+                          bookingDetail.event_type ||
+                            bookingDetail.requested_event_type,
+                        )
+                      }}
+                    </span>
+                    <span v-if="bookingDetail.event_location">
+                      {{ uiText.eventLocationLabel }}:
+                      {{ bookingDetail.event_location }}
+                    </span>
+                  </div>
+                </div>
+                <div class="detail-list">
+                  <div>
+                    <span>{{ uiText.dateLabel }}</span>
+                    <strong>{{ bookingDetail.date_label || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.statusLabel }}</span>
+                    <strong>
+                      <span
+                        class="status-chip"
+                        :class="bookingStatusClass(bookingDetail.status)"
+                      >
+                        {{ bookingDetail.status || uiText.noData }}
+                      </span>
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.quantityLabel }}</span>
+                    <strong>{{ bookingDetail.quantity || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.totalLabel }}</span>
+                    <strong>{{ formatCurrency(bookingDetail.total_amount) }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerDetails }}</h4>
+                <div class="detail-list">
+                  <div>
+                    <span>Name</span>
+                    <strong>{{ bookingDetail.customer_name || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>Email</span>
+                    <strong>{{
+                      bookingDetail.customer_email || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong>{{
+                      bookingDetail.customer_phone || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Customer Location</span>
+                    <strong>{{
+                      bookingDetail.customer_location || uiText.noData
+                    }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerContact }}</h4>
+                <div class="contact-actions">
+                  <a
+                    v-if="customerPhoneLink"
+                    class="secondary-button detail-link"
+                    :href="customerPhoneLink"
+                  >
+                    Call Customer
+                  </a>
+                  <a
+                    v-if="bookingDirectionsUrl"
+                    class="secondary-button detail-link"
+                    :href="bookingDirectionsUrl"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ uiText.getDirections }}
+                  </a>
+                  <p
+                    v-if="!customerEmailLink && !customerPhoneLink"
+                    class="contact-empty"
+                  >
+                    {{ uiText.noData }}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            <section class="detail-block detail-block-wide">
+              <h4>{{ uiText.bookedItems }}</h4>
+              <ul v-if="bookingItems.length" class="detail-items">
+                <li v-for="(item, index) in bookingItems" :key="index">
+                  <div>
+                    <strong>{{ item.name || item.type || "Item" }}</strong>
+                    <span v-if="item.description">{{ item.description }}</span>
+                  </div>
+                  <div class="detail-item-meta">
+                    <span v-if="item.qty">Qty: {{ item.qty }}</span>
+                    <span v-if="item.unitPrice">
+                      Unit: {{ formatCurrency(item.unitPrice) }}
+                    </span>
+                    <span v-if="item.totalPrice">
+                      Total: {{ formatCurrency(item.totalPrice) }}
+                    </span>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="contact-empty">{{ uiText.noItems }}</p>
+            </section>
+          </div>
+        </div>
       </section>
 
-      <section v-show="localActiveTab === 'messages'" class="panel tab-panel">
+      <section v-show="localActiveTab === 'messages'" class="tab-panel messages-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -2124,63 +2427,23 @@ watch(
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
 
-        <section class="stats-grid stats-grid-compact">
-          <article class="stat-card stat-orange">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Unread</small>
-            </div>
-            <strong>{{ safeMessagesSummary }}</strong>
-            <span>Messages to review</span>
-          </article>
-          <article class="stat-card stat-blue">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8 12h.01M12 12h.01M16 12h.01"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Inbox</small>
-            </div>
-            <strong>Open</strong>
-            <span>Customer conversations</span>
-          </article>
-        </section>
-
-        <p class="panel-copy">
-          Respond quickly to customer questions and booking confirmations.
-        </p>
-        <button type="button" class="primary-button" @click="openMessages">
-          {{ uiText.openMessages }}
-        </button>
+        <div v-if="hasMessagesPanel" class="messages-embed">
+          <MessagesPage
+            class="messages-embedded"
+            :bindings="props.messagesBindings"
+            :filtered-conversations="props.filteredConversations"
+            :active-conversation="props.activeConversation"
+            :select-conversation="props.selectConversation"
+            :send-message="props.sendMessage"
+            :send-files="props.sendFiles"
+            :send-location="props.sendLocation"
+            :is-sharing-location="props.isSharingLocation"
+            :save-document="props.saveDocument"
+            :delete-message="props.deleteMessage"
+            :is-loading-messages="props.isLoadingMessages"
+            :messages-error="props.messagesError"
+          />
+        </div>
       </section>
 
       <section v-show="localActiveTab === 'income'" class="income-layout">
@@ -2237,8 +2500,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -2247,6 +2514,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -2356,19 +2624,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`analytics-${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`analytics-${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -2420,14 +2689,28 @@ watch(
         v-show="localActiveTab === 'settings'"
         class="panel tab-panel settings-panel"
       >
-        <div class="panel-head">
-          <div>
+        <div class="panel-head settings-hero">
+          <div class="settings-hero-copy">
             <p class="eyebrow">{{ uiText.availabilitySettings }}</p>
             <h2>{{ uiText.settings }}</h2>
             <p class="panel-subtitle">{{ uiText.availabilityIntro }}</p>
+            <div class="settings-hero-tags">
+              <span class="settings-hero-tag strong">
+                {{ selectedSettingsServiceLabel }}
+              </span>
+              <span
+                class="settings-hero-tag"
+                :class="{ active: settingsForm.vacationEnabled }"
+              >
+                {{ vacationStatusLabel }}
+              </span>
+              <span class="settings-hero-tag">
+                {{ notificationStatusLabel }}
+              </span>
+            </div>
           </div>
-          <div class="action-row settings-actions">
-            <label class="field compact">
+          <div class="settings-hero-actions">
+            <label class="field compact settings-scope-field">
               <span>{{ uiText.applyToService }}</span>
               <select :value="serviceSelectValue" @change="onServiceChange">
                 <option value="all">{{ uiText.allServices }}</option>
@@ -2440,31 +2723,66 @@ watch(
                 </option>
               </select>
             </label>
-            <button
-              type="button"
-              class="secondary-button"
-              :disabled="props.isLoadingVendorSettings"
-              @click="props.refreshVendorSettings && props.refreshVendorSettings()"
-            >
-              {{ props.isLoadingVendorSettings ? uiText.loadingServices : "Refresh" }}
-            </button>
-            <button
-              type="button"
-              class="primary-button"
-              :disabled="props.isSavingVendorSettings"
-              @click="submitVendorSettings"
-            >
-              {{
-                props.isSavingVendorSettings
-                  ? uiText.saving
-                  : uiText.saveSettings
-              }}
-            </button>
+            <div class="action-row settings-actions">
+              <button
+                type="button"
+                class="secondary-button"
+                :disabled="props.isLoadingVendorSettings"
+                @click="
+                  props.refreshVendorSettings && props.refreshVendorSettings()
+                "
+              >
+                {{
+                  props.isLoadingVendorSettings
+                    ? uiText.loadingServices
+                    : "Refresh"
+                }}
+              </button>
+              <button
+                type="button"
+                class="primary-button settings-save-button"
+                :disabled="props.isSavingVendorSettings"
+                @click="submitVendorSettings"
+              >
+                {{
+                  props.isSavingVendorSettings
+                    ? uiText.saving
+                    : uiText.saveSettings
+                }}
+              </button>
+            </div>
           </div>
         </div>
 
+        <div class="settings-overview">
+          <article class="settings-stat-card scope">
+            <small>{{ uiText.applyToService }}</small>
+            <strong>{{ selectedSettingsServiceLabel }}</strong>
+            <span>{{ uiText.currentListings }}</span>
+          </article>
+          <article class="settings-stat-card vacation">
+            <small>{{ uiText.vacationMode }}</small>
+            <strong>{{ vacationStatusLabel }}</strong>
+            <span>{{
+              settingsForm.vacationEnabled
+                ? uiText.unavailableHint
+                : uiText.vacationHint
+            }}</span>
+          </article>
+          <article class="settings-stat-card notifications">
+            <small>{{ uiText.notifications }}</small>
+            <strong>{{ notificationStatusLabel }}</strong>
+            <span>{{ quietHoursStatusLabel }}</span>
+          </article>
+          <article class="settings-stat-card rules">
+            <small>{{ uiText.maxPerDay }}</small>
+            <strong>{{ bookingCapacityLabel }}</strong>
+            <span>{{ uiText.bufferTime }}: {{ settingsForm.bufferMinutesBetween }}m</span>
+          </article>
+        </div>
+
         <div class="settings-grid">
-          <article class="settings-card vacation-card">
+          <article class="settings-card settings-card--warm vacation-card">
             <div class="settings-card-head vacation-head">
               <div>
                 <p class="eyebrow">{{ uiText.vacationMode }}</p>
@@ -2475,6 +2793,20 @@ watch(
                 <input type="checkbox" v-model="settingsForm.vacationEnabled" />
                 <span>{{ settingsForm.vacationEnabled ? "On" : "Off" }}</span>
               </label>
+            </div>
+            <div class="settings-mini-grid">
+              <article class="settings-mini-card">
+                <small>{{ uiText.startDate }}</small>
+                <strong>{{ settingsForm.vacationStart || "--" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.endDate }}</small>
+                <strong>{{ settingsForm.vacationEnd || "--" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.blockedDates }}</small>
+                <strong>{{ settingsForm.vacationEnabled ? "Active" : "Inactive" }}</strong>
+              </article>
             </div>
             <div class="grid-2 vacation-grid">
               <label class="field compact">
@@ -2499,13 +2831,27 @@ watch(
             <p class="vacation-note">{{ uiText.vacationNote }}</p>
           </article>
 
-          <article class="settings-card">
+          <article class="settings-card settings-card--amber">
             <div class="settings-card-head">
               <div>
                 <p class="eyebrow">{{ uiText.bookingRules }}</p>
                 <h3>{{ uiText.bookingRules }}</h3>
                 <p class="panel-subtitle">Control lead times and booking limits.</p>
               </div>
+            </div>
+            <div class="settings-mini-grid">
+              <article class="settings-mini-card">
+                <small>{{ uiText.leadTime }}</small>
+                <strong>{{ settingsForm.bookingLeadTimeHours }}h</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.bufferTime }}</small>
+                <strong>{{ settingsForm.bufferMinutesBetween }}m</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.maxPerDay }}</small>
+                <strong>{{ bookingCapacityLabel }}</strong>
+              </article>
             </div>
             <div class="grid-2">
               <label class="field compact">
@@ -2523,13 +2869,27 @@ watch(
             </div>
           </article>
 
-          <article class="settings-card">
+          <article class="settings-card settings-card--blue">
             <div class="settings-card-head">
               <div>
                 <p class="eyebrow">{{ uiText.paymentsPolicies }}</p>
                 <h3>{{ uiText.paymentsPolicies }}</h3>
                 <p class="panel-subtitle">Set payment requirements and policy windows.</p>
               </div>
+            </div>
+            <div class="settings-mini-grid">
+              <article class="settings-mini-card">
+                <small>{{ uiText.depositPercent }}</small>
+                <strong>{{ settingsForm.depositPercent }}%</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.cancellationWindow }}</small>
+                <strong>{{ settingsForm.cancellationPolicyHours }}h</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.rescheduleWindow }}</small>
+                <strong>{{ settingsForm.reschedulePolicyHours }}h</strong>
+              </article>
             </div>
             <div class="grid-2">
               <label class="field compact">
@@ -2547,13 +2907,27 @@ watch(
             </div>
           </article>
 
-          <article class="settings-card notifications-card">
+          <article class="settings-card settings-card--green notifications-card">
             <div class="settings-card-head">
               <div>
                 <p class="eyebrow">{{ uiText.notifications }}</p>
                 <h3>{{ uiText.notifications }}</h3>
                 <p class="panel-subtitle">Choose how you get booking alerts.</p>
               </div>
+            </div>
+            <div class="settings-mini-grid">
+              <article class="settings-mini-card">
+                <small>{{ uiText.notifyEmail }}</small>
+                <strong>{{ settingsForm.notifyEmail ? "On" : "Off" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.notifySms }}</small>
+                <strong>{{ settingsForm.notifySms ? "On" : "Off" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.quietHours }}</small>
+                <strong>{{ quietHoursStatusLabel }}</strong>
+              </article>
             </div>
             <div class="grid-2">
               <label class="field compact checkbox-row">
@@ -2575,13 +2949,17 @@ watch(
             </div>
           </article>
 
-          <article class="settings-card account-card">
+          <article class="settings-card settings-card--slate account-card">
             <div class="settings-card-head">
               <div>
                 <p class="eyebrow">{{ uiText.accountManagement }}</p>
                 <h3>{{ uiText.updatePassword }}</h3>
                 <p class="panel-subtitle">{{ uiText.passwordHint }}</p>
               </div>
+            </div>
+            <div class="settings-account-banner">
+              <strong>{{ uiText.accountManagement }}</strong>
+              <span>{{ uiText.passwordHint }}</span>
             </div>
             <div class="grid-2">
               <label class="field compact">
@@ -2597,19 +2975,19 @@ watch(
                 <input type="password" autocomplete="new-password" v-model="passwordForm.confirm" />
               </label>
             </div>
-            <div class="form-actions">
+            <div class="form-actions settings-account-actions">
               <button type="button" class="primary-button" :disabled="passwordForm.saving" @click="updatePassword">
                 {{ passwordForm.saving ? uiText.saving : uiText.updatePassword }}
               </button>
-              <p v-if="passwordForm.notice" class="notice notice-success">{{ passwordForm.notice }}</p>
-              <p v-else-if="passwordForm.error" class="notice notice-error">{{ passwordForm.error }}</p>
+              <p v-if="passwordForm.notice" class="notice notice-success settings-inline-notice">{{ passwordForm.notice }}</p>
+              <p v-else-if="passwordForm.error" class="notice notice-error settings-inline-notice">{{ passwordForm.error }}</p>
             </div>
           </article>
         </div>
 
         <p
           v-if="props.vendorSettingsNotice && props.vendorSettingsNotice !== 'Unauthenticated.'"
-          class="notice"
+          class="notice settings-feedback"
         >
           {{ props.vendorSettingsNotice }}
         </p>
@@ -2650,25 +3028,14 @@ watch(
     sans-serif;
   width: auto;
   gap: 0;
-  min-height: 100vh;
-  height: auto;
+  height: 100vh;
   align-items: stretch;
-  background-attachment: fixed;
-}
-
-:global(body) {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 12%, rgba(234, 88, 12, 0.12), transparent 36%),
-    radial-gradient(circle at 92% 6%, rgba(37, 99, 235, 0.1), transparent 40%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 55%, #fff7ed 100%);
 }
 
 .vendor-dashboard::after {
   content: "";
   position: absolute;
-  inset: -40% -30% -20% auto;
+  inset: -40% -30% auto auto;
   width: 520px;
   height: 520px;
   border-radius: 999px;
@@ -2883,8 +3250,8 @@ watch(
 }
 
 .sidebar-icon {
-    width: 32px;
-    height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2897,8 +3264,8 @@ watch(
 }
 
 .sidebar-icon svg {
-    width: 15px;
-    height: 15px;
+  width: 17px;
+  height: 17px;
   display: block;
 }
 
@@ -2919,51 +3286,27 @@ watch(
   margin-top: auto;
   display: grid;
   gap: 6px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   position: relative;
   z-index: 1;
 }
 
-  .side-utility {
-    display: block;
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.7);
-    color: #334155;
-    font-size: 13.5px;
-    font-weight: 700;
-    text-align: left;
-    text-decoration: none;
-    transition: all 150ms ease;
-    cursor: pointer;
-    }
-
-  .side-utility .side-icon {
-    width: 22px;
-    height: 22px;
-    border-radius: 10px;
-    display: inline-grid;
-    place-items: center;
-    background: rgba(148, 163, 184, 0.16);
-    color: #475569;
-    margin-right: 8px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-  }
-
-  .side-utility.home .side-icon {
-    background: rgba(249, 115, 22, 0.1);
-    color: #c2410c;
-    border-color: rgba(249, 115, 22, 0.22);
-  }
-
-  .side-utility.logout .side-icon {
-    background: rgba(248, 113, 113, 0.12);
-    color: #b91c1c;
-    border-color: rgba(248, 113, 113, 0.24);
-  }
+.side-utility {
+  display: block;
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
 
 .side-utility.active {
   background: #fff7ed;
@@ -2980,7 +3323,7 @@ watch(
 }
 
 .side-utility.home {
-  background: linear-gradient(135deg, #fffaf4 0%, #ffecd8 100%);
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
   border-color: rgba(234, 88, 12, 0.22);
   color: #9a3412;
   font-weight: 700;
@@ -3002,97 +3345,6 @@ watch(
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.3);
   box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
-}
-
-.vendor-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.9) 100%
-  );
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow:
-    0 4px 18px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
-
-.vendor-avatar {
-    width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #d8e7ff 0%, #8fbaff 100%);
-    color: #0f3c89;
-    font-weight: 800;
-    font-size: 15px;
-    flex-shrink: 0;
-    border: 2px solid rgba(37, 99, 235, 0.18);
-    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.16);
-    overflow: hidden;
-  }
-
-  .vendor-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-.vendor-meta strong {
-  display: block;
-  margin: 0;
-  font-size: 14px;
-}
-
-.vendor-meta small {
-  color: #64748b;
-  font-size: 12px;
-}
-
-.vendor-verified {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
-  position: relative;
-}
-
-.vendor-verified::after {
-  content: "";
-  position: absolute;
-  inset: 3px 3px 3px 4px;
-  border: 2px solid #fff;
-  border-top: 0;
-  border-left: 0;
-  transform: rotate(45deg);
-}
-
-.side-label {
-  font-weight: 700;
-}
-
-.vendor-card strong {
-  display: block;
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.vendor-card small {
-  display: block;
-  color: #94a3b8;
-  font-size: 11px;
-  margin-top: 2px;
-  font-weight: 500;
 }
 
 /* ─── Main Panel ──────────────────────────────────────────────── */
@@ -3124,6 +3376,14 @@ watch(
   -webkit-backdrop-filter: blur(14px);
 }
 
+.booking-panel {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* ─── Dashboard Header ────────────────────────────────────────── */
 .vendor-dashboard-head {
   margin: 0;
@@ -3131,9 +3391,7 @@ watch(
 
 .vendor-head-actions {
   display: grid;
-  grid-template-columns: auto auto auto;
   gap: 0.75rem;
-  align-items: center;
   justify-items: end;
   align-self: start;
 }
@@ -3283,182 +3541,6 @@ watch(
   height: 16px;
 }
 
-.profile-menu-wrap {
-  position: relative;
-  justify-self: end;
-}
-
-.profile-trigger {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    cursor: pointer;
-    padding: 0;
-    overflow: visible;
-    position: relative;
-  }
-
-  .profile-trigger {
-  position: relative;
-  border-radius: 16px;
-  z-index: 1;
-}
-
-/* animated glow ring */
-.profile-trigger::before {
-  content: "";
-  position: absolute;
-  inset: -3px; /* tighter = cleaner */
-  border-radius: inherit;
-
-  background: conic-gradient(
-    from 0deg,
-    #ff6a00,
-    #fbbf24,
-    #fb923c,
-    #ff6a00
-  );
-
-  /* controlled glow */
-  filter: blur(4px);
-  opacity: 0.65;
-
-  animation: dashSpin 6s linear infinite;
-
-  z-index: -1;
-}
-
-/* clean inner surface (important for pro look) */
-.profile-trigger::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: inherit; /* matches button/card */
-  z-index: -1;
-}
-
-/* smooth spin */
-@keyframes dashSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-  .profile-trigger > * {
-    position: relative;
-    z-index: 1;
-  }
-
-.profile-trigger img,
-.profile-menu__user img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.profile-trigger span,
-.profile-menu__initial {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  color: #0f172a;
-  font-weight: 800;
-}
-
-.profile-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  min-width: 220px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: #fff;
-  box-shadow:
-    0 18px 50px rgba(15, 23, 42, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-  display: grid;
-  gap: 10px;
-  z-index: 20;
-}
-
-.profile-menu__user {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 10px;
-  align-items: center;
-}
-
-.profile-menu__user img,
-.profile-menu__initial {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  color: #0f3c89;
-  font-weight: 800;
-  border: 1px solid rgba(37, 99, 235, 0.2);
-}
-
-.profile-menu__user strong {
-  display: block;
-  margin: 0;
-}
-
-.profile-menu__user small {
-  color: #64748b;
-}
-
-.profile-menu__action {
-  width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  color: #0f172a;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.profile-menu__action:hover {
-  background: #fff7ed;
-  border-color: rgba(234, 88, 12, 0.28);
-  color: #9a3412;
-}
-
-.profile-menu__action.danger {
-  background: #fef2f2;
-  border-color: rgba(248, 113, 113, 0.3);
-  color: #b91c1c;
-}
-
-.profile-menu__action .dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  border: 2px solid currentColor;
-}
-
-.dot-orange {
-  color: #ea580c;
-}
-.dot-blue {
-  color: #2563eb;
-}
-.dot-red {
-  color: #dc2626;
-}
-
 
 
 @supports not (
@@ -3474,47 +3556,318 @@ watch(
   }
 }
 
+.settings-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
 .settings-panel .panel-head {
   align-items: flex-start;
 }
 
+.settings-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(234, 88, 12, 0.14);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.12), transparent 45%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 237, 0.9));
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  overflow: hidden;
+}
+
+.settings-hero::before {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(234, 88, 12, 0.18), transparent 68%);
+  pointer-events: none;
+}
+
+.settings-hero-copy,
+.settings-hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-hero-copy h2 {
+  margin-bottom: 8px;
+}
+
+.settings-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.settings-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.settings-hero-tag.strong {
+  color: #9a3412;
+  background: rgba(255, 247, 237, 0.95);
+  border-color: rgba(234, 88, 12, 0.22);
+}
+
+.settings-hero-tag.active {
+  color: #166534;
+  background: rgba(240, 253, 244, 0.96);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.settings-hero-actions {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.settings-scope-field {
+  padding: 16px 16px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.settings-actions {
+  justify-content: flex-end;
+}
+
+.settings-actions .secondary-button,
+.settings-actions .primary-button {
+  min-height: 46px;
+  min-width: 148px;
+}
+
+.settings-save-button {
+  box-shadow: 0 14px 28px rgba(234, 88, 12, 0.2);
+}
+
 .panel-subtitle {
   margin-top: 4px;
+  max-width: 62ch;
   color: #64748b;
   font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.settings-stat-card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-height: 124px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+}
+
+.settings-stat-card::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.9), transparent);
+}
+
+.settings-stat-card small {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-stat-card strong {
+  font-size: 1.15rem;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.settings-stat-card span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-stat-card.scope::before {
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.9), transparent);
+}
+
+.settings-stat-card.vacation::before {
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.88), transparent);
+}
+
+.settings-stat-card.notifications::before {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.88), transparent);
+}
+
+.settings-stat-card.rules::before {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.84), transparent);
 }
 
 .settings-grid {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   align-items: start;
 }
 
 .settings-card {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  position: relative;
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 20px 48px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  overflow: hidden;
 }
-.notifications-card .checkbox-row {
-  align-items: flex-start;
+
+.settings-card::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.9), transparent);
+}
+
+.settings-card--warm::before {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.92), transparent);
+}
+
+.settings-card--amber::before {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.92), transparent);
+}
+
+.settings-card--blue::before {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), transparent);
+}
+
+.settings-card--green::before {
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.92), transparent);
+}
+
+.settings-card--slate::before {
+  background: linear-gradient(90deg, rgba(71, 85, 105, 0.88), transparent);
 }
 
 .settings-card-head {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+.settings-card-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.settings-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-mini-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.settings-mini-card small {
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-mini-card strong {
+  color: #0f172a;
+  font-size: 0.97rem;
+  line-height: 1.3;
+}
+
+.settings-card .field.compact {
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+}
+
+.settings-card .field.compact input,
+.settings-card .field.compact select,
+.settings-card .field.compact textarea {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.notifications-card .checkbox-row {
+  align-items: center;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
 .grid-2 {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
@@ -3527,6 +3880,49 @@ watch(
 .checkbox-row input[type="checkbox"] {
   width: 16px;
   height: 16px;
+  accent-color: var(--vd-accent-strong);
+}
+
+.settings-account-banner {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.16), transparent 44%),
+    linear-gradient(135deg, rgba(241, 245, 249, 0.96), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.settings-account-banner strong {
+  color: #0f172a;
+  font-size: 0.96rem;
+}
+
+.settings-account-banner span {
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.settings-account-actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-inline-notice {
+  margin: 0;
+}
+
+.settings-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 247, 237, 0.94);
+  border: 1px solid rgba(234, 88, 12, 0.2);
+  color: #9a3412;
+  font-weight: 700;
+  box-shadow: 0 14px 32px rgba(234, 88, 12, 0.08);
 }
 
 .pill-list {
@@ -3653,6 +4049,14 @@ watch(
 }
 
 @media (max-width: 1180px) {
+  .settings-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .settings-grid {
     grid-template-columns: 1fr;
   }
@@ -3665,6 +4069,15 @@ watch(
   .settings-card-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .settings-account-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-inline-notice {
+    width: 100%;
   }
 
   .day-row {
@@ -4144,6 +4557,40 @@ watch(
   min-height: clamp(360px, 52vh, 560px);
 }
 
+.messages-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.messages-embed {
+  margin-top: 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:deep(.messages-page.messages-embedded) {
+  height: auto;
+}
+
+:deep(.messages-page.messages-embedded .messages-layout) {
+  min-height: 540px;
+}
+
+:deep(.messages-page.messages-embedded .messages-sidebar) {
+  border-right-color: rgba(148, 163, 184, 0.18);
+}
+
+:deep(.messages-page.messages-embedded .chat-panel) {
+  min-height: 540px;
+}
+
 .panel-wide {
   min-height: 360px;
 }
@@ -4294,6 +4741,19 @@ watch(
   overflow: visible;
 }
 
+.chart-shell-scroll {
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-shell-scroll.scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
 .chart-plot {
   position: relative;
   height: 220px;
@@ -4332,6 +4792,15 @@ watch(
   z-index: 1;
   touch-action: none;
   cursor: pointer;
+}
+
+.income-chart.scrollable {
+  touch-action: pan-x;
+  cursor: grab;
+}
+
+.income-chart.scrollable:active {
+  cursor: grabbing;
 }
 
 .income-area {
@@ -4406,6 +4875,7 @@ watch(
   stroke: #ffffff;
   stroke-width: 1.1;
 }
+
 
 .chart-labels {
   display: grid;
@@ -4774,23 +5244,6 @@ watch(
   color: #b91c1c;
 }
 
-.vendor-inline-notice {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #ecfeff;
-  border: 1px solid #a5f3fc;
-  color: #075985;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.vendor-inline-notice.is-error {
-  background: #fef2f2;
-  border-color: #fecdd3;
-  color: #b91c1c;
-}
-
 .service-copy p {
   margin: 8px 0 0;
   color: #334155;
@@ -4813,13 +5266,15 @@ watch(
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  table-layout: fixed;
 }
 
 .table th,
 .table td {
   padding: 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 0;
   text-align: left;
 }
 
@@ -4828,6 +5283,202 @@ watch(
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.table td {
+  vertical-align: top;
+  background: #f8fafc;
+}
+
+.table thead th {
+  padding-bottom: 6px;
+}
+
+.table tbody tr {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.booking-panel .table td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.booking-panel .table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.table tbody tr td:first-child {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.table tbody tr td:last-child {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.client-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.client-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.client-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.client-details {
+  display: grid;
+  gap: 2px;
+}
+
+.client-details strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.client-meta {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 210px;
+}
+
+.service-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.service-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.service-meta strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.service-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-only {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.booking-actions {
+  display: flex !important;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.booking-actions button {
+  width: auto;
+  justify-content: center;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  border-radius: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.booking-actions .action-view {
+  background: rgba(255, 247, 237, 0.95);
+  color: #9a3412;
+  border: 1px solid rgba(234, 88, 12, 0.22);
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.booking-actions .action-view:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: rgba(234, 88, 12, 0.32);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-confirm {
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: #ffffff;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.22);
+}
+
+.booking-actions .action-confirm:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.3);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-cancel {
+  background: #ffffff;
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.08);
+}
+
+.booking-actions .action-cancel:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: rgba(220, 38, 38, 0.36);
+  transform: translateY(-1px);
 }
 
 .status-chip {
@@ -4865,18 +5516,291 @@ watch(
 }
 
 .modal-card {
-  width: min(880px, 100%);
+  width: min(680px, 100%);
   max-height: 90vh;
   overflow: auto;
-  padding: 22px;
-  border-radius: 24px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  margin-top: 72px;
   background: #fff;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.booking-detail-card {
+  display: grid;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  max-height: 82vh;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.96) 100%
+  );
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.booking-detail-card::before {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(
+    circle,
+    rgba(234, 88, 12, 0.18),
+    transparent 65%
+  );
+  filter: blur(10px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.booking-detail-card::after {
+  content: "";
+  position: absolute;
+  left: -140px;
+  bottom: -140px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.12),
+    transparent 70%
+  );
+  filter: blur(12px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.booking-detail-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.booking-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(234, 88, 12, 0.16);
+  background: rgba(255, 247, 237, 0.9);
+  box-shadow: 0 -8px 18px rgba(234, 88, 12, 0.08);
+  position: sticky;
+  bottom: 0;
+  top: auto;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.detail-subtitle {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.booking-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.detail-block {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+.detail-block::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.5), transparent);
+  opacity: 0.6;
+}
+
+.detail-block h4 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.detail-block p {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.detail-link {
+  width: fit-content;
+  padding: 0 10px;
+  min-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff7ed, #ffe8d8);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  color: #9a3412;
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.detail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.detail-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.detail-list span {
+  color: #94a3b8;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-list strong {
+  font-size: 13px;
+  color: #0f172a;
+  text-align: right;
+}
+
+.detail-block-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-service-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 250, 252, 0.95)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.detail-service-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.detail-service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-service-info {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-service-info strong {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.detail-service-info span {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.contact-actions {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+}
+
+.contact-empty {
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 0;
+}
+
+.detail-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.detail-items li {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.detail-items strong {
+  font-size: 13px;
+  color: #0f172a;
+  display: block;
+}
+
+.detail-items span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.detail-item-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .vacation-card {
-  background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.16), transparent 40%),
+    linear-gradient(180deg, rgba(255, 251, 235, 0.98), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(249, 115, 22, 0.16);
 }
 
 .vacation-head {
@@ -4887,12 +5811,13 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(249, 115, 22, 0.16);
   font-weight: 700;
   color: #0f172a;
+  box-shadow: 0 12px 26px rgba(249, 115, 22, 0.08);
 }
 
 .toggle-row input {
@@ -4954,6 +5879,11 @@ watch(
     flex-direction: column;
   }
 
+  .booking-detail-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .tab-panel {
     min-height: 0;
   }
@@ -4976,6 +5906,41 @@ watch(
   .dash-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .settings-hero {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .settings-overview,
+  .settings-mini-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card,
+  .settings-stat-card {
+    padding: 18px;
+  }
+
+  .settings-scope-field {
+    padding: 14px;
+  }
+
+  .settings-actions,
+  .settings-account-actions {
+    width: 100%;
+  }
+
+  .settings-actions .secondary-button,
+  .settings-actions .primary-button,
+  .settings-account-actions .primary-button {
+    width: 100%;
+  }
+
+  .toggle-row {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .header-action {
@@ -5003,12 +5968,6 @@ watch(
 
   .period-switcher {
     justify-content: flex-start;
-  }
-}
-
-@keyframes dashSpin {
-  to {
-    transform: rotate(360deg);
   }
 }
 </style>
