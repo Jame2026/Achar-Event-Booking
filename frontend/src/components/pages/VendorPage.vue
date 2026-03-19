@@ -929,7 +929,6 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   </div>
                   <strong class="service-price">{{ item.priceLabel }}</strong>
                 </div>
-<<<<<<< HEAD
                 <p>{{ item.description }}</p>
                 <ul>
                   <li>{{ item.location }}</li>
@@ -980,51 +979,6 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                     {{ props.getAvailabilityLabel(item) }}
                   </span>
                   <p v-if="props.getAvailability(item)">{{ props.getAvailability(item).message }}</p>
-=======
-                <strong class="service-price">{{ item.priceLabel }}</strong>
-              </div>
-              <p>{{ item.description }}</p>
-              <ul>
-                <li>{{ item.location }}</li>
-                <li>{{ item.date }}</li>
-              </ul>
-              <div class="service-footer">
-                <div class="service-book-actions">
-                  <button
-                    type="button"
-                    class="ghost"
-                    @click="props.goToPackageCustomization(item.eventType, item.title)"
-                  >
-                    {{ uiText.selectPackage }}
-                  </button>
-                  <input
-                    v-if="!item.isPreview"
-                    :value="props.selectedQuantities[item.id]"
-                    type="number"
-                    min="1"
-                    max="20"
-                    @input="props.selectedQuantities[item.id] = Number($event.target.value)"
-                  />
-                  <button
-                    type="button"
-                    :disabled="item.isPreview || props.bookingSubmittingEventId === item.id"
-                    @click="item.isPreview ? null : props.bookPackage(item)"
-                  >
-                    {{
-                      props.bookingSubmittingEventId === item.id
-                        ? uiText.booking
-                        : uiText.bookNow
-                    }}
-                  </button>
-                  <button
-                    type="button"
-                    class="ghost"
-                    :disabled="!item.isPreview && props.checkingAvailabilityEventId === item.id"
-                    @click="props.goToAvailability(item)"
-                  >
-                    {{ !item.isPreview && props.checkingAvailabilityEventId === item.id ? uiText.checking : uiText.checkAvailability }}
-                  </button>
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
                 </div>
               </div>
             </div>

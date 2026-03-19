@@ -1243,22 +1243,9 @@ async function submitVendorService() {
         })()
       : normalizedPayload
 
-<<<<<<< HEAD
-    if (Number.isFinite(serviceId) && serviceId > 0) {
-      const result = await apiPatch(`vendor/services/${serviceId}`, payload)
-      upsertVendorEvent(result?.data || result)
-      vendorServiceNotice.value = uiText.value.serviceUpdated
-    } else {
-      const result = await apiPost('vendor/services', payload)
-      upsertVendorEvent(result?.data || result)
-      vendorServiceNotice.value = uiText.value.serviceCreated
-    }
-    loadEvents({ silent: true })
-=======
     await apiPost('vendor/services', payload)
     await loadEvents()
     clearGuestEventsCache()
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
     selectedEventType.value = normalizedPayload.event_type
     resetVendorServiceForm()
   } catch (error) {
@@ -1307,10 +1294,6 @@ function mapVendorBookingRow(row) {
   return {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
-<<<<<<< HEAD
-    customer_name: row.customer_name || row.user?.name || uiText.value.customer,
-    customer_email: row.customer_email || row.user?.email || '',
-=======
     customer_id: user.id || null,
     customer_name: row.customer_name || user.name || uiText.value.customer,
     customer_email: customerEmail,
@@ -1323,7 +1306,6 @@ function mapVendorBookingRow(row) {
     requested_event_type: row.requested_event_type || event.event_type || '',
     quantity: Number(row.quantity || 0),
     booked_items: Array.isArray(row.booked_items) ? row.booked_items : [],
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',

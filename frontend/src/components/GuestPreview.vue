@@ -777,39 +777,33 @@ function mapEventToGuestService(item) {
 }
 
 async function loadLiveVendorEvents() {
-<<<<<<< HEAD
-  // Use cached rows first (stale-while-revalidate) so the page renders fast.
+  // Use session cache for fast paint, but still fetch fresh data.
   let cachedRows = [];
-=======
-  // Use session cache for fast paint, but still fetch fresh data
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
-<<<<<<< HEAD
       if (Array.isArray(parsed)) {
         cachedRows = parsed;
       } else if (parsed && Array.isArray(parsed.data)) {
         cachedRows = parsed.data;
-=======
-      if (Array.isArray(parsed) && parsed.length) {
-        liveVendorEvents.value = parsed;
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
       }
     }
   } catch {
     // ignore cache read errors
   }
 
-<<<<<<< HEAD
   if (cachedRows.length) {
     liveVendorEvents.value = cachedRows;
   }
 
   let rows = [];
   try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
+    const result = await apiGet("events", {
+      per_page: 100,
+      include_inactive: 1,
+      ts: Date.now(),
+    });
     rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
   } catch (error) {
     console.error(error);
@@ -843,39 +837,6 @@ async function loadLiveVendorEvents() {
       EVENTS_CACHE_KEY,
       JSON.stringify({ data: rows, cachedAt: Date.now() }),
     );
-    return;
-=======
-  try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
-    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    if (rows.length) {
-      liveVendorEvents.value = rows;
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
-      return;
-    }
-
-    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-    if (!fallbackResponse.ok) {
-      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
-    }
-
-    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
-    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
-      ? fallbackJson.data
-      : Array.isArray(fallbackJson)
-        ? fallbackJson
-        : [];
-    if (liveVendorEvents.value.length) {
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
-    }
-  } catch (error) {
-    console.error(error);
-    liveVendorEvents.value = [];
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   }
 
   if (!liveVendorEvents.value.length) {
