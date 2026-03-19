@@ -43,13 +43,11 @@ const emit = defineEmits(["update:activeTab"]);
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
-<<<<<<< HEAD
 const serviceMode = ref(
   props.vendorServiceForm?.service_mode === "package" ? "package" : "overall",
-=======
+);
 const hasMessagesPanel = computed(
   () => props.messagesBindings && Array.isArray(props.filteredConversations),
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
 );
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
@@ -124,7 +122,6 @@ const copyByLanguage = {
     customerMessages: "Customer Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
-<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -144,7 +141,6 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
-=======
     bookingDetails: "Booking Details",
     customerDetails: "Customer Details",
     eventLocationLabel: "Event Location",
@@ -159,7 +155,6 @@ const copyByLanguage = {
     viewDetails: "View Details",
     getDirections: "Get Directions",
     close: "Close",
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -228,7 +223,6 @@ const copyByLanguage = {
     customerMessages: "សារអតិថិជន",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
-<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -248,7 +242,6 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
-=======
     bookingDetails: "Booking Details",
     customerDetails: "Customer Details",
     eventLocationLabel: "Event Location",
@@ -263,7 +256,6 @@ const copyByLanguage = {
     viewDetails: "View Details",
     getDirections: "Get Directions",
     close: "Close",
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
   zh: {
     overview: "概览",
@@ -331,7 +323,6 @@ const copyByLanguage = {
     customerMessages: "客户消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
-<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -351,7 +342,6 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
-=======
     bookingDetails: "Booking Details",
     customerDetails: "Customer Details",
     eventLocationLabel: "Event Location",
@@ -366,7 +356,6 @@ const copyByLanguage = {
     viewDetails: "View Details",
     getDirections: "Get Directions",
     close: "Close",
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -654,7 +643,6 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
-<<<<<<< HEAD
 const hasServiceTitle = computed(() =>
   Boolean(String(props.vendorServiceForm?.title || "").trim()),
 );
@@ -771,7 +759,6 @@ onUnmounted(() => {
   window.removeEventListener("click", handleEventTypeClickOutside);
 });
 
-=======
 function formatEventType(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -780,7 +767,6 @@ function formatEventType(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -2511,7 +2497,6 @@ watch(
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
-<<<<<<< HEAD
               <td>{{ item.service_name }}</td>
               <td>
                 <div class="client-cell">
@@ -2520,7 +2505,6 @@ watch(
                 </div>
               </td>
               <td>{{ item.date_label }}</td>
-=======
               <td>
                 <div class="service-cell">
                   <div class="service-thumb">
@@ -2573,7 +2557,6 @@ watch(
               <td>
                 <span class="date-only">{{ item.date_label }}</span>
               </td>
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
               <td>
                 <span
                   class="status-chip"
