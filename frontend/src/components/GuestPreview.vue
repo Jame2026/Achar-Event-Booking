@@ -780,6 +780,8 @@ async function loadLiveVendorEvents() {
   // Use cached rows first (stale-while-revalidate) so the page renders fast.
   let cachedRows = [];
   // Use session cache for fast paint, but still fetch fresh data
+  // Use session cache for fast paint, but still fetch fresh data.
+  let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
@@ -802,7 +804,11 @@ async function loadLiveVendorEvents() {
 
   let rows = [];
   try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
+    const result = await apiGet("events", {
+      per_page: 100,
+      include_inactive: 1,
+      ts: Date.now(),
+    });
     rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
   } catch (error) {
     console.error(error);

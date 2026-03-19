@@ -978,6 +978,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                     {{ props.getAvailabilityLabel(item) }}
                   </span>
                   <p v-if="props.getAvailability(item)">{{ props.getAvailability(item).message }}</p>
+<<<<<<< HEAD
                 <strong class="service-price">{{ item.priceLabel }}</strong>
               </div>
               <p>{{ item.description }}</p>
@@ -1021,6 +1022,8 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   >
                     {{ !item.isPreview && props.checkingAvailabilityEventId === item.id ? uiText.checking : uiText.checkAvailability }}
                   </button>
+=======
+>>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
                 </div>
               </div>
             </div>

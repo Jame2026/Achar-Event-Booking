@@ -233,16 +233,12 @@ class BookingController extends Controller
         $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
 
-<<<<<<< HEAD
         return response()->json(
             $booking
-                ->load('event.vendor:id,name')
+                ->load('event.vendor:id,name,email')
                 ->makeVisible('payment_token'),
             201
         );
-=======
-        return response()->json($booking->load('event.vendor:id,name,email'), 201);
->>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
     }
 
     public function show(Booking $booking): JsonResponse
