@@ -59,12 +59,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'Service created successfully and is now visible to users.',
     serviceUpdated: 'Service updated successfully.',
+    serviceDeleted: 'Service deleted successfully.',
     couldNotCreateService: 'Could not create service.',
     couldNotUpdateServiceDetails: 'Could not update service.',
     couldNotUpdateService: 'Could not update service status.',
     couldNotDeleteService: 'Could not delete service.',
+    bookingDeleted: 'Booking deleted successfully.',
     couldNotLoadVendorBookings: 'Could not load vendor bookings right now.',
     couldNotUpdateBookingStatus: 'Could not update booking status.',
+    couldNotDeleteBooking: 'Could not delete booking.',
     signInCheckAvailability: 'Please sign in to check service availability.',
     availabilityChecked: 'Availability checked.',
     couldNotCheckAvailability: 'Could not check availability right now.',
@@ -101,12 +104,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'សេវាកម្មត្រូវបានបង្កើតដោយជោគជ័យ ហើយអាចមើលឃើញដោយអ្នកប្រើហើយ។',
     serviceUpdated: 'បានធ្វើបច្ចុប្បន្នភាពសេវាកម្មដោយជោគជ័យ។',
+    serviceDeleted: 'បានលុបសេវាកម្មដោយជោគជ័យ។',
     couldNotCreateService: 'មិនអាចបង្កើតសេវាកម្មបានទេ។',
     couldNotUpdateServiceDetails: 'មិនអាចធ្វើបច្ចុប្បន្នភាពសេវាកម្មបានទេ។',
     couldNotUpdateService: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពសេវាកម្មបានទេ។',
     couldNotDeleteService: 'មិនអាចលុបសេវាកម្មបានទេ។',
+    bookingDeleted: 'បានលុបការកក់ដោយជោគជ័យ។',
     couldNotLoadVendorBookings: 'មិនអាចផ្ទុកការកក់របស់អ្នកផ្គត់ផ្គង់បានទេ។',
     couldNotUpdateBookingStatus: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពការកក់បានទេ។',
+    couldNotDeleteBooking: 'មិនអាចលុបការកក់បានទេ។',
     signInCheckAvailability: 'សូមចូលគណនីដើម្បីពិនិត្យមើលពេលទំនេរ។',
     availabilityChecked: 'បានពិនិត្យពេលទំនេរហើយ។',
     couldNotCheckAvailability: 'មិនអាចពិនិត្យមើលពេលទំនេរឥឡូវនេះបានទេ។',
@@ -143,12 +149,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: '服务已成功创建，并且用户现在可以看到它。',
     serviceUpdated: '服务已成功更新。',
+    serviceDeleted: '服务已成功删除。',
     couldNotCreateService: '无法创建服务。',
     couldNotUpdateServiceDetails: '无法更新服务。',
     couldNotUpdateService: '无法更新服务状态。',
     couldNotDeleteService: '无法删除服务。',
+    bookingDeleted: '预订已成功删除。',
     couldNotLoadVendorBookings: '暂时无法加载商家预订。',
     couldNotUpdateBookingStatus: '无法更新预订状态。',
+    couldNotDeleteBooking: '无法删除预订。',
     signInCheckAvailability: '请先登录再查看档期。',
     availabilityChecked: '档期已检查。',
     couldNotCheckAvailability: '暂时无法检查档期。',
@@ -1379,11 +1388,50 @@ async function deleteVendorService(item) {
 
   try {
     await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
+    if (Number(vendorServiceForm.value?.id || 0) === Number(item.id)) {
+      resetVendorServiceForm()
+    }
+    if (vendorSettingsServiceId.value === Number(item.id)) {
+      vendorSettingsServiceId.value = 'all'
+      if (isVendorAccount.value) {
+        await loadVendorSettings({ eventId: null, silent: true })
+      }
+    }
     await loadEvents()
     clearGuestEventsCache()
+    vendorServiceNotice.value = `${item.title || uiText.value.serviceBooking} - ${uiText.value.serviceDeleted}`
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotDeleteService
   }
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function normalizeDateKey(value) {
+  if (!value) return ''
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return getLocalDateKey(value)
+  }
+
+  const text = String(value).trim()
+  const dateMatch = text.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (dateMatch) return dateMatch[1]
+
+  const parsed = new Date(text)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  return getLocalDateKey(parsed)
+}
+
+function isPastBookingDate(value) {
+  const bookingDateKey = normalizeDateKey(value)
+  if (!bookingDateKey) return false
+  return bookingDateKey < getLocalDateKey()
 }
 
 function mapVendorBookingRow(row) {
@@ -1406,6 +1454,8 @@ function mapVendorBookingRow(row) {
     requested_event_type: row.requested_event_type || event.event_type || '',
     quantity: Number(row.quantity || 0),
     booked_items: Array.isArray(row.booked_items) ? row.booked_items : [],
+    booking_date: bookingDate || null,
+    can_delete: isPastBookingDate(bookingDate),
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
@@ -1454,6 +1504,20 @@ async function updateVendorBookingStatus(item, status) {
     await loadNotifications({ silent: true })
   } catch (error) {
     notice.value = error?.message || uiText.value.couldNotUpdateBookingStatus
+  }
+}
+
+async function deleteVendorBooking(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiDelete(`vendor/bookings/${item.id}`, { vendor_user_id: vendorUserId })
+    await loadVendorBookings()
+    await loadNotifications({ silent: true })
+    notice.value = `${item.service_name || uiText.value.serviceBooking} - ${uiText.value.bookingDeleted}`
+  } catch (error) {
+    notice.value = error?.message || uiText.value.couldNotDeleteBooking
   }
 }
 
@@ -1828,6 +1892,7 @@ onBeforeUnmount(() => {
         :toggle-vendor-service-active="toggleVendorServiceActive"
         :delete-vendor-service="deleteVendorService"
         :update-vendor-booking-status="updateVendorBookingStatus"
+        :delete-vendor-booking="deleteVendorBooking"
         :save-vendor-settings="saveVendorSettings"
         :refresh-vendor-settings="loadVendorSettings"
         :select-vendor-settings-service="selectVendorSettingsService"

@@ -119,11 +119,19 @@ function refreshAuthState() {
   }
 }
 
-function clearAutofilledSearchValue() {
-  const searchValue = String(navSearch.value || '').trim().toLowerCase()
+function normalizeSearchCandidate(value) {
+  const nextValue = typeof value === 'string' ? value : ''
   const signedInEmail = String(currentUser.value?.email || '').trim().toLowerCase()
-  if (searchValue && signedInEmail && searchValue === signedInEmail) {
-    navSearch.value = ''
+  if (signedInEmail && nextValue.trim().toLowerCase() === signedInEmail) {
+    return ''
+  }
+  return nextValue
+}
+
+function clearAutofilledSearchValue() {
+  const nextValue = normalizeSearchCandidate(navSearch.value)
+  if (nextValue !== navSearch.value) {
+    navSearch.value = nextValue
   }
 }
 
@@ -139,12 +147,14 @@ function guardSearchAutofill() {
 function syncSearchFieldValue() {
   if (route.path === '/legacy-app') {
     const storedSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
-    navSearch.value = typeof storedSearch === 'string' ? storedSearch : ''
-  } else {
-    const routeQuery = route.query?.q
-    navSearch.value = typeof routeQuery === 'string' ? routeQuery : ''
+    const nextValue = normalizeSearchCandidate(storedSearch)
+    navSearch.value = nextValue
+    if (!nextValue) sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+    return
   }
-  clearAutofilledSearchValue()
+
+  const routeQuery = route.query?.q
+  navSearch.value = normalizeSearchCandidate(typeof routeQuery === 'string' ? routeQuery : '')
 }
 
 function runSearch() {

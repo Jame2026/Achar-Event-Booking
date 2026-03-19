@@ -83,6 +83,7 @@ Route::patch('vendor/services/{event}', [VendorController::class, 'updateService
 Route::delete('vendor/services/{event}', [VendorController::class, 'destroyServiceByVendorId']);
 Route::get('vendor/bookings', [VendorController::class, 'bookingsByVendorId']);
 Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'updateBookingStatusByVendorId']);
+Route::delete('vendor/bookings/{booking}', [VendorController::class, 'destroyBookingByVendorId']);
 
 Route::prefix('vendor')->group(function () {
     Route::get('/chats', [ChatController::class, 'vendorIndex']);

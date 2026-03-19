@@ -41,6 +41,7 @@ const props = defineProps([
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
+  "deleteVendorBooking",
   "saveVendorSettings",
   "refreshVendorSettings",
   "selectVendorSettingsService",
@@ -749,6 +750,50 @@ const bookingItems = computed(() =>
     ? bookingDetail.value.booked_items
     : [],
 );
+const bookingBookedSummary = computed(() => {
+  const names = bookingItems.value
+    .map((item) => String(item?.name || item?.type || "").trim())
+    .filter(Boolean);
+
+  if (names.length) {
+    return Array.from(new Set(names)).join(", ");
+  }
+
+  return String(bookingDetail.value.service_name || "").trim();
+});
+const bookingDisplayItems = computed(() => {
+  if (bookingItems.value.length) {
+    return bookingItems.value;
+  }
+
+  const fallbackName = String(bookingDetail.value.service_name || "").trim();
+  if (!fallbackName) {
+    return [];
+  }
+
+  const metaParts = [];
+  const serviceType = String(
+    bookingDetail.value.event_type || bookingDetail.value.requested_event_type || "",
+  ).trim();
+  const serviceLocation = String(bookingDetail.value.event_location || "").trim();
+
+  if (serviceType) {
+    metaParts.push(`Type: ${formatEventType(serviceType)}`);
+  }
+
+  if (serviceLocation) {
+    metaParts.push(`Location: ${serviceLocation}`);
+  }
+
+  return [
+    {
+      name: fallbackName,
+      description: metaParts.join(" | "),
+      qty: Number(bookingDetail.value.quantity || 0) || null,
+      totalPrice: Number(bookingDetail.value.total_amount || 0) || null,
+    },
+  ];
+});
 const customerEmailLink = computed(() => {
   const email = String(bookingDetail.value.customer_email || "").trim();
   return email ? `mailto:${email}` : "";
@@ -2844,13 +2889,13 @@ watch(
         <p v-else-if="!safeVendorBookings.length" class="notice">
           No booking requests yet.
         </p>
-        <table v-else class="table">
+        <table v-else class="table booking-table">
           <colgroup>
-            <col style="width: 34%" />
-            <col style="width: 26%" />
-            <col style="width: 12%" />
-            <col style="width: 12%" />
-            <col style="width: 16%" />
+            <col class="booking-col-service" />
+            <col class="booking-col-client" />
+            <col class="booking-col-date" />
+            <col class="booking-col-status" />
+            <col class="booking-col-actions" />
           </colgroup>
           <thead>
             <tr>
@@ -2863,7 +2908,7 @@ watch(
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
-              <td>
+              <td class="booking-service-cell">
                 <div class="service-cell">
                   <div class="service-thumb">
                     <img
@@ -2877,16 +2922,10 @@ watch(
                   </div>
                   <div class="service-meta">
                     <strong>{{ item.service_name }}</strong>
-                    <span v-if="item.event_type" class="service-sub"
-                      >Type: {{ formatEventType(item.event_type) }}</span
-                    >
-                    <span v-if="item.event_location" class="service-sub"
-                      >Location: {{ item.event_location }}</span
-                    >
                   </div>
                 </div>
               </td>
-              <td>
+              <td class="booking-client-cell">
                 <div class="client-cell">
                   <div class="client-avatar">
                     <img
@@ -2900,22 +2939,13 @@ watch(
                   </div>
                   <div class="client-details">
                     <strong>{{ item.customer_name }}</strong>
-                    <span v-if="item.customer_email" class="client-meta">{{
-                      item.customer_email
-                    }}</span>
-                    <span v-if="item.customer_phone" class="client-meta">{{
-                      item.customer_phone
-                    }}</span>
-                    <span v-if="item.customer_location" class="client-meta"
-                      >Location: {{ item.customer_location }}</span
-                    >
                   </div>
                 </div>
               </td>
-              <td>
+              <td class="booking-date-cell">
                 <span class="date-only">{{ item.date_label }}</span>
               </td>
-              <td>
+              <td class="booking-status-cell">
                 <span
                   class="status-chip"
                   :class="bookingStatusClass(item.status)"
@@ -2945,6 +2975,19 @@ watch(
                 >
                   Cancel
                 </button>
+                <button
+                  v-if="item.can_delete"
+                  type="button"
+                  class="action-delete"
+                  @click="props.deleteVendorBooking(item)"
+                >
+                  Delete
+                </button>
+                <span
+                  v-else
+                  aria-hidden="true"
+                  class="action-placeholder"
+                ></span>
               </td>
             </tr>
           </tbody>
@@ -2974,7 +3017,7 @@ watch(
             </div>
 
             <div class="booking-detail-grid">
-              <section class="detail-block">
+              <section class="detail-block detail-block-service">
                 <h4>{{ uiText.serviceDetails }}</h4>
                 <div class="detail-service-card">
                   <div class="detail-service-thumb">
@@ -3013,6 +3056,10 @@ watch(
                   </div>
                 </div>
                 <div class="detail-list">
+                  <div v-if="bookingBookedSummary">
+                    <span>{{ uiText.bookedItems }}</span>
+                    <strong>{{ bookingBookedSummary }}</strong>
+                  </div>
                   <div>
                     <span>{{ uiText.dateLabel }}</span>
                     <strong>{{ bookingDetail.date_label || uiText.noData }}</strong>
@@ -3038,7 +3085,7 @@ watch(
                   </div>
                 </div>
               </section>
-              <section class="detail-block">
+              <section class="detail-block detail-block-customer">
                 <h4>{{ uiText.customerDetails }}</h4>
                 <div class="detail-list">
                   <div>
@@ -3065,9 +3112,16 @@ watch(
                   </div>
                 </div>
               </section>
-              <section class="detail-block">
+              <section class="detail-block detail-block-contact">
                 <h4>{{ uiText.customerContact }}</h4>
                 <div class="contact-actions">
+                  <a
+                    v-if="customerEmailLink"
+                    class="secondary-button detail-link"
+                    :href="customerEmailLink"
+                  >
+                    Email Customer
+                  </a>
                   <a
                     v-if="customerPhoneLink"
                     class="secondary-button detail-link"
@@ -3096,8 +3150,8 @@ watch(
 
             <section class="detail-block detail-block-wide">
               <h4>{{ uiText.bookedItems }}</h4>
-              <ul v-if="bookingItems.length" class="detail-items">
-                <li v-for="(item, index) in bookingItems" :key="index">
+              <ul v-if="bookingDisplayItems.length" class="detail-items">
+                <li v-for="(item, index) in bookingDisplayItems" :key="index">
                   <div>
                     <strong>{{ item.name || item.type || "Item" }}</strong>
                     <span v-if="item.description">{{ item.description }}</span>
@@ -3591,6 +3645,7 @@ watch(
 
   position: relative;
   min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
   column-gap: 32px;
@@ -3614,7 +3669,7 @@ watch(
   width: auto;
   gap: 0;
   align-items: stretch;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .vendor-dashboard::after {
@@ -3639,7 +3694,10 @@ watch(
 .sidebar {
   position: sticky;
   top: 0;
-  min-height: 100vh;
+  align-self: stretch;
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -3938,13 +3996,14 @@ watch(
   gap: 20px;
   padding: 24px;
   min-height: 0;
+  height: 100vh;
   position: relative;
   z-index: 1;
   width: 100%;
   max-width: 100%;
-  min-height: auto;
-  height: auto;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .panel,
@@ -6741,11 +6800,52 @@ watch(
   border-bottom-right-radius: 16px;
 }
 
+.booking-table .booking-col-service {
+  width: 29%;
+}
+
+.booking-table .booking-col-client {
+  width: 18%;
+}
+
+.booking-table .booking-col-date {
+  width: 14%;
+}
+
+.booking-table .booking-col-status {
+  width: 13%;
+}
+
+.booking-table .booking-col-actions {
+  width: 26%;
+}
+
+.booking-table th:last-child,
+.booking-table td:last-child {
+  padding-right: 14px;
+}
+
+.booking-table td {
+  vertical-align: middle;
+}
+
+.booking-table .booking-date-cell,
+.booking-table .booking-status-cell {
+  white-space: nowrap;
+}
+
+.booking-table .service-cell,
+.booking-table .client-cell,
+.booking-table .service-meta,
+.booking-table .client-details {
+  min-width: 0;
+}
+
 .client-cell {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .client-avatar {
@@ -6772,6 +6872,7 @@ watch(
 .client-details {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .client-details strong {
@@ -6793,7 +6894,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 210px;
+  min-width: 0;
 }
 
 .service-thumb {
@@ -6820,6 +6921,7 @@ watch(
 .service-meta {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .service-meta strong {
@@ -6845,18 +6947,18 @@ watch(
 }
 
 .booking-actions {
-  display: flex !important;
-  gap: 6px;
-  align-items: center;
-  justify-content: flex-end;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  justify-content: stretch;
   min-width: 0;
-  flex-wrap: nowrap;
 }
 
 .booking-actions button {
-  width: auto;
+  width: 100%;
   justify-content: center;
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 11.5px;
   border-radius: 10px;
   line-height: 1.1;
@@ -6900,6 +7002,25 @@ watch(
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.36);
   transform: translateY(-1px);
+}
+
+.booking-actions .action-delete {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  color: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.34);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.18);
+}
+
+.booking-actions .action-delete:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.24);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-placeholder {
+  display: block;
+  min-height: 36px;
+  border-radius: 10px;
+  visibility: hidden;
 }
 
 .status-chip {
@@ -6948,8 +7069,10 @@ watch(
 }
 
 .booking-detail-card {
+  width: min(760px, 100%);
   display: grid;
   gap: 12px;
+  padding: 14px;
   position: relative;
   overflow: hidden;
   max-height: 82vh;
@@ -7007,16 +7130,16 @@ watch(
 .booking-detail-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(234, 88, 12, 0.16);
   background: rgba(255, 247, 237, 0.9);
-  box-shadow: 0 -8px 18px rgba(234, 88, 12, 0.08);
+  box-shadow: 0 10px 24px rgba(234, 88, 12, 0.08);
   position: sticky;
-  bottom: 0;
-  top: auto;
+  top: 0;
+  bottom: auto;
   z-index: 5;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -7030,19 +7153,32 @@ watch(
 
 .booking-detail-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 10px;
+  align-items: start;
 }
 
 .detail-block {
   display: grid;
-  gap: 6px;
-  padding: 10px 11px;
+  gap: 8px;
+  padding: 11px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
   position: relative;
+}
+
+.detail-block-service {
+  grid-column: 1;
+}
+
+.detail-block-customer {
+  grid-column: 2;
+}
+
+.detail-block-contact {
+  grid-column: 1 / -1;
 }
 
 .detail-block::before {
@@ -7074,13 +7210,13 @@ watch(
 }
 
 .detail-link {
-  width: fit-content;
-  padding: 0 10px;
-  min-height: 16px;
+  width: 100%;
+  padding: 0 14px;
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 10.5px;
   font-weight: 700;
   background: linear-gradient(135deg, #fff7ed, #ffe8d8);
@@ -7091,14 +7227,17 @@ watch(
 
 .detail-list {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .detail-list div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .detail-list span {
@@ -7111,7 +7250,7 @@ watch(
 .detail-list strong {
   font-size: 13px;
   color: #0f172a;
-  text-align: right;
+  text-align: left;
 }
 
 .detail-block-wide {
@@ -7122,7 +7261,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 9px;
+  padding: 10px;
   border-radius: 12px;
   background: linear-gradient(
     140deg,
@@ -7157,6 +7296,7 @@ watch(
 .detail-service-info {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .detail-service-info strong {
@@ -7172,6 +7312,7 @@ watch(
 
 .contact-actions {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   align-items: start;
 }
@@ -7187,17 +7328,25 @@ watch(
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .detail-items li {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
   padding: 9px 10px;
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  max-width: 440px;
+}
+
+.detail-items li > div:first-child {
+  min-width: 0;
 }
 
 .detail-items strong {
@@ -7215,6 +7364,7 @@ watch(
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .vacation-card {
@@ -7267,6 +7417,10 @@ watch(
   }
 
   .sidebar {
+    position: static;
+    top: auto;
+    align-self: stretch;
+    height: auto;
     min-height: auto;
     max-height: 58vh;
     overflow: auto;
@@ -7275,6 +7429,7 @@ watch(
   }
 
   .main-panel {
+    height: auto;
     overflow: visible;
     padding: 18px;
   }
@@ -7308,6 +7463,17 @@ watch(
   .booking-detail-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .booking-detail-card {
+    width: min(100%, 640px);
+    padding: 12px;
+  }
+
+  .detail-list,
+  .detail-items,
+  .contact-actions {
+    grid-template-columns: 1fr;
   }
 
   .tab-panel {
@@ -7402,6 +7568,18 @@ watch(
 
   .period-switcher {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .booking-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-block-service,
+  .detail-block-customer,
+  .detail-block-contact {
+    grid-column: auto;
   }
 }
 </style>
