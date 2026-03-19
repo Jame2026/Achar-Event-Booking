@@ -89,9 +89,9 @@ async function requestApi(method, path, { payload, query } = {}) {
     }
     // Network / CORS / refused connection
     if (error?.name === 'TypeError' || error?.message === 'Failed to fetch') {
-      throw new Error(
-        `Could not reach the API. Please make sure the backend server is running and reachable at ${API_BASE_URL}.`,
-      )
+      const hint =
+        'If you are opening the site from another device, replace 127.0.0.1 with your computer’s LAN IP in VITE_API_BASE_URL.'
+      throw new Error(`We couldn’t reach the API. Check your connection or start the backend at ${API_BASE_URL}. ${hint}`)
     }
     throw error
   } finally {

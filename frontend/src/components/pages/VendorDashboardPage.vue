@@ -2831,48 +2831,6 @@ watch(
             <p class="vacation-note">{{ uiText.vacationNote }}</p>
           </article>
 
-          <article class="settings-card settings-card--green notifications-card">
-            <div class="settings-card-head">
-              <div>
-                <p class="eyebrow">{{ uiText.notifications }}</p>
-                <h3>{{ uiText.notifications }}</h3>
-                <p class="panel-subtitle">Choose how you get booking alerts.</p>
-              </div>
-            </div>
-            <div class="settings-mini-grid">
-              <article class="settings-mini-card">
-                <small>{{ uiText.notifyEmail }}</small>
-                <strong>{{ settingsForm.notifyEmail ? "On" : "Off" }}</strong>
-              </article>
-              <article class="settings-mini-card">
-                <small>{{ uiText.notifySms }}</small>
-                <strong>{{ settingsForm.notifySms ? "On" : "Off" }}</strong>
-              </article>
-              <article class="settings-mini-card">
-                <small>{{ uiText.quietHours }}</small>
-                <strong>{{ quietHoursStatusLabel }}</strong>
-              </article>
-            </div>
-            <div class="grid-2">
-              <label class="field compact checkbox-row">
-                <input type="checkbox" v-model="settingsForm.notifyEmail" />
-                <span>{{ uiText.notifyEmail }}</span>
-              </label>
-              <label class="field compact checkbox-row">
-                <input type="checkbox" v-model="settingsForm.notifySms" />
-                <span>{{ uiText.notifySms }}</span>
-              </label>
-              <label class="field compact">
-                <span>{{ uiText.quietStart }}</span>
-                <input type="time" v-model="settingsForm.quietHoursStart" />
-              </label>
-              <label class="field compact">
-                <span>{{ uiText.quietEnd }}</span>
-                <input type="time" v-model="settingsForm.quietHoursEnd" />
-              </label>
-            </div>
-          </article>
-
           <article class="settings-card settings-card--slate account-card">
             <div class="settings-card-head">
               <div>
@@ -2952,8 +2910,8 @@ watch(
     sans-serif;
   width: auto;
   gap: 0;
-  height: 100vh;
   align-items: stretch;
+  overflow-x: hidden;
 }
 
 .vendor-dashboard::after {
@@ -3281,10 +3239,9 @@ watch(
   z-index: 1;
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
 }
 
 .panel,
@@ -3739,7 +3696,7 @@ watch(
 
 .settings-mini-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -5764,9 +5721,9 @@ watch(
   .vendor-dashboard {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
@@ -5778,7 +5735,7 @@ watch(
   }
 
   .main-panel {
-    overflow: auto;
+    overflow: visible;
     padding: 18px;
   }
 
