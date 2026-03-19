@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { apiGet, apiPatch } from '../features/apiClient'
 import { useLanguage } from '../features/language'
@@ -34,10 +34,11 @@ const copyByLanguage = {
     packages: 'Packages',
     overallService: 'Overall Service',
     dashboard: 'Dashboard',
-    myBooking: 'My Booking',
+    myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
-    searchPlaceholder: 'Search bookings...',
+    searchBookings: 'Search bookings...',
+    searchServices: 'Search services...',
     notificationsAria: 'Open booking notifications',
     bookingNotifications: 'Booking Notifications',
     markAll: 'Mark all',
@@ -63,7 +64,8 @@ const copyByLanguage = {
     myBooking: 'ការកក់របស់ខ្ញុំ',
     favorite: 'ចូលចិត្ត',
     contact: 'ទំនាក់ទំនង',
-    searchPlaceholder: 'ស្វែងរកការកក់...',
+    searchBookings: 'ស្វែងរកការកក់...',
+    searchServices: 'ស្វែងរកសេវាកម្ម...',
     notificationsAria: 'បើកការជូនដំណឹងការកក់',
     bookingNotifications: 'ការជូនដំណឹងការកក់',
     markAll: 'សម្គាល់អានទាំងអស់',
@@ -85,7 +87,8 @@ const copyByLanguage = {
     myBooking: '我的预订',
     favorite: '收藏',
     contact: '联系',
-    searchPlaceholder: '搜索预订...',
+    searchBookings: '搜索预订...',
+    searchServices: '搜索服务...',
     notificationsAria: '打开预订通知',
     bookingNotifications: '预订通知',
     markAll: '全部已读',
@@ -133,18 +136,34 @@ function guardSearchAutofill() {
   }, NAV_SEARCH_AUTOFILL_GUARD_DELAY_MS)
 }
 
+function syncSearchFieldValue() {
+  if (route.path === '/legacy-app') {
+    const storedSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
+    navSearch.value = typeof storedSearch === 'string' ? storedSearch : ''
+  } else {
+    const routeQuery = route.query?.q
+    navSearch.value = typeof routeQuery === 'string' ? routeQuery : ''
+  }
+  clearAutofilledSearchValue()
+}
+
 function runSearch() {
   const query = navSearch.value.trim()
-  if (query) {
-    sessionStorage.setItem(GLOBAL_SEARCH_SESSION_KEY, query)
-  } else {
-    sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+  if (route.path === '/legacy-app') {
+    if (query) {
+      sessionStorage.setItem(GLOBAL_SEARCH_SESSION_KEY, query)
+    } else {
+      sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+    }
+    window.dispatchEvent(new Event('achar:global-search-updated'))
+    return
   }
-  window.dispatchEvent(new Event('achar:global-search-updated'))
-  if (route.path !== '/legacy-app') {
-    const role = String(currentUser.value?.role || '').trim().toLowerCase()
-    router.push(role === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
-  }
+
+  const targetPath = route.path === '/services/overall' ? '/services/overall' : '/services/packages'
+  router.push({
+    path: targetPath,
+    query: query ? { q: query } : {},
+  }).catch(() => {})
 }
 
 function notificationRole(role) {
@@ -345,6 +364,7 @@ const isVendorDashboardActive = computed(
   () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isVendorRole.value,
 )
 const isProfileActive = computed(() => route.path === '/legacy-app' && legacyPage.value === 'profile')
+const isBookingSearchContext = computed(() => route.path === '/legacy-app' && legacyPage.value === 'bookings')
 const isBookingActive = computed(
   () =>
     route.path === '/booking' ||
@@ -352,9 +372,22 @@ const isBookingActive = computed(
 )
 const isFavoriteActive = computed(() => route.path === '/favorite')
 const isContactActive = computed(() => route.path === '/contact')
+const navSearchPlaceholder = computed(() =>
+  isBookingSearchContext.value ? uiText.value.searchBookings : uiText.value.searchServices,
+)
+
+watch(
+  [() => route.fullPath, isLoggedIn, () => currentUser.value?.email || ''],
+  () => {
+    syncSearchFieldValue()
+    guardSearchAutofill()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   refreshAuthState()
+  syncSearchFieldValue()
   guardSearchAutofill()
   refreshFavoriteCount()
   if (isLoggedIn.value) {
@@ -442,15 +475,17 @@ const bookingLink = computed(() => {
           v-model="navSearch"
           type="search"
           class="nav-search"
-          name="booking-search"
-          :placeholder="uiText.searchPlaceholder"
-          autocomplete="off"
+          name="global-service-search"
+          :placeholder="navSearchPlaceholder"
+          autocomplete="new-password"
           autocapitalize="none"
           autocorrect="off"
           spellcheck="false"
           inputmode="search"
           enterkeyhint="search"
+          data-lpignore="true"
           @focus="clearAutofilledSearchValue"
+          @input="guardSearchAutofill"
           @keyup.enter="runSearch"
         />
         <div v-if="isLoggedIn" ref="notificationMenuRef" class="notification-wrap">

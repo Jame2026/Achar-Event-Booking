@@ -1,11 +1,12 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
   'bindings',
   'eventTypeOptions',
   'notice',
+  'isGuest',
   'isLoadingBookings',
   'filteredBookings',
   'goToDashboard',
@@ -25,7 +26,18 @@ const copyByLanguage = {
     completed: 'Completed',
     drafts: 'Drafts',
     loading: 'Loading bookings from API...',
+    signIn: 'Sign in',
+    browseVendors: 'Browse vendors',
+    resetFilters: 'Reset filters',
+    emptyTitle: 'No bookings yet',
     empty: 'No bookings found for this filter. Use your email on vendor page and click "Load My Bookings".',
+    searchPlaceholder: 'Search bookings (vendor, service, status)...',
+    clearSearch: 'Clear',
+    showing: 'Showing',
+    totalValue: 'Total value',
+    nextUp: 'Next',
+    noResultsTitle: 'No matches',
+    noResults: 'Try clearing search or adjusting filters.',
     date: 'Date',
     chatVendor: 'Chat Vendor',
   },
@@ -56,21 +68,76 @@ const copyByLanguage = {
 }
 
 const { uiText } = useLanguageCopy(copyByLanguage)
+const t = computed(() => ({ ...copyByLanguage.en, ...(uiText.value || {}) }))
 const filterTabs = computed(() => [
-  { value: 'Upcoming', label: uiText.value.upcoming },
-  { value: 'Completed', label: uiText.value.completed },
-  { value: 'Drafts', label: uiText.value.drafts },
+  { value: 'Upcoming', label: t.value.upcoming },
+  { value: 'Completed', label: t.value.completed },
+  { value: 'Drafts', label: t.value.drafts },
 ])
+
+const searchQuery = ref('')
+const baseBookings = computed(() => (Array.isArray(props.filteredBookings) ? props.filteredBookings : []))
+const visibleBookings = computed(() => {
+  const q = String(searchQuery.value || '').trim().toLowerCase()
+  if (!q) return baseBookings.value
+  return baseBookings.value.filter((item) => {
+    const haystack = [
+      item?.vendor,
+      item?.service,
+      item?.status,
+      item?.metaValue,
+      item?.placeValue,
+      item?.note,
+    ]
+      .map((value) => String(value || '').toLowerCase())
+      .join(' | ')
+    return haystack.includes(q)
+  })
+})
+
+const visibleTotalValue = computed(() =>
+  visibleBookings.value.reduce((sum, item) => sum + Number(item?.servicePrice || 0), 0),
+)
+
+const nextBookingLabel = computed(() => {
+  const dates = visibleBookings.value
+    .map((item) => {
+      const parsed = new Date(String(item?.date || ''))
+      return Number.isNaN(parsed.getTime()) ? null : parsed
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  if (!dates.length) return ''
+  return dates[0].toLocaleDateString(undefined, { month: 'short', day: '2-digit' })
+})
+
+function formatMoney(value) {
+  const num = Number(value || 0)
+  if (!Number.isFinite(num)) return '$0'
+  const abs = Math.abs(num)
+  const hasCents = Math.round(abs * 100) % 100 !== 0
+  return `$${num.toLocaleString(undefined, {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function resetFilters() {
+  props.bindings.bookingFilter.value = 'Upcoming'
+  props.bindings.bookingEventTypeFilter.value = 'all'
+  searchQuery.value = ''
+}
 </script>
 
 <template>
   <main class="shell bookings-page">
-    <div class="breadcrumbs">{{ uiText.breadcrumbs }}</div>
+    <div class="breadcrumbs">{{ t.breadcrumbs }}</div>
 
     <section class="bookings-head">
       <div>
-        <h1>{{ uiText.title }}</h1>
-        <p>{{ uiText.subtitle }}</p>
+        <h1>{{ t.title }}</h1>
+        <p>{{ t.subtitle }}</p>
       </div>
       <div class="booking-filter-wrap">
         <div class="booking-filter">
@@ -96,16 +163,130 @@ const filterTabs = computed(() => [
       </div>
     </section>
 
-    <p v-if="props.notice" class="notice">{{ props.notice }}</p>
+    <section v-if="props.notice" class="bookings-callout">
+      <div class="bookings-callout-main">
+        <div class="bookings-callout-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 8.25v5.25m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <div class="bookings-callout-text">
+          <p class="bookings-callout-message">{{ props.notice }}</p>
+        </div>
+      </div>
+
+      <div v-if="props.isGuest" class="bookings-callout-actions">
+        <button type="button" class="bookings-btn-primary" @click="props.goToProfile()">{{ t.signIn }}</button>
+        <button type="button" class="bookings-btn-secondary" @click="props.goToVendor()">{{ t.browseVendors }}</button>
+      </div>
+    </section>
+
+    <section v-if="props.isLoadingBookings || baseBookings.length" class="bookings-tools card">
+      <div class="bookings-search">
+        <div class="bookings-search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path
+              d="M21 21l-4.3-4.3m1.8-5.2a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <input v-model="searchQuery" type="search" :placeholder="t.searchPlaceholder" />
+        <button v-if="searchQuery" type="button" class="bookings-clear" @click="searchQuery = ''">
+          {{ t.clearSearch }}
+        </button>
+      </div>
+
+      <div class="bookings-kpis">
+        <div class="bookings-kpi">
+          <small>{{ t.showing }}</small>
+          <strong>{{ visibleBookings.length }}</strong>
+        </div>
+        <div class="bookings-kpi">
+          <small>{{ t.totalValue }}</small>
+          <strong>{{ formatMoney(visibleTotalValue) }}</strong>
+        </div>
+        <div v-if="nextBookingLabel" class="bookings-kpi">
+          <small>{{ t.nextUp }}</small>
+          <strong>{{ nextBookingLabel }}</strong>
+        </div>
+      </div>
+    </section>
 
     <section>
       <div class="booking-list">
-        <div v-if="props.isLoadingBookings" class="card empty-state">{{ uiText.loading }}</div>
-        <div v-else-if="props.filteredBookings.length === 0" class="card empty-state">
-          {{ uiText.empty }}
+        <div v-if="props.isLoadingBookings" class="card empty-state">{{ t.loading }}</div>
+        <div v-else-if="baseBookings.length === 0" class="bookings-empty card">
+          <div class="bookings-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M7 4h10a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+              <path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="bookings-empty-body">
+            <h3>{{ t.emptyTitle }}</h3>
+            <p>{{ t.empty }}</p>
+            <div class="bookings-empty-actions">
+              <button
+                v-if="props.isGuest && !props.notice"
+                type="button"
+                class="bookings-btn-primary"
+                @click="props.goToProfile()"
+              >
+                {{ t.signIn }}
+              </button>
+              <button
+                v-if="props.isGuest"
+                type="button"
+                class="bookings-btn-secondary"
+                @click="props.goToVendor()"
+              >
+                {{ t.browseVendors }}
+              </button>
+              <button v-else type="button" class="bookings-btn-primary" @click="props.goToVendor()">
+                {{ t.browseVendors }}
+              </button>
+              <button type="button" class="bookings-btn-secondary" @click="resetFilters">{{ t.resetFilters }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="visibleBookings.length === 0" class="bookings-empty card">
+          <div class="bookings-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M21 21l-4.3-4.3m1.8-5.2a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div class="bookings-empty-body">
+            <h3>{{ t.noResultsTitle }}</h3>
+            <p>{{ t.noResults }}</p>
+            <div class="bookings-empty-actions">
+              <button type="button" class="bookings-btn-primary" @click="searchQuery = ''">{{ t.clearSearch }}</button>
+              <button type="button" class="bookings-btn-secondary" @click="resetFilters">{{ t.resetFilters }}</button>
+            </div>
+          </div>
         </div>
 
-        <article v-for="item in props.filteredBookings" :key="item.id" class="booking-card card">
+        <article v-for="item in visibleBookings" :key="item.id" class="booking-card card">
           <img :src="item.image" :alt="item.vendor" />
           <div class="booking-body">
             <div class="booking-row">
@@ -118,7 +299,7 @@ const filterTabs = computed(() => [
 
             <div class="booking-meta">
               <div>
-                <small>{{ uiText.date }}</small>
+                <small>{{ t.date }}</small>
                 <strong>{{ item.date }}</strong>
               </div>
               <div>

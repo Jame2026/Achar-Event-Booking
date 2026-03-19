@@ -1,15 +1,17 @@
 ﻿<script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useLanguage } from '../features/language'
 
 const appLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
+const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const currentUser = ref(null)
 const bankLogoError = ref({})
 
 const bankPartners = [
   {
     name: 'ABA Pay',
-    logo: '/ABA.png',
+    logo: '/aba-app.png',
   },
   {
     name: 'Wing Bank',
@@ -37,7 +39,8 @@ const copyByLanguage = {
     home: 'Home',
     about: 'About',
     service: 'Service',
-    myBooking: 'My Booking',
+    dashboard: 'Dashboard',
+    myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
     paymentPartners: 'Payment Partners',
@@ -60,6 +63,7 @@ const copyByLanguage = {
     home: 'ទំព័រដើម',
     about: 'អំពី',
     service: 'សេវាកម្ម',
+    dashboard: 'ផ្ទាំងគ្រប់គ្រង',
     myBooking: 'ការកក់របស់ខ្ញុំ',
     favorite: 'ចូលចិត្ត',
     contact: 'ទាក់ទង',
@@ -83,6 +87,7 @@ const copyByLanguage = {
     home: '首页',
     about: '关于',
     service: '服务',
+    dashboard: '控制台',
     myBooking: '我的预订',
     favorite: '收藏',
     contact: '联系',
@@ -99,6 +104,9 @@ const copyByLanguage = {
 }
 
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en)
+const isVendorRole = computed(
+  () => String(currentUser.value?.role || '').trim().toLowerCase() === 'vendor',
+)
 
 function onAppLogoError() {
   appLogoSrc.value = '/favicon.ico'
@@ -110,6 +118,34 @@ function onBankLogoError(name) {
     [name]: true,
   }
 }
+
+function refreshAuthState() {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY)
+    currentUser.value = raw ? JSON.parse(raw) : null
+  } catch {
+    currentUser.value = null
+  }
+}
+
+function onAuthUpdated() {
+  refreshAuthState()
+}
+
+function onStorage(event) {
+  if (event.key === AUTH_USER_STORAGE_KEY) refreshAuthState()
+}
+
+onMounted(() => {
+  refreshAuthState()
+  window.addEventListener('achar:auth-updated', onAuthUpdated)
+  window.addEventListener('storage', onStorage)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('achar:auth-updated', onAuthUpdated)
+  window.removeEventListener('storage', onStorage)
+})
 </script>
 
 <template>
@@ -136,7 +172,9 @@ function onBankLogoError(name) {
           <RouterLink to="/">{{ uiText.home }}</RouterLink>
           <RouterLink to="/about">{{ uiText.about }}</RouterLink>
           <RouterLink to="/services/packages">{{ uiText.service }}</RouterLink>
-          <RouterLink to="/booking">{{ uiText.myBooking }}</RouterLink>
+          <RouterLink :to="isVendorRole ? '/legacy-app?page=dashboard' : '/booking'">
+            {{ isVendorRole ? uiText.dashboard : uiText.myBooking }}
+          </RouterLink>
           <RouterLink to="/favorite">{{ uiText.favorite }}</RouterLink>
           <RouterLink to="/contact">{{ uiText.contact }}</RouterLink>
         </nav>
@@ -145,23 +183,25 @@ function onBankLogoError(name) {
       <div class="links-col">
         <h4>{{ uiText.paymentPartners }}</h4>
         <p class="muted">{{ uiText.paymentBody }}</p>
-        <div class="payments">
-          <div v-for="bank in bankPartners" :key="bank.name" class="payment-card">
-            <div class="payment-link">
-              <img
-                v-if="!bankLogoError[bank.name]"
-                class="payment-logo"
-                :src="bank.logo"
-                :alt="`${bank.name} logo`"
-                loading="lazy"
-                @error="onBankLogoError(bank.name)"
-              />
-              <div v-else class="payment-logo-placeholder"></div>
-              <span class="payment-name">{{ bank.name }}</span>
+          <div class="payments">
+            <div v-for="bank in bankPartners" :key="bank.name" class="payment-card">
+              <div class="payment-link">
+                <div class="payment-logo-wrap" aria-hidden="true">
+                  <img
+                    v-if="!bankLogoError[bank.name]"
+                    class="payment-logo"
+                    :src="bank.logo"
+                    :alt="`${bank.name} logo`"
+                    loading="lazy"
+                    @error="onBankLogoError(bank.name)"
+                  />
+                  <div v-else class="payment-logo-placeholder"></div>
+                </div>
+                <span class="payment-name">{{ bank.name }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
       <div class="links-col">
         <h4>{{ uiText.vendorPartnership }}</h4>
@@ -185,34 +225,40 @@ function onBankLogoError(name) {
 
 <style scoped>
 .site-footer {
-  margin-top: 24px;
-  border-top: 1px solid #d9e2ef;
+  position: relative;
+  margin-top: 28px;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
   background:
-    radial-gradient(circle at top right, rgba(255, 106, 0, 0.08), transparent 36%),
-    linear-gradient(180deg, #ffffff, #f7faff);
+    radial-gradient(circle at 15% 5%, rgba(251, 146, 60, 0.12), transparent 38%),
+    radial-gradient(circle at 85% 0%, rgba(59, 130, 246, 0.08), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 70%, #f1f5f9 100%);
 }
 
 .footer-main {
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr 1fr;
-  gap: 18px;
-  padding: 26px 0 18px;
+  gap: 22px;
+  padding: 30px 0 20px;
+  align-items: start;
 }
 
 .brand-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .brand-logo {
-  width: 96px;
-  height: 96px;
-  border-radius: 10px;
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
   object-fit: cover;
-  border: 1px solid #e5ebf4;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   background: #fff;
+  box-shadow:
+    0 14px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .brand-col h3 {
@@ -226,6 +272,8 @@ function onBankLogoError(name) {
   margin: 2px 0 0;
   font-size: 12px;
   color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .brand-col p {
@@ -244,19 +292,21 @@ function onBankLogoError(name) {
 }
 
 .pill {
-  border: 1px solid #ffcfb0;
-  background: #fff6ef;
+  border: 1px solid rgba(251, 146, 60, 0.4);
+  background: rgba(255, 247, 237, 0.85);
   color: #c2410c;
   border-radius: 999px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
 }
 
 .links-col h4 {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: #334155;
-  font-size: 20px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 .nav-links {
@@ -266,14 +316,14 @@ function onBankLogoError(name) {
 
 .nav-links a {
   color: #64748b;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   text-decoration: none;
 }
 
 .nav-links a:hover,
 .nav-links a.router-link-active {
-  color: #c2410c;
+  color: #ea580c;
 }
 
 .muted {
@@ -287,58 +337,88 @@ function onBankLogoError(name) {
   margin-top: 10px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 6px;
+  gap: 10px;
+  justify-items: center;
 }
 
 .payment-card {
-  border: 1px solid #cbe0f1;
+  width: 100%;
+  max-width: 320px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 16px;
-  background: linear-gradient(135deg, #fff7ef, #fff);
-  padding: 14px 18px;
-  min-height: 56px;
-  display: flex;
+  background: #ffffff;
+  padding: 10px 14px;
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 52px 1fr;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+  gap: 12px;
 
   /* smooth effect */
   transition: all 0.25s ease;
 
   /* light shadow */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 
   cursor: pointer;
+  overflow: hidden;
 }
 
 .payment-card:hover {
-  border-color: #c2410c;
-  background-color: #fff7ed;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: rgba(251, 146, 60, 0.6);
+  background:
+    linear-gradient(120deg, rgba(255, 247, 237, 0.95), rgba(255, 255, 255, 0.95));
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, 0.12),
+    0 6px 14px rgba(15, 23, 42, 0.08);
   transform: translateY(-2px);
 }
 
 
 .payment-link {
   width: 100%;
-  display: flex;
+  display: contents;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
   text-decoration: none;
 }
 
+.payment-name {
+  display: block;
+  margin: 0;
+  line-height: 1.2;
+}
+
 .payment-logo {
-  width: 88px;
-  height: 52px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   flex: 0 0 auto;
+  transform: scale(1);
+  transform-origin: center;
+}
+
+.payment-logo-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  overflow: hidden;
 }
 
 .payment-logo-placeholder {
-  width: 42px;
-  height: 26px;
+  width: 100%;
+  height: 100%;
   border: 1px dashed #cbd5e1;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #f8fafc;
 }
 
@@ -346,20 +426,21 @@ function onBankLogoError(name) {
   color: #334155;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .partner-link {
   display: inline-block;
   margin-top: 10px;
-  color: #c2410c;
+  color: #ea580c;
   font-size: 13px;
   text-decoration: none;
   font-weight: 600;
 }
 
 .footer-bottom {
-  border-top: 1px solid #e5ebf4;
-  padding: 12px 0 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 14px 0 18px;
   color: #64748b;
   font-size: 12px;
   display: flex;

@@ -73,6 +73,7 @@ Route::get('events/{event}/availability', [BookingController::class, 'availabili
 Route::get('events/{event}/availability-calendar', [BookingController::class, 'availabilityCalendar']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
+Route::post('bookings/{booking}/confirm-payment', [BookingController::class, 'confirmPayment']);
 Route::get('notifications/bookings', [NotificationController::class, 'index']);
 Route::patch('notifications/bookings/read-all', [NotificationController::class, 'markAllRead']);
 Route::patch('notifications/bookings/{notification}/read', [NotificationController::class, 'markRead']);
