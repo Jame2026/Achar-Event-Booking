@@ -39,6 +39,7 @@ const copyByLanguage = {
     noResultsTitle: 'No matches',
     noResults: 'Try clearing search or adjusting filters.',
     date: 'Date',
+    chatVendor: 'Chat Vendor',
   },
   km: {
     breadcrumbs: 'ទំព័រដើម > ការកក់របស់ខ្ញុំ',
@@ -50,6 +51,7 @@ const copyByLanguage = {
     loading: 'កំពុងផ្ទុកការកក់ពី API...',
     empty: 'រកមិនឃើញការកក់សម្រាប់តម្រងនេះទេ។ ប្រើអ៊ីមែលរបស់អ្នកនៅទំព័រអ្នកផ្គត់ផ្គង់ ហើយចុច "ផ្ទុកការកក់របស់ខ្ញុំ"។',
     date: 'កាលបរិច្ឆេទ',
+    chatVendor: 'ជជែកជាមួយអ្នកផ្គត់ផ្គង់',
   },
   zh: {
     breadcrumbs: '首页 > 我的预订',
@@ -61,6 +63,7 @@ const copyByLanguage = {
     loading: '正在从 API 加载预订...',
     empty: '当前筛选条件下没有预订。请在商家页面使用您的邮箱并点击“加载我的预订”。',
     date: '日期',
+    chatVendor: '联系商家',
   },
 }
 
@@ -312,6 +315,14 @@ function resetFilters() {
             <div class="booking-actions">
               <p>{{ item.note }}</p>
               <div>
+                <button
+                  v-if="item.primaryBtn !== 'Message Vendor'"
+                  type="button"
+                  class="ghost"
+                  @click="props.goToMessages({ vendorId: item.vendorId, vendorName: item.vendor, vendorEmail: item.vendorEmail, serviceName: item.service, eventId: item.eventId })"
+                >
+                  {{ uiText.chatVendor }}
+                </button>
                 <button type="button" class="ghost" @click="props.bookingSecondaryAction(item)">{{ item.secondaryBtn }}</button>
                 <button
                   type="button"

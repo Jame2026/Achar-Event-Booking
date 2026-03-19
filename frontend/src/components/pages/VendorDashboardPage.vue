@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import MessagesPage from "./MessagesPage.vue";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
@@ -17,11 +18,23 @@ const props = defineProps([
   "vendorServiceNotice",
   "vendorIncome",
   "messagesSummary",
+  "messagesBindings",
+  "filteredConversations",
+  "activeConversation",
+  "selectConversation",
+  "sendMessage",
+  "sendFiles",
+  "sendLocation",
+  "isSharingLocation",
+  "saveDocument",
+  "deleteMessage",
+  "isLoadingMessages",
+  "messagesError",
+  "loadVendorConversations",
   "submitVendorService",
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
-  "goToMessages",
   "logoutUser",
 ]);
 
@@ -30,12 +43,19 @@ const emit = defineEmits(["update:activeTab"]);
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
+<<<<<<< HEAD
 const serviceMode = ref(
   props.vendorServiceForm?.service_mode === "package" ? "package" : "overall",
+=======
+const hasMessagesPanel = computed(
+  () => props.messagesBindings && Array.isArray(props.filteredConversations),
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
 );
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
+const activeBookingDetail = ref(null);
+const isBookingDetailOpen = ref(false);
 const copyByLanguage = {
   en: {
     overview: "Overview",
@@ -102,9 +122,9 @@ const copyByLanguage = {
     newBookingRequests: "New Booking Requests",
     loadingBookings: "Loading bookings...",
     customerMessages: "Customer Messages",
-    openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -124,6 +144,22 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
+=======
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -190,9 +226,9 @@ const copyByLanguage = {
     newBookingRequests: "សំណើកក់ថ្មី",
     loadingBookings: "កំពុងផ្ទុកការកក់...",
     customerMessages: "សារអតិថិជន",
-    openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
+<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -212,6 +248,22 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
+=======
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
   zh: {
     overview: "概览",
@@ -277,9 +329,9 @@ const copyByLanguage = {
     newBookingRequests: "新的预订请求",
     loadingBookings: "正在加载预订...",
     customerMessages: "客户消息",
-    openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
+<<<<<<< HEAD
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -299,6 +351,22 @@ const copyByLanguage = {
     checklistPricing: "Price and capacity set",
     checklistMedia: "Cover photo uploaded",
     checklistPayment: "Payment QR added",
+=======
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -320,6 +388,31 @@ const safeVendorEvents = computed(() =>
 const safeVendorBookings = computed(() =>
   Array.isArray(props.vendorBookings) ? props.vendorBookings : [],
 );
+const bookingDetail = computed(() => activeBookingDetail.value || {});
+const bookingDetailLocation = computed(() => {
+  const detail = bookingDetail.value;
+  return String(detail.event_location || detail.customer_location || "").trim();
+});
+const bookingItems = computed(() =>
+  Array.isArray(bookingDetail.value.booked_items)
+    ? bookingDetail.value.booked_items
+    : [],
+);
+const customerEmailLink = computed(() => {
+  const email = String(bookingDetail.value.customer_email || "").trim();
+  return email ? `mailto:${email}` : "";
+});
+const customerPhoneLink = computed(() => {
+  const phone = String(bookingDetail.value.customer_phone || "").trim();
+  if (!phone) return "";
+  return `tel:${phone.replace(/\s+/g, "")}`;
+});
+const bookingDirectionsUrl = computed(() => {
+  if (!bookingDetailLocation.value) return "";
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    bookingDetailLocation.value,
+  )}`;
+});
 const navItems = computed(() => [
   { key: "overview", label: uiText.value.overview },
   {
@@ -445,12 +538,24 @@ const showIncomeDots = computed(
 );
 const incomeLabelStep = computed(() => {
   const count = activeIncomePoints.value.length;
+  if (incomePeriod.value === "month") return 1;
   if (count <= 8) return 1;
   if (count <= 16) return 2;
   if (count <= 24) return 3;
   if (count <= 32) return 4;
   return Math.max(5, Math.ceil(count / 8));
 });
+const isMonthIncomePeriod = computed(() => incomePeriod.value === "month");
+const chartShellMinWidth = computed(() => {
+  if (!isMonthIncomePeriod.value) return "";
+  const count = activeIncomePoints.value.length;
+  if (!count) return "";
+  return `${Math.max(560, count * 56)}px`;
+});
+const isChartScrollable = computed(() => Boolean(chartShellMinWidth.value));
+const chartShellStyle = computed(() =>
+  isChartScrollable.value ? { minWidth: chartShellMinWidth.value } : null,
+);
 const chartHoverIndex = ref(-1);
 const chartHoverPoint = computed(() => {
   const points = normalizedIncomeChartPoints.value;
@@ -549,6 +654,7 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+<<<<<<< HEAD
 const hasServiceTitle = computed(() =>
   Boolean(String(props.vendorServiceForm?.title || "").trim()),
 );
@@ -665,6 +771,16 @@ onUnmounted(() => {
   window.removeEventListener("click", handleEventTypeClickOutside);
 });
 
+=======
+function formatEventType(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -672,6 +788,16 @@ function setIncomePeriod(periodKey) {
 function setActiveTab(tabKey) {
   localActiveTab.value = tabKey;
   emit("update:activeTab", tabKey);
+}
+
+function openBookingDetail(item) {
+  activeBookingDetail.value = item || null;
+  isBookingDetailOpen.value = true;
+}
+
+function closeBookingDetail() {
+  isBookingDetailOpen.value = false;
+  activeBookingDetail.value = null;
 }
 
 function submitServiceForm() {
@@ -1011,13 +1137,6 @@ async function detectVendorLocation() {
   );
 }
 
-function openMessages() {
-  setActiveTab("messages");
-  if (typeof props.goToMessages === "function") {
-    props.goToMessages();
-  }
-}
-
 function bookingStatusClass(status) {
   const value = String(status || "").toLowerCase();
   if (value === "confirmed") return "ok";
@@ -1032,6 +1151,16 @@ watch(
       localActiveTab.value = value;
     }
   },
+);
+
+watch(
+  () => localActiveTab.value,
+  (tab) => {
+    if (tab === "messages" && typeof props.loadVendorConversations === "function") {
+      props.loadVendorConversations({ preserveSelection: true });
+    }
+  },
+  { immediate: true },
 );
 </script>
 
@@ -1257,15 +1386,6 @@ watch(
         >
           {{ uiText.logout }}
         </button>
-        <div class="vendor-card">
-          <span class="vendor-avatar">{{
-            (props.vendorDisplayName || "V").slice(0, 1).toUpperCase()
-          }}</span>
-          <div>
-            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
-            <small>{{ uiText.verifiedWorkspace }}</small>
-          </div>
-        </div>
       </div>
     </aside>
 
@@ -1277,7 +1397,6 @@ watch(
         <div class="dashboard-head-main">
           <div class="dash-meta-row">
             <span class="dash-pill">{{ uiText.dashboardEyebrow }}</span>
-            <span class="dash-pill">{{ uiText.verifiedWorkspace }}</span>
           </div>
           <div class="dash-title-row">
             <div class="dash-title-stack">
@@ -1313,27 +1432,6 @@ watch(
                 </svg>
               </span>
               {{ uiText.addNewService }}
-            </button>
-            <button
-              type="button"
-              class="primary-button header-action"
-              @click="openMessages"
-            >
-              <span class="action-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              {{ uiText.openMessages }}
             </button>
           </div>
         </div>
@@ -1511,8 +1609,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1521,6 +1623,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -1630,19 +1733,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -2239,7 +2343,10 @@ watch(
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'bookings'" class="panel tab-panel">
+      <section
+        v-show="localActiveTab === 'bookings'"
+        class="panel tab-panel booking-panel"
+      >
         <div class="panel-head">
           <div>
             <p class="eyebrow">{{ uiText.bookingRequests }}</p>
@@ -2386,17 +2493,25 @@ watch(
           No booking requests yet.
         </p>
         <table v-else class="table">
+          <colgroup>
+            <col style="width: 34%" />
+            <col style="width: 26%" />
+            <col style="width: 12%" />
+            <col style="width: 12%" />
+            <col style="width: 16%" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Service Name</th>
+              <th>Service</th>
               <th>Client</th>
-              <th>Date & Time</th>
+              <th>Date</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
+<<<<<<< HEAD
               <td>{{ item.service_name }}</td>
               <td>
                 <div class="client-cell">
@@ -2405,6 +2520,60 @@ watch(
                 </div>
               </td>
               <td>{{ item.date_label }}</td>
+=======
+              <td>
+                <div class="service-cell">
+                  <div class="service-thumb">
+                    <img
+                      v-if="item.event_image"
+                      :src="item.event_image"
+                      :alt="item.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (item.service_name || "S").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="service-meta">
+                    <strong>{{ item.service_name }}</strong>
+                    <span v-if="item.event_type" class="service-sub"
+                      >Type: {{ formatEventType(item.event_type) }}</span
+                    >
+                    <span v-if="item.event_location" class="service-sub"
+                      >Location: {{ item.event_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="client-cell">
+                  <div class="client-avatar">
+                    <img
+                      v-if="item.customer_avatar"
+                      :src="item.customer_avatar"
+                      :alt="item.customer_name || 'Customer'"
+                    />
+                    <span v-else>{{
+                      (item.customer_name || "C").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="client-details">
+                    <strong>{{ item.customer_name }}</strong>
+                    <span v-if="item.customer_email" class="client-meta">{{
+                      item.customer_email
+                    }}</span>
+                    <span v-if="item.customer_phone" class="client-meta">{{
+                      item.customer_phone
+                    }}</span>
+                    <span v-if="item.customer_location" class="client-meta"
+                      >Location: {{ item.customer_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="date-only">{{ item.date_label }}</span>
+              </td>
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
               <td>
                 <span
                   class="status-chip"
@@ -2413,16 +2582,24 @@ watch(
                   {{ item.status }}
                 </span>
               </td>
-              <td class="row-actions">
+              <td class="row-actions booking-actions">
                 <button
                   type="button"
+                  class="action-view"
+                  @click="openBookingDetail(item)"
+                >
+                  {{ uiText.viewDetails }}
+                </button>
+                <button
+                  type="button"
+                  class="action-confirm"
                   @click="props.updateVendorBookingStatus(item, 'confirmed')"
                 >
                   Confirm
                 </button>
                 <button
                   type="button"
-                  class="danger"
+                  class="action-cancel"
                   @click="props.updateVendorBookingStatus(item, 'cancelled')"
                 >
                   Cancel
@@ -2431,9 +2608,177 @@ watch(
             </tr>
           </tbody>
         </table>
+
+        <div
+          v-if="isBookingDetailOpen"
+          class="modal-backdrop"
+          @click.self="closeBookingDetail"
+        >
+          <div class="modal-card booking-detail-card">
+            <div class="booking-detail-head">
+              <div>
+                <p class="eyebrow">{{ uiText.bookingDetails }}</p>
+                <h3>{{ bookingDetail.service_name || uiText.bookingRequests }}</h3>
+                <p class="detail-subtitle">
+                  {{ bookingDetail.date_label || uiText.noData }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="secondary-button"
+                @click="closeBookingDetail"
+              >
+                {{ uiText.close }}
+              </button>
+            </div>
+
+            <div class="booking-detail-grid">
+              <section class="detail-block">
+                <h4>{{ uiText.serviceDetails }}</h4>
+                <div class="detail-service-card">
+                  <div class="detail-service-thumb">
+                    <img
+                      v-if="bookingDetail.event_image"
+                      :src="bookingDetail.event_image"
+                      :alt="bookingDetail.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (bookingDetail.service_name || "S")
+                        .slice(0, 1)
+                        .toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="detail-service-info">
+                    <strong>{{
+                      bookingDetail.service_name || uiText.bookingRequests
+                    }}</strong>
+                    <span
+                      v-if="
+                        bookingDetail.event_type || bookingDetail.requested_event_type
+                      "
+                    >
+                      Type:
+                      {{
+                        formatEventType(
+                          bookingDetail.event_type ||
+                            bookingDetail.requested_event_type,
+                        )
+                      }}
+                    </span>
+                    <span v-if="bookingDetail.event_location">
+                      {{ uiText.eventLocationLabel }}:
+                      {{ bookingDetail.event_location }}
+                    </span>
+                  </div>
+                </div>
+                <div class="detail-list">
+                  <div>
+                    <span>{{ uiText.dateLabel }}</span>
+                    <strong>{{ bookingDetail.date_label || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.statusLabel }}</span>
+                    <strong>
+                      <span
+                        class="status-chip"
+                        :class="bookingStatusClass(bookingDetail.status)"
+                      >
+                        {{ bookingDetail.status || uiText.noData }}
+                      </span>
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.quantityLabel }}</span>
+                    <strong>{{ bookingDetail.quantity || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.totalLabel }}</span>
+                    <strong>{{ formatCurrency(bookingDetail.total_amount) }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerDetails }}</h4>
+                <div class="detail-list">
+                  <div>
+                    <span>Name</span>
+                    <strong>{{ bookingDetail.customer_name || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>Email</span>
+                    <strong>{{
+                      bookingDetail.customer_email || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong>{{
+                      bookingDetail.customer_phone || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Customer Location</span>
+                    <strong>{{
+                      bookingDetail.customer_location || uiText.noData
+                    }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerContact }}</h4>
+                <div class="contact-actions">
+                  <a
+                    v-if="customerPhoneLink"
+                    class="secondary-button detail-link"
+                    :href="customerPhoneLink"
+                  >
+                    Call Customer
+                  </a>
+                  <a
+                    v-if="bookingDirectionsUrl"
+                    class="secondary-button detail-link"
+                    :href="bookingDirectionsUrl"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ uiText.getDirections }}
+                  </a>
+                  <p
+                    v-if="!customerEmailLink && !customerPhoneLink"
+                    class="contact-empty"
+                  >
+                    {{ uiText.noData }}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            <section class="detail-block detail-block-wide">
+              <h4>{{ uiText.bookedItems }}</h4>
+              <ul v-if="bookingItems.length" class="detail-items">
+                <li v-for="(item, index) in bookingItems" :key="index">
+                  <div>
+                    <strong>{{ item.name || item.type || "Item" }}</strong>
+                    <span v-if="item.description">{{ item.description }}</span>
+                  </div>
+                  <div class="detail-item-meta">
+                    <span v-if="item.qty">Qty: {{ item.qty }}</span>
+                    <span v-if="item.unitPrice">
+                      Unit: {{ formatCurrency(item.unitPrice) }}
+                    </span>
+                    <span v-if="item.totalPrice">
+                      Total: {{ formatCurrency(item.totalPrice) }}
+                    </span>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="contact-empty">{{ uiText.noItems }}</p>
+            </section>
+          </div>
+        </div>
       </section>
 
-      <section v-show="localActiveTab === 'messages'" class="panel tab-panel">
+      <section v-show="localActiveTab === 'messages'" class="tab-panel messages-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -2442,63 +2787,23 @@ watch(
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
 
-        <section class="stats-grid stats-grid-compact">
-          <article class="stat-card stat-orange">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Unread</small>
-            </div>
-            <strong>{{ safeMessagesSummary }}</strong>
-            <span>Messages to review</span>
-          </article>
-          <article class="stat-card stat-blue">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8 12h.01M12 12h.01M16 12h.01"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Inbox</small>
-            </div>
-            <strong>Open</strong>
-            <span>Customer conversations</span>
-          </article>
-        </section>
-
-        <p class="panel-copy">
-          Respond quickly to customer questions and booking confirmations.
-        </p>
-        <button type="button" class="primary-button" @click="openMessages">
-          {{ uiText.openMessages }}
-        </button>
+        <div v-if="hasMessagesPanel" class="messages-embed">
+          <MessagesPage
+            class="messages-embedded"
+            :bindings="props.messagesBindings"
+            :filtered-conversations="props.filteredConversations"
+            :active-conversation="props.activeConversation"
+            :select-conversation="props.selectConversation"
+            :send-message="props.sendMessage"
+            :send-files="props.sendFiles"
+            :send-location="props.sendLocation"
+            :is-sharing-location="props.isSharingLocation"
+            :save-document="props.saveDocument"
+            :delete-message="props.deleteMessage"
+            :is-loading-messages="props.isLoadingMessages"
+            :messages-error="props.messagesError"
+          />
+        </div>
       </section>
 
       <section v-show="localActiveTab === 'income'" class="income-layout">
@@ -2555,8 +2860,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -2565,6 +2874,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -2674,19 +2984,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`analytics-${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`analytics-${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -3083,54 +3394,6 @@ watch(
   box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
 }
 
-.vendor-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.9) 100%
-  );
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow:
-    0 4px 18px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
-
-.vendor-avatar {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
-  font-weight: 800;
-  font-size: 16px;
-  flex-shrink: 0;
-  border: 2px solid rgba(59, 130, 246, 0.22);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-}
-
-.vendor-card strong {
-  display: block;
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.vendor-card small {
-  display: block;
-  color: #94a3b8;
-  font-size: 11px;
-  margin-top: 2px;
-  font-weight: 500;
-}
-
 /* ─── Main Panel ──────────────────────────────────────────────── */
 .main-panel {
   display: grid;
@@ -3158,6 +3421,14 @@ watch(
     0 1px 0 rgba(255, 255, 255, 0.95) inset;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.booking-panel {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* ─── Dashboard Header ────────────────────────────────────────── */
@@ -3790,6 +4061,40 @@ watch(
   min-height: clamp(360px, 52vh, 560px);
 }
 
+.messages-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.messages-embed {
+  margin-top: 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:deep(.messages-page.messages-embedded) {
+  height: auto;
+}
+
+:deep(.messages-page.messages-embedded .messages-layout) {
+  min-height: 540px;
+}
+
+:deep(.messages-page.messages-embedded .messages-sidebar) {
+  border-right-color: rgba(148, 163, 184, 0.18);
+}
+
+:deep(.messages-page.messages-embedded .chat-panel) {
+  min-height: 540px;
+}
+
 .panel-wide {
   min-height: 360px;
 }
@@ -3940,6 +4245,19 @@ watch(
   overflow: visible;
 }
 
+.chart-shell-scroll {
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-shell-scroll.scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
 .chart-plot {
   position: relative;
   height: 220px;
@@ -3978,6 +4296,15 @@ watch(
   z-index: 1;
   touch-action: none;
   cursor: pointer;
+}
+
+.income-chart.scrollable {
+  touch-action: pan-x;
+  cursor: grab;
+}
+
+.income-chart.scrollable:active {
+  cursor: grabbing;
 }
 
 .income-area {
@@ -4052,6 +4379,7 @@ watch(
   stroke: #ffffff;
   stroke-width: 1.1;
 }
+
 
 .chart-labels {
   display: grid;
@@ -5255,13 +5583,15 @@ watch(
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  table-layout: fixed;
 }
 
 .table th,
 .table td {
   padding: 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 0;
   text-align: left;
 }
 
@@ -5285,6 +5615,202 @@ watch(
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.table td {
+  vertical-align: top;
+  background: #f8fafc;
+}
+
+.table thead th {
+  padding-bottom: 6px;
+}
+
+.table tbody tr {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.booking-panel .table td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.booking-panel .table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.table tbody tr td:first-child {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.table tbody tr td:last-child {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.client-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.client-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.client-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.client-details {
+  display: grid;
+  gap: 2px;
+}
+
+.client-details strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.client-meta {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 210px;
+}
+
+.service-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.service-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.service-meta strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.service-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-only {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.booking-actions {
+  display: flex !important;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.booking-actions button {
+  width: auto;
+  justify-content: center;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  border-radius: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.booking-actions .action-view {
+  background: rgba(255, 247, 237, 0.95);
+  color: #9a3412;
+  border: 1px solid rgba(234, 88, 12, 0.22);
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.booking-actions .action-view:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: rgba(234, 88, 12, 0.32);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-confirm {
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: #ffffff;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.22);
+}
+
+.booking-actions .action-confirm:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.3);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-cancel {
+  background: #ffffff;
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.08);
+}
+
+.booking-actions .action-cancel:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: rgba(220, 38, 38, 0.36);
+  transform: translateY(-1px);
 }
 
 .status-chip {
@@ -5322,13 +5848,284 @@ watch(
 }
 
 .modal-card {
-  width: min(880px, 100%);
+  width: min(680px, 100%);
   max-height: 90vh;
   overflow: auto;
-  padding: 22px;
-  border-radius: 24px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  margin-top: 72px;
   background: #fff;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.booking-detail-card {
+  display: grid;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  max-height: 82vh;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.96) 100%
+  );
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.booking-detail-card::before {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(
+    circle,
+    rgba(234, 88, 12, 0.18),
+    transparent 65%
+  );
+  filter: blur(10px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.booking-detail-card::after {
+  content: "";
+  position: absolute;
+  left: -140px;
+  bottom: -140px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.12),
+    transparent 70%
+  );
+  filter: blur(12px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.booking-detail-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.booking-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(234, 88, 12, 0.16);
+  background: rgba(255, 247, 237, 0.9);
+  box-shadow: 0 -8px 18px rgba(234, 88, 12, 0.08);
+  position: sticky;
+  bottom: 0;
+  top: auto;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.detail-subtitle {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.booking-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.detail-block {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+.detail-block::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.5), transparent);
+  opacity: 0.6;
+}
+
+.detail-block h4 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.detail-block p {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.detail-link {
+  width: fit-content;
+  padding: 0 10px;
+  min-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff7ed, #ffe8d8);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  color: #9a3412;
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.detail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.detail-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.detail-list span {
+  color: #94a3b8;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-list strong {
+  font-size: 13px;
+  color: #0f172a;
+  text-align: right;
+}
+
+.detail-block-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-service-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 250, 252, 0.95)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.detail-service-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.detail-service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-service-info {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-service-info strong {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.detail-service-info span {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.contact-actions {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+}
+
+.contact-empty {
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 0;
+}
+
+.detail-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.detail-items li {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.detail-items strong {
+  font-size: 13px;
+  color: #0f172a;
+  display: block;
+}
+
+.detail-items span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.detail-item-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1180px) {
@@ -5377,6 +6174,11 @@ watch(
 
   .panel-head {
     flex-direction: column;
+  }
+
+  .booking-detail-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .tab-panel {

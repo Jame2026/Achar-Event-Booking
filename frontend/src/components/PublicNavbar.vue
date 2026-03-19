@@ -364,10 +364,13 @@ const bookingLink = computed(() => {
 <template>
   <header class="public-nav-wrap">
     <div class="nav-shell">
-      <RouterLink class="brand" to="/">
-        <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
-        <span class="brand-name">Achar</span>
-      </RouterLink>
+        <RouterLink class="brand" to="/">
+          <span class="brand-logo-wrap">
+            <span class="brand-logo-ring" aria-hidden="true"></span>
+            <img class="brand-logo" :src="appLogoSrc" alt="Achar logo" @error="onLogoError" />
+          </span>
+          <span class="brand-name">Achar</span>
+        </RouterLink>
 
       <nav class="nav-links">
         <RouterLink to="/" :class="{ active: isHomeActive }">{{ uiText.home }}</RouterLink>
@@ -489,23 +492,24 @@ const bookingLink = computed(() => {
             </ul>
           </section>
         </div>
-        <button
-          v-if="isLoggedIn"
-          type="button"
-          class="profile-btn"
-          :title="String(currentUser?.name || 'Profile')"
-          @click="openProfile"
-        >
-          <img
-            v-if="String(currentUser?.profile_image_url || '').trim()"
-            class="profile-btn-img"
-            :src="currentUser.profile_image_url"
-            :alt="String(currentUser?.name || 'Profile image')"
-          />
-          <span v-else>
-            {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
-          </span>
-        </button>
+          <button
+            v-if="isLoggedIn"
+            type="button"
+            class="profile-btn profile-ring"
+            :title="String(currentUser?.name || 'Profile')"
+            @click="openProfile"
+          >
+            <span class="profile-ring-outer" aria-hidden="true"></span>
+            <img
+              v-if="String(currentUser?.profile_image_url || '').trim()"
+              class="profile-btn-img"
+              :src="currentUser.profile_image_url"
+              :alt="String(currentUser?.name || 'Profile image')"
+            />
+            <span v-else>
+              {{ String(currentUser?.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
+            </span>
+          </button>
         <RouterLink v-else class="signin-btn" to="/legacy-app">{{ uiText.signIn }}</RouterLink>
       </div>
     </div>
@@ -888,32 +892,84 @@ const bookingLink = computed(() => {
 }
 
 .profile-btn {
-  width: 46px;
-  height: 46px;
-  border: 2px solid #efc7a8;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff8f1 0%, #ffe9d2 100%);
-  color: #fff;
+  position: relative; /* needed for pseudo-element */
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(244, 210, 175, 0.6);
+  padding: 2px;
+
+  background: linear-gradient(180deg, #ffffff 0%, #fff6ed 100%);
+  color: #0f172a;
+
   font: inherit;
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.05rem;
+  font-weight: 700;
+
   cursor: pointer;
-  padding: 0;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(146, 64, 14, 0.18);
-  transition: all 0.2s ease;
+
+  /* softer, more realistic shadow */
+  box-shadow:
+    0 6px 16px rgba(15, 23, 42, 0.08),
+    0 10px 24px rgba(234, 88, 12, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  transition: all 0.25s ease;
 }
 
+/* inner surface */
+.profile-btn::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  z-index: 0;
+}
+
+/* subtle highlight ring */
+.profile-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.6),
+    transparent 60%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* hover interaction */
 .profile-btn:hover {
-  transform: translateY(-1px);
-  border-color: #e2ae82;
-  box-shadow: 0 12px 26px rgba(146, 64, 14, 0.24);
+  transform: translateY(-4px) scale(1.03);
+  border-color: rgba(226, 184, 143, 0.9);
+
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.12),
+    0 16px 32px rgba(234, 88, 12, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
+/* click feedback */
+.profile-btn:active {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow:
+    0 6px 12px rgba(15, 23, 42, 0.1),
+    inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* image */
 .profile-btn-img {
+  position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 .signin-btn {
@@ -925,6 +981,103 @@ const bookingLink = computed(() => {
   font-weight: 700;
   text-decoration: none;
   padding: 0.58rem 1rem;
+}
+
+/* Animated brand + profile rings */
+.brand {
+  gap: 0.85rem;
+}
+
+.brand-logo-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.brand-logo-ring {
+  position: absolute;
+  inset: -2px; /* slight overflow for glow edge */
+  border-radius: 20px;
+  
+  background: conic-gradient(
+    from 0deg,
+    #ff6a00,
+    #fbbf24,
+    #fb923c,
+    #ff6a00
+  );
+
+  /* smoother glow instead of heavy blur */
+  filter: blur(6px);
+  opacity: 0.7;
+
+  /* better performance animation */
+  animation: spinRing 6s linear infinite;
+
+  /* soft outer glow */
+  box-shadow:
+    0 0 12px rgba(255, 106, 0, 0.35),
+    0 0 24px rgba(251, 191, 36, 0.25);
+}
+
+/* optional inner mask for cleaner edge */
+.brand-logo-ring::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 16px;
+  background:  #fbbf24,; /* match your card background */
+}
+
+/* smooth rotation */
+@keyframes spinRing {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.brand-logo {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  padding: 0.36rem;
+  box-shadow:
+    0 10px 22px rgba(212, 102, 19, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  z-index: 1;
+}
+
+.profile-ring {
+  position: relative;
+  overflow: visible;
+}
+
+.profile-ring-outer {
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  background: conic-gradient(from 0deg, #ff6a00, #ffb347, #ff6a00);
+  filter: blur(3px);
+  opacity: 0.55;
+  animation: spinRing 5.5s linear infinite;
+  z-index: 0;
+}
+
+.profile-ring > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes spinRing {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 980px) {

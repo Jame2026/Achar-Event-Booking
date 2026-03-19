@@ -17,8 +17,9 @@ export function deriveBookingType(status, startsAt) {
 export function mapBooking(apiBooking, options) {
   const { vendorName, eventTypeMap } = options
   const event = apiBooking.event || {}
+  const vendor = event.vendor || {}
   const resolvedVendorName =
-    event.vendor?.name ||
+    vendor.name ||
     apiBooking.vendor_name ||
     vendorName ||
     'Selected Vendor'
@@ -49,6 +50,8 @@ export function mapBooking(apiBooking, options) {
     type,
     eventType: event.event_type || apiBooking.requested_event_type || 'other',
     eventId: event.id,
+    vendorId: event.vendor_id || vendor.id || null,
+    vendorEmail: vendor.email || apiBooking.vendor_email || '',
     image:
       event.image_url ||
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
@@ -64,6 +67,8 @@ export function mapEvent(apiEvent, eventTypeMap) {
   return {
     id: apiEvent.id,
     vendorId: apiEvent.vendor_id || null,
+    vendorName: apiEvent.vendor?.name || apiEvent.vendor_name || '',
+    vendorEmail: apiEvent.vendor?.email || apiEvent.vendor_email || '',
     title: apiEvent.title,
     eventType: apiEvent.event_type || 'other',
     eventTypeLabel: eventTypeMap[apiEvent.event_type] || 'Other',

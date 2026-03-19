@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
@@ -10,6 +10,32 @@ const { language } = useLanguage();
 const showAllEvents = ref(false);
 const showAllVendors = ref(false);
 const currentVendorIndex = ref(0);
+const activeStepIndex = ref(0);
+
+const stepIcons = {
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+  sliders: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`,
+  shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg>`,
+};
+const heroSlides = ref([
+  {
+    image: "/W1.png",
+    label: "Elegant ballroom",
+  },
+  {
+    image: "/RE12.png",
+    label: "Garden ceremony",
+  },
+  {
+    image: "/RE.png",
+    label: "Sunset vows",
+  },
+  {
+    image: "/W2.png",
+    label: "Classic hall",
+  },
+]);
+const activeHeroIndex = ref(0);
 
 const eventRows = ref([]);
 const dataLoadFailed = ref(false);
@@ -62,7 +88,7 @@ const copyByLanguage = {
     ctaTitle: "Ready to Plan Your Masterpiece?",
     ctaText: "Join planners and vendors on Achar. Start your journey today.",
     getStartedFree: "Get Started for Free",
-    listBusiness: "List Your Business",
+    // listBusiness: "Click",
     fallbackVendor: "Vendor",
     fallbackLocation: "Location TBD",
     fallbackEvent: "Special Event",
@@ -219,6 +245,41 @@ const copyByLanguage = {
 };
 
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
+const heroStyle = computed(() => {
+  const current = heroSlides.value[activeHeroIndex.value % heroSlides.value.length];
+  return {
+    backgroundImage: `linear-gradient(120deg, rgba(8, 12, 26, 0.36), rgba(8, 12, 26, 0.18)), url(${current?.image})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    backgroundColor: "#f6f7fb",
+  };
+});
+
+const setHero = (index) => {
+  const total = heroSlides.value.length;
+  activeHeroIndex.value = ((index % total) + total) % total;
+};
+
+const nextHero = () => setHero(activeHeroIndex.value + 1);
+const prevHero = () => setHero(activeHeroIndex.value - 1);
+
+let heroTimer;
+let vendorTimer;
+let stepTimer;
+
+const autoRotateVendors = () => {
+  if (showAllVendors.value) return;
+  if (currentVendorIndex.value + VENDOR_PAGE_SIZE >= vendors.value.length) {
+    currentVendorIndex.value = 0;
+  } else {
+    currentVendorIndex.value += VENDOR_PAGE_SIZE;
+  }
+};
+
+const autoHighlightStep = () => {
+  activeStepIndex.value = (activeStepIndex.value + 1) % steps.value.length;
+};
 
 const eventTypeLabelsByLanguage = {
   en: {
@@ -366,7 +427,7 @@ const steps = computed(() => [
         : language.value === "zh"
           ? "快速浏览可信服务并比较方案。"
           : "Browse trusted services and compare options fast.",
-    icon: "01",
+    iconSvg: stepIcons.search,
   },
   {
     title:
@@ -381,7 +442,7 @@ const steps = computed(() => [
         : language.value === "zh"
           ? "选择适合您活动与预算的组合。"
           : "Select package pieces that fit your event and budget.",
-    icon: "02",
+    iconSvg: stepIcons.sliders,
   },
   {
     title:
@@ -396,7 +457,7 @@ const steps = computed(() => [
         : language.value === "zh"
           ? "通过安全结账确认，并获得清晰状态更新。"
           : "Confirm with secure checkout and receive clear status updates.",
-    icon: "03",
+    iconSvg: stepIcons.shield,
   },
 ]);
 
@@ -561,14 +622,25 @@ async function loadHomeData() {
   }
 }
 
-onMounted(loadHomeData);
+onMounted(() => {
+  loadHomeData();
+  heroTimer = window.setInterval(nextHero, 7000);
+  vendorTimer = window.setInterval(autoRotateVendors, 8000);
+  stepTimer = window.setInterval(autoHighlightStep, 5000);
+});
+
+onBeforeUnmount(() => {
+  if (heroTimer) window.clearInterval(heroTimer);
+  if (vendorTimer) window.clearInterval(vendorTimer);
+  if (stepTimer) window.clearInterval(stepTimer);
+});
 </script>
 
 <template>
   <div class="home-page">
     <PublicNavbar />
 
-    <section class="hero">
+    <section class="hero" :style="heroStyle">
       <div class="hero__bg-shape"></div>
       <div class="hero__grid">
         <div class="hero__text">
@@ -583,6 +655,49 @@ onMounted(loadHomeData);
             <span>{{ uiText.exploreServices }}</span>
             <span class="hero-explore-icon" aria-hidden="true">-&gt;</span>
           </router-link>
+        </div>
+
+        <div class="hero__controls">
+          <div class="hero__nav">
+            <button type="button" class="hero__nav-btn" @click="prevHero" aria-label="Previous hero image">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button type="button" class="hero__nav-btn" @click="nextHero" aria-label="Next hero image">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="hero__thumbs" role="listbox" aria-label="Hero gallery">
+            <button
+              v-for="(slide, idx) in heroSlides"
+              :key="slide.image"
+              type="button"
+              class="hero__thumb"
+              :class="{ active: idx === activeHeroIndex }"
+              @click="setHero(idx)"
+              :aria-label="slide.label"
+              :aria-pressed="idx === activeHeroIndex"
+            >
+              <img :src="slide.image" :alt="slide.label" loading="lazy" />
+            </button>
+          </div>
+          <div class="hero__support-icons" aria-hidden="true">
+            <span class="support-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2l3 7 7 .5-5.5 4.8 1.8 7.2L12 17.8 5.7 21.5 7.5 14 2 9.5 9 9z" fill="currentColor"/></svg>
+              Trusted venues
+            </span>
+            <span class="support-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M3 11l9-9 9 9-9 9-9-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor"/></svg>
+              Vendors verified
+            </span>
+            <span class="support-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Easy booking
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -727,8 +842,13 @@ onMounted(loadHomeData);
         <h2>{{ uiText.stepsTitle }}</h2>
       </div>
       <div class="steps-grid">
-        <div class="step-card" v-for="(step, index) in steps" :key="step.title">
-          <div class="step-icon">{{ step.icon }}</div>
+        <div
+          class="step-card"
+          v-for="(step, index) in steps"
+          :key="step.title"
+          :class="{ active: index === activeStepIndex }"
+        >
+          <div class="step-icon" v-html="step.iconSvg"></div>
           <p class="step-index">0{{ index + 1 }}.</p>
           <p class="step-title">{{ step.title }}</p>
           <p class="step-text">{{ step.text }}</p>
@@ -768,8 +888,23 @@ onMounted(loadHomeData);
           {{ uiText.ctaText }}
         </p>
         <div class="cta-actions">
-          <router-link class="primary-btn large" to="/booking">{{ uiText.getStartedFree }}</router-link>
-          <router-link class="ghost-btn light large" to="/customization">{{ uiText.listBusiness }}</router-link>
+          <router-link class="primary-btn large cta-btn" to="/booking">
+            <span class="btn-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-3.8L6 21l1.5-7.5L2 9h7z"/>
+              </svg>
+            </span>
+            <span>{{ uiText.getStartedFree }}</span>
+          </router-link>
+          <router-link class="ghost-btn light large cta-btn" to="/customization">
+            <span class="btn-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/>
+                <path d="M9 22V12h6v10"/>
+              </svg>
+            </span>
+            <span>{{ uiText.listBusiness }}</span>
+          </router-link>
         </div>
       </div>
     </section>

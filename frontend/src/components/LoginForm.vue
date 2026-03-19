@@ -127,9 +127,10 @@ const submitLogin = async () => {
 </script>
 
 <template>
-  <section class="auth-shell auth-shell-form-only">
+  <section class="auth-shell auth-shell-login">
+    <div class="auth-visual auth-visual-login-panel" aria-hidden="true"></div>
 
-    <main class="auth-panel">
+    <main class="auth-panel auth-panel-login">
       <section class="auth-card">
         <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
 

@@ -190,8 +190,9 @@ const submitRegister = async () => {
 </script>
 
 <template>
-  <section class="auth-shell auth-shell-form-only">
-    <main class="auth-panel">
+  <section class="auth-shell auth-shell-register">
+    <div class="auth-visual auth-visual-register-panel" aria-hidden="true"></div>
+    <main class="auth-panel auth-panel-register">
       <section class="auth-card">
         <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
 

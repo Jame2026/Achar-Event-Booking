@@ -40,7 +40,13 @@ export function useCustomizationFeature({
         location: event.location || 'Location TBD',
         date: event.date || 'Date TBD',
         backingEventId: event.id || null,
+<<<<<<< HEAD
         qrCodeUrl: event.qrCodeUrl || '',
+=======
+        vendorId: event.vendorId || null,
+        vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
+>>>>>>> 87ca84ae8e7012ec69b564224e506bf551722ee0
       }))
   })
 
@@ -84,7 +90,9 @@ export function useCustomizationFeature({
         price: Number(event.price || 0),
         eventTypes: [event.eventType || 'other'],
         backingEventId: event.id || null,
+        vendorId: event.vendorId || null,
         vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
         location: event.location || 'Location TBD',
         qrCodeUrl: event.qrCodeUrl || '',
       }))

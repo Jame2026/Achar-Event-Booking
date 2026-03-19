@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
 
@@ -123,7 +124,9 @@ function startResendCountdown(seconds: number) {
   }, 1000)
 }
 
-function setOtpRef(el: Element | null, index: number) {
+type OtpRefElement = Element | ComponentPublicInstance | null
+
+function setOtpRef(el: OtpRefElement, index: number) {
   otpRefs.value[index] = el instanceof HTMLInputElement ? el : null
 }
 
@@ -298,7 +301,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="auth-shell auth-shell-form-only">
+  <section class="auth-shell auth-shell-form-only auth-reset">
     <main class="auth-panel">
       <section class="auth-card">
         <router-link class="auth-back-home" to="/legacy-app">{{ uiText.backToSignIn }}</router-link>
@@ -307,7 +310,7 @@ onBeforeUnmount(() => {
           <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
         </div>
 
-        <div class="auth-stepper" aria-hidden="true">
+        <div class="auth-stepper" :class="`auth-stepper--${step}`" aria-hidden="true">
           <span class="auth-step" :class="{ active: step === 'set_password', done: step !== 'set_password' }">
             <span class="auth-step-dot">1</span>
             <span class="auth-step-label">{{ uiText.newPassword }}</span>
@@ -416,7 +419,7 @@ onBeforeUnmount(() => {
                 :ref="(el) => setOtpRef(el, index)"
                 class="otp-input"
                 inputmode="numeric"
-                pattern="\\d*"
+                pattern="[0-9]*"
                 autocomplete="one-time-code"
                 :aria-label="`${uiText.codeLabel} ${index + 1}`"
                 :value="otpDigits[index]"

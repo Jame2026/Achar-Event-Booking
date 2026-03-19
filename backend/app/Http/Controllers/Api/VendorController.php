@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Event;
 use App\Models\User;
 use App\Support\VendorCache;
+use App\Support\PublicEventCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -108,6 +109,7 @@ class VendorController extends Controller
             'vendor_id' => $vendor->id,
         ]);
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json($event, 201);
     }
@@ -179,6 +181,7 @@ class VendorController extends Controller
 
         $event->update($validated);
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json($event->fresh());
     }
@@ -197,6 +200,7 @@ class VendorController extends Controller
         $this->deleteStoredEventImage($event->image_url);
         $event->delete();
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json(null, 204);
     }
@@ -210,7 +214,7 @@ class VendorController extends Controller
 
         $bookings = VendorCache::rememberBookings($vendor->id, function () use ($vendor) {
             return Booking::query()
-                ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email'])
+                ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url'])
                 ->whereHas('event', fn ($query) => $query->where('vendor_id', $vendor->id))
                 ->latest()
                 ->get();
@@ -242,7 +246,7 @@ class VendorController extends Controller
         ]);
         VendorCache::flushVendor($vendor->id);
 
-        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email']));
+        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url']));
     }
 
     public function dashboard(Request $request): JsonResponse

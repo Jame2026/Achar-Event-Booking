@@ -3256,14 +3256,201 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.1fr 1fr;
+  position: relative;
+  overflow: hidden;
+
+  /* Layered premium background */
   background:
-    radial-gradient(circle at 12% 18%, rgba(234, 88, 12, 0.12), transparent 42%),
-    radial-gradient(circle at 92% 10%, rgba(37, 99, 235, 0.12), transparent 46%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #fff7ed 100%);
+    radial-gradient(circle at 12% 18%, rgba(234, 88, 12, 0.14), transparent 45%),
+    radial-gradient(circle at 92% 10%, rgba(37, 99, 235, 0.14), transparent 48%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 55%, #fff7ed 100%);
+}
+
+/* Add soft animated glow layer */
+.auth-shell::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 182, 90, 0.18), transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.18), transparent 55%);
+
+  filter: blur(60px);
+  opacity: 0.6;
+
+  animation: backgroundFloat 18s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+/* Keep content above glow */
+.auth-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Subtle floating movement */
+@keyframes backgroundFloat {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  100% {
+    transform: translateY(-30px) scale(1.05);
+  }
 }
 
 .auth-shell-form-only {
   grid-template-columns: 1fr;
+}
+
+.auth-shell-login,
+.auth-shell-register {
+  grid-template-columns: 1.05fr 1fr;
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+  background: transparent;
+  max-width: 1140px;
+  margin: 48px auto;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.16),
+    0 2px 10px rgba(15, 23, 42, 0.08);
+  isolation: isolate;
+}
+
+.auth-visual-login-panel,
+.auth-visual-register-panel {
+  height: 100%;
+  min-height: 640px;
+  border-radius: 0;
+  box-shadow: none;
+  border-right: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.auth-visual-login-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  /* Layered backgrounds (top → bottom) */
+  background-image:
+    linear-gradient(140deg, rgba(15, 23, 42, 0.12), rgba(255, 255, 255, 0.08)),
+    linear-gradient(120deg, rgba(255, 182, 90, 0.22), rgba(255, 255, 255, 0.05)),
+    url("W1.png");
+
+  /* Match EXACT number of layers (3 only) */
+  background-size:
+    cover,
+    cover,
+    40% auto;
+
+  background-position:
+    center,
+    center,
+    center 45%;
+
+  background-repeat: no-repeat;
+
+  /* Smooth professional motion */
+  transform: scale(1.02);
+  animation: heroFloat 22s ease-in-out infinite alternate;
+  transition: transform 600ms ease, filter 400ms ease;
+
+  z-index: -1;
+}
+
+/* Smooth floating animation */
+@keyframes heroFloat {
+  0% {
+    transform: scale(1.02) translateY(0px);
+  }
+  100% {
+    transform: scale(1.05) translateY(-10px);
+  }
+}
+
+.auth-visual-register-panel::before {
+  background-image:
+    linear-gradient(135deg, rgba(18, 14, 10, 0.18), rgba(18, 14, 10, 0.32)),
+    linear-gradient(120deg, rgba(255, 193, 123, 0.32), rgba(255, 255, 255, 0.08)),
+    url("/W3.png");
+  background-size:
+    100% 100%,
+    100% 100%,
+    cover;
+  background-position:
+    center 28%,
+    center 28%,
+    center 40%;
+  background-repeat: no-repeat;
+  transform: scale(1.02);
+  animation: heroFloat 22s ease-in-out infinite alternate;
+  transition: transform 600ms ease, filter 400ms ease;
+}
+
+.auth-visual-login-panel::after {
+  background: radial-gradient(
+      360px 280px at 16% 14%,
+      rgba(255, 255, 255, 0.08),
+      transparent 55%
+    ),
+    radial-gradient(
+      400px 240px at 90% 84%,
+      rgba(255, 255, 255, 0.08),
+      transparent 52%
+    );
+}
+
+.auth-visual-login-panel:hover::before {
+  transform: scale(1.05);
+  filter: saturate(1.05) brightness(1.02);
+}
+
+.auth-visual-register-panel:hover::before {
+  transform: scale(1.05);
+  filter: saturate(1.04) brightness(1.01);
+}
+
+@keyframes heroFloat {
+  0% {
+    transform: scale(1.02) translateY(0);
+  }
+  50% {
+    transform: scale(1.035) translateY(-6px);
+  }
+  100% {
+    transform: scale(1.05) translateY(-10px);
+  }
+}
+
+@media (max-width: 960px) {
+  .auth-shell-login,
+  .auth-shell-register {
+    grid-template-columns: 1fr;
+    padding: 0 18px 32px;
+    max-width: 100%;
+    margin: 24px auto;
+    border-radius: 18px;
+  }
+
+  .auth-visual-login-panel,
+  .auth-visual-register-panel {
+    height: 42vh;
+    border-radius: 18px;
+    border-right: none;
+    min-height: 320px;
+  }
+
+  .auth-panel-login,
+  .auth-panel-register {
+    min-height: auto;
+    padding: 26px 22px;
+    border-radius: 18px;
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+  }
 }
 
 .auth-visual {
@@ -3300,8 +3487,10 @@ a {
 
 .auth-visual-login::before {
   background-image:
-    linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)),
-    url("https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1600&q=80");
+    linear-gradient(135deg, rgba(18, 14, 10, 0.32), rgba(32, 24, 18, 0.14)),
+    url("/backLogin.png");
+  background-position: center center;
+  background-size: cover;
 }
 
 .auth-visual-register::before {
@@ -3339,9 +3528,51 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px 6vw 34px;
-  min-height: 100vh;
+  padding: 32px 46px;
+  min-height: 100%;
   overflow: hidden;
+}
+
+.auth-panel-login,
+.auth-panel-register {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border-radius: 20px;
+  padding: 48px 56px;
+
+  /* Soft professional shadow */
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* Subtle border for depth */
+  border: 1px solid rgba(255, 255, 255, 0.6);
+
+  animation: cardRise 400ms ease 120ms both;
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+
+/* Hover interaction (feels alive but not too much) */
+.auth-panel-login:hover,
+.auth-panel-register:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.12),
+    0 6px 14px rgba(0, 0, 0, 0.06);
+}
+
+/* Smooth entrance */
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .auth-panel::before {
@@ -3378,6 +3609,26 @@ a {
   opacity: 0.8;
   pointer-events: none;
   z-index: 0;
+}
+
+.auth-panel-login::before,
+.auth-panel-login::after {
+  display: none;
+}
+
+.auth-shell-login {
+  background: #e9edf3;
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-panel > * {
