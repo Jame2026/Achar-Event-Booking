@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import MessagesPage from "./MessagesPage.vue";
+import { apiPatch } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
@@ -17,6 +18,11 @@ const props = defineProps([
   "isSubmittingVendorService",
   "vendorServiceNotice",
   "vendorIncome",
+  "vendorSettings",
+  "vendorSettingsServiceId",
+  "isLoadingVendorSettings",
+  "isSavingVendorSettings",
+  "vendorSettingsNotice",
   "messagesSummary",
   "messagesBindings",
   "filteredConversations",
@@ -35,6 +41,10 @@ const props = defineProps([
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
+  "deleteVendorBooking",
+  "saveVendorSettings",
+  "refreshVendorSettings",
+  "selectVendorSettingsService",
   "logoutUser",
 ]);
 
@@ -54,6 +64,31 @@ const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
 const activeBookingDetail = ref(null);
 const isBookingDetailOpen = ref(false);
+const settingsForm = reactive({
+  timezone: "UTC",
+  autoAccept: false,
+  bookingLeadTimeHours: 24,
+  bufferMinutesBetween: 30,
+  maxBookingsPerDay: null,
+  depositPercent: 20,
+  cancellationPolicyHours: 72,
+  reschedulePolicyHours: 48,
+  notifyEmail: true,
+  notifySms: false,
+  quietHoursStart: "",
+  quietHoursEnd: "",
+  vacationEnabled: false,
+  vacationStart: "",
+  vacationEnd: "",
+});
+const passwordForm = reactive({
+  current: "",
+  next: "",
+  confirm: "",
+  saving: false,
+  notice: "",
+  error: "",
+});
 const copyByLanguage = {
   en: {
     overview: "Overview",
@@ -122,6 +157,49 @@ const copyByLanguage = {
     customerMessages: "Customer Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -223,6 +301,49 @@ const copyByLanguage = {
     customerMessages: "សារអតិថិជន",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -323,6 +444,49 @@ const copyByLanguage = {
     customerMessages: "客户消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
     listingPreview: "Listing Preview",
     quickTips: "Quick Tips",
     checklist: "Checklist",
@@ -360,6 +524,167 @@ const copyByLanguage = {
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
 
+function applySettingsFromProps(settings) {
+  const source = settings && typeof settings === "object" ? settings : {};
+
+  settingsForm.timezone =
+    typeof source.timezone === "string" && source.timezone.trim() !== ""
+      ? source.timezone
+      : settingsForm.timezone || "UTC";
+
+  const rangeSource = Array.isArray(source.blocked_ranges)
+    ? source.blocked_ranges.find((item) => item && typeof item === "object")
+    : null;
+  const singleDate = rangeSource?.date;
+  const startDate = rangeSource?.start_date || singleDate || "";
+  const endDate = rangeSource?.end_date || singleDate || "";
+
+  settingsForm.vacationStart =
+    typeof startDate === "string" ? startDate : "";
+  settingsForm.vacationEnd = typeof endDate === "string" ? endDate : "";
+  settingsForm.vacationEnabled = Boolean(
+    settingsForm.vacationStart || settingsForm.vacationEnd,
+  );
+  settingsForm.autoAccept = Boolean(
+    source.auto_accept_bookings ?? settingsForm.autoAccept,
+  );
+  settingsForm.bookingLeadTimeHours = Number.isFinite(
+    Number(source.booking_lead_time_hours),
+  )
+    ? Number(source.booking_lead_time_hours)
+    : settingsForm.bookingLeadTimeHours;
+  settingsForm.bufferMinutesBetween = Number.isFinite(
+    Number(source.buffer_minutes_between_bookings),
+  )
+    ? Number(source.buffer_minutes_between_bookings)
+    : settingsForm.bufferMinutesBetween;
+  settingsForm.maxBookingsPerDay =
+    source.max_bookings_per_day ?? settingsForm.maxBookingsPerDay;
+  settingsForm.depositPercent = Number.isFinite(
+    Number(source.deposit_percent),
+  )
+    ? Number(source.deposit_percent)
+    : settingsForm.depositPercent;
+  settingsForm.cancellationPolicyHours = Number.isFinite(
+    Number(source.cancellation_policy_hours),
+  )
+    ? Number(source.cancellation_policy_hours)
+    : settingsForm.cancellationPolicyHours;
+  settingsForm.reschedulePolicyHours = Number.isFinite(
+    Number(source.reschedule_policy_hours),
+  )
+    ? Number(source.reschedule_policy_hours)
+    : settingsForm.reschedulePolicyHours;
+  settingsForm.notifyEmail = source.notify_email ?? settingsForm.notifyEmail;
+  settingsForm.notifySms = source.notify_sms ?? settingsForm.notifySms;
+  settingsForm.quietHoursStart =
+    typeof source.quiet_hours_start === "string"
+      ? source.quiet_hours_start
+      : settingsForm.quietHoursStart;
+  settingsForm.quietHoursEnd =
+    typeof source.quiet_hours_end === "string"
+      ? source.quiet_hours_end
+      : settingsForm.quietHoursEnd;
+}
+
+function buildBlockedRanges() {
+  const start = String(settingsForm.vacationStart || "").trim();
+  const end = String(settingsForm.vacationEnd || "").trim();
+  if (!settingsForm.vacationEnabled || !start || !end) return [];
+
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  return [
+    {
+      start_date: from,
+      end_date: to,
+      note: "Vacation mode",
+    },
+  ];
+}
+
+function buildSettingsPayload() {
+  return {
+    timezone: settingsForm.timezone || "UTC",
+    weekly_schedule: [],
+    auto_accept_bookings: Boolean(settingsForm.autoAccept),
+    booking_lead_time_hours: Number(settingsForm.bookingLeadTimeHours ?? 0),
+    buffer_minutes_between_bookings: Number(
+      settingsForm.bufferMinutesBetween ?? 0,
+    ),
+    max_bookings_per_day:
+      settingsForm.maxBookingsPerDay === "" ||
+      settingsForm.maxBookingsPerDay === null
+        ? null
+        : Number(settingsForm.maxBookingsPerDay),
+    deposit_percent: Number(settingsForm.depositPercent ?? 0),
+    cancellation_policy_hours: Number(
+      settingsForm.cancellationPolicyHours ?? 0,
+    ),
+    reschedule_policy_hours: Number(
+      settingsForm.reschedulePolicyHours ?? 0,
+    ),
+    notify_email: Boolean(settingsForm.notifyEmail),
+    notify_sms: Boolean(settingsForm.notifySms),
+    quiet_hours_start: settingsForm.quietHoursStart || null,
+    quiet_hours_end: settingsForm.quietHoursEnd || null,
+    blocked_dates: [],
+    blocked_ranges: buildBlockedRanges(),
+  };
+}
+
+async function updatePassword() {
+  passwordForm.error = "";
+  passwordForm.notice = "";
+  passwordForm.saving = true;
+
+  try {
+    await apiPatch("user/password", {
+      current_password: passwordForm.current,
+      new_password: passwordForm.next,
+      new_password_confirmation: passwordForm.confirm,
+    });
+    passwordForm.notice = uiText.value.passwordSaved;
+    passwordForm.current = "";
+    passwordForm.next = "";
+    passwordForm.confirm = "";
+  } catch (error) {
+    passwordForm.error = error?.message || "Failed to update password.";
+  } finally {
+    passwordForm.saving = false;
+  }
+}
+
+async function submitVendorSettings() {
+  if (typeof props.saveVendorSettings !== "function") return;
+
+  try {
+    await props.saveVendorSettings(buildSettingsPayload());
+  } catch {
+    // Parent notice handles errors.
+  }
+}
+
+const serviceSelectValue = computed(() =>
+  props.vendorSettingsServiceId === undefined
+    ? "all"
+    : props.vendorSettingsServiceId,
+);
+
+function onServiceChange(event) {
+  const value = event?.target?.value ?? "all";
+  if (typeof props.selectVendorSettingsService === "function") {
+    props.selectVendorSettingsService(value === "all" ? "all" : Number(value));
+  }
+}
+
+watch(
+  () => props.vendorSettings,
+  (next) => {
+    applySettingsFromProps(next || {});
+  },
+  { deep: true, immediate: true },
+);
+
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
   confirmedCount: Number(props.vendorIncome?.confirmedCount || 0),
@@ -377,6 +702,44 @@ const safeVendorEvents = computed(() =>
 const safeVendorBookings = computed(() =>
   Array.isArray(props.vendorBookings) ? props.vendorBookings : [],
 );
+const selectedSettingsServiceLabel = computed(() => {
+  if (serviceSelectValue.value === "all") return uiText.value.allServices;
+
+  const match = safeVendorEvents.value.find(
+    (item) => String(item?.id) === String(serviceSelectValue.value),
+  );
+
+  return (
+    match?.title ||
+    match?.name ||
+    match?.eventTypeLabel ||
+    uiText.value.allServices
+  );
+});
+const vacationStatusLabel = computed(() => {
+  if (!settingsForm.vacationEnabled) return "Off";
+  if (settingsForm.vacationStart && settingsForm.vacationEnd) {
+    return `${settingsForm.vacationStart} - ${settingsForm.vacationEnd}`;
+  }
+  return "On";
+});
+const quietHoursStatusLabel = computed(() => {
+  if (settingsForm.quietHoursStart && settingsForm.quietHoursEnd) {
+    return `${settingsForm.quietHoursStart} - ${settingsForm.quietHoursEnd}`;
+  }
+  return "Quiet hours off";
+});
+const notificationStatusLabel = computed(() => {
+  const channels = [];
+  if (settingsForm.notifyEmail) channels.push("Email");
+  if (settingsForm.notifySms) channels.push("SMS");
+  return channels.length ? channels.join(" + ") : "No alerts";
+});
+const bookingCapacityLabel = computed(() => {
+  const max = Number(settingsForm.maxBookingsPerDay || 0);
+  if (Number.isFinite(max) && max > 0) return `${max} / day`;
+  return "Open schedule";
+});
 const bookingDetail = computed(() => activeBookingDetail.value || {});
 const bookingDetailLocation = computed(() => {
   const detail = bookingDetail.value;
@@ -387,6 +750,50 @@ const bookingItems = computed(() =>
     ? bookingDetail.value.booked_items
     : [],
 );
+const bookingBookedSummary = computed(() => {
+  const names = bookingItems.value
+    .map((item) => String(item?.name || item?.type || "").trim())
+    .filter(Boolean);
+
+  if (names.length) {
+    return Array.from(new Set(names)).join(", ");
+  }
+
+  return String(bookingDetail.value.service_name || "").trim();
+});
+const bookingDisplayItems = computed(() => {
+  if (bookingItems.value.length) {
+    return bookingItems.value;
+  }
+
+  const fallbackName = String(bookingDetail.value.service_name || "").trim();
+  if (!fallbackName) {
+    return [];
+  }
+
+  const metaParts = [];
+  const serviceType = String(
+    bookingDetail.value.event_type || bookingDetail.value.requested_event_type || "",
+  ).trim();
+  const serviceLocation = String(bookingDetail.value.event_location || "").trim();
+
+  if (serviceType) {
+    metaParts.push(`Type: ${formatEventType(serviceType)}`);
+  }
+
+  if (serviceLocation) {
+    metaParts.push(`Location: ${serviceLocation}`);
+  }
+
+  return [
+    {
+      name: fallbackName,
+      description: metaParts.join(" | "),
+      qty: Number(bookingDetail.value.quantity || 0) || null,
+      totalPrice: Number(bookingDetail.value.total_amount || 0) || null,
+    },
+  ];
+});
 const customerEmailLink = computed(() => {
   const email = String(bookingDetail.value.customer_email || "").trim();
   return email ? `mailto:${email}` : "";
@@ -1365,7 +1772,12 @@ watch(
         <RouterLink class="side-utility home" to="/">{{
           uiText.backHome
         }}</RouterLink>
-        <button type="button" class="side-utility">
+        <button
+          type="button"
+          class="side-utility"
+          :class="{ active: localActiveTab === 'settings' }"
+          @click="setActiveTab('settings')"
+        >
           {{ uiText.settings }}
         </button>
         <button
@@ -2481,13 +2893,13 @@ watch(
         <p v-else-if="!safeVendorBookings.length" class="notice">
           No booking requests yet.
         </p>
-        <table v-else class="table">
+        <table v-else class="table booking-table">
           <colgroup>
-            <col style="width: 34%" />
-            <col style="width: 26%" />
-            <col style="width: 12%" />
-            <col style="width: 12%" />
-            <col style="width: 16%" />
+            <col class="booking-col-service" />
+            <col class="booking-col-client" />
+            <col class="booking-col-date" />
+            <col class="booking-col-status" />
+            <col class="booking-col-actions" />
           </colgroup>
           <thead>
             <tr>
@@ -2501,6 +2913,7 @@ watch(
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
 <<<<<<< HEAD
+<<<<<<< HEAD
               <td>{{ item.service_name }}</td>
               <td>
                 <div class="client-cell">
@@ -2512,6 +2925,9 @@ watch(
 =======
 >>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
               <td>
+=======
+              <td class="booking-service-cell">
+>>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
                 <div class="service-cell">
                   <div class="service-thumb">
                     <img
@@ -2525,16 +2941,10 @@ watch(
                   </div>
                   <div class="service-meta">
                     <strong>{{ item.service_name }}</strong>
-                    <span v-if="item.event_type" class="service-sub"
-                      >Type: {{ formatEventType(item.event_type) }}</span
-                    >
-                    <span v-if="item.event_location" class="service-sub"
-                      >Location: {{ item.event_location }}</span
-                    >
                   </div>
                 </div>
               </td>
-              <td>
+              <td class="booking-client-cell">
                 <div class="client-cell">
                   <div class="client-avatar">
                     <img
@@ -2548,22 +2958,13 @@ watch(
                   </div>
                   <div class="client-details">
                     <strong>{{ item.customer_name }}</strong>
-                    <span v-if="item.customer_email" class="client-meta">{{
-                      item.customer_email
-                    }}</span>
-                    <span v-if="item.customer_phone" class="client-meta">{{
-                      item.customer_phone
-                    }}</span>
-                    <span v-if="item.customer_location" class="client-meta"
-                      >Location: {{ item.customer_location }}</span
-                    >
                   </div>
                 </div>
               </td>
-              <td>
+              <td class="booking-date-cell">
                 <span class="date-only">{{ item.date_label }}</span>
               </td>
-              <td>
+              <td class="booking-status-cell">
                 <span
                   class="status-chip"
                   :class="bookingStatusClass(item.status)"
@@ -2593,6 +2994,19 @@ watch(
                 >
                   Cancel
                 </button>
+                <button
+                  v-if="item.can_delete"
+                  type="button"
+                  class="action-delete"
+                  @click="props.deleteVendorBooking(item)"
+                >
+                  Delete
+                </button>
+                <span
+                  v-else
+                  aria-hidden="true"
+                  class="action-placeholder"
+                ></span>
               </td>
             </tr>
           </tbody>
@@ -2622,7 +3036,7 @@ watch(
             </div>
 
             <div class="booking-detail-grid">
-              <section class="detail-block">
+              <section class="detail-block detail-block-service">
                 <h4>{{ uiText.serviceDetails }}</h4>
                 <div class="detail-service-card">
                   <div class="detail-service-thumb">
@@ -2661,6 +3075,10 @@ watch(
                   </div>
                 </div>
                 <div class="detail-list">
+                  <div v-if="bookingBookedSummary">
+                    <span>{{ uiText.bookedItems }}</span>
+                    <strong>{{ bookingBookedSummary }}</strong>
+                  </div>
                   <div>
                     <span>{{ uiText.dateLabel }}</span>
                     <strong>{{ bookingDetail.date_label || uiText.noData }}</strong>
@@ -2686,7 +3104,7 @@ watch(
                   </div>
                 </div>
               </section>
-              <section class="detail-block">
+              <section class="detail-block detail-block-customer">
                 <h4>{{ uiText.customerDetails }}</h4>
                 <div class="detail-list">
                   <div>
@@ -2713,9 +3131,16 @@ watch(
                   </div>
                 </div>
               </section>
-              <section class="detail-block">
+              <section class="detail-block detail-block-contact">
                 <h4>{{ uiText.customerContact }}</h4>
                 <div class="contact-actions">
+                  <a
+                    v-if="customerEmailLink"
+                    class="secondary-button detail-link"
+                    :href="customerEmailLink"
+                  >
+                    Email Customer
+                  </a>
                   <a
                     v-if="customerPhoneLink"
                     class="secondary-button detail-link"
@@ -2744,8 +3169,8 @@ watch(
 
             <section class="detail-block detail-block-wide">
               <h4>{{ uiText.bookedItems }}</h4>
-              <ul v-if="bookingItems.length" class="detail-items">
-                <li v-for="(item, index) in bookingItems" :key="index">
+              <ul v-if="bookingDisplayItems.length" class="detail-items">
+                <li v-for="(item, index) in bookingDisplayItems" :key="index">
                   <div>
                     <strong>{{ item.name || item.type || "Item" }}</strong>
                     <span v-if="item.description">{{ item.description }}</span>
@@ -3033,6 +3458,196 @@ watch(
           </article>
         </section>
       </section>
+
+      <section
+        v-show="localActiveTab === 'settings'"
+        class="panel tab-panel settings-panel"
+      >
+        <div class="panel-head settings-hero">
+          <div class="settings-hero-copy">
+            <p class="eyebrow">{{ uiText.availabilitySettings }}</p>
+            <h2>{{ uiText.settings }}</h2>
+            <p class="panel-subtitle">{{ uiText.availabilityIntro }}</p>
+            <div class="settings-hero-tags">
+              <span class="settings-hero-tag strong">
+                {{ selectedSettingsServiceLabel }}
+              </span>
+              <span
+                class="settings-hero-tag"
+                :class="{ active: settingsForm.vacationEnabled }"
+              >
+                {{ vacationStatusLabel }}
+              </span>
+              <span class="settings-hero-tag">
+                {{ notificationStatusLabel }}
+              </span>
+            </div>
+          </div>
+          <div class="settings-hero-actions">
+            <label class="field compact settings-scope-field">
+              <span>{{ uiText.applyToService }}</span>
+              <select :value="serviceSelectValue" @change="onServiceChange">
+                <option value="all">{{ uiText.allServices }}</option>
+                <option
+                  v-for="item in safeVendorEvents"
+                  :key="`svc-${item.id}`"
+                  :value="item.id"
+                >
+                  {{ item.title || item.name || item.event_type }}
+                </option>
+              </select>
+            </label>
+            <div class="action-row settings-actions">
+              <button
+                type="button"
+                class="secondary-button"
+                :disabled="props.isLoadingVendorSettings"
+                @click="
+                  props.refreshVendorSettings && props.refreshVendorSettings()
+                "
+              >
+                {{
+                  props.isLoadingVendorSettings
+                    ? uiText.loadingServices
+                    : "Refresh"
+                }}
+              </button>
+              <button
+                type="button"
+                class="primary-button settings-save-button"
+                :disabled="props.isSavingVendorSettings"
+                @click="submitVendorSettings"
+              >
+                {{
+                  props.isSavingVendorSettings
+                    ? uiText.saving
+                    : uiText.saveSettings
+                }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-overview">
+          <article class="settings-stat-card scope">
+            <small>{{ uiText.applyToService }}</small>
+            <strong>{{ selectedSettingsServiceLabel }}</strong>
+            <span>{{ uiText.currentListings }}</span>
+          </article>
+          <article class="settings-stat-card vacation">
+            <small>{{ uiText.vacationMode }}</small>
+            <strong>{{ vacationStatusLabel }}</strong>
+            <span>{{
+              settingsForm.vacationEnabled
+                ? uiText.unavailableHint
+                : uiText.vacationHint
+            }}</span>
+          </article>
+          <article class="settings-stat-card notifications">
+            <small>{{ uiText.notifications }}</small>
+            <strong>{{ notificationStatusLabel }}</strong>
+            <span>{{ quietHoursStatusLabel }}</span>
+          </article>
+          <article class="settings-stat-card rules">
+            <small>{{ uiText.maxPerDay }}</small>
+            <strong>{{ bookingCapacityLabel }}</strong>
+            <span>{{ uiText.bufferTime }}: {{ settingsForm.bufferMinutesBetween }}m</span>
+          </article>
+        </div>
+
+        <div class="settings-grid">
+          <article class="settings-card settings-card--warm vacation-card">
+            <div class="settings-card-head vacation-head">
+              <div>
+                <p class="eyebrow">{{ uiText.vacationMode }}</p>
+                <h3>{{ uiText.vacationMode }}</h3>
+                <p class="panel-subtitle">{{ uiText.vacationHint }}</p>
+              </div>
+              <label class="toggle-row">
+                <input type="checkbox" v-model="settingsForm.vacationEnabled" />
+                <span>{{ settingsForm.vacationEnabled ? "On" : "Off" }}</span>
+              </label>
+            </div>
+            <div class="settings-mini-grid">
+              <article class="settings-mini-card">
+                <small>{{ uiText.startDate }}</small>
+                <strong>{{ settingsForm.vacationStart || "--" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.endDate }}</small>
+                <strong>{{ settingsForm.vacationEnd || "--" }}</strong>
+              </article>
+              <article class="settings-mini-card">
+                <small>{{ uiText.blockedDates }}</small>
+                <strong>{{ settingsForm.vacationEnabled ? "Active" : "Inactive" }}</strong>
+              </article>
+            </div>
+            <div class="grid-2 vacation-grid">
+              <label class="field compact">
+                <span>{{ uiText.startDate }}</span>
+                <input
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  v-model="settingsForm.vacationStart"
+                  :disabled="!settingsForm.vacationEnabled"
+                />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.endDate }}</span>
+                <input
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  v-model="settingsForm.vacationEnd"
+                  :disabled="!settingsForm.vacationEnabled"
+                />
+              </label>
+            </div>
+            <p class="vacation-note">{{ uiText.vacationNote }}</p>
+          </article>
+
+          <article class="settings-card settings-card--slate account-card">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">{{ uiText.accountManagement }}</p>
+                <h3>{{ uiText.updatePassword }}</h3>
+                <p class="panel-subtitle">{{ uiText.passwordHint }}</p>
+              </div>
+            </div>
+            <div class="settings-account-banner">
+              <strong>{{ uiText.accountManagement }}</strong>
+              <span>{{ uiText.passwordHint }}</span>
+            </div>
+            <div class="grid-2">
+              <label class="field compact">
+                <span>{{ uiText.currentPassword }}</span>
+                <input type="password" autocomplete="current-password" v-model="passwordForm.current" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.newPassword }}</span>
+                <input type="password" autocomplete="new-password" v-model="passwordForm.next" />
+              </label>
+              <label class="field compact">
+                <span>{{ uiText.confirmPassword }}</span>
+                <input type="password" autocomplete="new-password" v-model="passwordForm.confirm" />
+              </label>
+            </div>
+            <div class="form-actions settings-account-actions">
+              <button type="button" class="primary-button" :disabled="passwordForm.saving" @click="updatePassword">
+                {{ passwordForm.saving ? uiText.saving : uiText.updatePassword }}
+              </button>
+              <p v-if="passwordForm.notice" class="notice notice-success settings-inline-notice">{{ passwordForm.notice }}</p>
+              <p v-else-if="passwordForm.error" class="notice notice-error settings-inline-notice">{{ passwordForm.error }}</p>
+            </div>
+          </article>
+        </div>
+
+        <p
+          v-if="props.vendorSettingsNotice && props.vendorSettingsNotice !== 'Unauthenticated.'"
+          class="notice settings-feedback"
+        >
+          {{ props.vendorSettingsNotice }}
+        </p>
+      </section>
     </section>
 
   </main>
@@ -3049,6 +3664,7 @@ watch(
 
   position: relative;
   min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
   column-gap: 32px;
@@ -3071,8 +3687,8 @@ watch(
     sans-serif;
   width: auto;
   gap: 0;
-  height: 100vh;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .vendor-dashboard::after {
@@ -3097,7 +3713,10 @@ watch(
 .sidebar {
   position: sticky;
   top: 0;
-  min-height: 100vh;
+  align-self: stretch;
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -3351,6 +3970,13 @@ watch(
   cursor: pointer;
 }
 
+.side-utility.active {
+  background: #fff7ed;
+  color: var(--vd-accent-strong);
+  border-color: rgba(234, 88, 12, 0.35);
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.16);
+}
+
 .side-utility:hover {
   background: #fff;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
@@ -3389,12 +4015,12 @@ watch(
   gap: 20px;
   padding: 24px;
   min-height: 0;
+  height: 100vh;
   position: relative;
   z-index: 1;
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
-  height: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
@@ -3589,6 +4215,558 @@ watch(
   .panel,
   .stat-card {
     background: rgba(255, 255, 255, 0.96);
+  }
+}
+
+.settings-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.settings-panel .panel-head {
+  align-items: flex-start;
+}
+
+.settings-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(234, 88, 12, 0.14);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.12), transparent 45%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 237, 0.9));
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  overflow: hidden;
+}
+
+.settings-hero::before {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(234, 88, 12, 0.18), transparent 68%);
+  pointer-events: none;
+}
+
+.settings-hero-copy,
+.settings-hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-hero-copy h2 {
+  margin-bottom: 8px;
+}
+
+.settings-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.settings-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.settings-hero-tag.strong {
+  color: #9a3412;
+  background: rgba(255, 247, 237, 0.95);
+  border-color: rgba(234, 88, 12, 0.22);
+}
+
+.settings-hero-tag.active {
+  color: #166534;
+  background: rgba(240, 253, 244, 0.96);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.settings-hero-actions {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.settings-scope-field {
+  padding: 16px 16px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.settings-actions {
+  justify-content: flex-end;
+}
+
+.settings-actions .secondary-button,
+.settings-actions .primary-button {
+  min-height: 46px;
+  min-width: 148px;
+}
+
+.settings-save-button {
+  box-shadow: 0 14px 28px rgba(234, 88, 12, 0.2);
+}
+
+.panel-subtitle {
+  margin-top: 4px;
+  max-width: 62ch;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.settings-stat-card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-height: 124px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+}
+
+.settings-stat-card::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.9), transparent);
+}
+
+.settings-stat-card small {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-stat-card strong {
+  font-size: 1.15rem;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.settings-stat-card span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-stat-card.scope::before {
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.9), transparent);
+}
+
+.settings-stat-card.vacation::before {
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.88), transparent);
+}
+
+.settings-stat-card.notifications::before {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.88), transparent);
+}
+
+.settings-stat-card.rules::before {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.84), transparent);
+}
+
+.settings-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-items: start;
+}
+
+.settings-card {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 20px 48px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  overflow: hidden;
+}
+
+.settings-card::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.9), transparent);
+}
+
+.settings-card--warm::before {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.92), transparent);
+}
+
+.settings-card--amber::before {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.92), transparent);
+}
+
+.settings-card--blue::before {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), transparent);
+}
+
+.settings-card--green::before {
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.92), transparent);
+}
+
+.settings-card--slate::before {
+  background: linear-gradient(90deg, rgba(71, 85, 105, 0.88), transparent);
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-card-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.settings-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.settings-mini-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.settings-mini-card small {
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-mini-card strong {
+  color: #0f172a;
+  font-size: 0.97rem;
+  line-height: 1.3;
+}
+
+.settings-card .field.compact {
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+}
+
+.settings-card .field.compact input,
+.settings-card .field.compact select,
+.settings-card .field.compact textarea {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.notifications-card .checkbox-row {
+  align-items: center;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.grid-2 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vd-accent-strong);
+}
+
+.settings-account-banner {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.16), transparent 44%),
+    linear-gradient(135deg, rgba(241, 245, 249, 0.96), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.settings-account-banner strong {
+  color: #0f172a;
+  font-size: 0.96rem;
+}
+
+.settings-account-banner span {
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.settings-account-actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-inline-notice {
+  margin: 0;
+}
+
+.settings-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 247, 237, 0.94);
+  border: 1px solid rgba(234, 88, 12, 0.2);
+  color: #9a3412;
+  font-weight: 700;
+  box-shadow: 0 14px 32px rgba(234, 88, 12, 0.08);
+}
+
+.pill-list {
+  display: grid;
+  gap: 10px;
+}
+
+.weekly-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.day-row {
+  display: grid;
+  grid-template-columns: 68px 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #f8fafc;
+}
+
+.day-label {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.time-range {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px;
+  align-items: center;
+  justify-content: start;
+}
+
+.time-range input[type="time"] {
+  width: 120px;
+  padding: 9px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.time-range.disabled {
+  opacity: 0.55;
+}
+
+.add-off-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-off-row input[type="date"] {
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  color: #0f172a;
+}
+
+.range-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pill-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill-note {
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid rgba(234, 88, 12, 0.24);
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.pill-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.notice-muted {
+  color: #94a3b8;
+}
+
+.field.compact select {
+  min-width: 180px;
+  padding: 9px 10px;
+}
+
+@media (max-width: 1180px) {
+  .settings-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-account-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-inline-notice {
+    width: 100%;
+  }
+
+  .day-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .time-range {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .time-range span {
+    display: none;
+  }
+
+  .add-off-row {
+    width: 100%;
+  }
+
+  .add-off-row input[type="date"],
+  .add-off-row input[type="text"],
+  .add-off-row .secondary-button {
+    width: 100%;
+  }
+
+  .add-off-row {
+    align-items: stretch;
   }
 }
 
@@ -5641,11 +6819,52 @@ watch(
   border-bottom-right-radius: 16px;
 }
 
+.booking-table .booking-col-service {
+  width: 29%;
+}
+
+.booking-table .booking-col-client {
+  width: 18%;
+}
+
+.booking-table .booking-col-date {
+  width: 14%;
+}
+
+.booking-table .booking-col-status {
+  width: 13%;
+}
+
+.booking-table .booking-col-actions {
+  width: 26%;
+}
+
+.booking-table th:last-child,
+.booking-table td:last-child {
+  padding-right: 14px;
+}
+
+.booking-table td {
+  vertical-align: middle;
+}
+
+.booking-table .booking-date-cell,
+.booking-table .booking-status-cell {
+  white-space: nowrap;
+}
+
+.booking-table .service-cell,
+.booking-table .client-cell,
+.booking-table .service-meta,
+.booking-table .client-details {
+  min-width: 0;
+}
+
 .client-cell {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .client-avatar {
@@ -5672,6 +6891,7 @@ watch(
 .client-details {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .client-details strong {
@@ -5693,7 +6913,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 210px;
+  min-width: 0;
 }
 
 .service-thumb {
@@ -5720,6 +6940,7 @@ watch(
 .service-meta {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .service-meta strong {
@@ -5745,18 +6966,18 @@ watch(
 }
 
 .booking-actions {
-  display: flex !important;
-  gap: 6px;
-  align-items: center;
-  justify-content: flex-end;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  justify-content: stretch;
   min-width: 0;
-  flex-wrap: nowrap;
 }
 
 .booking-actions button {
-  width: auto;
+  width: 100%;
   justify-content: center;
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 11.5px;
   border-radius: 10px;
   line-height: 1.1;
@@ -5800,6 +7021,25 @@ watch(
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.36);
   transform: translateY(-1px);
+}
+
+.booking-actions .action-delete {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  color: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.34);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.18);
+}
+
+.booking-actions .action-delete:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.24);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-placeholder {
+  display: block;
+  min-height: 36px;
+  border-radius: 10px;
+  visibility: hidden;
 }
 
 .status-chip {
@@ -5848,8 +7088,10 @@ watch(
 }
 
 .booking-detail-card {
+  width: min(760px, 100%);
   display: grid;
   gap: 12px;
+  padding: 14px;
   position: relative;
   overflow: hidden;
   max-height: 82vh;
@@ -5907,16 +7149,16 @@ watch(
 .booking-detail-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(234, 88, 12, 0.16);
   background: rgba(255, 247, 237, 0.9);
-  box-shadow: 0 -8px 18px rgba(234, 88, 12, 0.08);
+  box-shadow: 0 10px 24px rgba(234, 88, 12, 0.08);
   position: sticky;
-  bottom: 0;
-  top: auto;
+  top: 0;
+  bottom: auto;
   z-index: 5;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -5930,19 +7172,32 @@ watch(
 
 .booking-detail-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 10px;
+  align-items: start;
 }
 
 .detail-block {
   display: grid;
-  gap: 6px;
-  padding: 10px 11px;
+  gap: 8px;
+  padding: 11px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
   position: relative;
+}
+
+.detail-block-service {
+  grid-column: 1;
+}
+
+.detail-block-customer {
+  grid-column: 2;
+}
+
+.detail-block-contact {
+  grid-column: 1 / -1;
 }
 
 .detail-block::before {
@@ -5974,13 +7229,13 @@ watch(
 }
 
 .detail-link {
-  width: fit-content;
-  padding: 0 10px;
-  min-height: 16px;
+  width: 100%;
+  padding: 0 14px;
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 10.5px;
   font-weight: 700;
   background: linear-gradient(135deg, #fff7ed, #ffe8d8);
@@ -5991,14 +7246,17 @@ watch(
 
 .detail-list {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .detail-list div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .detail-list span {
@@ -6011,7 +7269,7 @@ watch(
 .detail-list strong {
   font-size: 13px;
   color: #0f172a;
-  text-align: right;
+  text-align: left;
 }
 
 .detail-block-wide {
@@ -6022,7 +7280,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 9px;
+  padding: 10px;
   border-radius: 12px;
   background: linear-gradient(
     140deg,
@@ -6057,6 +7315,7 @@ watch(
 .detail-service-info {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .detail-service-info strong {
@@ -6072,6 +7331,7 @@ watch(
 
 .contact-actions {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   align-items: start;
 }
@@ -6087,17 +7347,25 @@ watch(
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .detail-items li {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
   padding: 9px 10px;
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  max-width: 440px;
+}
+
+.detail-items li > div:first-child {
+  min-width: 0;
 }
 
 .detail-items strong {
@@ -6115,18 +7383,63 @@ watch(
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.vacation-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.16), transparent 40%),
+    linear-gradient(180deg, rgba(255, 251, 235, 0.98), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(249, 115, 22, 0.16);
+}
+
+.vacation-head {
+  align-items: center;
+}
+
+.toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(249, 115, 22, 0.16);
+  font-weight: 700;
+  color: #0f172a;
+  box-shadow: 0 12px 26px rgba(249, 115, 22, 0.08);
+}
+
+.toggle-row input {
+  width: 44px;
+  height: 22px;
+}
+
+.vacation-grid input:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.vacation-note {
+  margin-top: 10px;
+  color: #475569;
+  font-size: 13px;
 }
 
 @media (max-width: 1180px) {
   .vendor-dashboard {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
+    position: static;
+    top: auto;
+    align-self: stretch;
+    height: auto;
     min-height: auto;
     max-height: 58vh;
     overflow: auto;
@@ -6135,7 +7448,8 @@ watch(
   }
 
   .main-panel {
-    overflow: auto;
+    height: auto;
+    overflow: visible;
     padding: 18px;
   }
 
@@ -6170,6 +7484,17 @@ watch(
     align-items: flex-start;
   }
 
+  .booking-detail-card {
+    width: min(100%, 640px);
+    padding: 12px;
+  }
+
+  .detail-list,
+  .detail-items,
+  .contact-actions {
+    grid-template-columns: 1fr;
+  }
+
   .tab-panel {
     min-height: 0;
   }
@@ -6192,6 +7517,41 @@ watch(
   .dash-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .settings-hero {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .settings-overview,
+  .settings-mini-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card,
+  .settings-stat-card {
+    padding: 18px;
+  }
+
+  .settings-scope-field {
+    padding: 14px;
+  }
+
+  .settings-actions,
+  .settings-account-actions {
+    width: 100%;
+  }
+
+  .settings-actions .secondary-button,
+  .settings-actions .primary-button,
+  .settings-account-actions .primary-button {
+    width: 100%;
+  }
+
+  .toggle-row {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .header-action {
@@ -6229,4 +7589,18 @@ watch(
     justify-content: flex-start;
   }
 }
+
+@media (max-width: 560px) {
+  .booking-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-block-service,
+  .detail-block-customer,
+  .detail-block-contact {
+    grid-column: auto;
+  }
+}
 </style>
+
+

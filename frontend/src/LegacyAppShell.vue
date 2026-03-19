@@ -59,12 +59,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'Service created successfully and is now visible to users.',
     serviceUpdated: 'Service updated successfully.',
+    serviceDeleted: 'Service deleted successfully.',
     couldNotCreateService: 'Could not create service.',
     couldNotUpdateServiceDetails: 'Could not update service.',
     couldNotUpdateService: 'Could not update service status.',
     couldNotDeleteService: 'Could not delete service.',
+    bookingDeleted: 'Booking deleted successfully.',
     couldNotLoadVendorBookings: 'Could not load vendor bookings right now.',
     couldNotUpdateBookingStatus: 'Could not update booking status.',
+    couldNotDeleteBooking: 'Could not delete booking.',
     signInCheckAvailability: 'Please sign in to check service availability.',
     availabilityChecked: 'Availability checked.',
     couldNotCheckAvailability: 'Could not check availability right now.',
@@ -101,12 +104,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'សេវាកម្មត្រូវបានបង្កើតដោយជោគជ័យ ហើយអាចមើលឃើញដោយអ្នកប្រើហើយ។',
     serviceUpdated: 'បានធ្វើបច្ចុប្បន្នភាពសេវាកម្មដោយជោគជ័យ។',
+    serviceDeleted: 'បានលុបសេវាកម្មដោយជោគជ័យ។',
     couldNotCreateService: 'មិនអាចបង្កើតសេវាកម្មបានទេ។',
     couldNotUpdateServiceDetails: 'មិនអាចធ្វើបច្ចុប្បន្នភាពសេវាកម្មបានទេ។',
     couldNotUpdateService: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពសេវាកម្មបានទេ។',
     couldNotDeleteService: 'មិនអាចលុបសេវាកម្មបានទេ។',
+    bookingDeleted: 'បានលុបការកក់ដោយជោគជ័យ។',
     couldNotLoadVendorBookings: 'មិនអាចផ្ទុកការកក់របស់អ្នកផ្គត់ផ្គង់បានទេ។',
     couldNotUpdateBookingStatus: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពការកក់បានទេ។',
+    couldNotDeleteBooking: 'មិនអាចលុបការកក់បានទេ។',
     signInCheckAvailability: 'សូមចូលគណនីដើម្បីពិនិត្យមើលពេលទំនេរ។',
     availabilityChecked: 'បានពិនិត្យពេលទំនេរហើយ។',
     couldNotCheckAvailability: 'មិនអាចពិនិត្យមើលពេលទំនេរឥឡូវនេះបានទេ។',
@@ -143,12 +149,15 @@ const copyByLanguage = {
     qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: '服务已成功创建，并且用户现在可以看到它。',
     serviceUpdated: '服务已成功更新。',
+    serviceDeleted: '服务已成功删除。',
     couldNotCreateService: '无法创建服务。',
     couldNotUpdateServiceDetails: '无法更新服务。',
     couldNotUpdateService: '无法更新服务状态。',
     couldNotDeleteService: '无法删除服务。',
+    bookingDeleted: '预订已成功删除。',
     couldNotLoadVendorBookings: '暂时无法加载商家预订。',
     couldNotUpdateBookingStatus: '无法更新预订状态。',
+    couldNotDeleteBooking: '无法删除预订。',
     signInCheckAvailability: '请先登录再查看档期。',
     availabilityChecked: '档期已检查。',
     couldNotCheckAvailability: '暂时无法检查档期。',
@@ -273,7 +282,7 @@ const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
 const allowedVendorTabs = ['about', 'services', 'reviews']
-const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income']
+const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
@@ -422,6 +431,11 @@ const vendorServiceForm = ref({
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
+const vendorSettings = ref(null)
+const vendorSettingsServiceId = ref('all')
+const isLoadingVendorSettings = ref(false)
+const isSavingVendorSettings = ref(false)
+const vendorSettingsNotice = ref('')
 const bookings = ref([])
 const selectedQuantities = ref({})
 const availabilityByEvent = ref({})
@@ -1126,6 +1140,101 @@ function upsertVendorEvent(row) {
   }
 }
 
+const weekDayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+function defaultVendorSettings() {
+  const timezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    String(import.meta.env.VITE_APP_TIMEZONE || 'UTC')
+
+  return {
+    timezone,
+    weekly_schedule: weekDayOrder.map((day) => ({
+      day,
+      closed: false,
+      slots: [{ start: '09:00', end: '17:00' }],
+    })),
+    blocked_dates: [],
+    blocked_ranges: [],
+  }
+}
+
+function normalizeVendorSettings(payload = {}) {
+  const base = defaultVendorSettings()
+  const incomingSchedule = Array.isArray(payload.weekly_schedule) ? payload.weekly_schedule : []
+  const normalizedSchedule = weekDayOrder.map((day) => {
+    const entry = incomingSchedule.find((item) => item?.day === day) || {}
+    const slot = Array.isArray(entry.slots) && entry.slots[0] ? entry.slots[0] : { start: '09:00', end: '17:00' }
+    return {
+      day,
+      closed: Boolean(entry.closed),
+      slots: entry.closed ? [] : [{ start: slot.start || '09:00', end: slot.end || '17:00' }],
+    }
+  })
+
+  const blockedDates = Array.isArray(payload.blocked_dates) ? payload.blocked_dates.filter(Boolean) : []
+  const blockedRanges = Array.isArray(payload.blocked_ranges) ? payload.blocked_ranges : []
+
+  return {
+    timezone: payload.timezone || base.timezone,
+    weekly_schedule: normalizedSchedule,
+    blocked_dates: blockedDates,
+    blocked_ranges: blockedRanges,
+  }
+}
+
+async function loadVendorSettings({ eventId = null, silent = false } = {}) {
+  if (!isVendorAccount.value) return
+  isLoadingVendorSettings.value = true
+  if (!silent) vendorSettingsNotice.value = ''
+  try {
+    const targetEventId =
+      eventId !== null && eventId !== undefined
+        ? eventId
+        : vendorSettingsServiceId.value === 'all'
+          ? null
+          : Number(vendorSettingsServiceId.value)
+
+    const result = await apiGet('vendor/settings', targetEventId ? { event_id: targetEventId } : {})
+    const settings = result?.settings || result?.data || result
+    vendorSettings.value = normalizeVendorSettings(settings)
+    if (targetEventId !== null && targetEventId !== undefined) {
+      vendorSettingsServiceId.value = targetEventId
+    }
+  } catch (error) {
+    vendorSettingsNotice.value = error?.message || 'Could not load vendor settings.'
+    if (!vendorSettings.value) {
+      vendorSettings.value = defaultVendorSettings()
+    }
+  } finally {
+    isLoadingVendorSettings.value = false
+  }
+}
+
+async function saveVendorSettings(payload) {
+  if (!isVendorAccount.value) return
+  isSavingVendorSettings.value = true
+  vendorSettingsNotice.value = ''
+  try {
+    const targetEventId =
+      payload?.event_id !== undefined
+        ? payload.event_id
+        : vendorSettingsServiceId.value === 'all'
+          ? null
+          : Number(vendorSettingsServiceId.value)
+    const normalizedPayload = { ...payload, event_id: targetEventId }
+    const result = await apiPatch('vendor/settings', normalizedPayload)
+    const settings = result?.settings || result?.data || result
+    vendorSettings.value = normalizeVendorSettings(settings)
+    vendorSettingsNotice.value = uiText.value.settingsSaved || 'Settings saved.'
+  } catch (error) {
+    vendorSettingsNotice.value = error?.message || 'Could not save settings.'
+    throw error
+  } finally {
+    isSavingVendorSettings.value = false
+  }
+}
+
 function resetVendorServiceForm() {
   vendorServiceForm.value = {
     id: null,
@@ -1292,11 +1401,50 @@ async function deleteVendorService(item) {
 
   try {
     await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
+    if (Number(vendorServiceForm.value?.id || 0) === Number(item.id)) {
+      resetVendorServiceForm()
+    }
+    if (vendorSettingsServiceId.value === Number(item.id)) {
+      vendorSettingsServiceId.value = 'all'
+      if (isVendorAccount.value) {
+        await loadVendorSettings({ eventId: null, silent: true })
+      }
+    }
     await loadEvents()
     clearGuestEventsCache()
+    vendorServiceNotice.value = `${item.title || uiText.value.serviceBooking} - ${uiText.value.serviceDeleted}`
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotDeleteService
   }
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function normalizeDateKey(value) {
+  if (!value) return ''
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return getLocalDateKey(value)
+  }
+
+  const text = String(value).trim()
+  const dateMatch = text.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (dateMatch) return dateMatch[1]
+
+  const parsed = new Date(text)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  return getLocalDateKey(parsed)
+}
+
+function isPastBookingDate(value) {
+  const bookingDateKey = normalizeDateKey(value)
+  if (!bookingDateKey) return false
+  return bookingDateKey < getLocalDateKey()
 }
 
 function mapVendorBookingRow(row) {
@@ -1324,6 +1472,8 @@ function mapVendorBookingRow(row) {
     requested_event_type: row.requested_event_type || event.event_type || '',
     quantity: Number(row.quantity || 0),
     booked_items: Array.isArray(row.booked_items) ? row.booked_items : [],
+    booking_date: bookingDate || null,
+    can_delete: isPastBookingDate(bookingDate),
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
@@ -1372,6 +1522,20 @@ async function updateVendorBookingStatus(item, status) {
     await loadNotifications({ silent: true })
   } catch (error) {
     notice.value = error?.message || uiText.value.couldNotUpdateBookingStatus
+  }
+}
+
+async function deleteVendorBooking(item) {
+  const vendorUserId = Number(loggedInUser.value?.id || 0)
+  if (!item?.id || !Number.isFinite(vendorUserId) || vendorUserId < 1) return
+
+  try {
+    await apiDelete(`vendor/bookings/${item.id}`, { vendor_user_id: vendorUserId })
+    await loadVendorBookings()
+    await loadNotifications({ silent: true })
+    notice.value = `${item.service_name || uiText.value.serviceBooking} - ${uiText.value.bookingDeleted}`
+  } catch (error) {
+    notice.value = error?.message || uiText.value.couldNotDeleteBooking
   }
 }
 
@@ -1448,7 +1612,10 @@ async function bootstrapAuthenticatedShell() {
   isBootstrappingAuth.value = true
   try {
     const tasks = [loadUserProfile(), loadEvents(), loadNotifications({ silent: true })]
-    if (isVendorAccount.value) tasks.push(loadVendorBookings())
+    if (isVendorAccount.value) {
+      tasks.push(loadVendorBookings())
+      tasks.push(loadVendorSettings({ silent: true }))
+    }
     if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
@@ -1463,6 +1630,18 @@ function goToDashboard() {
 
 function setVendorDashboardTab(tab) {
   vendorDashboardTab.value = normalizeVendorDashboardTab(tab)
+}
+
+function selectVendorSettingsService(serviceId = 'all') {
+  const normalized =
+    serviceId === 'all' || serviceId === null || serviceId === undefined
+      ? 'all'
+      : Number(serviceId)
+  vendorSettingsServiceId.value =
+    normalized === 'all' || Number.isFinite(normalized) ? normalized : 'all'
+  loadVendorSettings({
+    eventId: vendorSettingsServiceId.value === 'all' ? null : vendorSettingsServiceId.value,
+  })
 }
 
 function goToVendor(tab = 'about') {
@@ -1708,6 +1887,11 @@ onBeforeUnmount(() => {
         :is-submitting-vendor-service="isSubmittingVendorService"
         :vendor-service-notice="vendorServiceNotice"
         :vendor-income="vendorIncome"
+        :vendor-settings="vendorSettings"
+        :vendor-settings-service-id="vendorSettingsServiceId"
+        :is-loading-vendor-settings="isLoadingVendorSettings"
+        :is-saving-vendor-settings="isSavingVendorSettings"
+        :vendor-settings-notice="vendorSettingsNotice"
         :messages-summary="messagesSummary"
         :messages-bindings="messagesBindings"
         :filtered-conversations="filteredConversations"
@@ -1726,6 +1910,10 @@ onBeforeUnmount(() => {
         :toggle-vendor-service-active="toggleVendorServiceActive"
         :delete-vendor-service="deleteVendorService"
         :update-vendor-booking-status="updateVendorBookingStatus"
+        :delete-vendor-booking="deleteVendorBooking"
+        :save-vendor-settings="saveVendorSettings"
+        :refresh-vendor-settings="loadVendorSettings"
+        :select-vendor-settings-service="selectVendorSettingsService"
         :logout-user="logout"
       />
       <DashboardPage

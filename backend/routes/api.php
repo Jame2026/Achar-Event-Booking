@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetPinController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\VendorSettingController;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
@@ -82,6 +83,7 @@ Route::patch('vendor/services/{event}', [VendorController::class, 'updateService
 Route::delete('vendor/services/{event}', [VendorController::class, 'destroyServiceByVendorId']);
 Route::get('vendor/bookings', [VendorController::class, 'bookingsByVendorId']);
 Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'updateBookingStatusByVendorId']);
+Route::delete('vendor/bookings/{booking}', [VendorController::class, 'destroyBookingByVendorId']);
 
 Route::prefix('vendor')->group(function () {
     Route::get('/chats', [ChatController::class, 'vendorIndex']);
@@ -97,6 +99,7 @@ Route::prefix('user')->group(function () {
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
+    Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 
 Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(function () {
@@ -106,6 +109,9 @@ Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(functi
     Route::put('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::patch('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::delete('/events/{event}', [VendorController::class, 'destroyEvent']);
+    Route::get('/settings', [VendorSettingController::class, 'show']);
+    Route::put('/settings', [VendorSettingController::class, 'update']);
+    Route::patch('/settings', [VendorSettingController::class, 'update']);
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
