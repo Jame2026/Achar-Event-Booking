@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { apiPost } from "../features/apiClient";
 import { useLanguage } from "../features/language";
@@ -9,15 +9,12 @@ const { language } = useLanguage();
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
 const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
 const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
+const POST_AUTH_OPEN_QR_KEY = "achar_checkout_open_qr";
+const PAYMENT_METHOD_SESSION_KEY = "achar_checkout_method";
 const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
+const PENDING_BOOKING_STORAGE_KEY = "achar_pending_booking";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
-const paymentLogoError = ref({
-  aba: false,
-  wing: false,
-  acleda: false,
-});
-const qrCodeImageSrc = `${import.meta.env.BASE_URL}qrcode.jpg`;
 
 const fallback = {
   vendorTitle: "Selected Vendor",
@@ -54,6 +51,14 @@ const bookingItems = computed(() => {
     },
   ];
 });
+const qrCodeImageSrc = computed(() => {
+  const itemWithQr = bookingItems.value.find((item) => item.qrCodeUrl);
+  return (
+    itemWithQr?.qrCodeUrl ||
+    booking.qrCodeUrl ||
+    ""
+  );
+});
 const itemsSubtotal = computed(() =>
   bookingItems.value.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0),
 );
@@ -69,6 +74,7 @@ const selectedMethod = ref("aba");
 const agreedTerms = ref(false);
 const paymentNotice = ref("");
 const isAwaitingPayment = ref(false);
+const isVerifyingPayment = ref(false);
 const cardForm = ref({
   holderName: "",
   cardNumber: "",
@@ -107,13 +113,6 @@ function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
 }
 
-function onPaymentLogoError(key) {
-  paymentLogoError.value = {
-    ...paymentLogoError.value,
-    [key]: true,
-  };
-}
-
 function saveLocalBooking(user) {
   try {
     const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
@@ -138,15 +137,171 @@ function saveLocalBooking(user) {
       type: "Upcoming",
       createdAt: new Date().toISOString(),
     });
+    localStorage.setItem("achar_last_booking_email", email);
     localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(rows.slice(0, 100)));
   } catch {
     // Ignore local-storage issues and continue checkout flow.
   }
 }
 
-async function handleConfirmAndPay() {
+function getStoredUser() {
+  const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    return null;
+  }
+}
+
+function startAuthFlow() {
+  paymentNotice.value = uiText.value.signInToContinuePayment;
+  sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
+  sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
+  sessionStorage.setItem(PAYMENT_METHOD_SESSION_KEY, selectedMethod.value);
+  if (selectedMethod.value !== "card") {
+    sessionStorage.setItem(POST_AUTH_OPEN_QR_KEY, "1");
+  }
+  router.push({ path: "/legacy-app", query: { view: "register" } });
+}
+
+function resolveEventId() {
+  return (
+    booking.eventId ||
+    bookingItems.value.find((item) => item?.eventId)?.eventId ||
+    null
+  );
+}
+
+function buildPendingBookingKey() {
+  const user = getStoredUser();
+  const customerEmail = String(booking.email || user?.email || "").trim().toLowerCase();
+  const firstItem = bookingItems.value[0] || {};
+  const eventId = resolveEventId();
+  const qty = Math.max(1, Number(firstItem.qty || 1));
+  return [
+    customerEmail,
+    String(eventId || ""),
+    String(firstItem.name || ""),
+    String(qty),
+    String(bookingTotal.value || 0),
+    String(selectedMethod.value || ""),
+  ].join("|");
+}
+
+function readPendingBooking() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_BOOKING_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.id || !parsed?.paymentToken || !parsed?.key) return null;
+    if (parsed.method && parsed.method !== selectedMethod.value) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingBooking() {
+  sessionStorage.removeItem(PENDING_BOOKING_STORAGE_KEY);
+}
+
+async function createPendingBooking() {
+  const user = getStoredUser();
+  const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
+  if (!customerEmail) {
+    paymentNotice.value = uiText.value.addEmailBeforePayment;
+    return null;
+  }
+  const eventId = resolveEventId();
+  if (!eventId) {
+    paymentNotice.value = "Please go back and select a service before completing payment.";
+    return null;
+  }
+  const firstItem = bookingItems.value[0] || {};
+  const quantity = Math.max(1, Number(firstItem.qty || 1));
+  const result = await apiPost("bookings", {
+    event_id: eventId,
+    quantity,
+    customer_name: customerName,
+    customer_email: customerEmail,
+    service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
+    requested_event_type: booking.requestedEventType || "other",
+    requested_event_date: booking.eventDate || null,
+    total_amount: bookingTotal.value,
+    payment_method: selectedMethod.value,
+    booked_items: bookingItems.value.map((item) => ({
+      type: item.type || "service",
+      name: item.name || "",
+      description: item.description || "",
+      qty: Math.max(1, Number(item.qty || 1)),
+      unitPrice: Number(item.unitPrice || 0),
+      totalPrice: Number(item.totalPrice || 0),
+    })),
+  });
+  const createdBooking = result?.data?.id ? result.data : result;
+  const paymentToken =
+    result?.payment_token ||
+    result?.data?.payment_token ||
+    createdBooking?.payment_token ||
+    "";
+
+  if (!createdBooking?.id || !paymentToken) {
+    paymentNotice.value = uiText.value.paymentTokenMissing;
+    return null;
+  }
+
+  const pending = {
+    id: createdBooking.id,
+    paymentToken,
+    key: buildPendingBookingKey(),
+    method: selectedMethod.value,
+    createdAt: Date.now(),
+  };
+  sessionStorage.setItem(PENDING_BOOKING_STORAGE_KEY, JSON.stringify(pending));
+  return pending;
+}
+
+function tryOpenQrAfterAuth() {
+  if (selectedMethod.value === "card") return;
+  const storedUser = getStoredUser();
+  if (!storedUser) return;
+  const shouldOpenQr = sessionStorage.getItem(POST_AUTH_OPEN_QR_KEY) === "1";
+  if (!shouldOpenQr) return;
+  sessionStorage.removeItem(POST_AUTH_OPEN_QR_KEY);
+  if (!qrCodeImageSrc.value) {
+    paymentNotice.value = uiText.value.noQrProvided;
+    return;
+  }
+  isAwaitingPayment.value = true;
+  paymentNotice.value = uiText.value.scanQrNotice;
+}
+
+async function handleConfirmAndPay(redirectToReceipt = false) {
   if (!agreedTerms.value) return;
+  if (!getStoredUser()) {
+    startAuthFlow();
+    return;
+  }
   if (selectedMethod.value !== "card" && !isAwaitingPayment.value) {
+    if (!qrCodeImageSrc.value) {
+      paymentNotice.value = uiText.value.noQrProvided;
+      return;
+    }
+    const key = buildPendingBookingKey();
+    const pending = readPendingBooking();
+    if (!pending || pending.key !== key) {
+      try {
+        paymentNotice.value = uiText.value.verifyingPayment;
+        const created = await createPendingBooking();
+        if (!created) return;
+      } catch (error) {
+        paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
+        return;
+      }
+    }
     isAwaitingPayment.value = true;
     paymentNotice.value = uiText.value.scanQrNotice;
     return;
@@ -174,51 +329,84 @@ async function handleConfirmAndPay() {
       return;
     }
   }
-  const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-  if (!stored) {
-    paymentNotice.value = uiText.value.signInToContinuePayment;
-    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
-    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
-    router.push("/legacy-app");
-    return;
-  }
-  let user = null;
-  try {
-    user = stored ? JSON.parse(stored) : null;
-  } catch {
-    user = null;
-  }
+  const user = getStoredUser();
   const customerEmail = String(booking.email || user?.email || "").trim();
   const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
   if (!customerEmail) {
     paymentNotice.value = uiText.value.addEmailBeforePayment;
     return;
   }
-  const firstItem = bookingItems.value[0] || {};
-  const quantity = Math.max(1, Number(firstItem.qty || 1));
-  try {
-    await apiPost("bookings", {
-      event_id: booking.eventId || null,
-      quantity,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
-      requested_event_type: booking.requestedEventType || "other",
-      requested_event_date: booking.eventDate || null,
-      total_amount: bookingTotal.value,
-      booked_items: bookingItems.value.map((item) => ({
-        type: item.type || "service",
-        name: item.name || "",
-        description: item.description || "",
-        qty: Math.max(1, Number(item.qty || 1)),
-        unitPrice: Number(item.unitPrice || 0),
-        totalPrice: Number(item.totalPrice || 0),
-      })),
-    });
-  } catch (error) {
-    paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
+  const eventId = resolveEventId();
+  if (!eventId) {
+    paymentNotice.value = "Please go back and select a service before completing payment.";
     return;
   }
+  const firstItem = bookingItems.value[0] || {};
+  const quantity = Math.max(1, Number(firstItem.qty || 1));
+  let createdBooking = null;
+  let paymentToken = "";
+  const pending = selectedMethod.value !== "card" ? readPendingBooking() : null;
+  if (pending && pending.key === buildPendingBookingKey()) {
+    createdBooking = { id: pending.id };
+    paymentToken = pending.paymentToken;
+  } else {
+    try {
+      const result = await apiPost("bookings", {
+      event_id: resolveEventId(),
+        quantity,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
+        requested_event_type: booking.requestedEventType || "other",
+        requested_event_date: booking.eventDate || null,
+        total_amount: bookingTotal.value,
+        payment_method: selectedMethod.value,
+        booked_items: bookingItems.value.map((item) => ({
+          type: item.type || "service",
+          name: item.name || "",
+          description: item.description || "",
+          qty: Math.max(1, Number(item.qty || 1)),
+          unitPrice: Number(item.unitPrice || 0),
+          totalPrice: Number(item.totalPrice || 0),
+        })),
+      });
+      createdBooking = result?.data?.id ? result.data : result;
+      paymentToken =
+        result?.payment_token ||
+        result?.data?.payment_token ||
+        createdBooking?.payment_token ||
+        "";
+    } catch (error) {
+      paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
+      return;
+    }
+  }
+
+  if (!createdBooking?.id) {
+    paymentNotice.value = uiText.value.unableSaveBooking;
+    return;
+  }
+
+  if (!paymentToken) {
+    paymentNotice.value = uiText.value.paymentTokenMissing;
+    return;
+  }
+
+  isVerifyingPayment.value = true;
+  paymentNotice.value = uiText.value.verifyingPayment;
+  try {
+    await apiPost(`bookings/${createdBooking.id}/confirm-payment`, {
+      payment_token: paymentToken,
+      payment_method: selectedMethod.value,
+    });
+  } catch (error) {
+    paymentNotice.value = error?.message || uiText.value.paymentVerificationFailed;
+    isVerifyingPayment.value = false;
+    return;
+  } finally {
+    isVerifyingPayment.value = false;
+  }
+  clearPendingBooking();
   const receiptPayload = {
     booking,
     items: bookingItems.value,
@@ -231,12 +419,23 @@ async function handleConfirmAndPay() {
   };
   saveLocalBooking(user);
   sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
-  router.push("/checkout/confirmed");
+  router.push(redirectToReceipt ? "/checkout/receipt" : "/checkout/confirmed");
 }
 
 watch(selectedMethod, () => {
   isAwaitingPayment.value = false;
   paymentNotice.value = "";
+  isVerifyingPayment.value = false;
+  clearPendingBooking();
+  sessionStorage.setItem(PAYMENT_METHOD_SESSION_KEY, selectedMethod.value);
+});
+
+onMounted(() => {
+  const storedMethod = sessionStorage.getItem(PAYMENT_METHOD_SESSION_KEY);
+  if (storedMethod) {
+    selectedMethod.value = storedMethod;
+  }
+  tryOpenQrAfterAuth();
 });
 
 const copyByLanguage = {
@@ -276,6 +475,11 @@ const copyByLanguage = {
     back: "Back",
     completePayment: "Complete Payment",
     scanQrNotice: "Please scan the QR code and complete payment, then click Complete Payment.",
+    noQrProvided: "This vendor has not provided a payment QR code yet.",
+    verifyingPayment: "Verifying payment...",
+    verifyingPaymentLabel: "Verifying...",
+    paymentTokenMissing: "Payment verification could not start. Please try again.",
+    paymentVerificationFailed: "Could not verify the payment right now. Please try again.",
     validCardDetails: "Please enter valid card details to continue.",
     invalidCardExpiry: "Your card expiry date is invalid or already expired.",
     signInToContinuePayment: "Please sign in or register to continue payment.",
@@ -321,6 +525,11 @@ const copyByLanguage = {
     back: "ត្រឡប់",
     completePayment: "បញ្ចប់ការទូទាត់",
     scanQrNotice: "សូមស្កេនកូដ QR និងបញ្ចប់ការទូទាត់ រួចចុច បញ្ចប់ការទូទាត់។",
+    noQrProvided: "អ្នកផ្គត់ផ្គង់មិនទាន់ផ្តល់ QR ទូទាត់នៅឡើយទេ។",
+    verifyingPayment: "កំពុងបញ្ជាក់ការទូទាត់...",
+    verifyingPaymentLabel: "កំពុងបញ្ជាក់...",
+    paymentTokenMissing: "មិនអាចចាប់ផ្តើមបញ្ជាក់ការទូទាត់បានទេ។ សូមព្យាយាមម្តងទៀត។",
+    paymentVerificationFailed: "មិនអាចបញ្ជាក់ការទូទាត់បានទេ។ សូមព្យាយាមម្តងទៀត។",
     validCardDetails: "សូមបញ្ចូលព័ត៌មានកាតឱ្យត្រឹមត្រូវ ដើម្បីបន្ត។",
     invalidCardExpiry: "កាលបរិច្ឆេទផុតកំណត់កាតរបស់អ្នកមិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ។",
     signInToContinuePayment: "សូមចូលគណនី ឬចុះឈ្មោះ ដើម្បីបន្តការទូទាត់។",
@@ -366,6 +575,11 @@ const copyByLanguage = {
     back: "返回",
     completePayment: "完成支付",
     scanQrNotice: "请扫描二维码并完成支付，然后点击“完成支付”。",
+    noQrProvided: "该商家尚未提供付款二维码。",
+    verifyingPayment: "正在验证付款...",
+    verifyingPaymentLabel: "正在验证...",
+    paymentTokenMissing: "无法开始验证付款，请重试。",
+    paymentVerificationFailed: "暂时无法验证付款，请稍后重试。",
     validCardDetails: "请输入有效的银行卡信息后再继续。",
     invalidCardExpiry: "您的卡片有效期无效或已过期。",
     signInToContinuePayment: "请先登录或注册再继续支付。",
@@ -460,16 +674,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               :aria-pressed="selectedMethod === 'aba'"
               @click="selectedMethod = 'aba'"
             >
-              <span class="method-logo aba">
-                <img
-                  v-if="!paymentLogoError.aba"
-                  src="/ABA.png"
-                  alt="ABA logo"
-                  loading="lazy"
-                  @error="onPaymentLogoError('aba')"
-                />
-                <span v-else>ABA</span>
-              </span>
+              <span class="method-logo aba" aria-hidden="true"></span>
               <span class="method-copy">
                 <strong>ABA Pay</strong>
                 <small>Instant QR payment</small>
@@ -484,16 +689,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               :aria-pressed="selectedMethod === 'wing'"
               @click="selectedMethod = 'wing'"
             >
-              <span class="method-logo wing">
-                <img
-                  v-if="!paymentLogoError.wing"
-                  src="/wing.png"
-                  alt="Wing logo"
-                  loading="lazy"
-                  @error="onPaymentLogoError('wing')"
-                />
-                <span v-else>Wing</span>
-              </span>
+              <span class="method-logo wing" aria-hidden="true"></span>
               <span class="method-copy">
                 <strong>Wing Bank</strong>
                 <small>Pay via Wing App or Account</small>
@@ -508,16 +704,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               :aria-pressed="selectedMethod === 'acleda'"
               @click="selectedMethod = 'acleda'"
             >
-              <span class="method-logo acleda">
-                <img
-                  v-if="!paymentLogoError.acleda"
-                  src="/Ac.png"
-                  alt="ACLEDA logo"
-                  loading="lazy"
-                  @error="onPaymentLogoError('acleda')"
-                />
-                <span v-else>ACLEDA</span>
-              </span>
+              <span class="method-logo acleda" aria-hidden="true"></span>
               <span class="method-copy">
                 <strong>ACLEDA Bank</strong>
                 <small>ACLEDA Mobile / QR</small>
@@ -532,9 +719,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               :aria-pressed="selectedMethod === 'card'"
               @click="selectedMethod = 'card'"
             >
-              <span class="method-logo card">
-                <span>VISA</span>
-              </span>
+              <span class="method-logo card" aria-hidden="true"></span>
               <span class="method-copy">
                 <strong>Credit / Visa Card</strong>
                 <small>Secure card payment</small>
@@ -598,8 +783,22 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             </span>
           </label>
 
-          <button type="button" class="pay-btn" :disabled="!agreedTerms" @click="handleConfirmAndPay">
-            {{ uiText.confirmPay }}
+          <button
+            type="button"
+            class="pay-btn"
+            :disabled="!agreedTerms || isVerifyingPayment"
+            @click="handleConfirmAndPay"
+          >
+            {{ isVerifyingPayment ? uiText.verifyingPaymentLabel : uiText.confirmPay }}
+          </button>
+          <button
+            v-if="selectedMethod !== 'card'"
+            type="button"
+            class="pay-btn"
+            :disabled="!agreedTerms || isVerifyingPayment"
+            @click="handleConfirmAndPay(true)"
+          >
+            {{ uiText.completePayment }}
           </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
           <p class="secure-note">{{ uiText.securePayment }}</p>
@@ -616,15 +815,23 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
     >
       <div class="qr-fullscreen-panel">
         <div class="qr-fullscreen-image-wrap">
-          <img :src="qrCodeImageSrc" alt="QR code for payment" loading="lazy" />
+          <img v-if="qrCodeImageSrc" :src="qrCodeImageSrc" alt="QR code for payment" loading="lazy" />
+          <div v-else class="qr-missing">
+            {{ uiText.noQrProvided }}
+          </div>
         </div>
         <p>{{ uiText.qrText }}</p>
         <div class="qr-fullscreen-actions">
           <button type="button" class="modal-btn ghost" @click="isAwaitingPayment = false">
             {{ uiText.back }}
           </button>
-          <button type="button" class="modal-btn primary" @click="handleConfirmAndPay">
-            ✔️ {{ uiText.completePayment }}
+          <button
+            type="button"
+            class="modal-btn primary"
+            :disabled="!qrCodeImageSrc"
+            @click="handleConfirmAndPay(true)"
+          >
+            {{ uiText.completePayment }}
           </button>
         </div>
       </div>
@@ -954,33 +1161,37 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
 .method-stack {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .method-card {
   width: 100%;
-  border: 1px solid transparent;
-  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.78)) padding-box,
-    linear-gradient(135deg, rgba(255, 107, 0, 0.42), rgba(59, 130, 246, 0.18)) border-box;
-  padding: 10px 10px;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9));
+  padding: 12px 14px;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 22px;
-  gap: 10px;
+  grid-template-columns: 60px minmax(0, 1fr) 24px;
+  gap: 14px;
   align-items: center;
   text-align: left;
   cursor: pointer;
   transition:
-    background 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease;
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .method-card:hover {
+  border-color: rgba(251, 146, 60, 0.35);
   box-shadow:
-    0 18px 44px rgba(15, 23, 42, 0.12),
-    0 10px 24px rgba(255, 107, 0, 0.12);
+    0 18px 38px rgba(15, 23, 42, 0.12),
+    0 8px 18px rgba(15, 23, 42, 0.08);
   transform: translateY(-1px);
 }
 
@@ -991,63 +1202,99 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
 .method-card.active {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)) padding-box,
-    linear-gradient(135deg, rgba(255, 107, 0, 0.7), rgba(59, 130, 246, 0.2)) border-box;
+    linear-gradient(120deg, rgba(255, 247, 237, 0.95), rgba(255, 255, 255, 0.95));
+  border-color: rgba(251, 146, 60, 0.6);
   box-shadow:
-    0 22px 58px rgba(15, 23, 42, 0.14),
-    0 12px 30px rgba(255, 107, 0, 0.14);
+    0 18px 36px rgba(249, 115, 22, 0.16),
+    0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .method-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  position: relative;
   overflow: hidden;
-  border: 1px solid rgba(229, 231, 235, 0.9);
-  background: rgba(255, 255, 255, 0.92);
-  padding: 5px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: #ffffff;
   box-shadow:
-    0 16px 30px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+    0 10px 18px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-.method-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.method-logo::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  border: none;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  box-shadow: none;
 }
 
-.method-logo.aba img {
-  transform: scale(1.08);
+.method-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.75), transparent 60%);
+  opacity: 0.22;
+  pointer-events: none;
 }
 
 .method-logo.aba {
-  background: linear-gradient(135deg, rgba(226, 232, 240, 0.55), rgba(255, 255, 255, 0.96));
-  color: #003a75;
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.method-logo.aba::before {
+  inset: 6px;
+  border: none;
+  background-color: transparent;
+  background-image: url("/aba-app.png");
+  background-size: contain;
 }
 
 .method-logo.wing {
-  background: linear-gradient(135deg, rgba(209, 250, 229, 0.42), rgba(255, 255, 255, 0.96));
-  color: #2f6a12;
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.method-logo.wing::before {
+  inset: 6px;
+  border: none;
+  background-color: transparent;
+  background-image: url("/wing.png");
+  background-size: contain;
 }
 
 .method-logo.acleda {
-  background: linear-gradient(135deg, rgba(219, 234, 254, 0.5), rgba(255, 255, 255, 0.96));
-  color: #173b9f;
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.method-logo.acleda::before {
+  inset: 6px;
+  border: none;
+  border-radius: 50%;
+  background-color: transparent;
+  background-image: url("/Ac.png");
+  background-size: contain;
 }
 
 .method-logo.card {
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  color: #fff;
-  border-color: rgba(29, 78, 216, 0.55);
-  padding: 5px;
-  font-size: 13px;
-  letter-spacing: 0.03em;
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.method-logo.card::before {
+  inset: 6px;
+  border: none;
+  background-color: transparent;
+  background-image: url("/visa card.png");
+  background-size: contain;
 }
 
 .method-copy strong {
@@ -1240,51 +1487,106 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
   position: fixed;
   inset: 0;
   z-index: 140;
-  background: rgba(15, 23, 42, 0.84);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(249, 115, 22, 0.18), transparent 40%),
+    radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.2), transparent 42%),
+    rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
   padding: 18px;
 }
 
 .qr-fullscreen-panel {
-  width: min(560px, 100%);
-  border: 1px solid #d8e2ef;
-  border-radius: 18px;
-  background: #fff;
-  padding: 18px;
+  width: min(460px, 100%);
+  position: relative;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top, rgba(255, 244, 234, 0.9), transparent 60%),
+    linear-gradient(180deg, #ffffff, #f8fbff);
+  padding: 22px;
   display: grid;
   gap: 14px;
   text-align: center;
+  box-shadow:
+    0 40px 80px rgba(15, 23, 42, 0.35),
+    0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.qr-fullscreen-panel::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 18px;
+  right: 18px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fb923c, #fdba74, #38bdf8);
+  opacity: 0.85;
+}
+
+.qr-fullscreen-panel::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  pointer-events: none;
 }
 
 .qr-fullscreen-image-wrap {
-  margin: 0 auto;
-  width: min(86vw, 420px);
+  margin: 10px auto 0;
+  width: min(70vw, 320px);
   aspect-ratio: 1 / 1;
-  border-radius: 16px;
-  border: 1px solid #d8e2ef;
-  background: #fff;
-  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.9));
+  padding: 16px;
   display: grid;
   place-items: center;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 16px 30px rgba(15, 23, 42, 0.12);
 }
 
 .qr-fullscreen-image-wrap img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+.qr-missing {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 16px;
+  color: #475569;
+  font-weight: 700;
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
 }
 
 .qr-fullscreen-panel p {
-  margin: 0;
+  margin: 2px 0 0;
   color: #475569;
   font-weight: 600;
+  font-size: 14px;
 }
 
 .qr-fullscreen-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin-top: 2px;
 }
 
 .modal-btn {
@@ -1296,12 +1598,29 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.modal-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
 }
 
 .modal-btn.primary {
-  background: #f97316;
+  background: linear-gradient(120deg, #f97316, #fb923c);
   border-color: #f97316;
   color: #fff;
+  box-shadow: 0 12px 20px rgba(249, 115, 22, 0.26);
+}
+
+.modal-btn.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 @media (max-width: 980px) {

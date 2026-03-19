@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Event;
 use App\Models\User;
 use App\Support\VendorCache;
+use App\Support\PublicEventCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +33,9 @@ class VendorController extends Controller
                     'title',
                     'event_type',
                     'description',
+                    'packages',
+                    'qr_code_url',
+                    'service_mode',
                     'image_url',
                     'location',
                     'starts_at',
@@ -52,10 +56,18 @@ class VendorController extends Controller
 
     public function storeServiceByVendorId(Request $request): JsonResponse
     {
+        $this->normalizePackages($request);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'event_type' => ['required', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
+            'packages' => ['nullable', 'array'],
+            'packages.*.name' => ['nullable', 'string', 'max:255'],
+            'packages.*.price' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.details' => ['nullable', 'string'],
+            'qr_code_url' => ['nullable', 'string', 'max:2048'],
+            'qr_code' => ['nullable', 'file'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'image' => ['nullable', 'file'],
             'location' => ['required', 'string', 'max:255'],
@@ -80,19 +92,31 @@ class VendorController extends Controller
             $validated['image_url'] = $this->storeEventImage($request->file('image'));
         }
 
+        if ($request->hasFile('qr_code')) {
+            $imageValidationError = $this->validateUploadedImage($request->file('qr_code'));
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+
+            $validated['qr_code_url'] = $this->storeEventImage($request->file('qr_code'));
+        }
+
         unset($validated['image']);
+        unset($validated['qr_code']);
 
         $event = Event::create([
             ...$validated,
             'vendor_id' => $vendor->id,
         ]);
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json($event, 201);
     }
 
     public function updateServiceByVendorId(Request $request, Event $event): JsonResponse
     {
+        $this->normalizePackages($request);
         $vendor = $this->resolveVendorFromRequest($request);
         if ($vendor instanceof JsonResponse) {
             return $vendor;
@@ -106,6 +130,13 @@ class VendorController extends Controller
             'title' => ['sometimes', 'string', 'max:255'],
             'event_type' => ['sometimes', Rule::in($this->allowedEventTypes())],
             'description' => ['nullable', 'string'],
+            'packages' => ['nullable', 'array'],
+            'packages.*.name' => ['nullable', 'string', 'max:255'],
+            'packages.*.price' => ['nullable', 'numeric', 'min:0'],
+            'packages.*.details' => ['nullable', 'string'],
+            'qr_code_url' => ['nullable', 'string', 'max:2048'],
+            'qr_code' => ['nullable', 'file'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'image' => ['nullable', 'file'],
             'location' => ['sometimes', 'string', 'max:255'],
@@ -126,7 +157,18 @@ class VendorController extends Controller
             $validated['image_url'] = $this->storeEventImage($request->file('image'));
         }
 
+        if ($request->hasFile('qr_code')) {
+            $imageValidationError = $this->validateUploadedImage($request->file('qr_code'));
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+
+            $this->deleteStoredEventImage($event->qr_code_url);
+            $validated['qr_code_url'] = $this->storeEventImage($request->file('qr_code'));
+        }
+
         unset($validated['image']);
+        unset($validated['qr_code']);
 
         if (array_key_exists('ends_at', $validated) && $validated['ends_at'] !== null) {
             $startsAt = $validated['starts_at'] ?? $event->starts_at;
@@ -139,6 +181,7 @@ class VendorController extends Controller
 
         $event->update($validated);
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json($event->fresh());
     }
@@ -157,6 +200,7 @@ class VendorController extends Controller
         $this->deleteStoredEventImage($event->image_url);
         $event->delete();
         VendorCache::flushVendor($vendor->id);
+        PublicEventCache::invalidate();
 
         return response()->json(null, 204);
     }
@@ -170,7 +214,7 @@ class VendorController extends Controller
 
         $bookings = VendorCache::rememberBookings($vendor->id, function () use ($vendor) {
             return Booking::query()
-                ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email'])
+                ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url'])
                 ->whereHas('event', fn ($query) => $query->where('vendor_id', $vendor->id))
                 ->latest()
                 ->get();
@@ -202,7 +246,7 @@ class VendorController extends Controller
         ]);
         VendorCache::flushVendor($vendor->id);
 
-        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email']));
+        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url']));
     }
 
     public function dashboard(Request $request): JsonResponse
@@ -243,6 +287,7 @@ class VendorController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'capacity' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
         ]);
 
         $event = $request->user()->events()->create($validated);
@@ -267,6 +312,7 @@ class VendorController extends Controller
             'price' => ['sometimes', 'numeric', 'min:0'],
             'capacity' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
         ]);
 
         if (array_key_exists('ends_at', $validated) && $validated['ends_at'] !== null) {
@@ -321,6 +367,21 @@ class VendorController extends Controller
             'festival',
             'other',
         ];
+    }
+
+    private function normalizePackages(Request $request): void
+    {
+        $rawPackages = $request->input('packages');
+        if (! is_string($rawPackages)) {
+            return;
+        }
+
+        $decoded = json_decode($rawPackages, true);
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            return;
+        }
+
+        $request->merge(['packages' => $decoded]);
     }
 
     private function resolveVendorFromRequest(Request $request): User|JsonResponse

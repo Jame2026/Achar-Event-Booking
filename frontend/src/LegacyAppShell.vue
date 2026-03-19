@@ -33,8 +33,11 @@ const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 const POST_AUTH_REDIRECT_KEY = 'achar_post_auth_redirect'
 const POST_AUTH_REDIRECT_AT_KEY = 'achar_post_auth_redirect_at'
 const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
+const MESSAGE_VENDOR_TARGET_KEY = 'achar_message_vendor_target'
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
+const LAST_BOOKING_EMAIL_KEY = 'achar_last_booking_email'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
+const EVENTS_CACHE_KEY = 'achar_guest_events_cache_v1'
 const router = useRouter()
 const route = useRoute()
 const currentView = ref('login')
@@ -53,8 +56,11 @@ const copyByLanguage = {
     loadEventsFailed: 'Could not load events from backend API. Please start backend server.',
     vendorAccountMissing: 'Vendor account is missing.',
     fillTitleLocationStart: 'Please fill title, location, and start date.',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'Service created successfully and is now visible to users.',
+    serviceUpdated: 'Service updated successfully.',
     couldNotCreateService: 'Could not create service.',
+    couldNotUpdateServiceDetails: 'Could not update service.',
     couldNotUpdateService: 'Could not update service status.',
     couldNotDeleteService: 'Could not delete service.',
     couldNotLoadVendorBookings: 'Could not load vendor bookings right now.',
@@ -76,6 +82,8 @@ const copyByLanguage = {
     last7Days: 'Last 7 days',
     last30Days: 'Last 30 days',
     last12Months: 'Last 12 months',
+    janToDec: 'Jan - Dec',
+    lastAndCurrentYear: 'Last & current year',
   },
   km: {
     signInToContinue: 'សូមចូលគណនីដើម្បីបន្តការកក់។',
@@ -90,8 +98,11 @@ const copyByLanguage = {
     loadEventsFailed: 'មិនអាចផ្ទុកព្រឹត្តិការណ៍ពី backend API បានទេ។ សូមបើកម៉ាស៊ីនមេ backend។',
     vendorAccountMissing: 'គណនីអ្នកផ្គត់ផ្គង់បាត់។',
     fillTitleLocationStart: 'សូមបំពេញចំណងជើង ទីតាំង និងថ្ងៃចាប់ផ្តើម។',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: 'សេវាកម្មត្រូវបានបង្កើតដោយជោគជ័យ ហើយអាចមើលឃើញដោយអ្នកប្រើហើយ។',
+    serviceUpdated: 'បានធ្វើបច្ចុប្បន្នភាពសេវាកម្មដោយជោគជ័យ។',
     couldNotCreateService: 'មិនអាចបង្កើតសេវាកម្មបានទេ។',
+    couldNotUpdateServiceDetails: 'មិនអាចធ្វើបច្ចុប្បន្នភាពសេវាកម្មបានទេ។',
     couldNotUpdateService: 'មិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពសេវាកម្មបានទេ។',
     couldNotDeleteService: 'មិនអាចលុបសេវាកម្មបានទេ។',
     couldNotLoadVendorBookings: 'មិនអាចផ្ទុកការកក់របស់អ្នកផ្គត់ផ្គង់បានទេ។',
@@ -113,6 +124,8 @@ const copyByLanguage = {
     last7Days: '7 ថ្ងៃចុងក្រោយ',
     last30Days: '30 ថ្ងៃចុងក្រោយ',
     last12Months: '12 ខែចុងក្រោយ',
+    janToDec: 'មករា - ធ្នូ',
+    lastAndCurrentYear: 'ឆ្នាំមុន និងឆ្នាំនេះ',
   },
   zh: {
     signInToContinue: '请先登录再继续预订。',
@@ -127,8 +140,11 @@ const copyByLanguage = {
     loadEventsFailed: '无法从后端 API 加载活动。请启动后端服务。',
     vendorAccountMissing: '缺少商家账户。',
     fillTitleLocationStart: '请填写标题、地点和开始日期。',
+    qrCodeRequired: 'Please upload a payment QR code.',
     serviceCreated: '服务已成功创建，并且用户现在可以看到它。',
+    serviceUpdated: '服务已成功更新。',
     couldNotCreateService: '无法创建服务。',
+    couldNotUpdateServiceDetails: '无法更新服务。',
     couldNotUpdateService: '无法更新服务状态。',
     couldNotDeleteService: '无法删除服务。',
     couldNotLoadVendorBookings: '暂时无法加载商家预订。',
@@ -150,6 +166,8 @@ const copyByLanguage = {
     last7Days: '最近 7 天',
     last30Days: '最近 30 天',
     last12Months: '最近 12 个月',
+    janToDec: '1月 - 12月',
+    lastAndCurrentYear: '去年与今年',
   },
 }
 const { uiText } = useLanguageCopy(copyByLanguage)
@@ -181,7 +199,9 @@ function onLoginSuccess(user) {
     const target = role === 'vendor' || role === 'admin' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
     router.push(target).catch(() => {})
   }
-  void bootstrapAuthenticatedShell()
+  void bootstrapAuthenticatedShell().then(() => {
+    consumeMessageVendorTarget()
+  })
 }
 
 function handlePostAuthRedirect() {
@@ -196,6 +216,36 @@ function handlePostAuthRedirect() {
   if (!isFresh || !isSafePath) return false
   router.push(redirectPath).catch(() => {})
   return true
+}
+
+function consumeMessageVendorTarget() {
+  const raw = sessionStorage.getItem(MESSAGE_VENDOR_TARGET_KEY)
+  if (!raw) return
+  sessionStorage.removeItem(MESSAGE_VENDOR_TARGET_KEY)
+
+  let payload = null
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    return
+  }
+
+  if (!payload || typeof payload !== 'object') return
+
+  const vendorIdRaw = Number(payload.vendorId || 0)
+  const vendorId = Number.isFinite(vendorIdRaw) && vendorIdRaw > 0 ? vendorIdRaw : null
+  const vendorEmail = String(payload.vendorEmail || '').trim()
+  const eventIdRaw = Number(payload.eventId || 0)
+  const eventId = Number.isFinite(eventIdRaw) && eventIdRaw > 0 ? eventIdRaw : null
+  if (!vendorId && !vendorEmail && !eventId) return
+
+  goToMessages({
+    vendorId,
+    vendorEmail: vendorEmail || undefined,
+    vendorName: String(payload.vendorName || '').trim() || undefined,
+    serviceName: String(payload.serviceName || '').trim() || undefined,
+    eventId: eventId || undefined,
+  })
 }
 
 function requireLogin(message = uiText.value.signInToContinue) {
@@ -241,6 +291,13 @@ function normalizePage(value) {
   return page
 }
 
+function normalizeAuthView(value) {
+  const view = String(value || '').trim().toLowerCase()
+  if (view === 'register') return 'register'
+  if (view === 'login') return 'login'
+  return ''
+}
+
 function normalizeVendorTab(value) {
   const tab = firstQueryValue(value)
   return allowedVendorTabs.includes(tab) ? tab : 'about'
@@ -254,6 +311,10 @@ function normalizeVendorDashboardTab(value) {
 function applyRouteStateFromQuery(query) {
   const nextPage = normalizePage(query.page)
   currentPage.value = nextPage
+  if (!loggedInUser.value) {
+    const authView = normalizeAuthView(firstQueryValue(query.view))
+    if (authView) currentView.value = authView
+  }
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
   if (isVendorAccount.value && nextPage === 'dashboard') {
     vendorDashboardTab.value = normalizeVendorDashboardTab(query.vtab)
@@ -343,6 +404,10 @@ const vendorServiceForm = ref({
   title: '',
   event_type: 'wedding',
   description: '',
+  packages: [],
+  qr_code_url: '',
+  qr_code_file: null,
+  service_mode: 'overall',
   image_url: '',
   image_file: null,
   location: '',
@@ -420,7 +485,7 @@ const {
   deleteMessage,
   isLoadingMessages,
   messagesError,
-} = useVendorMessagesFeature(currentPage, loggedInUser, notice)
+} = useVendorMessagesFeature(currentPage, loggedInUser, notice, vendorDashboardTab)
 const {
   availabilityMonthCursor,
   selectedAvailabilityDate,
@@ -554,8 +619,13 @@ const recentBookings = computed(() => bookings.value.slice(0, 3))
 const vendorDisplayName = computed(
   () => String(loggedInUser.value?.name || vendorProfile.name || 'Vendor').trim() || 'Vendor',
 )
-const messagesSummary = computed(
-  () => conversations.value.filter((item) => item.time === 'Just now' || item.unread).length,
+const messagesSummary = computed(() =>
+  conversations.value.filter((item) => {
+    if (item?.unread) return true
+    const messages = Array.isArray(item?.messages) ? item.messages : []
+    const lastMessage = messages[messages.length - 1]
+    return lastMessage?.from === 'them'
+  }).length,
 )
 function getIncomeDateParts(value) {
   const date = value ? new Date(value) : null
@@ -588,6 +658,91 @@ function createDailyIncomeSeries(bookings, days) {
     if (!parts) return
     const key = `${parts.year}-${parts.month}-${parts.day}`
     const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function getWeekStartMonday(date) {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = (day + 6) % 7
+  start.setDate(start.getDate() - diff)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+function createWeeklyIncomeSeries(bookings) {
+  const weekStart = getWeekStartMonday(new Date())
+  const buckets = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + index)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}-${parts.day}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createCalendarYearIncomeSeries(bookings, year = new Date().getFullYear()) {
+  const buckets = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(year, index, 1)
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const key = `${parts.year}-${parts.month}`
+    const target = bucketMap.get(key)
+    if (target) target.value += Number(booking.total_amount || 0)
+  })
+
+  return buckets
+}
+
+function createYearComparisonSeries(bookings, year = new Date().getFullYear()) {
+  const years = [year - 1, year]
+  const buckets = years.map((targetYear) => {
+    const date = new Date(targetYear, 0, 1)
+    return {
+      key: `${targetYear}`,
+      label: date.toLocaleDateString('en-US', { year: 'numeric' }),
+      fullLabel: `Calendar year ${targetYear}`,
+      value: 0,
+    }
+  })
+
+  const bucketMap = new Map(buckets.map((item) => [item.key, item]))
+  bookings.forEach((booking) => {
+    const parts = getIncomeDateParts(booking.income_date)
+    if (!parts) return
+    const target = bucketMap.get(String(parts.year))
     if (target) target.value += Number(booking.total_amount || 0)
   })
 
@@ -641,9 +796,9 @@ const vendorIncome = computed(() => {
     if (!parts) return sum
     return parts.year === now.getFullYear() ? sum + Number(item.total_amount || 0) : sum
   }, 0)
-  const weekSeries = createDailyIncomeSeries(confirmedBookings, 7)
-  const monthSeries = createDailyIncomeSeries(confirmedBookings, 30)
-  const yearSeries = createMonthlyIncomeSeries(confirmedBookings, 12)
+  const weekSeries = createWeeklyIncomeSeries(confirmedBookings)
+  const monthSeries = createCalendarYearIncomeSeries(confirmedBookings, now.getFullYear())
+  const yearSeries = createYearComparisonSeries(confirmedBookings, now.getFullYear())
   const periodTotal = (series) => series.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return {
     total,
@@ -659,12 +814,12 @@ const vendorIncome = computed(() => {
         total: periodTotal(weekSeries),
       },
       month: {
-        label: uiText.value.last30Days,
+        label: uiText.value.janToDec,
         points: monthSeries,
         total: periodTotal(monthSeries),
       },
       year: {
-        label: uiText.value.last12Months,
+        label: uiText.value.lastAndCurrentYear,
         points: yearSeries,
         total: periodTotal(yearSeries),
       },
@@ -706,6 +861,30 @@ function getLocalBookingsByEmail(email) {
   } catch {
     return []
   }
+}
+
+function getBookingMatchKey(row) {
+  const eventId = row?.eventId || row?.event_id || row?.event?.id || null
+  const date =
+    row?.date ||
+    row?.dateLabel ||
+    row?.requested_event_date ||
+    row?.event?.starts_at ||
+    ''
+  if (eventId) {
+    return `event:${eventId}|${String(date).trim().toLowerCase()}`
+  }
+  const service =
+    row?.service ||
+    row?.service_name ||
+    row?.name ||
+    ''
+  const total =
+    row?.total ||
+    row?.total_amount ||
+    row?.servicePrice ||
+    0
+  return `service:${String(service).trim().toLowerCase()}|${Number(total || 0)}|${String(date).trim().toLowerCase()}`
 }
 
 function clearLocalBookingsByEmail(email) {
@@ -904,8 +1083,11 @@ async function openNotification(notification) {
   goToBookings()
 }
 
-async function loadEvents() {
-  isLoadingEvents.value = true
+async function loadEvents(options = {}) {
+  const { silent = false } = options
+  if (!silent) {
+    isLoadingEvents.value = true
+  }
   try {
     const vendorUserId = Number(loggedInUser.value?.id || 0)
     const result =
@@ -924,15 +1106,37 @@ async function loadEvents() {
   } catch (error) {
     notice.value = uiText.value.loadEventsFailed
   } finally {
-    isLoadingEvents.value = false
+    if (!silent) {
+      isLoadingEvents.value = false
+    }
+  }
+}
+
+function upsertVendorEvent(row) {
+  if (!row) return
+  const mapped = mapApiEvent(row, eventTypeMap)
+  const index = vendorEvents.value.findIndex((item) => item.id === mapped.id)
+  if (index >= 0) {
+    vendorEvents.value.splice(index, 1, mapped)
+  } else {
+    vendorEvents.value = [mapped, ...vendorEvents.value]
+  }
+  selectedQuantities.value = {
+    ...selectedQuantities.value,
+    [mapped.id]: selectedQuantities.value[mapped.id] || 1,
   }
 }
 
 function resetVendorServiceForm() {
   vendorServiceForm.value = {
+    id: null,
     title: '',
     event_type: 'wedding',
     description: '',
+    packages: [],
+    qr_code_url: '',
+    qr_code_file: null,
+    service_mode: 'overall',
     image_url: '',
     image_file: null,
     location: '',
@@ -943,6 +1147,14 @@ function resetVendorServiceForm() {
     price: 0,
     capacity: 1,
     is_active: true,
+  }
+}
+
+function clearGuestEventsCache() {
+  try {
+    sessionStorage.removeItem(EVENTS_CACHE_KEY)
+  } catch {
+    // ignore storage errors
   }
 }
 
@@ -957,11 +1169,26 @@ async function submitVendorService() {
 
   const imageUrl = String(vendorServiceForm.value.image_url || '').trim()
   const imageFile = vendorServiceForm.value.image_file instanceof File ? vendorServiceForm.value.image_file : null
+  const qrCodeUrl = String(vendorServiceForm.value.qr_code_url || '').trim()
+  const qrCodeFile = vendorServiceForm.value.qr_code_file instanceof File ? vendorServiceForm.value.qr_code_file : null
+  const normalizedPackages = Array.isArray(vendorServiceForm.value.packages)
+    ? vendorServiceForm.value.packages
+        .map((pkg) => ({
+          name: String(pkg?.name || '').trim(),
+          price: Number(pkg?.price || 0),
+          details: String(pkg?.details || '').trim(),
+        }))
+        .filter((pkg) => pkg.name || pkg.details)
+    : []
+
   const normalizedPayload = {
     vendor_user_id: vendorUserId,
     title: String(vendorServiceForm.value.title || '').trim(),
     event_type: String(vendorServiceForm.value.event_type || 'other'),
     description: String(vendorServiceForm.value.description || '').trim(),
+    packages: normalizedPackages,
+    qr_code_url: qrCodeUrl,
+    service_mode: String(vendorServiceForm.value.service_mode || 'overall'),
     image_url: imageUrl,
     location: String(vendorServiceForm.value.location || '').trim(),
     starts_at: vendorServiceForm.value.starts_at || null,
@@ -976,14 +1203,29 @@ async function submitVendorService() {
     return
   }
 
+  if (!qrCodeFile && !qrCodeUrl) {
+    vendorServiceNotice.value = uiText.value.qrCodeRequired
+    return
+  }
+
   isSubmittingVendorService.value = true
   vendorServiceNotice.value = ''
   try {
+    const serviceId = Number(vendorServiceForm.value.id || 0)
     const payload = imageFile
       ? (() => {
           const formData = new FormData()
           Object.entries(normalizedPayload).forEach(([key, value]) => {
             if (key === 'image_url') {
+              return
+            }
+            if (key === 'qr_code_url' && qrCodeFile) {
+              return
+            }
+            if (key === 'packages') {
+              if (Array.isArray(value) && value.length > 0) {
+                formData.append(key, JSON.stringify(value))
+              }
               return
             }
             if (value !== null && value !== undefined) {
@@ -995,17 +1237,22 @@ async function submitVendorService() {
             }
           })
           formData.append('image', imageFile)
+          if (qrCodeFile) {
+            formData.append('qr_code', qrCodeFile)
+          }
           return formData
         })()
       : normalizedPayload
 
     await apiPost('vendor/services', payload)
     await loadEvents()
+    clearGuestEventsCache()
     selectedEventType.value = normalizedPayload.event_type
-    vendorServiceNotice.value = uiText.value.serviceCreated
     resetVendorServiceForm()
   } catch (error) {
-    vendorServiceNotice.value = error?.message || uiText.value.couldNotCreateService
+    vendorServiceNotice.value =
+      error?.message ||
+      (vendorServiceForm.value.id ? uiText.value.couldNotUpdateServiceDetails : uiText.value.couldNotCreateService)
   } finally {
     isSubmittingVendorService.value = false
   }
@@ -1021,6 +1268,7 @@ async function toggleVendorServiceActive(item) {
       is_active: !item.isActive,
     })
     await loadEvents()
+    clearGuestEventsCache()
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotUpdateService
   }
@@ -1033,6 +1281,7 @@ async function deleteVendorService(item) {
   try {
     await apiDelete(`vendor/services/${item.id}`, { vendor_user_id: vendorUserId })
     await loadEvents()
+    clearGuestEventsCache()
   } catch (error) {
     vendorServiceNotice.value = error?.message || uiText.value.couldNotDeleteService
   }
@@ -1040,11 +1289,24 @@ async function deleteVendorService(item) {
 
 function mapVendorBookingRow(row) {
   const event = row.event || {}
+  const user = row.user || {}
   const bookingDate = row.requested_event_date || event.starts_at
+  const customerEmail = row.customer_email || user.email || ''
   return {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
-    customer_name: row.customer_name || row.user?.name || uiText.value.customer,
+    customer_id: user.id || null,
+    customer_name: row.customer_name || user.name || uiText.value.customer,
+    customer_email: customerEmail,
+    customer_phone: row.customer_phone || user.phone || '',
+    customer_location: row.customer_location || user.location || '',
+    customer_avatar: user.profile_image_url || '',
+    event_location: row.event_location || event.location || '',
+    event_type: event.event_type || row.requested_event_type || '',
+    event_image: event.image_url || '',
+    requested_event_type: row.requested_event_type || event.event_type || '',
+    quantity: Number(row.quantity || 0),
+    booked_items: Array.isArray(row.booked_items) ? row.booked_items : [],
     date_label: bookingDate
       ? new Date(bookingDate).toLocaleString('en-US', {
           month: 'short',
@@ -1121,7 +1383,12 @@ async function checkEventAvailability(item) {
 }
 
 async function loadBookings() {
-  const email = String(loggedInUser.value?.email || '').trim() || customerEmail.value.trim()
+  const typedEmail = customerEmail.value.trim()
+  const loggedEmail = String(loggedInUser.value?.email || '').trim()
+  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || '').trim()
+  const primaryEmail = typedEmail || loggedEmail || lastEmail
+  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : ''
+  const email = primaryEmail
   if (!email) {
     bookings.value = []
     return
@@ -1131,11 +1398,24 @@ async function loadBookings() {
   try {
     const result = await apiGet('bookings', { customer_email: email })
     const rows = Array.isArray(result.data) ? result.data : []
-    const apiMappedRows = rows.map((row) =>
+    let apiRows = rows
+    if (!apiRows.length && fallbackEmail) {
+      const fallbackResult = await apiGet('bookings', { customer_email: fallbackEmail })
+      apiRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : []
+    }
+    const apiMappedRows = apiRows.map((row) =>
       mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
     )
-    bookings.value = apiMappedRows
-    clearLocalBookingsByEmail(email)
+    const localRows = [
+      ...getLocalBookingsByEmail(email),
+      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+    ]
+    const apiKeys = new Set(apiMappedRows.map((row) => getBookingMatchKey(row)))
+    const extraLocalRows = localRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)))
+    bookings.value = [...apiMappedRows, ...extraLocalRows]
+    if (extraLocalRows.length === 0) {
+      clearLocalBookingsByEmail(email)
+    }
   } catch (error) {
     const localRows = getLocalBookingsByEmail(email)
     bookings.value = localRows
@@ -1284,7 +1564,12 @@ async function bookPackage(item) {
 
 function bookingPrimaryAction(item) {
   if (item.primaryBtn === 'Message Vendor') {
-    goToMessages(item.vendor)
+    goToMessages({
+      vendorId: item.vendorId,
+      vendorName: item.vendor,
+      vendorEmail: item.vendorEmail,
+      serviceName: item.service,
+    })
     return
   }
   if (item.primaryBtn === 'View Details') {
@@ -1350,6 +1635,19 @@ watch([currentPage, activeVendorTab, vendorDashboardTab], () => {
   syncRouteQueryFromState()
 })
 
+watch(
+  vendorDashboardTab,
+  async (tab) => {
+    if (tab === 'services') {
+      await loadEvents()
+    }
+    if (tab === 'messages') {
+      await loadVendorConversations({ preserveSelection: true })
+    }
+  },
+  { flush: 'post', immediate: true },
+)
+
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick)
   window.addEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
@@ -1365,6 +1663,7 @@ onMounted(async () => {
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   handlePostAuthRedirect()
   await bootstrapAuthenticatedShell()
+  consumeMessageVendorTarget()
 })
 
 onBeforeUnmount(() => {
@@ -1396,11 +1695,23 @@ onBeforeUnmount(() => {
         :vendor-service-notice="vendorServiceNotice"
         :vendor-income="vendorIncome"
         :messages-summary="messagesSummary"
+        :messages-bindings="messagesBindings"
+        :filtered-conversations="filteredConversations"
+        :active-conversation="activeConversation"
+        :select-conversation="selectConversation"
+        :send-message="sendMessage"
+        :send-files="sendFiles"
+        :send-location="sendLocation"
+        :is-sharing-location="isSharingLocation"
+        :save-document="saveDocument"
+        :delete-message="deleteMessage"
+        :is-loading-messages="isLoadingMessages"
+        :messages-error="messagesError"
+        :load-vendor-conversations="loadVendorConversations"
         :submit-vendor-service="submitVendorService"
         :toggle-vendor-service-active="toggleVendorServiceActive"
         :delete-vendor-service="deleteVendorService"
         :update-vendor-booking-status="updateVendorBookingStatus"
-        :go-to-messages="goToMessages"
         :logout-user="logout"
       />
       <DashboardPage

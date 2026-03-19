@@ -17,8 +17,9 @@ export function deriveBookingType(status, startsAt) {
 export function mapBooking(apiBooking, options) {
   const { vendorName, eventTypeMap } = options
   const event = apiBooking.event || {}
+  const vendor = event.vendor || {}
   const resolvedVendorName =
-    event.vendor?.name ||
+    vendor.name ||
     apiBooking.vendor_name ||
     vendorName ||
     'Selected Vendor'
@@ -49,6 +50,8 @@ export function mapBooking(apiBooking, options) {
     type,
     eventType: event.event_type || apiBooking.requested_event_type || 'other',
     eventId: event.id,
+    vendorId: event.vendor_id || vendor.id || null,
+    vendorEmail: vendor.email || apiBooking.vendor_email || '',
     image:
       event.image_url ||
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
@@ -64,11 +67,22 @@ export function mapEvent(apiEvent, eventTypeMap) {
   return {
     id: apiEvent.id,
     vendorId: apiEvent.vendor_id || null,
+    vendorName: apiEvent.vendor?.name || apiEvent.vendor_name || '',
+    vendorEmail: apiEvent.vendor?.email || apiEvent.vendor_email || '',
     title: apiEvent.title,
     eventType: apiEvent.event_type || 'other',
     eventTypeLabel: eventTypeMap[apiEvent.event_type] || 'Other',
     description: apiEvent.description || 'Professional service package for your event.',
+    packages: Array.isArray(apiEvent.packages) ? apiEvent.packages : [],
+    qrCodeUrl: apiEvent.qr_code_url || apiEvent.qrCodeUrl || '',
+    imageUrl: apiEvent.image_url || '',
+    startsAt: apiEvent.starts_at || '',
+    endsAt: apiEvent.ends_at || '',
+    capacity: Number(apiEvent.capacity || 0),
+    serviceMode: apiEvent.service_mode || apiEvent.serviceMode || 'overall',
     location: apiEvent.location,
+    locationLatitude: apiEvent.location_latitude ?? null,
+    locationLongitude: apiEvent.location_longitude ?? null,
     date: formatDateTime(apiEvent.starts_at),
     price,
     priceLabel: `From $${price.toLocaleString()}`,

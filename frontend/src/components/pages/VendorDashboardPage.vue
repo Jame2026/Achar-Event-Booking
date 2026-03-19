@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import MessagesPage from "./MessagesPage.vue";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps([
@@ -19,11 +20,23 @@ const props = defineProps([
   "vendorServiceNotice",
   "vendorIncome",
   "messagesSummary",
+  "messagesBindings",
+  "filteredConversations",
+  "activeConversation",
+  "selectConversation",
+  "sendMessage",
+  "sendFiles",
+  "sendLocation",
+  "isSharingLocation",
+  "saveDocument",
+  "deleteMessage",
+  "isLoadingMessages",
+  "messagesError",
+  "loadVendorConversations",
   "submitVendorService",
   "toggleVendorServiceActive",
   "deleteVendorService",
   "updateVendorBookingStatus",
-  "goToMessages",
   "logoutUser",
 ]);
 
@@ -32,9 +45,17 @@ const emit = defineEmits(["update:activeTab"]);
 const localActiveTab = ref(
   typeof props.activeTab === "string" ? props.activeTab : "overview",
 );
+const serviceMode = ref(
+  props.vendorServiceForm?.service_mode === "package" ? "package" : "overall",
+);
+const hasMessagesPanel = computed(
+  () => props.messagesBindings && Array.isArray(props.filteredConversations),
+);
 const isDetectingVendorLocation = ref(false);
 const vendorLocationNotice = ref("");
 const incomePeriod = ref("month");
+const activeBookingDetail = ref(null);
+const isBookingDetailOpen = ref(false);
 const copyByLanguage = {
   en: {
     overview: "Overview",
@@ -85,19 +106,24 @@ const copyByLanguage = {
     noConfirmedIncome: "No confirmed income yet for this period.",
     createService: "Create service",
     insertService: "Insert Service",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "Current listings",
     loadingServices: "Loading services...",
     bookingRequests: "Requests",
     newBookingRequests: "New Booking Requests",
     loadingBookings: "Loading bookings...",
     customerMessages: "Customer Messages",
-    openMessages: "Open Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
-    vendorDataHintServices:
-      "Create and publish at least one service so bookings can link to your vendor dashboard.",
-    vendorDataHintBookings: "Bookings will appear here as soon as customers submit requests for your services.",
-    vendorDataError: "We couldn't load your vendor data. Please try again.",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -148,19 +174,24 @@ const copyByLanguage = {
     noConfirmedIncome: "មិនទាន់មានចំណូលដែលបានបញ្ជាក់សម្រាប់រយៈពេលនេះទេ។",
     createService: "បង្កើតសេវាកម្ម",
     insertService: "បញ្ចូលសេវាកម្ម",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "បញ្ជីបច្ចុប្បន្ន",
     loadingServices: "កំពុងផ្ទុកសេវាកម្ម...",
     bookingRequests: "សំណើ",
     newBookingRequests: "សំណើកក់ថ្មី",
     loadingBookings: "កំពុងផ្ទុកការកក់...",
     customerMessages: "សារអតិថិជន",
-    openMessages: "បើកសារ",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
-    vendorDataHintServices:
-      "បង្កើត និងបង្ហោះសេវាកម្មយ៉ាងហោចណាស់មួយ ដើម្បីភ្ជាប់ការកក់ទៅផ្ទាំងអ្នកផ្គត់ផ្គង់។",
-    vendorDataHintBookings: "ការកក់នឹងបង្ហាញទីនេះ នៅពេលអតិថិជនដាក់សំណើសេវាកម្មរបស់អ្នក។",
-    vendorDataError: "មិនអាចផ្ទុកទិន្នន័យអ្នកផ្គត់ផ្គង់បានទេ សូមព្យាយាមម្ដងទៀត។",
   },
   zh: {
     overview: "概览",
@@ -210,18 +241,24 @@ const copyByLanguage = {
     noConfirmedIncome: "该时段暂无已确认收入。",
     createService: "创建服务",
     insertService: "录入服务",
+    editService: "Edit Service",
+    updateService: "Update Service",
+    cancelEdit: "Cancel Edit",
+    serviceType: "Service Type",
+    overallService: "Overall Service",
+    overallServiceHint: "One price for the full service.",
+    packageService: "Package Service",
+    packageServiceHint: "Offer tiered packages clients can choose.",
+    overallPricing: "Overall Pricing",
+    packageBuilder: "Package Builder",
     currentListings: "当前列表",
     loadingServices: "正在加载服务...",
     bookingRequests: "请求",
     newBookingRequests: "新的预订请求",
     loadingBookings: "正在加载预订...",
     customerMessages: "客户消息",
-    openMessages: "打开消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
-    vendorDataHintServices: "先创建并上架至少 1 项服务，预订才能关联到您的商家仪表盘。",
-    vendorDataHintBookings: "当客户提交预订请求时，它们会显示在这里。",
-    vendorDataError: "无法获取商家数据，请稍后重试。",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -256,6 +293,31 @@ const safeVendorEvents = computed(() =>
 const safeVendorBookings = computed(() =>
   Array.isArray(props.vendorBookings) ? props.vendorBookings : [],
 );
+const bookingDetail = computed(() => activeBookingDetail.value || {});
+const bookingDetailLocation = computed(() => {
+  const detail = bookingDetail.value;
+  return String(detail.event_location || detail.customer_location || "").trim();
+});
+const bookingItems = computed(() =>
+  Array.isArray(bookingDetail.value.booked_items)
+    ? bookingDetail.value.booked_items
+    : [],
+);
+const customerEmailLink = computed(() => {
+  const email = String(bookingDetail.value.customer_email || "").trim();
+  return email ? `mailto:${email}` : "";
+});
+const customerPhoneLink = computed(() => {
+  const phone = String(bookingDetail.value.customer_phone || "").trim();
+  if (!phone) return "";
+  return `tel:${phone.replace(/\s+/g, "")}`;
+});
+const bookingDirectionsUrl = computed(() => {
+  if (!bookingDetailLocation.value) return "";
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    bookingDetailLocation.value,
+  )}`;
+});
 const navItems = computed(() => [
   { key: "overview", label: uiText.value.overview },
   {
@@ -290,6 +352,22 @@ const vendorServiceNoticeTone = computed(() => {
   }
   return "error";
 });
+
+watch(
+  () => props.vendorServiceNotice,
+  (message) => {
+    const normalized = String(message || "").toLowerCase();
+    if (!normalized) return;
+    if (
+      normalized.includes("success") ||
+      normalized.includes("created") ||
+      normalized.includes("updated") ||
+      normalized.includes("saved")
+    ) {
+      editingServiceId.value = null;
+    }
+  },
+);
 const eventOptions = computed(() =>
   Array.isArray(props.eventTypeOptions)
     ? props.eventTypeOptions.filter(
@@ -297,6 +375,13 @@ const eventOptions = computed(() =>
       )
     : [],
 );
+const eventTypeSelectOpen = ref(false);
+const eventTypeSelectRef = ref(null);
+const selectedEventTypeLabel = computed(() => {
+  const current = String(props.vendorServiceForm?.event_type || "");
+  const match = eventOptions.value.find((option) => option.value === current);
+  return match?.label || "Select type";
+});
 const incomePeriodOptions = computed(() => [
   { key: "week", label: uiText.value.week },
   { key: "month", label: uiText.value.month },
@@ -367,12 +452,24 @@ const showIncomeDots = computed(
 );
 const incomeLabelStep = computed(() => {
   const count = activeIncomePoints.value.length;
+  if (incomePeriod.value === "month") return 1;
   if (count <= 8) return 1;
   if (count <= 16) return 2;
   if (count <= 24) return 3;
   if (count <= 32) return 4;
   return Math.max(5, Math.ceil(count / 8));
 });
+const isMonthIncomePeriod = computed(() => incomePeriod.value === "month");
+const chartShellMinWidth = computed(() => {
+  if (!isMonthIncomePeriod.value) return "";
+  const count = activeIncomePoints.value.length;
+  if (!count) return "";
+  return `${Math.max(560, count * 56)}px`;
+});
+const isChartScrollable = computed(() => Boolean(chartShellMinWidth.value));
+const chartShellStyle = computed(() =>
+  isChartScrollable.value ? { minWidth: chartShellMinWidth.value } : null,
+);
 const chartHoverIndex = ref(-1);
 const chartHoverPoint = computed(() => {
   const points = normalizedIncomeChartPoints.value;
@@ -480,6 +577,129 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+const hasServiceTitle = computed(() =>
+  Boolean(String(props.vendorServiceForm?.title || "").trim()),
+);
+const hasServiceDescription = computed(() =>
+  Boolean(String(props.vendorServiceForm?.description || "").trim()),
+);
+const hasServiceLocation = computed(() =>
+  Boolean(String(props.vendorServiceForm?.location || "").trim()),
+);
+const hasServicePrice = computed(() =>
+  Number(props.vendorServiceForm?.price ?? 0) > 0,
+);
+const hasServiceCapacity = computed(() =>
+  Number(props.vendorServiceForm?.capacity ?? 0) > 0,
+);
+const hasServiceImage = computed(() =>
+  Boolean(String(props.vendorServiceForm?.image_url || "").trim()),
+);
+const hasServiceQr = computed(() =>
+  Boolean(String(props.vendorServiceForm?.qr_code_url || "").trim()),
+);
+
+const previewTitle = computed(() => {
+  const title = String(props.vendorServiceForm?.title || "").trim();
+  return title || uiText.value.previewTitleFallback;
+});
+
+const previewLocation = computed(() => {
+  const location = String(props.vendorServiceForm?.location || "").trim();
+  return location || uiText.value.previewLocationFallback;
+});
+
+const previewEventTypeLabel = computed(() => {
+  const value = props.vendorServiceForm?.event_type;
+  const option = eventOptions.value.find((entry) => entry.value === value);
+  return option?.label || uiText.value.previewEventTypeFallback;
+});
+
+const previewPriceLabel = computed(() =>
+  hasServicePrice.value
+    ? formatCurrency(props.vendorServiceForm?.price ?? 0)
+    : uiText.value.previewAddPrice,
+);
+
+const previewImage = computed(() =>
+  String(props.vendorServiceForm?.image_url || "").trim(),
+);
+
+const previewStatusLabel = computed(() =>
+  props.vendorServiceForm?.is_active
+    ? uiText.value.previewStatusActive
+    : uiText.value.previewStatusDraft,
+);
+
+const smartTips = computed(() => {
+  const tips = [];
+  const pushUnique = (tip) => {
+    if (tip && !tips.includes(tip)) tips.push(tip);
+  };
+
+  if (!hasServiceTitle.value) pushUnique(uiText.value.tipShortName);
+  if (!hasServiceImage.value) pushUnique(uiText.value.tipAddPhoto);
+  if (!hasServiceDescription.value) pushUnique(uiText.value.tipAddDescription);
+  if (!hasServiceLocation.value) pushUnique(uiText.value.tipAddLocation);
+  if (!hasServicePrice.value) pushUnique(uiText.value.tipSetPrice);
+
+  [uiText.value.tipShortName, uiText.value.tipAddPhoto, uiText.value.tipAddLocation].forEach(
+    (tip) => pushUnique(tip),
+  );
+
+  return tips.slice(0, 3);
+});
+
+const checklistItems = computed(() => [
+  {
+    label: uiText.value.checklistBasics,
+    done: hasServiceTitle.value && hasServiceDescription.value,
+  },
+  {
+    label: uiText.value.checklistPricing,
+    done: hasServicePrice.value && hasServiceCapacity.value,
+  },
+  {
+    label: uiText.value.checklistMedia,
+    done: hasServiceImage.value,
+  },
+  {
+    label: uiText.value.checklistPayment,
+    done: hasServiceQr.value,
+  },
+]);
+
+function toggleEventTypeSelect() {
+  eventTypeSelectOpen.value = !eventTypeSelectOpen.value;
+}
+
+function setEventType(value) {
+  props.vendorServiceForm.event_type = value;
+  eventTypeSelectOpen.value = false;
+}
+
+function handleEventTypeClickOutside(event) {
+  if (!eventTypeSelectRef.value) return;
+  if (!eventTypeSelectRef.value.contains(event.target)) {
+    eventTypeSelectOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("click", handleEventTypeClickOutside);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", handleEventTypeClickOutside);
+});
+
+function formatEventType(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -489,10 +709,197 @@ function setActiveTab(tabKey) {
   emit("update:activeTab", tabKey);
 }
 
+function openBookingDetail(item) {
+  activeBookingDetail.value = item || null;
+  isBookingDetailOpen.value = true;
+}
+
+function closeBookingDetail() {
+  isBookingDetailOpen.value = false;
+  activeBookingDetail.value = null;
+}
+
 function submitServiceForm() {
+  if (props.vendorServiceForm) {
+    props.vendorServiceForm.service_mode = serviceMode.value;
+  }
+  if (
+    serviceMode.value === "overall" &&
+    props.vendorServiceForm &&
+    Array.isArray(props.vendorServiceForm.packages)
+  ) {
+    props.vendorServiceForm.packages = [];
+  }
   if (typeof props.submitVendorService === "function") {
     props.submitVendorService();
   }
+}
+
+const vendorServicePackages = computed(() =>
+  Array.isArray(props.vendorServiceForm?.packages)
+    ? props.vendorServiceForm.packages
+    : [],
+);
+
+const showPackageBuilder = ref(false);
+const packageDraft = ref({
+  name: "",
+  price: 0,
+  details: "",
+});
+const editingServiceId = ref(null);
+const isEditingService = computed(() => Number(editingServiceId.value) > 0);
+
+function ensureVendorPackages() {
+  if (!props.vendorServiceForm) return null;
+  if (!Array.isArray(props.vendorServiceForm.packages)) {
+    props.vendorServiceForm.packages = [];
+  }
+  return props.vendorServiceForm.packages;
+}
+
+function setServiceMode(nextMode) {
+  serviceMode.value = nextMode;
+  if (props.vendorServiceForm) {
+    props.vendorServiceForm.service_mode = nextMode;
+  }
+  if (nextMode === "package") {
+    ensureVendorPackages();
+  }
+}
+
+function addVendorPackage() {
+  openPackageBuilder();
+}
+
+function removeVendorPackage(index) {
+  const packages = ensureVendorPackages();
+  if (!packages) return;
+  packages.splice(index, 1);
+}
+
+function resetVendorServiceForm() {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.id = null;
+  props.vendorServiceForm.title = "";
+  props.vendorServiceForm.event_type = "wedding";
+  props.vendorServiceForm.description = "";
+  props.vendorServiceForm.packages = [];
+  props.vendorServiceForm.qr_code_url = "";
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.service_mode = "overall";
+  props.vendorServiceForm.image_url = "";
+  props.vendorServiceForm.image_file = null;
+  props.vendorServiceForm.location = "";
+  props.vendorServiceForm.location_latitude = null;
+  props.vendorServiceForm.location_longitude = null;
+  props.vendorServiceForm.starts_at = "";
+  props.vendorServiceForm.ends_at = "";
+  props.vendorServiceForm.price = 0;
+  props.vendorServiceForm.capacity = 1;
+  props.vendorServiceForm.is_active = true;
+  serviceMode.value = "overall";
+}
+
+function startEditService(item) {
+  if (!props.vendorServiceForm || !item) return;
+  editingServiceId.value = item.id;
+  const nextMode = item.serviceMode === "package" ? "package" : "overall";
+  setServiceMode(nextMode);
+
+  props.vendorServiceForm.id = item.id || null;
+  props.vendorServiceForm.title = item.title || "";
+  props.vendorServiceForm.event_type = item.eventType || "other";
+  props.vendorServiceForm.description = item.description || "";
+  props.vendorServiceForm.location = item.location || "";
+  props.vendorServiceForm.location_latitude = item.locationLatitude ?? null;
+  props.vendorServiceForm.location_longitude = item.locationLongitude ?? null;
+  props.vendorServiceForm.starts_at = item.startsAt || "";
+  props.vendorServiceForm.ends_at = item.endsAt || "";
+  props.vendorServiceForm.price = Number(item.price || 0);
+  props.vendorServiceForm.capacity = Number.isFinite(Number(item.capacity))
+    ? Number(item.capacity)
+    : 1;
+  props.vendorServiceForm.is_active = Boolean(item.isActive);
+  props.vendorServiceForm.image_url = item.imageUrl || "";
+  props.vendorServiceForm.image_file = null;
+  props.vendorServiceForm.qr_code_url = item.qrCodeUrl || "";
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.packages =
+    nextMode === "package" && Array.isArray(item.packages)
+      ? item.packages.map((pkg) => ({
+          name: String(pkg?.name || "").trim(),
+          price: Number(pkg?.price || 0),
+          details: String(pkg?.details || "").trim(),
+        }))
+      : [];
+
+  showPackageBuilder.value = false;
+  if (typeof window !== "undefined") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
+function cancelEditService() {
+  editingServiceId.value = null;
+  resetVendorServiceForm();
+}
+
+function openPackageBuilder() {
+  packageDraft.value = {
+    name: "",
+    price: 0,
+    details: "",
+  };
+  showPackageBuilder.value = true;
+}
+
+function closePackageBuilder() {
+  showPackageBuilder.value = false;
+}
+
+function savePackageDraft() {
+  const packages = ensureVendorPackages();
+  if (!packages) return;
+  const payload = {
+    name: String(packageDraft.value.name || "").trim(),
+    price: Number(packageDraft.value.price || 0),
+    details: String(packageDraft.value.details || "").trim(),
+  };
+  if (!payload.name) return;
+  packages.push(payload);
+  closePackageBuilder();
+}
+
+function handleVendorQrChange(event) {
+  const [file] = Array.from(event?.target?.files || []);
+  if (!props.vendorServiceForm) return;
+
+  if (!file) {
+    props.vendorServiceForm.qr_code_file = null;
+    return;
+  }
+
+  props.vendorServiceForm.qr_code_file = file;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    props.vendorServiceForm.qr_code_url =
+      typeof reader.result === "string" ? reader.result : "";
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearVendorQrCode() {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.qr_code_url = "";
+}
+
+function handleVendorQrUrlInput(event) {
+  if (!props.vendorServiceForm) return;
+  props.vendorServiceForm.qr_code_file = null;
+  props.vendorServiceForm.qr_code_url = event?.target?.value || "";
 }
 
 function handleVendorServiceImageChange(event) {
@@ -649,13 +1056,6 @@ async function detectVendorLocation() {
   );
 }
 
-function openMessages() {
-  setActiveTab("messages");
-  if (typeof props.goToMessages === "function") {
-    props.goToMessages();
-  }
-}
-
 function bookingStatusClass(status) {
   const value = String(status || "").toLowerCase();
   if (value === "confirmed") return "ok";
@@ -670,6 +1070,16 @@ watch(
       localActiveTab.value = value;
     }
   },
+);
+
+watch(
+  () => localActiveTab.value,
+  (tab) => {
+    if (tab === "messages" && typeof props.loadVendorConversations === "function") {
+      props.loadVendorConversations({ preserveSelection: true });
+    }
+  },
+  { immediate: true },
 );
 </script>
 
@@ -917,15 +1327,13 @@ watch(
           <span class="side-label">{{ uiText.logout }}</span>
         </button>
         <div class="vendor-card">
-          <span class="vendor-avatar">
-            <img v-if="profileCard.image" :src="profileCard.image" :alt="profileCard.name" />
-            <span v-else>{{ profileCard.initial }}</span>
-          </span>
-          <div class="vendor-meta">
-            <strong>{{ profileCard.name }}</strong>
-            <small>{{ profileCard.role }}</small>
+          <span class="vendor-avatar">{{
+            (props.vendorDisplayName || "V").slice(0, 1).toUpperCase()
+          }}</span>
+          <div>
+            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
+            <small>{{ uiText.verifiedWorkspace }}</small>
           </div>
-          <span class="vendor-verified" aria-label="Verified workspace"></span>
         </div>
       </div>
     </aside>
@@ -938,7 +1346,6 @@ watch(
         <div class="dashboard-head-main">
           <div class="dash-meta-row">
             <span class="dash-pill">{{ uiText.dashboardEyebrow }}</span>
-            <span class="dash-pill">{{ uiText.verifiedWorkspace }}</span>
           </div>
           <div class="dash-title-row">
             <div class="dash-title-stack">
@@ -974,27 +1381,6 @@ watch(
                 </svg>
               </span>
               {{ uiText.addNewService }}
-            </button>
-            <button
-              type="button"
-              class="primary-button header-action"
-              @click="openMessages"
-            >
-              <span class="action-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              {{ uiText.openMessages }}
             </button>
           </div>
           <div class="profile-menu-wrap">
@@ -1227,8 +1613,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1237,6 +1627,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -1346,19 +1737,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -1389,211 +1781,498 @@ watch(
         v-show="localActiveTab === 'services'"
         class="content-grid services-grid"
       >
-        <article class="panel">
+        <article class="panel panel-service">
           <div class="panel-head">
             <div>
               <p class="eyebrow">{{ uiText.createService }}</p>
-              <h2>{{ uiText.insertService }}</h2>
+              <h2>{{ isEditingService ? uiText.editService : uiText.insertService }}</h2>
             </div>
             <span class="badge">Visible to users when active</span>
           </div>
 
-          <form class="service-form" @submit.prevent="submitServiceForm">
-            <label class="field">
-              <span>Service name</span>
-              <input
-                :value="props.vendorServiceForm?.title || ''"
-                type="text"
-                placeholder="Community Workshop"
-                @input="props.vendorServiceForm.title = $event.target.value"
-              />
-            </label>
+          <form class="service-form service-form-template" @submit.prevent="submitServiceForm">
+            <div class="service-form-layout">
+              <div class="service-form-main">
+                <section class="form-card mode-picker">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">S</span>
+                    <h3>{{ uiText.serviceType }}</h3>
+                  </div>
+                  <div class="mode-grid">
+                    <button
+                      type="button"
+                      class="mode-option"
+                      :class="{ active: serviceMode === 'overall' }"
+                      @click="setServiceMode('overall')"
+                    >
+                      <strong>{{ uiText.overallService }}</strong>
+                      <p>{{ uiText.overallServiceHint }}</p>
+                    </button>
+                    <button
+                      type="button"
+                      class="mode-option"
+                      :class="{ active: serviceMode === 'package' }"
+                      @click="setServiceMode('package')"
+                    >
+                      <strong>{{ uiText.packageService }}</strong>
+                      <p>{{ uiText.packageServiceHint }}</p>
+                    </button>
+                  </div>
+                </section>
 
-            <label class="field">
-              <span>Types</span>
-              <select
-                :value="props.vendorServiceForm?.event_type || ''"
-                @change="
-                  props.vendorServiceForm.event_type = $event.target.value
-                "
-              >
-                <option
-                  v-for="option in eventOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
+                <section class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">i</span>
+                    <h3>Service Information</h3>
+                  </div>
+                  <label class="field">
+                    <span>Service name</span>
+                    <input
+                      :value="props.vendorServiceForm?.title || ''"
+                      type="text"
+                      placeholder="Community Workshop"
+                      @input="props.vendorServiceForm.title = $event.target.value"
+                    />
+                  </label>
+                  <div class="form-row">
+                    <label class="field">
+                      <span>Types</span>
+                      <div
+                        class="select-field"
+                        ref="eventTypeSelectRef"
+                        @keydown.escape="eventTypeSelectOpen = false"
+                      >
+                        <button
+                          type="button"
+                          class="select-trigger"
+                          :aria-expanded="eventTypeSelectOpen"
+                          @click="toggleEventTypeSelect"
+                        >
+                          <span>{{ selectedEventTypeLabel }}</span>
+                        </button>
+                        <div
+                          v-if="eventTypeSelectOpen"
+                          class="select-menu"
+                          role="listbox"
+                        >
+                          <button
+                            v-for="option in eventOptions"
+                            :key="option.value"
+                            type="button"
+                            class="select-option"
+                            :class="{ selected: option.value === props.vendorServiceForm?.event_type }"
+                            @click="setEventType(option.value)"
+                          >
+                            {{ option.label }}
+                          </button>
+                        </div>
+                      </div>
+                    </label>
+                    <label class="field">
+                      <span>Start date and time</span>
+                      <input
+                        :value="props.vendorServiceForm?.starts_at || ''"
+                        type="datetime-local"
+                        @input="props.vendorServiceForm.starts_at = $event.target.value"
+                      />
+                    </label>
+                  </div>
+                  <label class="field">
+                    <span>Location</span>
+                    <input
+                      :value="props.vendorServiceForm?.location || ''"
+                      type="text"
+                      placeholder="Phnom Penh"
+                      @input="props.vendorServiceForm.location = $event.target.value"
+                    />
+                  </label>
+                  <div class="field">
+                    <span>Map location</span>
+                    <button
+                      type="button"
+                      class="secondary-button location-button"
+                      :disabled="isDetectingVendorLocation"
+                      @click="detectVendorLocation"
+                    >
+                      {{
+                        isDetectingVendorLocation
+                          ? "Detecting location..."
+                          : "Use Current Location"
+                      }}
+                    </button>
+                  </div>
+                  <div class="field field-full location-tools">
+                    <p v-if="vendorLocationNotice" class="location-notice">
+                      {{ vendorLocationNotice }}
+                    </p>
+                    <p
+                      v-if="
+                        props.vendorServiceForm?.location_latitude !== null &&
+                        props.vendorServiceForm?.location_longitude !== null
+                      "
+                      class="location-coords"
+                    >
+                      Lat:
+                      {{
+                        Number(props.vendorServiceForm.location_latitude).toFixed(6)
+                      }}, Lng:
+                      {{
+                        Number(props.vendorServiceForm.location_longitude).toFixed(6)
+                      }}
+                    </p>
+                    <iframe
+                      v-if="vendorLocationMapEmbedUrl"
+                      class="location-map-frame"
+                      :src="vendorLocationMapEmbedUrl"
+                      loading="lazy"
+                      referrerpolicy="no-referrer-when-downgrade"
+                    ></iframe>
+                    <a
+                      v-if="vendorLocationMapLinkUrl"
+                      class="location-map-link"
+                      :href="vendorLocationMapLinkUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open current location in map
+                    </a>
+                  </div>
+                  <label class="field field-full">
+                    <span>Service information</span>
+                    <textarea
+                      :value="props.vendorServiceForm?.description || ''"
+                      placeholder="Describe the service, what is included, and what the customer should know."
+                      @input="props.vendorServiceForm.description = $event.target.value"
+                    ></textarea>
+                  </label>
+                </section>
 
-            <label class="field">
-              <span>Number of count</span>
-              <input
-                :value="props.vendorServiceForm?.capacity ?? 1"
-                type="number"
-                min="1"
-                placeholder="50"
-                @input="
-                  props.vendorServiceForm.capacity = Number($event.target.value)
-                "
-              />
-            </label>
+                <section v-if="serviceMode === 'overall'" class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">%</span>
+                    <h3>{{ uiText.overallPricing }}</h3>
+                  </div>
+                  <div class="form-row">
+                    <label class="field">
+                      <span>
+                        {{ serviceMode === "package" ? "Starting price" : "Price" }}
+                      </span>
+                      <input
+                        :value="props.vendorServiceForm?.price ?? 0"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="150"
+                        @input="props.vendorServiceForm.price = Number($event.target.value)"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Number of count</span>
+                      <input
+                        :value="props.vendorServiceForm?.capacity ?? 1"
+                        type="number"
+                        min="1"
+                        placeholder="50"
+                        @input="props.vendorServiceForm.capacity = Number($event.target.value)"
+                      />
+                    </label>
+                  </div>
+                  <p class="form-helper">
+                    Vendors who list clear pricing receive more booking inquiries.
+                  </p>
+                </section>
 
-            <label class="field">
-              <span>Price</span>
-              <input
-                :value="props.vendorServiceForm?.price ?? 0"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="150"
-                @input="
-                  props.vendorServiceForm.price = Number($event.target.value)
-                "
-              />
-            </label>
-
-            <label class="field">
-              <span>Location</span>
-              <input
-                :value="props.vendorServiceForm?.location || ''"
-                type="text"
-                placeholder="Phnom Penh"
-                @input="props.vendorServiceForm.location = $event.target.value"
-              />
-            </label>
-
-            <div class="field">
-              <span>Map location</span>
-              <button
-                type="button"
-                class="secondary-button location-button"
-                :disabled="isDetectingVendorLocation"
-                @click="detectVendorLocation"
-              >
-                {{
-                  isDetectingVendorLocation
-                    ? "Detecting location..."
-                    : "Use Current Location"
-                }}
-              </button>
-            </div>
-
-            <div class="field field-full location-tools">
-              <p v-if="vendorLocationNotice" class="location-notice">
-                {{ vendorLocationNotice }}
-              </p>
-              <p
-                v-if="
-                  props.vendorServiceForm?.location_latitude !== null &&
-                  props.vendorServiceForm?.location_longitude !== null
-                "
-                class="location-coords"
-              >
-                Lat:
-                {{
-                  Number(props.vendorServiceForm.location_latitude).toFixed(6)
-                }}, Lng:
-                {{
-                  Number(props.vendorServiceForm.location_longitude).toFixed(6)
-                }}
-              </p>
-              <iframe
-                v-if="vendorLocationMapEmbedUrl"
-                class="location-map-frame"
-                :src="vendorLocationMapEmbedUrl"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
-              <a
-                v-if="vendorLocationMapLinkUrl"
-                class="location-map-link"
-                :href="vendorLocationMapLinkUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open current location in map
-              </a>
-            </div>
-
-            <label class="field">
-              <span>Start date and time</span>
-              <input
-                :value="props.vendorServiceForm?.starts_at || ''"
-                type="datetime-local"
-                @input="props.vendorServiceForm.starts_at = $event.target.value"
-              />
-            </label>
-
-            <label class="field field-full">
-              <span>Picture of services</span>
-              <input
-                type="file"
-                accept="image/*"
-                @change="handleVendorServiceImageChange"
-              />
-              <small class="field-hint"
-                >Choose an image from your device.</small
-              >
-            </label>
-
-            <label class="field field-full">
-              <span>Or paste image link</span>
-              <input
-                :value="props.vendorServiceForm?.image_url || ''"
-                type="url"
-                placeholder="https://example.com/service-photo.jpg"
-                @input="handleVendorServiceImageUrlInput"
-              />
-            </label>
-
-            <div
-              v-if="props.vendorServiceForm?.image_url"
-              class="field field-full"
-            >
-              <span>Preview</span>
-              <div class="image-preview-card">
-                <img
-                  class="image-preview"
-                  :src="props.vendorServiceForm.image_url"
-                  alt="Selected service preview"
-                />
-                <button
-                  type="button"
-                  class="secondary-button"
-                  @click="clearVendorServiceImage"
-                >
-                  Remove image
-                </button>
+                <section v-else class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">%</span>
+                    <h3>{{ uiText.packageBuilder }}</h3>
+                  </div>
+                  <div class="package-editor">
+                    <div class="package-editor-head">
+                      <p class="package-hint">
+                        Add package tiers so clients can choose the best fit.
+                      </p>
+                      <button
+                        type="button"
+                        class="secondary-button package-add"
+                        @click="addVendorPackage"
+                      >
+                        + Add package
+                      </button>
+                    </div>
+                    <p v-if="!vendorServicePackages.length" class="package-empty">
+                      No packages added yet.
+                    </p>
+                    <div
+                      v-for="(pkg, index) in vendorServicePackages"
+                      :key="`package-${index}`"
+                      class="package-row"
+                    >
+                      <div class="package-row-head">
+                        <strong>Package {{ index + 1 }}</strong>
+                        <button
+                          type="button"
+                          class="text-button danger"
+                          @click="removeVendorPackage(index)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div class="package-row-grid">
+                        <label class="field">
+                          <span>Package name</span>
+                          <input
+                            :value="pkg?.name || ''"
+                            type="text"
+                            placeholder="Basic / Standard / Premium"
+                            @input="pkg.name = $event.target.value"
+                          />
+                        </label>
+                        <label class="field">
+                          <span>Package price</span>
+                          <input
+                            :value="pkg?.price ?? 0"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="250"
+                            @input="pkg.price = Number($event.target.value)"
+                          />
+                        </label>
+                      </div>
+                      <label class="field">
+                        <span>What is included</span>
+                        <textarea
+                          :value="pkg?.details || ''"
+                          placeholder="List what this package covers."
+                          @input="pkg.details = $event.target.value"
+                        ></textarea>
+                      </label>
+                    </div>
+                  </div>
+                </section>
               </div>
-            </div>
 
-            <label class="field field-full">
-              <span>Service information</span>
-              <textarea
-                :value="props.vendorServiceForm?.description || ''"
-                placeholder="Describe the service, what is included, and what the customer should know."
-                @input="
-                  props.vendorServiceForm.description = $event.target.value
-                "
-              ></textarea>
-            </label>
+              <aside class="service-form-side">
+                <section class="form-card media-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">M</span>
+                    <h3>Media</h3>
+                  </div>
+                  <label class="media-upload">
+                    <input type="file" accept="image/*" @change="handleVendorServiceImageChange" />
+                    <span>Click to upload cover photo</span>
+                    <small>PNG, JPG (MAX. 5MB)</small>
+                  </label>
+                  <div v-if="props.vendorServiceForm?.image_url" class="media-preview">
+                    <img
+                      class="image-preview"
+                      :src="props.vendorServiceForm.image_url"
+                      alt="Selected service preview"
+                    />
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      @click="clearVendorServiceImage"
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                  <label class="field">
+                    <span>Or paste image link</span>
+                    <input
+                      :value="props.vendorServiceForm?.image_url || ''"
+                      type="url"
+                      placeholder="https://example.com/service-photo.jpg"
+                      @input="handleVendorServiceImageUrlInput"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Payment QR code</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      @change="handleVendorQrChange"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Or paste QR code link</span>
+                    <input
+                      :value="props.vendorServiceForm?.qr_code_url || ''"
+                      type="url"
+                      placeholder="https://example.com/payment-qr.png"
+                      @input="handleVendorQrUrlInput"
+                    />
+                  </label>
+                  <div
+                    v-if="props.vendorServiceForm?.qr_code_url"
+                    class="qr-preview-card"
+                  >
+                    <img
+                      class="qr-preview"
+                      :src="props.vendorServiceForm.qr_code_url"
+                      alt="Selected payment QR preview"
+                    />
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      @click="clearVendorQrCode"
+                    >
+                      Remove QR
+                    </button>
+                  </div>
+                </section>
 
-            <div class="form-actions">
-              <button
-                type="submit"
-                class="primary-button"
-                :disabled="props.isSubmittingVendorService"
-              >
-                {{
-                  props.isSubmittingVendorService
-                    ? "Saving..."
-                    : "Create Service"
-                }}
-              </button>
+                <section class="form-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">V</span>
+                    <h3>Visibility</h3>
+                  </div>
+                  <div class="toggle-row">
+                    <div>
+                      <strong>Active listing</strong>
+                      <p>Visible to users when enabled.</p>
+                    </div>
+                    <label class="switch">
+                      <input
+                        :checked="props.vendorServiceForm?.is_active"
+                        type="checkbox"
+                        @change="props.vendorServiceForm.is_active = $event.target.checked"
+                      />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="form-card help-card">
+                  <h3>Need Help?</h3>
+                  <p>Our vendor support team is here to help you optimize your listing.</p>
+                  <button type="button" class="help-button">Chat with Support</button>
+                </section>
+
+                <div class="form-actions form-actions-template">
+                  <button
+                    type="submit"
+                    class="primary-button"
+                    :disabled="props.isSubmittingVendorService"
+                  >
+                    {{
+                      props.isSubmittingVendorService
+                        ? "Saving..."
+                        : isEditingService
+                          ? uiText.updateService
+                          : uiText.createService
+                    }}
+                  </button>
+                  <button
+                    v-if="isEditingService"
+                    type="button"
+                    class="secondary-button"
+                    @click="cancelEditService"
+                  >
+                    {{ uiText.cancelEdit }}
+                  </button>
+                </div>
+              </aside>
+
+              <aside class="service-form-extra">
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">P</span>
+                    <h3>{{ uiText.listingPreview }}</h3>
+                  </div>
+                  <div class="preview-card">
+                    <div v-if="previewImage" class="preview-cover" :style="{ backgroundImage: `url('${previewImage}')` }"></div>
+                    <strong>{{ previewTitle }}</strong>
+                    <small>{{ previewLocation }}</small>
+                    <span class="preview-price">{{ previewPriceLabel }}</span>
+                    <span class="preview-meta">{{ previewEventTypeLabel }}</span>
+                    <span
+                      class="preview-status"
+                      :class="{ live: props.vendorServiceForm?.is_active }"
+                    >
+                      {{ previewStatusLabel }}
+                    </span>
+                  </div>
+                  <p class="info-note">{{ uiText.previewHint }}</p>
+                </section>
+
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">T</span>
+                    <h3>{{ uiText.quickTips }}</h3>
+                  </div>
+                  <ul class="info-list">
+                    <li v-for="(tip, index) in smartTips" :key="`tip-${index}`">
+                      {{ tip }}
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="form-card info-card">
+                  <div class="form-card-head">
+                    <span class="form-card-icon">C</span>
+                    <h3>{{ uiText.checklist }}</h3>
+                  </div>
+                  <ul class="info-list info-list-check">
+                    <li
+                      v-for="item in checklistItems"
+                      :key="item.label"
+                      :class="{ 'is-done': item.done }"
+                    >
+                      <span class="checkmark" aria-hidden="true"></span>
+                      {{ item.label }}
+                    </li>
+                  </ul>
+                </section>
+              </aside>
             </div>
           </form>
+
+          <div v-if="showPackageBuilder" class="package-modal" @click.self="closePackageBuilder">
+            <div class="package-builder">
+              <div class="package-builder-head">
+                <div>
+                  <p class="eyebrow">{{ uiText.addNewService }}</p>
+                  <h3>Add Package</h3>
+                </div>
+                <div class="package-builder-actions">
+                  <button type="button" class="secondary-button" @click="closePackageBuilder">Cancel</button>
+                  <button type="button" class="primary-button" @click="savePackageDraft">Save Package</button>
+                </div>
+              </div>
+              <div class="package-builder-body">
+                <label class="field">
+                  <span>Package name</span>
+                  <input
+                    :value="packageDraft.name"
+                    type="text"
+                    placeholder="Basic / Standard / Premium"
+                    @input="packageDraft.name = $event.target.value"
+                  />
+                </label>
+                <label class="field">
+                  <span>Package price</span>
+                  <input
+                    :value="packageDraft.price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="250"
+                    @input="packageDraft.price = Number($event.target.value)"
+                  />
+                </label>
+                <label class="field field-full">
+                  <span>What is included</span>
+                  <textarea
+                    :value="packageDraft.details"
+                    placeholder="List what this package covers."
+                    @input="packageDraft.details = $event.target.value"
+                  ></textarea>
+                </label>
+              </div>
+            </div>
+          </div>
 
           <p
             v-if="props.vendorServiceNotice"
@@ -1637,9 +2316,18 @@ watch(
                   </span>
                 </div>
                 <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
+                <small v-if="item.packages?.length" class="service-packages">
+                  Packages: {{ item.packages.length }}
+                </small>
                 <p>{{ item.description }}</p>
               </div>
               <div class="row-actions">
+                <button
+                  type="button"
+                  @click="startEditService(item)"
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   @click="props.toggleVendorServiceActive(item)"
@@ -1659,7 +2347,10 @@ watch(
         </article>
       </section>
 
-      <section v-show="localActiveTab === 'bookings'" class="panel tab-panel">
+      <section
+        v-show="localActiveTab === 'bookings'"
+        class="panel tab-panel booking-panel"
+      >
         <div class="panel-head">
           <div>
             <p class="eyebrow">{{ uiText.bookingRequests }}</p>
@@ -1806,20 +2497,76 @@ watch(
           No booking requests yet.
         </p>
         <table v-else class="table">
+          <colgroup>
+            <col style="width: 34%" />
+            <col style="width: 26%" />
+            <col style="width: 12%" />
+            <col style="width: 12%" />
+            <col style="width: 16%" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Service Name</th>
+              <th>Service</th>
               <th>Client</th>
-              <th>Date & Time</th>
+              <th>Date</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
-              <td>{{ item.service_name }}</td>
-              <td>{{ item.customer_name }}</td>
-              <td>{{ item.date_label }}</td>
+              <td>
+                <div class="service-cell">
+                  <div class="service-thumb">
+                    <img
+                      v-if="item.event_image"
+                      :src="item.event_image"
+                      :alt="item.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (item.service_name || "S").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="service-meta">
+                    <strong>{{ item.service_name }}</strong>
+                    <span v-if="item.event_type" class="service-sub"
+                      >Type: {{ formatEventType(item.event_type) }}</span
+                    >
+                    <span v-if="item.event_location" class="service-sub"
+                      >Location: {{ item.event_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="client-cell">
+                  <div class="client-avatar">
+                    <img
+                      v-if="item.customer_avatar"
+                      :src="item.customer_avatar"
+                      :alt="item.customer_name || 'Customer'"
+                    />
+                    <span v-else>{{
+                      (item.customer_name || "C").slice(0, 1).toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="client-details">
+                    <strong>{{ item.customer_name }}</strong>
+                    <span v-if="item.customer_email" class="client-meta">{{
+                      item.customer_email
+                    }}</span>
+                    <span v-if="item.customer_phone" class="client-meta">{{
+                      item.customer_phone
+                    }}</span>
+                    <span v-if="item.customer_location" class="client-meta"
+                      >Location: {{ item.customer_location }}</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="date-only">{{ item.date_label }}</span>
+              </td>
               <td>
                 <span
                   class="status-chip"
@@ -1828,16 +2575,24 @@ watch(
                   {{ item.status }}
                 </span>
               </td>
-              <td class="row-actions">
+              <td class="row-actions booking-actions">
                 <button
                   type="button"
+                  class="action-view"
+                  @click="openBookingDetail(item)"
+                >
+                  {{ uiText.viewDetails }}
+                </button>
+                <button
+                  type="button"
+                  class="action-confirm"
                   @click="props.updateVendorBookingStatus(item, 'confirmed')"
                 >
                   Confirm
                 </button>
                 <button
                   type="button"
-                  class="danger"
+                  class="action-cancel"
                   @click="props.updateVendorBookingStatus(item, 'cancelled')"
                 >
                   Cancel
@@ -1846,9 +2601,177 @@ watch(
             </tr>
           </tbody>
         </table>
+
+        <div
+          v-if="isBookingDetailOpen"
+          class="modal-backdrop"
+          @click.self="closeBookingDetail"
+        >
+          <div class="modal-card booking-detail-card">
+            <div class="booking-detail-head">
+              <div>
+                <p class="eyebrow">{{ uiText.bookingDetails }}</p>
+                <h3>{{ bookingDetail.service_name || uiText.bookingRequests }}</h3>
+                <p class="detail-subtitle">
+                  {{ bookingDetail.date_label || uiText.noData }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="secondary-button"
+                @click="closeBookingDetail"
+              >
+                {{ uiText.close }}
+              </button>
+            </div>
+
+            <div class="booking-detail-grid">
+              <section class="detail-block">
+                <h4>{{ uiText.serviceDetails }}</h4>
+                <div class="detail-service-card">
+                  <div class="detail-service-thumb">
+                    <img
+                      v-if="bookingDetail.event_image"
+                      :src="bookingDetail.event_image"
+                      :alt="bookingDetail.service_name || 'Service'"
+                    />
+                    <span v-else>{{
+                      (bookingDetail.service_name || "S")
+                        .slice(0, 1)
+                        .toUpperCase()
+                    }}</span>
+                  </div>
+                  <div class="detail-service-info">
+                    <strong>{{
+                      bookingDetail.service_name || uiText.bookingRequests
+                    }}</strong>
+                    <span
+                      v-if="
+                        bookingDetail.event_type || bookingDetail.requested_event_type
+                      "
+                    >
+                      Type:
+                      {{
+                        formatEventType(
+                          bookingDetail.event_type ||
+                            bookingDetail.requested_event_type,
+                        )
+                      }}
+                    </span>
+                    <span v-if="bookingDetail.event_location">
+                      {{ uiText.eventLocationLabel }}:
+                      {{ bookingDetail.event_location }}
+                    </span>
+                  </div>
+                </div>
+                <div class="detail-list">
+                  <div>
+                    <span>{{ uiText.dateLabel }}</span>
+                    <strong>{{ bookingDetail.date_label || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.statusLabel }}</span>
+                    <strong>
+                      <span
+                        class="status-chip"
+                        :class="bookingStatusClass(bookingDetail.status)"
+                      >
+                        {{ bookingDetail.status || uiText.noData }}
+                      </span>
+                    </strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.quantityLabel }}</span>
+                    <strong>{{ bookingDetail.quantity || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ uiText.totalLabel }}</span>
+                    <strong>{{ formatCurrency(bookingDetail.total_amount) }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerDetails }}</h4>
+                <div class="detail-list">
+                  <div>
+                    <span>Name</span>
+                    <strong>{{ bookingDetail.customer_name || uiText.noData }}</strong>
+                  </div>
+                  <div>
+                    <span>Email</span>
+                    <strong>{{
+                      bookingDetail.customer_email || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong>{{
+                      bookingDetail.customer_phone || uiText.noData
+                    }}</strong>
+                  </div>
+                  <div>
+                    <span>Customer Location</span>
+                    <strong>{{
+                      bookingDetail.customer_location || uiText.noData
+                    }}</strong>
+                  </div>
+                </div>
+              </section>
+              <section class="detail-block">
+                <h4>{{ uiText.customerContact }}</h4>
+                <div class="contact-actions">
+                  <a
+                    v-if="customerPhoneLink"
+                    class="secondary-button detail-link"
+                    :href="customerPhoneLink"
+                  >
+                    Call Customer
+                  </a>
+                  <a
+                    v-if="bookingDirectionsUrl"
+                    class="secondary-button detail-link"
+                    :href="bookingDirectionsUrl"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ uiText.getDirections }}
+                  </a>
+                  <p
+                    v-if="!customerEmailLink && !customerPhoneLink"
+                    class="contact-empty"
+                  >
+                    {{ uiText.noData }}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            <section class="detail-block detail-block-wide">
+              <h4>{{ uiText.bookedItems }}</h4>
+              <ul v-if="bookingItems.length" class="detail-items">
+                <li v-for="(item, index) in bookingItems" :key="index">
+                  <div>
+                    <strong>{{ item.name || item.type || "Item" }}</strong>
+                    <span v-if="item.description">{{ item.description }}</span>
+                  </div>
+                  <div class="detail-item-meta">
+                    <span v-if="item.qty">Qty: {{ item.qty }}</span>
+                    <span v-if="item.unitPrice">
+                      Unit: {{ formatCurrency(item.unitPrice) }}
+                    </span>
+                    <span v-if="item.totalPrice">
+                      Total: {{ formatCurrency(item.totalPrice) }}
+                    </span>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="contact-empty">{{ uiText.noItems }}</p>
+            </section>
+          </div>
+        </div>
       </section>
 
-      <section v-show="localActiveTab === 'messages'" class="panel tab-panel">
+      <section v-show="localActiveTab === 'messages'" class="tab-panel messages-panel">
         <div class="panel-head">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -1857,63 +2780,23 @@ watch(
           <span class="badge">{{ safeMessagesSummary }} unread</span>
         </div>
 
-        <section class="stats-grid stats-grid-compact">
-          <article class="stat-card stat-orange">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Unread</small>
-            </div>
-            <strong>{{ safeMessagesSummary }}</strong>
-            <span>Messages to review</span>
-          </article>
-          <article class="stat-card stat-blue">
-            <div class="stat-header-row">
-              <span class="stat-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8 12h.01M12 12h.01M16 12h.01"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M21 14a4 4 0 0 1-4 4H9l-6 4V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              <small>Inbox</small>
-            </div>
-            <strong>Open</strong>
-            <span>Customer conversations</span>
-          </article>
-        </section>
-
-        <p class="panel-copy">
-          Respond quickly to customer questions and booking confirmations.
-        </p>
-        <button type="button" class="primary-button" @click="openMessages">
-          {{ uiText.openMessages }}
-        </button>
+        <div v-if="hasMessagesPanel" class="messages-embed">
+          <MessagesPage
+            class="messages-embedded"
+            :bindings="props.messagesBindings"
+            :filtered-conversations="props.filteredConversations"
+            :active-conversation="props.activeConversation"
+            :select-conversation="props.selectConversation"
+            :send-message="props.sendMessage"
+            :send-files="props.sendFiles"
+            :send-location="props.sendLocation"
+            :is-sharing-location="props.isSharingLocation"
+            :save-document="props.saveDocument"
+            :delete-message="props.deleteMessage"
+            :is-loading-messages="props.isLoadingMessages"
+            :messages-error="props.messagesError"
+          />
+        </div>
       </section>
 
       <section v-show="localActiveTab === 'income'" class="income-layout">
@@ -1970,8 +2853,12 @@ watch(
                 <span>{{ formatCurrency(incomeMidValue) }}</span>
                 <span>$0</span>
               </div>
-              <div class="chart-shell">
-                <div class="chart-plot">
+              <div
+                class="chart-shell-scroll"
+                :class="{ scrollable: isChartScrollable }"
+              >
+                <div class="chart-shell" :style="chartShellStyle">
+                  <div class="chart-plot">
                   <div class="chart-grid" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1980,6 +2867,7 @@ watch(
                   <svg
                     viewBox="0 0 100 100"
                     class="income-chart"
+                    :class="{ scrollable: isChartScrollable }"
                     preserveAspectRatio="none"
                     aria-hidden="true"
                     @pointermove="updateChartHover"
@@ -2089,19 +2977,20 @@ watch(
                     }}</span>
                   </div>
                 </div>
-                <div class="chart-labels">
-                  <span
-                    v-for="(point, index) in activeIncomePoints"
-                    :key="`analytics-${point.label}-${index}`"
-                  >
-                    {{
-                      index === 0 ||
-                      index === activeIncomePoints.length - 1 ||
-                      index % incomeLabelStep === 0
-                        ? point.label
-                        : ""
-                    }}
-                  </span>
+                  <div class="chart-labels">
+                    <span
+                      v-for="(point, index) in activeIncomePoints"
+                      :key="`analytics-${point.label}-${index}`"
+                    >
+                      {{
+                        index === 0 ||
+                        index === activeIncomePoints.length - 1 ||
+                        index % incomeLabelStep === 0
+                          ? point.label
+                          : ""
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <aside class="chart-insights">
@@ -2155,8 +3044,8 @@ watch(
 
 <style scoped>
 .vendor-dashboard {
-  --vd-accent: #ea580c;
-  --vd-accent-strong: #c2410c;
+  --vd-accent: var(--accent);
+  --vd-accent-strong: var(--accent-dark);
   --vd-border: rgba(148, 163, 184, 0.22);
   --vd-surface: rgba(255, 255, 255, 0.72);
   --vd-text: #0f172a;
@@ -2178,9 +3067,11 @@ watch(
   color: var(--vd-text);
   isolation: isolate;
   font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
+    "Manrope",
+    "Segoe UI",
+    Tahoma,
+    Geneva,
+    Verdana,
     sans-serif;
   width: auto;
   gap: 0;
@@ -2521,11 +3412,10 @@ watch(
 }
 
 .vendor-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 16px;
   background: linear-gradient(
     135deg,
@@ -2539,60 +3429,18 @@ watch(
 }
 
 .vendor-avatar {
-    width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #d8e7ff 0%, #8fbaff 100%);
-    color: #0f3c89;
-    font-weight: 800;
-    font-size: 15px;
-    flex-shrink: 0;
-    border: 2px solid rgba(37, 99, 235, 0.18);
-    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.16);
-    overflow: hidden;
-  }
-
-  .vendor-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-.vendor-meta strong {
-  display: block;
-  margin: 0;
-  font-size: 14px;
-}
-
-.vendor-meta small {
-  color: #64748b;
-  font-size: 12px;
-}
-
-.vendor-verified {
-  width: 14px;
-  height: 14px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
-  position: relative;
-}
-
-.vendor-verified::after {
-  content: "";
-  position: absolute;
-  inset: 3px 3px 3px 4px;
-  border: 2px solid #fff;
-  border-top: 0;
-  border-left: 0;
-  transform: rotate(45deg);
-}
-
-.side-label {
-  font-weight: 700;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1d4ed8;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+  border: 2px solid rgba(59, 130, 246, 0.22);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
 }
 
 .vendor-card strong {
@@ -2638,6 +3486,14 @@ watch(
     0 1px 0 rgba(255, 255, 255, 0.95) inset;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.booking-panel {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* ─── Dashboard Header ────────────────────────────────────────── */
@@ -3423,7 +4279,7 @@ watch(
 }
 
 .services-grid {
-  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: 1fr;
 }
 
 .overview-grid {
@@ -3435,8 +4291,51 @@ watch(
   min-height: 360px;
 }
 
+.panel-service {
+  padding: 18px;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(251, 146, 60, 0.08), transparent 42%),
+    radial-gradient(circle at 90% 0%, rgba(59, 130, 246, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 242, 0.92));
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
 .tab-panel {
   min-height: clamp(360px, 52vh, 560px);
+}
+
+.messages-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.messages-embed {
+  margin-top: 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:deep(.messages-page.messages-embedded) {
+  height: auto;
+}
+
+:deep(.messages-page.messages-embedded .messages-layout) {
+  min-height: 540px;
+}
+
+:deep(.messages-page.messages-embedded .messages-sidebar) {
+  border-right-color: rgba(148, 163, 184, 0.18);
+}
+
+:deep(.messages-page.messages-embedded .chat-panel) {
+  min-height: 540px;
 }
 
 .panel-wide {
@@ -3589,6 +4488,19 @@ watch(
   overflow: visible;
 }
 
+.chart-shell-scroll {
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-shell-scroll.scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
 .chart-plot {
   position: relative;
   height: 220px;
@@ -3627,6 +4539,15 @@ watch(
   z-index: 1;
   touch-action: none;
   cursor: pointer;
+}
+
+.income-chart.scrollable {
+  touch-action: pan-x;
+  cursor: grab;
+}
+
+.income-chart.scrollable:active {
+  cursor: grabbing;
 }
 
 .income-area {
@@ -3701,6 +4622,7 @@ watch(
   stroke: #ffffff;
   stroke-width: 1.1;
 }
+
 
 .chart-labels {
   display: grid;
@@ -3826,11 +4748,710 @@ watch(
   border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+.service-form-template {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.service-form-template .service-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.95fr) minmax(220px, 0.7fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.service-form-template .service-form-main,
+.service-form-template .service-form-side {
+  display: grid;
+  gap: 18px;
+}
+
+.service-form-template .form-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #0f172a;
+  position: relative;
+  overflow: hidden;
+}
+
+.service-form-template .mode-picker {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.service-form-template .mode-option {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.service-form-template .mode-option strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.service-form-template .mode-option p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .mode-option.active {
+  border-color: rgba(251, 146, 60, 0.55);
+  box-shadow:
+    0 10px 22px rgba(251, 146, 60, 0.14),
+    inset 0 0 0 1px rgba(251, 146, 60, 0.2);
+  background: linear-gradient(140deg, #fffaf5, #ffffff);
+}
+
+.service-form-template .mode-option:hover:not(.active) {
+  border-color: rgba(251, 146, 60, 0.4);
+  transform: translateY(-1px);
+}
+
+.service-form-template .form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(251, 146, 60, 0.08), transparent 55%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.service-form-template .info-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.service-form-template .info-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .info-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.service-form-template .info-list li {
+  margin-bottom: 6px;
+}
+
+.service-form-template .info-list-check {
+  list-style: none;
+  padding-left: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.service-form-template .info-list-check li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.service-form-template .info-list-check .checkmark {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  display: grid;
+  place-items: center;
+}
+
+.service-form-template .info-list-check .checkmark::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.service-form-template .info-list-check li.is-done {
+  color: rgba(134, 239, 172, 0.9);
+}
+
+.service-form-template .info-list-check li.is-done .checkmark {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(22, 101, 52, 0.35);
+}
+
+.service-form-template .info-list-check li.is-done .checkmark::after {
+  background: #86efac;
+}
+
+.service-form-template .preview-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+}
+
+.service-form-template .preview-card strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.service-form-template .preview-card small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.service-form-template .preview-price {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.service-form-template .preview-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-form-template .preview-cover {
+  width: 100%;
+  height: 120px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: none;
+}
+
+.service-form-template .preview-status {
+  margin-top: 6px;
+  align-self: start;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-form-template .preview-status.live {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #166534;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.service-form-template .form-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.service-form-template .form-card-head h3 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.service-form-template .form-card-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(251, 191, 36, 0.12));
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 12px;
+  box-shadow: 0 6px 14px rgba(251, 146, 60, 0.16);
+}
+
+.service-form-template .field span {
+  font-size: 11.5px;
+  color: #f97316;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.service-form-template .field input,
+.service-form-template .field select,
+.service-form-template .field textarea {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.service-form-template .field input[type="datetime-local"] {
+  color-scheme: light;
+  accent-color: #fb923c;
+}
+
+.service-form-template .field input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  filter: sepia(22%) saturate(1800%) hue-rotate(6deg) brightness(98%) contrast(96%);
+}
+
+.service-form-template .field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #f97316 50%),
+    linear-gradient(135deg, #f97316 50%, transparent 50%),
+    linear-gradient(to right, rgba(226, 232, 240, 0.9), rgba(226, 232, 240, 0.9));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%,
+    calc(100% - 34px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px,
+    1px 18px;
+  background-repeat: no-repeat;
+}
+
+.service-form-template .field select option {
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.service-form-template .field textarea {
+  min-height: 120px;
+}
+
+.service-form-template .field input:focus-visible,
+.service-form-template .field select:focus-visible,
+.service-form-template .field textarea:focus-visible {
+  outline: none;
+  border-color: rgba(251, 146, 60, 0.6);
+  box-shadow:
+    0 0 0 3px rgba(251, 146, 60, 0.18);
+  background: #ffffff;
+}
+
+.service-form-template .select-field {
+  position: relative;
+}
+
+.service-form-template .select-trigger {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 38px 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+  position: relative;
+}
+
+.service-form-template .select-trigger::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #f97316;
+  border-bottom: 2px solid #f97316;
+  transform: translateY(-60%) rotate(45deg);
+}
+
+.service-form-template .select-menu {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.service-form-template .select-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-form-template .select-option:hover,
+.service-form-template .select-option.selected {
+  background: #fff1e6;
+  color: #c2410c;
+}
+
+.service-form-template .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.service-form-template .pricing-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .mode-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.service-form-template .mode-btn.active {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.3);
+}
+
+.service-form-template .form-helper {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #64748b;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .package-editor {
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .package-row {
+  background: #ffffff;
+}
+
+.service-form-template .location-tools {
+  background: #f8fafc;
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .location-notice,
+.service-form-template .location-coords {
+  color: #64748b;
+}
+
+.service-form-template .location-map-link {
+  background: rgba(251, 146, 60, 0.12);
+  color: #c2410c;
+}
+
+.service-form-template .media-upload {
+  position: relative;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px 14px;
+  border-radius: 16px;
+  border: 1px dashed rgba(226, 232, 240, 0.9);
+  background: #f8fafc;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.service-form-template .media-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.service-form-template .media-upload span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.service-form-template .media-upload small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.service-form-template .media-preview {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.service-form-template .qr-preview-card {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.service-form-template .toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.service-form-template .toggle-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-form-template .switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.service-form-template .switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.service-form-template .slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  transition: 0.2s;
+}
+
+.service-form-template .slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.service-form-template .switch input:checked + .slider {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.service-form-template .switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+.service-form-template .help-card {
+  background: linear-gradient(160deg, #fff3e6, #ffffff);
+  color: #7c2d12;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.service-form-template .help-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.service-form-template .help-card p {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.service-form-template .help-button {
+  border: none;
+  background: #ffffff;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #c2410c;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-actions-template {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.form-actions-template .primary-button {
+  width: 100%;
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: #111827;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.25);
+}
+
+.service-mode-toggle {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.mode-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.mode-btn:hover {
+  color: #0f172a;
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #9a3412;
+  box-shadow:
+    0 8px 16px rgba(234, 88, 12, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.service-mode-note {
+  margin: 10px 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+}
+
 .service-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
+}
+
+.service-form.service-form-template {
+  grid-template-columns: 1fr;
+}
+
+.service-form-extra {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.package-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 80;
+}
+
+.package-builder {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 22px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(35, 25, 12, 0.95), rgba(12, 12, 10, 0.98));
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  box-shadow:
+    0 30px 70px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.package-builder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.package-builder-head h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.package-builder-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.package-builder-body {
+  display: grid;
+  gap: 14px;
 }
 
 .field {
@@ -3932,6 +5553,93 @@ watch(
   grid-column: 1 / -1;
 }
 
+.package-editor {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.95));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+}
+
+.package-hint {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.package-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.8);
+  color: #64748b;
+  font-size: 13px;
+}
+
+.package-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+}
+
+.package-row:first-of-type {
+  margin-top: 0;
+}
+
+.package-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.package-row-head strong {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.package-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 12px;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.text-button.danger {
+  color: #b91c1c;
+}
+
+.text-button:hover {
+  color: #0f172a;
+}
+
+.text-button.danger:hover {
+  color: #991b1b;
+}
+
+.package-add {
+  justify-self: start;
+}
+
 .image-preview-card {
   display: grid;
   gap: 12px;
@@ -3948,6 +5656,26 @@ watch(
   object-fit: cover;
   border-radius: 16px;
   background: #e2e8f0;
+}
+
+.qr-preview-card {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.qr-preview {
+  width: min(220px, 100%);
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 8px;
 }
 
 .location-button {
@@ -4061,6 +5789,13 @@ watch(
   color: #64748b;
 }
 
+.service-packages {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
 .notice-success {
   color: #15803d;
 }
@@ -4108,14 +5843,31 @@ watch(
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  table-layout: fixed;
 }
 
 .table th,
 .table td {
   padding: 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 0;
   text-align: left;
+}
+
+.client-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.client-cell strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.client-cell small {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .table th {
@@ -4123,6 +5875,202 @@ watch(
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.table td {
+  vertical-align: top;
+  background: #f8fafc;
+}
+
+.table thead th {
+  padding-bottom: 6px;
+}
+
+.table tbody tr {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.booking-panel .table td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.booking-panel .table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.table tbody tr td:first-child {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.table tbody tr td:last-child {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.client-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.client-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.client-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.client-details {
+  display: grid;
+  gap: 2px;
+}
+
+.client-details strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.client-meta {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 210px;
+}
+
+.service-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.service-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.service-meta strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.service-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.25;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-only {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.booking-actions {
+  display: flex !important;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.booking-actions button {
+  width: auto;
+  justify-content: center;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  border-radius: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.booking-actions .action-view {
+  background: rgba(255, 247, 237, 0.95);
+  color: #9a3412;
+  border: 1px solid rgba(234, 88, 12, 0.22);
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.booking-actions .action-view:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: rgba(234, 88, 12, 0.32);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-confirm {
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: #ffffff;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.22);
+}
+
+.booking-actions .action-confirm:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.3);
+  transform: translateY(-1px);
+}
+
+.booking-actions .action-cancel {
+  background: #ffffff;
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.08);
+}
+
+.booking-actions .action-cancel:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: rgba(220, 38, 38, 0.36);
+  transform: translateY(-1px);
 }
 
 .status-chip {
@@ -4160,13 +6108,284 @@ watch(
 }
 
 .modal-card {
-  width: min(880px, 100%);
+  width: min(680px, 100%);
   max-height: 90vh;
   overflow: auto;
-  padding: 22px;
-  border-radius: 24px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  margin-top: 72px;
   background: #fff;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.booking-detail-card {
+  display: grid;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  max-height: 82vh;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.96) 100%
+  );
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.booking-detail-card::before {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(
+    circle,
+    rgba(234, 88, 12, 0.18),
+    transparent 65%
+  );
+  filter: blur(10px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.booking-detail-card::after {
+  content: "";
+  position: absolute;
+  left: -140px;
+  bottom: -140px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.12),
+    transparent 70%
+  );
+  filter: blur(12px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.booking-detail-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.booking-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(234, 88, 12, 0.16);
+  background: rgba(255, 247, 237, 0.9);
+  box-shadow: 0 -8px 18px rgba(234, 88, 12, 0.08);
+  position: sticky;
+  bottom: 0;
+  top: auto;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.detail-subtitle {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.booking-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.detail-block {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+.detail-block::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(234, 88, 12, 0.5), transparent);
+  opacity: 0.6;
+}
+
+.detail-block h4 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.detail-block p {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.detail-link {
+  width: fit-content;
+  padding: 0 10px;
+  min-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff7ed, #ffe8d8);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  color: #9a3412;
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+}
+
+.detail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.detail-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.detail-list span {
+  color: #94a3b8;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-list strong {
+  font-size: 13px;
+  color: #0f172a;
+  text-align: right;
+}
+
+.detail-block-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-service-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 250, 252, 0.95)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.detail-service-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #64748b;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.detail-service-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-service-info {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-service-info strong {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.detail-service-info span {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.contact-actions {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+}
+
+.contact-empty {
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 0;
+}
+
+.detail-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.detail-items li {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.detail-items strong {
+  font-size: 13px;
+  color: #0f172a;
+  display: block;
+}
+
+.detail-items span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.detail-item-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1180px) {
@@ -4201,6 +6420,11 @@ watch(
   .analytics-chart-layout {
     grid-template-columns: 1fr;
   }
+
+  .service-form-template .service-form-layout {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -4210,6 +6434,11 @@ watch(
 
   .panel-head {
     flex-direction: column;
+  }
+
+  .booking-detail-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .tab-panel {
@@ -4247,6 +6476,14 @@ watch(
 
   .service-form,
   .service-item {
+    grid-template-columns: 1fr;
+  }
+
+  .service-form-template .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .package-row-grid {
     grid-template-columns: 1fr;
   }
 

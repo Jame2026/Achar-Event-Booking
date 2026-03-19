@@ -1,4 +1,4 @@
-﻿<script setup>
+﻿﻿<script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DashboardPage from "./pages/DashboardPage.vue";
@@ -27,17 +27,20 @@ const props = defineProps({
   },
 });
 const section = computed(() => props.section);
-const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
-const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
-const AUTH_USER_STORAGE_KEY = "achar_auth_user";
-const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const FAVORITES_STORAGE_KEY = "achar_guest_favorites";
+  const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+  const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+  const EVENTS_CACHE_KEY = "achar_guest_events_cache_v1";
+  const MESSAGE_VENDOR_TARGET_KEY = "achar_message_vendor_target";
+  const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
+  const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const { language } = useLanguage();
 const copyByLanguage = {
   en: {
     favorite: "Favorite",
     favoriteSub: "Your saved packages and services.",
     favoriteText: "Favorites are saved on this device. Sign in to sync across your account.",
-    myBooking: "My Booking",
+    myBooking: "My Bookings",
     bookingSub: "No booking data yet.",
     bookingText: "Sign in to view your booking history, upcoming events, and confirmations.",
     servicePackages: "Service Packages",
@@ -96,6 +99,7 @@ const copyByLanguage = {
     availableTimeSlots: "Available Time Slots",
     selectedDate: "Selected Date",
     prebookNow: "Pre-book Now",
+    messageVendor: "Message Vendor",
     noMatchingServicesFilter: "No matching services for this filter.",
     morning: "Morning",
     afternoon: "Afternoon",
@@ -169,6 +173,7 @@ const copyByLanguage = {
     availableTimeSlots: "ម៉ោងទំនេរ",
     selectedDate: "កាលបរិច្ឆេទដែលបានជ្រើស",
     prebookNow: "កក់ជាមុនឥឡូវ",
+    messageVendor: "ផ្ញើសារទៅអ្នកផ្គត់ផ្គង់",
     noMatchingServicesFilter: "មិនមានសេវាកម្មដែលត្រូវនឹងតម្រងនេះទេ។",
     morning: "ព្រឹក",
     afternoon: "រសៀល",
@@ -242,6 +247,7 @@ const copyByLanguage = {
     availableTimeSlots: "可用时间段",
     selectedDate: "已选日期",
     prebookNow: "立即预订",
+    messageVendor: "联系商家",
     noMatchingServicesFilter: "没有符合此筛选条件的服务。",
     morning: "早晨",
     afternoon: "下午",
@@ -302,6 +308,215 @@ const fallbackDemoEvents = [
     vendor: { name: vendorProfile.name },
   },
 ];
+
+const DEMO_BOOKINGS_STORAGE_KEY = "achar_demo_bookings";
+const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
+const LAST_BOOKING_EMAIL_KEY = "achar_last_booking_email";
+function shouldShowDemoBookings() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") return true;
+    if (params.get("demoBookings") === "1") return true;
+  } catch {
+    // ignore
+  }
+
+  try {
+    return localStorage.getItem(DEMO_BOOKINGS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const fallbackDemoBookings = [
+  {
+    id: 71001,
+    status: "pending",
+    customer_name: "Sarah Lee",
+    customer_email: "sarah.lee@example.com",
+    quantity: 1,
+    total_amount: 1800,
+    requested_event_type: "wedding",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 35).toISOString(),
+    service_name: "Signature Wedding Floral & Styling",
+    booked_items: [
+      {
+        type: "package",
+        name: "Signature Wedding Floral & Styling",
+        qty: 1,
+        unitPrice: 1800,
+        totalPrice: 1800,
+        description: "Full-venue floral design and coordinated ceremony styling.",
+      },
+    ],
+    event: {
+      id: 9001,
+      title: "Signature Wedding Floral & Styling",
+      event_type: "wedding",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 35).toISOString(),
+      image_url: packageImageByEventType.wedding,
+      vendor: { name: vendorProfile.name },
+    },
+  },
+  {
+    id: 71002,
+    status: "confirmed",
+    customer_name: "David Chen",
+    customer_email: "david.chen@example.com",
+    quantity: 2,
+    total_amount: 1040,
+    requested_event_type: "birthday",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
+    service_name: "Birthday Backdrop & Balloon Bar",
+    booked_items: [
+      {
+        type: "service",
+        name: "Backdrop setup",
+        qty: 1,
+        unitPrice: 420,
+        totalPrice: 420,
+        description: "Photo-ready backdrop with themed props.",
+      },
+      {
+        type: "service",
+        name: "Balloon bar",
+        qty: 1,
+        unitPrice: 620,
+        totalPrice: 620,
+        description: "Custom balloon palette + installation.",
+      },
+    ],
+    event: {
+      id: 9004,
+      title: "Birthday Backdrop & Balloon Bar",
+      event_type: "birthday",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
+      image_url: packageImageByEventType.birthday,
+      vendor: { name: "Golden Lotus Decor" },
+    },
+  },
+  {
+    id: 71003,
+    status: "confirmed",
+    customer_name: "Amina Rahman",
+    customer_email: "amina.rahman@example.com",
+    quantity: 1,
+    total_amount: 650,
+    requested_event_type: "monk_ceremony",
+    requested_event_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 42).toISOString(),
+    service_name: "Monk Ceremony Setup",
+    booked_items: [
+      {
+        type: "package",
+        name: "Monk Ceremony Setup",
+        qty: 1,
+        unitPrice: 650,
+        totalPrice: 650,
+        description: "Respectful altar layout + coordination support.",
+      },
+    ],
+    event: {
+      id: 9002,
+      title: "Monk Ceremony Setup",
+      event_type: "monk_ceremony",
+      starts_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 42).toISOString(),
+      image_url: packageImageByEventType.monk_ceremony,
+      vendor: { name: vendorProfile.name },
+    },
+  },
+  {
+    id: 71004,
+    status: "cancelled",
+    customer_name: "Michael Rivera",
+    customer_email: "michael.rivera@example.com",
+    quantity: 1,
+    total_amount: 2400,
+    requested_event_type: "company_party",
+    requested_event_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString(),
+    service_name: "Corporate Gala Décor",
+    booked_items: [
+      {
+        type: "package",
+        name: "Corporate Gala Décor",
+        qty: 1,
+        unitPrice: 2400,
+        totalPrice: 2400,
+        description: "Stage styling, centerpieces, and guest flow support.",
+      },
+    ],
+    event: {
+      id: 9003,
+      title: "Corporate Gala Décor",
+      event_type: "company_party",
+      starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString(),
+      image_url: packageImageByEventType.company_party,
+      vendor: { name: "Achar Pro Events" },
+    },
+  },
+];
+
+function getLocalBookingsByEmail(email) {
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return [];
+    if (!email) return rows;
+    return rows.filter(
+      (row) => String(row?.customerEmail || "").trim().toLowerCase() === email.trim().toLowerCase(),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function mapLocalBookingRow(row) {
+  const status = String(row?.status || "pending").toLowerCase();
+  const statusText =
+    status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending Approval";
+  const statusClass =
+    status === "confirmed" ? "confirmed" : status === "cancelled" ? "done" : "pending";
+  return {
+    id: row?.id || `local-${Date.now()}`,
+    vendor: row?.vendor || "Selected Vendor",
+    service: row?.service || "Service Booking",
+    servicePrice: Number(row?.total || row?.total_amount || 0),
+    quantity: Number(row?.quantity || 1),
+    date: row?.dateLabel || row?.eventDate || "Date TBD",
+    metaLabel: "Event Type",
+    metaValue: eventTypeMap[row?.eventType] || "Other",
+    placeLabel: "Total",
+    placeValue: `$${Number(row?.total || row?.total_amount || 0).toLocaleString()}`,
+    status: statusText,
+    statusClass,
+    type: row?.type || "Upcoming",
+    eventType: row?.eventType || "other",
+    eventId: row?.eventId || null,
+    image:
+      row?.image ||
+      "https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80",
+    bookedItems: Array.isArray(row?.booked_items) ? row.booked_items : [],
+    primaryBtn: "View Details",
+    secondaryBtn: statusClass === "pending" ? "Message Vendor" : "Reschedule",
+    note: [row?.customerName, row?.customerEmail].filter(Boolean).join(" | "),
+    rawBooking: row,
+  };
+}
+
+function mapRowsToGuestBookings(rows) {
+  return rows.map((row) => {
+    if (row?.event || row?.service_name || row?.requested_event_date) {
+      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
+      return {
+        ...mapped,
+        primaryBtn: "View Details",
+        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
+        rawBooking: row,
+      };
+    }
+    return mapLocalBookingRow(row);
+  });
+}
 
 const pageContent = computed(() => {
   if (props.section === "favorite") {
@@ -509,9 +724,11 @@ function formatEventDateLabel(value) {
 
 function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
+  const serviceMode = String(item.service_mode || "overall");
   const price = Number(item.price || 0);
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -528,13 +745,18 @@ function mapEventToGuestPackage(item) {
     backingEventId: Number(item.id || 0) || null,
     vendorName,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
+    serviceMode,
+    qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
 }
 
 function mapEventToGuestService(item) {
   const eventType = String(item.event_type || "other");
+  const serviceMode = String(item.service_mode || "overall");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
+  const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -547,58 +769,76 @@ function mapEventToGuestService(item) {
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
     vendorImage,
+    vendorId,
     vendor: item.vendor || null,
+    serviceMode,
+    qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
 }
 
 async function loadLiveVendorEvents() {
-  // Try session cache first to avoid repeated network calls
+  // Use session cache for fast paint, but still fetch fresh data.
+  let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length) {
-        liveVendorEvents.value = parsed;
-        return;
+      if (Array.isArray(parsed)) {
+        cachedRows = parsed;
+      } else if (parsed && Array.isArray(parsed.data)) {
+        cachedRows = parsed.data;
       }
     }
   } catch {
     // ignore cache read errors
   }
 
-  try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1 });
-    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    if (rows.length) {
-      liveVendorEvents.value = rows;
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
-      return;
-    }
-
-    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-    if (!fallbackResponse.ok) {
-      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
-    }
-
-    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
-    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
-      ? fallbackJson.data
-      : Array.isArray(fallbackJson)
-        ? fallbackJson
-        : [];
-    if (liveVendorEvents.value.length) {
-      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
-    }
-  } catch (error) {
-    console.error(error);
-    liveVendorEvents.value = [];
+  if (cachedRows.length) {
+    liveVendorEvents.value = cachedRows;
   }
 
-  // If nothing came back (common in guest preview), seed demo events so services show up
+  let rows = [];
+  try {
+    const result = await apiGet("events", {
+      per_page: 100,
+      include_inactive: 1,
+      ts: Date.now(),
+    });
+    rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error(error);
+  }
+
+  if (!rows.length) {
+    try {
+      const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      if (!fallbackResponse.ok) {
+        throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+      }
+
+      const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+      rows = Array.isArray(fallbackJson?.data)
+        ? fallbackJson.data
+        : Array.isArray(fallbackJson)
+          ? fallbackJson
+          : [];
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  if (rows.length) {
+    liveVendorEvents.value = rows;
+    sessionStorage.setItem(
+      EVENTS_CACHE_KEY,
+      JSON.stringify({ data: rows, cachedAt: Date.now() }),
+    );
+  }
+
   if (!liveVendorEvents.value.length) {
     liveVendorEvents.value = fallbackDemoEvents;
   }
@@ -617,12 +857,31 @@ async function loadGuestBookings() {
   }
 
   if (!authUser) {
+    const fallbackEmail =
+      String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim() ||
+      String(localStorage.getItem("achar_customer_email") || "").trim();
+    const localRows = getLocalBookingsByEmail(fallbackEmail);
+    if (localRows.length) {
+      guestBookings.value = mapRowsToGuestBookings(localRows);
+      bookingPageNotice.value = "";
+      return;
+    }
+    if (shouldShowDemoBookings()) {
+      guestBookings.value = mapRowsToGuestBookings(fallbackDemoBookings);
+      bookingPageNotice.value = "";
+      return;
+    }
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
     return;
   }
 
-  const customerEmail = String(authUser?.email || "").trim().toLowerCase();
+  const typedEmail = String(localStorage.getItem("achar_customer_email") || "").trim();
+  const loggedEmail = String(authUser?.email || "").trim();
+  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim();
+  const primaryEmail = typedEmail || loggedEmail || lastEmail;
+  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : "";
+  const customerEmail = primaryEmail.trim().toLowerCase();
   if (!customerEmail) {
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
@@ -632,16 +891,19 @@ async function loadGuestBookings() {
   isLoadingGuestBookings.value = true;
   try {
     const result = await apiGet("bookings", { customer_email: customerEmail });
-    const rows = Array.isArray(result?.data) ? result.data : [];
-    guestBookings.value = rows.map((row) => {
-      const mapped = mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap });
-      return {
-        ...mapped,
-        primaryBtn: "View Details",
-        secondaryBtn: mapped.statusClass === "pending" ? "Message Vendor" : "Reschedule",
-        rawBooking: row,
-      };
-    });
+    let rows = Array.isArray(result?.data) ? result.data : [];
+    if (!rows.length && fallbackEmail) {
+      const fallbackResult = await apiGet("bookings", { customer_email: fallbackEmail });
+      rows = Array.isArray(fallbackResult?.data) ? fallbackResult.data : [];
+    }
+    const localRows = [
+      ...getLocalBookingsByEmail(customerEmail),
+      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+    ];
+    const apiMapped = mapRowsToGuestBookings(rows);
+    const apiKeys = new Set(apiMapped.map((row) => row.id));
+    const extraLocal = localRows.filter((row) => !apiKeys.has(row.id));
+    guestBookings.value = [...apiMapped, ...mapRowsToGuestBookings(extraLocal)];
     bookingPageNotice.value = "";
   } catch (error) {
     guestBookings.value = [];
@@ -673,11 +935,15 @@ function bookingSecondaryAction(item) {
 }
 
 const guestPreviewPackages = computed(() => {
-  return liveVendorEvents.value.map(mapEventToGuestPackage);
+  return liveVendorEvents.value
+    .map(mapEventToGuestPackage)
+    .filter((item) => item.serviceMode === "package");
 });
 
 const servicesCatalog = computed(() => {
-  return liveVendorEvents.value.map(mapEventToGuestService);
+  return liveVendorEvents.value
+    .map(mapEventToGuestService)
+    .filter((item) => item.serviceMode === "overall");
 });
 
 const selectedPackage = computed(
@@ -980,6 +1246,8 @@ async function submitPrebookForm() {
         qty: quantity,
         unitPrice: Number(pkg.price || 0),
         totalPrice: Number(pkg.price || 0) * quantity,
+        eventId: pkg.backingEventId || null,
+        qrCodeUrl: pkg.qrCodeUrl || "",
       });
     }
   }
@@ -992,8 +1260,16 @@ async function submitPrebookForm() {
       qty: quantity,
       unitPrice: Number(svc.price || 0),
       totalPrice: Number(svc.price || 0) * quantity,
+      eventId: svc.backingEventId || null,
+      qrCodeUrl: svc.qrCodeUrl || "",
     });
   });
+
+  const paymentQrCodeUrl =
+    checkoutItems.find((item) => item.qrCodeUrl)?.qrCodeUrl ||
+    targetPackage?.qrCodeUrl ||
+    primaryService?.qrCodeUrl ||
+    "";
 
   const payload = {
     vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
@@ -1028,6 +1304,7 @@ async function submitPrebookForm() {
       ? customizationEventType.value
       : targetPackage?.eventType || "other",
     items: checkoutItems,
+    qrCodeUrl: paymentQrCodeUrl,
   };
   sessionStorage.setItem("achar_prebook_checkout", JSON.stringify(payload));
   showPrebookModal.value = false;
@@ -1305,6 +1582,11 @@ function detectPrebookLocation() {
 }
 
 function selectPackage(id) {
+  if (selectedPackageId.value === id) {
+    selectedPackageId.value = null;
+    packageQuantity.value = 1;
+    return;
+  }
   selectedPackageId.value = id;
   packageQuantity.value = 1;
 }
@@ -1329,6 +1611,8 @@ function openServiceVendor(service) {
   const vendor = service.vendor || {};
 
   activeVendorProfile.value = {
+    vendorId: Number(service.vendorId || vendor.id || 0) || null,
+    eventId: Number(service.backingEventId || 0) || null,
     name: vendor.name || service.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1360,6 +1644,8 @@ function openPackageVendor() {
   if (!activePackage.value) return;
   const vendor = activePackage.value.vendor || {};
   activeVendorProfile.value = {
+    vendorId: Number(activePackage.value.vendorId || vendor.id || 0) || null,
+    eventId: Number(activePackage.value.backingEventId || 0) || null,
     name: vendor.name || activePackage.value.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
     rating: vendor.rating || vendorProfile.rating,
@@ -1384,6 +1670,62 @@ function openPackageVendor() {
     website: vendor.website || vendorProfile.website,
   };
   showVendorProfile.value = true;
+}
+
+function queueVendorMessageTarget(target) {
+  if (!target || typeof target !== "object") return;
+  const vendorId = Number(target.vendorId || 0);
+  const vendorEmail = String(target.vendorEmail || "").trim();
+  const eventId = Number(target.eventId || 0);
+  if (!Number.isFinite(vendorId) && !vendorEmail && !Number.isFinite(eventId)) return;
+  if (!vendorId && !vendorEmail && !eventId) return;
+
+  sessionStorage.setItem(MESSAGE_VENDOR_TARGET_KEY, JSON.stringify({
+      vendorId: Number.isFinite(vendorId) && vendorId > 0 ? vendorId : null,
+      vendorName: String(target.vendorName || "").trim() || undefined,
+      vendorEmail: vendorEmail || undefined,
+      serviceName: String(target.serviceName || "").trim() || undefined,
+      eventId: Number.isFinite(eventId) && eventId > 0 ? eventId : null,
+    }));
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/legacy-app?page=messages");
+    sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
+    router.push("/legacy-app?page=messages");
+  }
+
+function messageVendorFromPackage() {
+  if (!activePackage.value) return;
+  const vendor = activePackage.value.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: activePackage.value.vendorId || vendor.id || null,
+    vendorName: activePackage.value.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: activePackage.value.title || "",
+    eventId: activePackage.value.backingEventId || null,
+  });
+}
+
+function messageVendorFromService(service) {
+  if (!service) return;
+  const vendor = service.vendor || {};
+  queueVendorMessageTarget({
+    vendorId: service.vendorId || vendor.id || null,
+    vendorName: service.vendorName || vendor.name || "Vendor",
+    vendorEmail: vendor.email || "",
+    serviceName: service.name || "",
+    eventId: service.backingEventId || null,
+  });
+}
+
+function messageVendorFromProfile() {
+  const profile = activeVendorProfile.value;
+  if (!profile) return;
+  queueVendorMessageTarget({
+    vendorId: profile.vendorId || null,
+    vendorName: profile.name || "Vendor",
+    vendorEmail: profile.email || "",
+    serviceName: profile.serviceName || "",
+    eventId: profile.eventId || null,
+  });
 }
 
 function closeVendorProfile() {
@@ -1776,7 +2118,7 @@ function noop() {}
 
     <main class="shell guest-content">
       <section
-        v-if="section !== 'services-overall' && section !== 'services-packages'"
+        v-if="section !== 'services-overall' && section !== 'services-packages' && section !== 'bookings'"
         class="guest-panel"
       >
         <h1>{{ pageContent.title }}</h1>
@@ -1914,6 +2256,7 @@ function noop() {}
 	                      <button
 	                        type="button"
 	                        class="choice-indicator package-book-btn"
+	                        :class="{ selected: selectedPackageId === item.id }"
 	                        @click.stop="selectPackage(item.id)"
 	                      >
 	                        {{
@@ -2125,7 +2468,7 @@ function noop() {}
                     @toggle-service="toggleService(service.id)"
                     @toggle-details="toggleServiceDetails"
                     @view-vendor="openServiceVendor(service)"
-                    @message="goToSignIn"
+                    @message="messageVendorFromService(service)"
                     @toggle-favorite="toggleFavoriteService"
                   />
                 </div>
@@ -2317,6 +2660,7 @@ function noop() {}
         :bindings="bookingBindings"
         :event-type-options="eventTypeOptions"
         :notice="bookingPageNotice"
+        :is-guest="true"
         :is-loading-bookings="isLoadingGuestBookings"
         :filtered-bookings="filteredGuestBookings"
         :go-to-dashboard="() => goToSection('dashboard')"
@@ -2447,6 +2791,13 @@ function noop() {}
           </button>
           <button
             type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="messageVendorFromPackage"
+          >
+            {{ uiText.messageVendor || "Message Vendor" }}
+          </button>
+          <button
+            type="button"
             class="modal-action-btn modal-action-primary"
             @click="openPrebookForm"
           >
@@ -2501,7 +2852,7 @@ function noop() {}
           <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
             Close
           </button>
-          <button type="button" class="modal-action-btn modal-action-primary" @click="goToSignIn">
+          <button type="button" class="modal-action-btn modal-action-primary" @click="messageVendorFromProfile">
             {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
@@ -3340,17 +3691,52 @@ function noop() {}
   line-height: 1.2;
 }
 
+.package-rating .star {
+  color: #f59e0b;
+  filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.25));
+}
+
+.package-rating strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.package-rating small {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
 .package-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 10px;
+  padding: 10px 10px;
+  border: 1px solid #e2e8f3;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 58%),
+    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.12), transparent 52%),
+    #ffffff;
 }
 
 .package-price-stack {
   display: grid;
   gap: 1px;
+  position: relative;
+  padding-left: 10px;
+}
+
+.package-price-stack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), #ff9a55);
 }
 
 .package-price-stack small {
@@ -3359,6 +3745,60 @@ function noop() {}
   letter-spacing: 0.04em;
   color: #8a94a8;
   font-size: 11px;
+}
+
+.package-product-card .package-book-btn {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0.65rem 1.05rem;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #ff8529, var(--accent));
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  box-shadow: 0 14px 26px rgba(255, 106, 0, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  white-space: nowrap;
+}
+
+.package-product-card .package-book-btn::after {
+  content: "›";
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.9;
+  transform: translateY(-0.02em);
+}
+
+.package-product-card .package-book-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 30px rgba(255, 106, 0, 0.26);
+}
+
+.package-product-card .package-book-btn.selected {
+  background: linear-gradient(160deg, #0f172a, #1f2937);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.22);
+}
+
+.package-product-card .package-book-btn.selected::after {
+  content: "✓";
+  font-size: 1.05rem;
+}
+
+@media (max-width: 520px) {
+  .package-bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .package-product-card .package-book-btn {
+    width: 100%;
+  }
 }
 
 .package-product-footer {
@@ -4282,7 +4722,7 @@ function noop() {}
 .package-modal-actions {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
 }
 
@@ -4839,6 +5279,3 @@ function noop() {}
   }
 }
 </style>
-
-
-
