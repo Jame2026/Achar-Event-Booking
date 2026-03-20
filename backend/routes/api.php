@@ -99,6 +99,7 @@ Route::prefix('user')->group(function () {
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
+    Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
     Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 

@@ -86,7 +86,7 @@ class NotificationController extends Controller
     {
         $rules = [
             'role' => ['nullable', Rule::in(['user', 'vendor'])],
-            'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:email'],
+            'user_id' => ['nullable', 'integer', 'min:1', 'required_without:email'],
             'email' => ['nullable', 'email', 'max:255', 'required_without:user_id'],
         ];
 

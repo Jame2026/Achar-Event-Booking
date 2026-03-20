@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\Event;
+use App\Models\User;
 use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
@@ -20,21 +21,48 @@ class BookingController extends Controller
     public function publicIndex(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'user_id' => ['nullable', 'integer', 'min:1'],
             'customer_email' => ['nullable', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:20'],
             'event_type' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', Rule::in(['pending', 'confirmed', 'cancelled'])],
         ]);
+
+        $customerEmail = isset($validated['customer_email'])
+            ? strtolower(trim((string) $validated['customer_email']))
+            : null;
+        $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+        $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
 
         $bookings = Booking::query()
             ->with([
                 'event:id,title,event_type,image_url,starts_at,location,vendor_id',
                 'event.vendor:id,name,email',
-                'user:id,name,email',
+                'user:id,name,email,phone',
             ])
-            ->when(
-                $validated['customer_email'] ?? null,
-                fn ($query, $email) => $query->where('customer_email', $email)
-            )
+            ->when($userId || $customerEmail || $customerPhoneVariants, function ($query) use ($userId, $customerEmail, $customerPhoneVariants) {
+                $query->where(function ($identityQuery) use ($userId, $customerEmail, $customerPhoneVariants) {
+                    if ($userId) {
+                        $identityQuery->orWhere('user_id', $userId);
+                    }
+
+                    if ($customerEmail) {
+                        $identityQuery
+                            ->orWhereRaw('LOWER(customer_email) = ?', [$customerEmail])
+                            ->orWhereHas('user', function ($userQuery) use ($customerEmail) {
+                                $userQuery->whereRaw('LOWER(email) = ?', [$customerEmail]);
+                            });
+                    }
+
+                    if ($customerPhoneVariants) {
+                        $identityQuery
+                            ->orWhereIn('customer_phone', $customerPhoneVariants)
+                            ->orWhereHas('user', function ($userQuery) use ($customerPhoneVariants) {
+                                $userQuery->whereIn('phone', $customerPhoneVariants);
+                            });
+                    }
+                });
+            })
             ->when(
                 $validated['status'] ?? null,
                 fn ($query, $status) => $query->where('status', $status)
@@ -167,8 +195,8 @@ class BookingController extends Controller
             'event_id' => ['nullable', 'exists:events,id'],
             'quantity' => ['required', 'integer', 'min:1'],
             'customer_name' => ['required', 'string', 'max:255'],
-            'customer_email' => ['required', 'email', 'max:255'],
-            'customer_phone' => ['nullable', 'string', 'max:20'],
+            'customer_email' => ['nullable', 'email', 'max:255', 'required_without:customer_phone'],
+            'customer_phone' => ['nullable', 'string', 'max:20', 'required_without:customer_email'],
             'customer_location' => ['nullable', 'string', 'max:255'],
             'service_name' => ['nullable', 'string', 'max:255'],
             'requested_event_type' => ['nullable', 'string', 'max:60'],
@@ -206,7 +234,14 @@ class BookingController extends Controller
                 return response()->json(['message' => 'Vendor is already booked on the selected date.'], 422);
             }
 
-            $totalAmount = $this->calculateTotal($event->price, $validated['quantity']);
+            $requestedTotalAmount = array_key_exists('total_amount', $validated)
+                ? (float) $validated['total_amount']
+                : null;
+            $totalAmount = $this->resolveEventBookingTotal(
+                $event,
+                (int) $validated['quantity'],
+                $requestedTotalAmount
+            );
         } else {
             $totalAmount = round((float) ($validated['total_amount'] ?? 0), 2);
             if ($totalAmount <= 0) {
@@ -252,11 +287,12 @@ class BookingController extends Controller
             'quantity' => ['sometimes', 'integer', 'min:1'],
             'status' => ['sometimes', Rule::in(['pending', 'confirmed', 'cancelled'])],
             'customer_name' => ['sometimes', 'string', 'max:255'],
-            'customer_email' => ['sometimes', 'email', 'max:255'],
+            'customer_email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'customer_phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'customer_location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'service_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_event_type' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'total_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'booked_items' => ['sometimes', 'nullable', 'array'],
             'booked_items.*.type' => ['nullable', 'string', 'max:40'],
             'booked_items.*.name' => ['nullable', 'string', 'max:255'],
@@ -282,11 +318,21 @@ class BookingController extends Controller
             }
         }
 
+        $requestedTotalAmount = array_key_exists('total_amount', $validated)
+            ? (float) $validated['total_amount']
+            : null;
+
         $booking->update([
             ...$validated,
             'total_amount' => $event
-                ? $this->calculateTotal($event->price, $newQuantity)
-                : $booking->total_amount,
+                ? $this->resolveEventBookingTotal(
+                    $event,
+                    (int) $newQuantity,
+                    $requestedTotalAmount,
+                    $booking,
+                    (int) $booking->quantity
+                )
+                : ($requestedTotalAmount !== null ? round($requestedTotalAmount, 2) : $booking->total_amount),
         ]);
         $this->flushVendorCacheForBooking($booking);
 
@@ -338,6 +384,33 @@ class BookingController extends Controller
     public function destroy(Booking $booking): JsonResponse
     {
         $this->flushVendorCacheForBooking($booking);
+        $this->flushNotificationCacheForBooking($booking);
+        $booking->delete();
+
+        return response()->json(null, 204);
+    }
+
+    public function destroyForUser(Request $request, Booking $booking): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $booking->loadMissing([
+            'event:id,title,starts_at,location,vendor_id',
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone',
+        ]);
+
+        if (! $this->canUserAccessBooking($user, $booking)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if (! $this->canCustomerDeleteBooking($booking)) {
+            return response()->json(['message' => 'Only completed bookings can be deleted.'], 422);
+        }
+
+        $this->flushVendorCacheForBooking($booking);
+        $this->flushNotificationCacheForBooking($booking);
         $booking->delete();
 
         return response()->json(null, 204);
@@ -357,6 +430,117 @@ class BookingController extends Controller
     private function calculateTotal($price, int $quantity): float
     {
         return round(((float) $price) * $quantity, 2);
+    }
+
+    private function resolveEventBookingTotal(
+        Event $event,
+        int $quantity,
+        ?float $requestedTotalAmount = null,
+        ?Booking $currentBooking = null,
+        ?int $previousQuantity = null
+    ): float {
+        $baseTotalAmount = $this->calculateTotal($this->resolveEventUnitPrice($event), $quantity);
+
+        if ($requestedTotalAmount !== null && $requestedTotalAmount > 0) {
+            return max($baseTotalAmount, round($requestedTotalAmount, 2));
+        }
+
+        if ($currentBooking && $previousQuantity && $previousQuantity > 0) {
+            $currentTotalAmount = round((float) $currentBooking->total_amount, 2);
+
+            if ($quantity !== $previousQuantity) {
+                $scaledTotalAmount = round(($currentTotalAmount / $previousQuantity) * $quantity, 2);
+
+                return max($baseTotalAmount, $scaledTotalAmount);
+            }
+
+            return max($baseTotalAmount, $currentTotalAmount);
+        }
+
+        return $baseTotalAmount;
+    }
+
+    private function resolveEventUnitPrice(Event $event): float
+    {
+        if (($event->service_mode ?? null) !== 'package' || ! is_array($event->packages)) {
+            return (float) $event->price;
+        }
+
+        $packageTotal = round(array_reduce($event->packages, function ($sum, $package) {
+            return $sum + (float) ($package['price'] ?? 0);
+        }, 0), 2);
+
+        return $packageTotal > 0 ? $packageTotal : (float) $event->price;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function bookingPhoneLookupVariants(?string $phone): array
+    {
+        $trimmed = trim((string) $phone);
+        if ($trimmed === '') {
+            return [];
+        }
+
+        $digits = preg_replace('/\D+/', '', $trimmed);
+        $variants = [$trimmed];
+
+        if (is_string($digits) && $digits !== '') {
+            $variants[] = $digits;
+            $variants[] = '+'.$digits;
+
+            if (str_starts_with($digits, '0') && strlen($digits) > 1) {
+                $variants[] = '+855'.substr($digits, 1);
+            }
+
+            if (str_starts_with($digits, '855') && strlen($digits) > 3) {
+                $variants[] = '0'.substr($digits, 3);
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $variants
+        ))));
+    }
+
+    private function canUserAccessBooking(User $user, Booking $booking): bool
+    {
+        if ((int) ($booking->user_id ?? 0) === (int) $user->id) {
+            return true;
+        }
+
+        $userEmail = strtolower(trim((string) ($user->email ?? '')));
+        $bookingEmail = strtolower(trim((string) ($booking->customer_email ?? $booking->user?->email ?? '')));
+        if ($userEmail !== '' && $bookingEmail !== '' && $userEmail === $bookingEmail) {
+            return true;
+        }
+
+        $userPhoneVariants = $this->bookingPhoneLookupVariants($user->phone ?? null);
+        $bookingPhoneVariants = array_values(array_unique(array_merge(
+            $this->bookingPhoneLookupVariants($booking->customer_phone ?? null),
+            $this->bookingPhoneLookupVariants($booking->user?->phone ?? null),
+        )));
+
+        return count(array_intersect($userPhoneVariants, $bookingPhoneVariants)) > 0;
+    }
+
+    private function canCustomerDeleteBooking(Booking $booking): bool
+    {
+        if ($booking->requested_event_date) {
+            return Carbon::parse($booking->requested_event_date)->startOfDay()->lte(Carbon::today());
+        }
+
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->select(['id', 'starts_at'])->first();
+
+        if ($event?->starts_at) {
+            return Carbon::parse($event->starts_at)->lte(now());
+        }
+
+        return false;
     }
 
     private function vendorHasAnotherBookedEvent(Event $event, ?string $requestedDate = null): bool
@@ -580,6 +764,32 @@ class BookingController extends Controller
         if ($vendorId > 0) {
             VendorCache::flushVendor($vendorId);
         }
+    }
+
+    private function flushNotificationCacheForBooking(Booking $booking): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()
+                ->with('vendor:id,email')
+                ->select(['id', 'vendor_id'])
+                ->first();
+
+        if ($event && ! $event->relationLoaded('vendor')) {
+            $event->loadMissing('vendor:id,email');
+        }
+
+        $this->flushNotificationCache(
+            'user',
+            $booking->user_id ? (int) $booking->user_id : null,
+            $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null
+        );
+
+        $this->flushNotificationCache(
+            'vendor',
+            $event?->vendor_id ? (int) $event->vendor_id : null,
+            $event?->vendor?->email ? strtolower(trim((string) $event->vendor->email)) : null
+        );
     }
 
     private function flushNotificationCache(string $role, ?int $userId, ?string $email): void

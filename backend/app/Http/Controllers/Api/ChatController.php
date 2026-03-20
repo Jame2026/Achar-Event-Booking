@@ -283,11 +283,16 @@ class ChatController extends Controller
             return response()->json(['message' => 'Message cannot be empty.'], 422);
         }
 
+        $customer = $this->resolveConversationCustomer($conversation);
+        $senderName = $this->filledValue($customer?->name)
+            ?: $this->filledValue($conversation->customer_name)
+            ?: 'Customer';
+
         $message = ChatMessage::create([
             'conversation_id' => $conversation->id,
             'sender_user_id' => $conversation->customer_user_id,
             'sender_role' => 'customer',
-            'sender_name' => $conversation->customer_name,
+            'sender_name' => $senderName,
             'body' => $body,
         ]);
 
@@ -362,13 +367,18 @@ class ChatController extends Controller
             ->map(fn (ChatMessage $message) => $this->mapMessageResponse($message))
             ->all();
 
-        $customerName = $conversation->customer_name
-            ?: ($conversation->booking?->customer_name ?: 'Customer');
         $vendor = $conversation->vendor ?: $conversation->booking?->event?->vendor;
-        $customer = $conversation->customer;
-        $customerEmail = $conversation->customer_email ?: $conversation->booking?->customer_email;
-        $customerPhone = $customer?->phone ?: $conversation->booking?->customer_phone;
-        $customerLocation = $customer?->location ?: $conversation->booking?->customer_location;
+        $customer = $this->resolveConversationCustomer($conversation);
+        $customerName = $this->filledValue($customer?->name)
+            ?: $this->filledValue($conversation->customer_name)
+            ?: ($conversation->booking?->customer_name ?: 'Customer');
+        $customerEmail = $this->filledValue($customer?->email)
+            ?: $this->filledValue($conversation->customer_email)
+            ?: $this->filledValue($conversation->booking?->customer_email);
+        $customerPhone = $this->filledValue($customer?->phone)
+            ?: $this->filledValue($conversation->booking?->customer_phone);
+        $customerLocation = $this->filledValue($customer?->location)
+            ?: $this->filledValue($conversation->booking?->customer_location);
         $preview = $latestMessage?->body;
         if (! is_string($preview) || trim($preview) === '') {
             $preview = '';
@@ -488,11 +498,17 @@ class ChatController extends Controller
             $customerUserId = User::query()->where('email', $email)->value('id');
         }
 
+        $customer = null;
         if ($customerUserId) {
             $conversation->customer_user_id = $customerUserId;
+            $customer = User::query()
+                ->select(['id', 'name'])
+                ->find($customerUserId);
         }
 
-        if ($customerName) {
+        if ($customer?->name) {
+            $conversation->customer_name = $customer->name;
+        } elseif ($customerName) {
             $conversation->customer_name = $customerName;
         }
 
@@ -503,5 +519,44 @@ class ChatController extends Controller
         $conversation->save();
 
         return $conversation;
+    }
+
+    private function resolveConversationCustomer(ChatConversation $conversation): ?User
+    {
+        if ($conversation->relationLoaded('customer') && $conversation->customer) {
+            return $conversation->customer;
+        }
+
+        $customer = $conversation->customer;
+        if ($customer) {
+            return $customer;
+        }
+
+        $resolved = null;
+        $email = $this->normalizeEmail((string) ($conversation->customer_email ?: $conversation->booking?->customer_email ?: ''));
+
+        if ($email !== '') {
+            $resolved = User::query()
+                ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url'])
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->first();
+        }
+
+        if (! $resolved && $conversation->booking?->user_id) {
+            $resolved = User::query()
+                ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url'])
+                ->find((int) $conversation->booking->user_id);
+        }
+
+        if ($resolved) {
+            $conversation->setRelation('customer', $resolved);
+            if ((int) $conversation->customer_user_id !== (int) $resolved->id || $conversation->customer_name !== $resolved->name) {
+                $conversation->customer_user_id = $resolved->id;
+                $conversation->customer_name = $resolved->name;
+                $conversation->save();
+            }
+        }
+
+        return $resolved;
     }
 }
