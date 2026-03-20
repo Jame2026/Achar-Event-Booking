@@ -32,6 +32,19 @@ class AuthController extends Controller
                 'max:255',
                 'required_without:phone',
                 'unique:users,email',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $email = strtolower(trim((string) $value));
+                    if ($email === '') {
+                        return;
+                    }
+                    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $fail('Please enter a valid email address.');
+                        return;
+                    }
+                    if (str_ends_with($email, '@users.achar.local')) {
+                        $fail('Please use a real email domain.');
+                    }
+                },
             ],
             'phone' => [
                 'nullable',
@@ -69,12 +82,22 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['nullable', 'string'],
-            'login' => ['nullable', 'string'],
+            'login' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $input = trim((string) $value);
+                    $isEmail = filter_var($input, FILTER_VALIDATE_EMAIL) !== false;
+                    if (! $isEmail && ! $this->isValidPhone($input)) {
+                        $fail('Please enter a valid email address or phone number.');
+                    }
+                },
+            ],
             'password' => ['required', 'string'],
         ]);
 
-        $identifier = trim((string) ($validated['login'] ?? $validated['email'] ?? ''));
+        $identifier = trim((string) $validated['login']);
         if ($identifier === '') {
             return response()->json([
                 'message' => 'Email or phone is required.',
@@ -88,15 +111,17 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $identifier = $isEmail ? strtolower($identifier) : $this->normalizePhone($identifier);
+
         $user = $isEmail
             ? User::query()
             ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
-            ->where('email', strtolower($identifier))
+            ->where('email', $identifier)
             ->whereNotNull('email')
             ->first()
             : User::query()
             ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
-            ->where('phone', $this->normalizePhone($identifier))
+            ->where('phone', $identifier)
             ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
