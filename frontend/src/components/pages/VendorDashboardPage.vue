@@ -1173,10 +1173,7 @@ function formatEventType(value) {
     .replace(/_/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
 function setIncomePeriod(periodKey) {
   incomePeriod.value = periodKey;
 }
@@ -2912,8 +2909,7 @@ watch(
           </thead>
           <tbody>
             <tr v-for="item in safeVendorBookings" :key="item.id">
-<<<<<<< HEAD
-<<<<<<< HEAD
+
               <td>{{ item.service_name }}</td>
               <td>
                 <div class="client-cell">
@@ -2922,12 +2918,8 @@ watch(
                 </div>
               </td>
               <td>{{ item.date_label }}</td>
-=======
->>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
-              <td>
-=======
               <td class="booking-service-cell">
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
+
                 <div class="service-cell">
                   <div class="service-thumb">
                     <img

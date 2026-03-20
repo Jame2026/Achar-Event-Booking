@@ -1352,7 +1352,6 @@ async function submitVendorService() {
         })()
       : normalizedPayload
 
-<<<<<<< HEAD
     if (Number.isFinite(serviceId) && serviceId > 0) {
       const result = await apiPatch(`vendor/services/${serviceId}`, payload)
       upsertVendorEvent(result?.data || result)
@@ -1363,8 +1362,6 @@ async function submitVendorService() {
       vendorServiceNotice.value = uiText.value.serviceCreated
     }
     loadEvents({ silent: true })
-=======
->>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
     await apiPost('vendor/services', payload)
     await loadEvents()
     clearGuestEventsCache()
@@ -1455,11 +1452,8 @@ function mapVendorBookingRow(row) {
   return {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
-<<<<<<< HEAD
     customer_name: row.customer_name || row.user?.name || uiText.value.customer,
     customer_email: row.customer_email || row.user?.email || '',
-=======
->>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
     customer_id: user.id || null,
     customer_name: row.customer_name || user.name || uiText.value.customer,
     customer_email: customerEmail,

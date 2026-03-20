@@ -108,6 +108,13 @@ const authBaseUrl = apiOrigin
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
+function autoFormatPhone(event) {
+  let value = event.target.value.replace(/\D/g, '') // strip all non-digits
+
+  if (value.startsWith('0')) {
+    value = value.substring(1) 
+  }
+}
 
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
@@ -197,7 +204,8 @@ const submitRegister = async () => {
         <router-link class="auth-back-home" to="/">&larr; {{ uiText.backHome }}</router-link>
 
         <div class="brand-row auth-logo-only">
-          <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
+          <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo"
+            @error="onAuthLogoError" />
         </div>
 
         <div class="form-head form-head-center">
@@ -235,14 +243,8 @@ const submitRegister = async () => {
 
           <label v-else class="field">
             <span>{{ uiText.phoneNumber }}</span>
-            <input
-              v-model="form.phone"
-              type="tel"
-              inputmode="tel"
-              placeholder="+85512345678"
-              pattern="^\\+?[0-9]{8,15}$"
-              required
-            />
+            <input v-model="form.phone" type="tel" inputmode="tel" placeholder="+85512345678" pattern="^\[0-9]{8,15}$"
+              title="Please include country code e.g. +85512345678" required @input="autoFormatPhone" />
           </label>
 
           <label class="field field-choice">
@@ -265,23 +267,25 @@ const submitRegister = async () => {
           <label class="field">
             <span>{{ uiText.password }}</span>
             <div class="password-wrap">
-              <input
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                :placeholder="uiText.passwordPlaceholder"
-                minlength="8"
-                required
-              />
-              <button type="button" class="ghost-btn" @click="showPassword = !showPassword" :aria-pressed="showPassword">
-                <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <input v-model="form.password" :type="showPassword ? 'text' : 'password'"
+                :placeholder="uiText.passwordPlaceholder" minlength="8" required />
+              <button type="button" class="ghost-btn" @click="showPassword = !showPassword"
+                :aria-pressed="showPassword">
+                <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                  fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" />
                   <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
                 </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  aria-hidden="true">
                   <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
             </div>
@@ -290,28 +294,25 @@ const submitRegister = async () => {
           <label class="field">
             <span>{{ uiText.confirmPassword }}</span>
             <div class="password-wrap">
-              <input
-                v-model="form.password_confirmation"
-                :type="showConfirmPassword ? 'text' : 'password'"
-                :placeholder="uiText.confirmPasswordPlaceholder"
-                minlength="8"
-                required
-              />
-              <button
-                type="button"
-                class="ghost-btn"
-                @click="showConfirmPassword = !showConfirmPassword"
-                :aria-pressed="showConfirmPassword"
-              >
-                <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <input v-model="form.password_confirmation" :type="showConfirmPassword ? 'text' : 'password'"
+                :placeholder="uiText.confirmPasswordPlaceholder" minlength="8" required />
+              <button type="button" class="ghost-btn" @click="showConfirmPassword = !showConfirmPassword"
+                :aria-pressed="showConfirmPassword">
+                <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                  viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" />
                   <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
                 </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  aria-hidden="true">
                   <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10.6 10.6A3 3 0 0013.4 13.4" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" />
+                  <path d="M9.9 5.1A10.9 10.9 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-4.1 4.9" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6.6 6.6A17.7 17.7 0 002 12s3.5 7 10 7c1.7 0 3.2-.4 4.6-1.1" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
             </div>

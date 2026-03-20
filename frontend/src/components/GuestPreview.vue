@@ -777,10 +777,6 @@ function mapEventToGuestService(item) {
 }
 
 async function loadLiveVendorEvents() {
-  // Use cached rows first (stale-while-revalidate) so the page renders fast.
-  let cachedRows = [];
-  // Use session cache for fast paint, but still fetch fresh data
-  // Use session cache for fast paint, but still fetch fresh data.
   let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
@@ -794,6 +790,7 @@ async function loadLiveVendorEvents() {
         liveVendorEvents.value = parsed;
       }
      }
+    }
    } catch {
     // ignore cache read errors
   }
@@ -801,6 +798,7 @@ async function loadLiveVendorEvents() {
   if (cachedRows.length) {
     liveVendorEvents.value = cachedRows;
   }
+}
 
   let rows = [];
   try {
@@ -843,6 +841,7 @@ async function loadLiveVendorEvents() {
       JSON.stringify({ data: rows, cachedAt: Date.now() }),
     );
     return;
+  }
   try {
     const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
     const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
@@ -878,7 +877,6 @@ async function loadLiveVendorEvents() {
   if (!liveVendorEvents.value.length) {
     liveVendorEvents.value = fallbackDemoEvents;
   }
-}
 
 async function loadGuestBookings() {
   const authRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
