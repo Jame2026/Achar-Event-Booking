@@ -700,6 +700,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+
     </section>
 
     <section id="services" class="section section--events">
@@ -837,21 +838,39 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="section steps">
-      <div class="section__header center">
-        <p class="eyebrow">{{ uiText.planningSimple }}</p>
-        <h2>{{ uiText.stepsTitle }}</h2>
-      </div>
-      <div class="steps-grid">
-        <div
-          class="step-card"
-          v-for="(step, index) in steps"
-          :key="step.title"
-          :class="{ active: index === activeStepIndex }"
-        >
-          <div class="step-icon" v-html="step.iconSvg"></div>
-          <p class="step-index">0{{ index + 1 }}.</p>
-          <p class="step-title">{{ step.title }}</p>
-          <p class="step-text">{{ step.text }}</p>
+      <div class="steps-shell">
+        <div class="steps-header">
+          <div>
+            <p class="eyebrow">{{ uiText.planningSimple }}</p>
+            <h2>{{ uiText.stepsTitle }}</h2>
+            <p class="steps-lede">
+              From discovery to confirmation, see what happens at each step.
+            </p>
+          </div>
+          <router-link class="link steps-link" to="/services/packages">
+            {{ uiText.exploreServices }}
+            <span aria-hidden="true">→</span>
+          </router-link>
+        </div>
+
+        <div class="steps-track" aria-hidden="true">
+          <span v-for="index in steps.length" :key="index" class="steps-dot" :class="{ active: (index - 1) === activeStepIndex }"></span>
+        </div>
+
+        <div class="steps-grid">
+          <div
+            class="step-card"
+            v-for="(step, index) in steps"
+            :key="step.title"
+            :class="{ active: index === activeStepIndex }"
+          >
+            <div class="step-icon" v-html="step.iconSvg"></div>
+            <div class="step-chip">0{{ index + 1 }}</div>
+            <div class="step-body">
+              <p class="step-title">{{ step.title }}</p>
+              <p class="step-text">{{ step.text }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -881,30 +900,71 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="cta">
+      <div class="cta__glow"></div>
       <div class="cta__content">
-        <p class="eyebrow light">{{ uiText.startPlanning }}</p>
-        <h2>{{ uiText.ctaTitle }}</h2>
-        <p class="cta-text">
-          {{ uiText.ctaText }}
-        </p>
-        <div class="cta-actions">
-          <router-link class="primary-btn large cta-btn" to="/booking">
-            <span class="btn-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-3.8L6 21l1.5-7.5L2 9h7z"/>
-              </svg>
-            </span>
-            <span>{{ uiText.getStartedFree }}</span>
-          </router-link>
-          <router-link class="ghost-btn light large cta-btn" to="/customization">
-            <span class="btn-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/>
-                <path d="M9 22V12h6v10"/>
-              </svg>
-            </span>
-            <span>{{ uiText.listBusiness }}</span>
-          </router-link>
+        <div class="cta__header">
+          <span class="cta-pill">{{ uiText.startPlanning }}</span>
+          <h2>{{ uiText.ctaTitle }}</h2>
+          <p class="cta-text">
+            {{ uiText.ctaText }}
+          </p>
+        </div>
+
+        <div class="cta__grid">
+          <div class="cta__left">
+            <div class="cta-actions">
+              <router-link class="primary-btn large cta-btn" to="/booking">
+                <span class="btn-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-3.8L6 21l1.5-7.5L2 9h7z"/>
+                  </svg>
+                </span>
+                <span>{{ uiText.getStartedFree }}</span>
+              </router-link>
+              <router-link class="ghost-btn light large cta-btn" to="/customization">
+                <span class="btn-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/>
+                    <path d="M9 22V12h6v10"/>
+                  </svg>
+                </span>
+                <span>{{ uiText.listBusiness || 'List your business' }}</span>
+              </router-link>
+            </div>
+            <p class="cta-note">No credit card needed • Live vendor availability • Concierge handoff</p>
+            <ul class="cta-feature-list">
+              <li>
+                <span class="dot"></span>
+                Instant proposals & price clarity
+              </li>
+              <li>
+                <span class="dot"></span>
+                Curated vendors for weddings, corporate, and cultural events
+              </li>
+              <li>
+                <span class="dot"></span>
+                Shared timelines keep hosts and vendors in sync
+              </li>
+            </ul>
+          </div>
+
+          <div class="cta__stats">
+            <div class="stat-card">
+              <p class="stat-label">Events planned</p>
+              <strong>10k+</strong>
+              <span class="stat-desc">Across weddings, galas, and launches</span>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Vendors onboard</p>
+              <strong>500+</strong>
+              <span class="stat-desc">Verified venues, planners, and caterers</span>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Avg. response</p>
+              <strong>15 min</strong>
+              <span class="stat-desc">Fast proposals from matched partners</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

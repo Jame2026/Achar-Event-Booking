@@ -106,17 +106,23 @@ const aboutGallery = [
   {
     title: 'Premium Wedding Setup',
     text: 'Elegant stage styling and vendor coordination for memorable celebrations.',
-    image: '/event-cards/wedding-stage.jpg',
+    detail:
+      'Full-stage design, lighting, and on-site coordination so every procession looks cinematic. Includes vendor hand-off notes and a clear timeline.',
+    image: '/W1.png',
   },
   {
     title: 'Vendor Network',
     text: 'Trusted venues, decorators, caterers, and planners in one platform.',
-    image: '/W1.png',
+    detail:
+      'Shortlisted partners with verified reviews, preferred rates, and defined scopes. Compare side-by-side and lock dates faster.',
+    image: '/W2.png',
   },
   {
     title: 'Smart Booking Flow',
     text: 'From service discovery to checkout and confirmation without friction.',
-    image: '/event-cards/ceremony-hall.jpg',
+    detail:
+      'Guided steps with add-ons, payments, and reminders in one flow. Shared itineraries keep guests, vendors, and planners aligned.',
+    image: '/RE.png',
   },
 ]
 
@@ -194,6 +200,12 @@ const localizedJourneyCards = computed(() => {
   }
   return journeyCards
 })
+
+const expandedCard = ref(null)
+
+function toggleCard(index) {
+  expandedCard.value = expandedCard.value === index ? null : index
+}
 </script>
 <template>
   <div class="about-page-root">
@@ -219,6 +231,30 @@ const localizedJourneyCards = computed(() => {
             <span>{{ uiText.t1 }}</span>
             <span>{{ uiText.t3 }}</span>
           </div>
+
+          <div class="about-hero-features" aria-label="Modern features">
+            <article>
+              <span class="feature-icon">🔒</span>
+              <strong>Secure Booking</strong>
+              <small>Encrypted payments and verified vendor protection.</small>
+            </article>
+            <article>
+              <span class="feature-icon">⚡</span>
+              <strong>Rapid Proposals</strong>
+              <small>Instant quotes and real-time availability checks.</small>
+            </article>
+            <article>
+              <span class="feature-icon">🧠</span>
+              <strong>Smart Matches</strong>
+              <small>AI-driven suggestions tailored for your event profile.</small>
+            </article>
+            <article>
+              <span class="feature-icon">🤝</span>
+              <strong>Trusted Partners</strong>
+              <small>Verified vendors with high ratings across categories.</small>
+            </article>
+          </div>
+
           <RouterLink to="/services/packages" class="about-banner-cta">
             {{ uiText.cta }}
           </RouterLink>
@@ -232,11 +268,23 @@ const localizedJourneyCards = computed(() => {
           class="card about-visual-card"
           :class="{ 'about-visual-featured': index === 0 }"
         >
-          <img :src="card.image" :alt="card.title" loading="lazy" />
-          <div>
-            <p v-if="index === 0" class="about-chip">{{ uiText.featured }}</p>
+          <div class="about-visual-image-wrapper">
+            <img :src="card.image" :alt="card.title" loading="lazy" />
+            <div class="about-visual-image-filter"></div>
+            <div class="about-visual-category">{{ index === 0 ? uiText.featured : uiText.why }}</div>
+          </div>
+          <div class="about-visual-body">
             <h3>{{ card.title }}</h3>
-            <p>{{ card.text }}</p>
+            <p class="about-visual-summary">{{ card.text }}</p>
+            <transition name="about-fade">
+              <p v-if="expandedCard === index" class="about-visual-detail">
+                {{ card.detail }}
+              </p>
+            </transition>
+            <button class="about-visual-cta" type="button" @click="toggleCard(index)">
+              {{ expandedCard === index ? 'Hide details' : 'Discover more' }}
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </article>
       </section>
@@ -285,6 +333,28 @@ const localizedJourneyCards = computed(() => {
           <p>{{ pillar.text }}</p>
         </article>
       </section>
+
+      <section class="about-whats-new card">
+        <h2>What’s New + Why clients love us</h2>
+        <div class="about-whats-new-grid">
+          <article>
+            <span>🌈</span>
+            <h3>Vibrant UI with clear actions</h3>
+            <p>See the full process with interactive item spans and immediate feedback.</p>
+          </article>
+          <article>
+            <span>⚙️</span>
+            <h3>Real-time smart suggestions</h3>
+            <p>Our app now recommends the best vendors and packages as you browse.</p>
+          </article>
+          <article>
+            <span>📱</span>
+            <h3>Mobile-friendly experience</h3>
+            <p>The page adapts to any device with better spacing, scalable cards and bold colors.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="card about-mission">
         <div class="about-mission-copy">
           <h2>{{ uiText.missionTitle }}</h2>
@@ -337,10 +407,13 @@ const localizedJourneyCards = computed(() => {
 <style scoped>
 .about-page-root {
   min-height: 100vh;
+  background: linear-gradient(180deg, #f9fbff 0%, #fbf6f0 100%);
 }
 
 .about-content {
-  padding: 1rem 0 2.2rem;
+  padding: 1.2rem 0 2.3rem;
+  max-width: 1240px;
+  margin: 0 auto;
 }
 
 .about-banner {
@@ -466,6 +539,56 @@ const localizedJourneyCards = computed(() => {
   padding: 0.32rem 0.68rem;
 }
 
+.about-hero-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.72rem;
+  margin: 1rem auto 1.8rem;
+  width: min(980px, 100%);
+  justify-content: center;
+}
+
+.about-hero-features article {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 136, 26, 0.2);
+  padding: 0.86rem;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 22px rgba(26, 26, 56, 0.1);
+  text-align: center;
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.about-hero-features article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(26, 26, 56, 0.16);
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff9f45, #ff6b00);
+  color: #fff;
+  font-size: 1rem;
+  margin: 0 auto 0.45rem;
+  box-shadow: 0 8px 14px rgba(255, 119, 31, 0.4);
+}
+
+.about-hero-features strong {
+  display: block;
+  color: #22304f;
+  font-size: 0.93rem;
+  margin-bottom: 0.25rem;
+}
+
+.about-hero-features small {
+  color: #5f6f8a;
+  font-size: 0.78rem;
+}
+
 .about-banner-cta {
   margin-top: 1.7rem;
   display: inline-flex;
@@ -520,18 +643,19 @@ const localizedJourneyCards = computed(() => {
 
 .about-story {
   position: relative;
-  margin-top: 1rem;
+  margin-top: 1.4rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr);
-  align-items: start;
-  gap: 1rem;
-  padding: 1.45rem 1.45rem 1.2rem;
-  border-radius: 32px;
-  border: 1px solid #dde7f6;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+  align-items: stretch;
+  gap: 1.2rem;
+  padding: 1.5rem;
+  border-radius: 34px;
+  border: 1px solid rgba(219, 232, 246, 0.95);
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.16), transparent 32%),
-    radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.09), transparent 26%),
-    linear-gradient(135deg, #ffffff, #f7fbff 58%, #fff6ee 100%);
+    linear-gradient(115deg, rgba(255,242,227,0.88), rgba(249,250,255,0.93)),
+    radial-gradient(circle at 100% 0%, rgba(255, 127, 0, 0.12), transparent 38%),
+    radial-gradient(circle at 0% 100%, rgba(43, 122, 255, 0.15), transparent 30%);
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.14);
   overflow: hidden;
 }
 
@@ -599,15 +723,14 @@ const localizedJourneyCards = computed(() => {
 .about-story-panel {
   position: relative;
   border-radius: 28px;
-  padding: 1.15rem;
+  padding: 1.2rem;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
-    #0f172a;
+    linear-gradient(150deg, rgba(29, 78, 216, 0.88), rgba(10, 14, 37, 0.85));
   color: #fff;
   display: grid;
   align-content: space-between;
   gap: 0.8rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 22px 52px rgba(15, 23, 42, 0.2);
 }
 
 .about-story-panel::before {
@@ -699,21 +822,137 @@ const localizedJourneyCards = computed(() => {
 }
 
 .about-visuals {
-  margin-top: 1rem;
+  margin-top: 1.4rem;
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+  align-items: stretch;
 }
 
 .about-visual-card {
   display: grid;
-  grid-template-rows: 300px auto;
-  align-content: start;
+  grid-template-rows: 260px 1fr;
+  height: 100%;
   overflow: hidden;
-  padding: 0.9rem;
-  border-radius: 28px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  border-radius: 30px;
+  border: 1px solid rgba(204, 214, 231, 0.9);
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(22, 34, 70, 0.08);
+  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
   animation: aboutFadeUp 0.55s ease both;
+}
+
+.about-visual-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 106, 0, 0.4);
+  box-shadow: 0 18px 44px rgba(22, 34, 70, 0.18);
+}
+
+.about-visual-image-wrapper {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  min-height: 220px;
+}
+
+.about-visual-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.about-visual-card:hover .about-visual-image-wrapper img {
+  transform: scale(1.05);
+}
+
+.about-visual-image-filter {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.45), rgba(23, 55, 105, 0.03));
+}
+
+.about-visual-category {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  padding: 0.2rem 0.62rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #1f2d4b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.about-visual-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.about-visual-body h3 {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.1;
+  color: #122444;
+}
+
+.about-visual-summary {
+  margin: 0;
+  color: #5b708d;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.about-visual-detail {
+  margin: 0.15rem 0 0;
+  color: #3c4b68;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  background: #f8fbff;
+  border: 1px solid #e5edf9;
+  border-radius: 14px;
+  padding: 0.6rem 0.75rem;
+}
+
+.about-visual-cta {
+  margin-top: auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 118, 0, 0.28);
+  background: linear-gradient(135deg, #fff7ef, #fffaf5);
+  color: #ff7300;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.about-visual-cta:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 118, 0, 0.5);
+  box-shadow: 0 10px 26px rgba(255, 118, 0, 0.16);
+}
+
+
+.about-visual-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 48px rgba(17, 24, 39, 0.22);
+  border-color: rgba(255, 118, 0, 0.34);
 }
 
 .about-visual-featured {
@@ -732,7 +971,7 @@ const localizedJourneyCards = computed(() => {
 
 .about-visual-card h3 {
   margin: 0.75rem 0 0;
-  font-size: 2rem;
+  font-size: 1.9rem;
   line-height: 1.12;
   letter-spacing: -0.01em;
 }
@@ -745,7 +984,7 @@ const localizedJourneyCards = computed(() => {
 }
 
 .about-visual-card:not(.about-visual-featured) h3 {
-  font-size: 2rem;
+  font-size: 1.85rem;
 }
 
 .about-visual-card:hover {
@@ -758,12 +997,84 @@ const localizedJourneyCards = computed(() => {
   transform: scale(1.03);
 }
 
+.about-fade-enter-active,
+.about-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.about-fade-enter-from,
+.about-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .about-grid {
-  margin-top: 0.9rem;
+  margin-top: 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.1rem;
+  align-items: stretch;
+}
+
+.about-whats-new {
+  margin-top: 1rem;
+  padding: 1.2rem;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #fff8f1, #f2f9ff);
+  border: 1px solid #e3eaf7;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.08);
+}
+
+.about-whats-new h2 {
+  margin: 0 0 0.9rem;
+  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+  color: #1a2b54;
+}
+
+.about-whats-new-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.8rem;
-  align-items: stretch;
+}
+
+.about-whats-new-grid article {
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #dfe7f3;
+  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.about-whats-new-grid article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(17, 24, 39, 0.14);
+}
+
+.about-whats-new-grid article span {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ff7f1c;
+  color: white;
+  margin-bottom: 0.45rem;
+  font-size: 1.05rem;
+}
+
+.about-whats-new-grid article h3 {
+  margin: 0;
+  font-size: 1.03rem;
+  color: #1b2e53;
+}
+
+.about-whats-new-grid article p {
+  margin: 0.48rem 0 0;
+  color: #4f627e;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .about-grid-elevated {
@@ -1021,20 +1332,25 @@ const localizedJourneyCards = computed(() => {
 }
 
 .about-journey {
-  margin-top: 0.9rem;
-  padding: 1.1rem;
+  margin-top: 1.2rem;
+  padding: 1.25rem;
+  border-radius: 26px;
+  border: 1px solid #e3eefb;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
 }
 
 .about-journey h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: clamp(1.4rem, 2.1vw, 2rem);
+  color: #1f2a46;
 }
 
 .about-journey-grid {
-  margin-top: 0.8rem;
+  margin-top: 1rem;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 1rem;
 }
 
 .about-journey-card {

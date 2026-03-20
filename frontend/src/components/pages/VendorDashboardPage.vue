@@ -159,85 +159,6 @@ const copyByLanguage = {
     customerMessages: "Customer Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
-<<<<<<< HEAD
-=======
-    availabilitySettings: "Availability & calendar",
-    availabilityIntro:
-      "Set your working hours and block off dates you cannot take bookings.",
-    applyToService: "Apply to",
-    allServices: "All services (default)",
-    weeklyHours: "Weekly hours",
-    closed: "Closed",
-    hoursLabel: "Hours",
-    timezone: "Timezone",
-    blockedDates: "Vacation Mode / Day Off",
-    vacationMode: "Vacation Mode / Day Off",
-    vacationHint: "Temporarily block your availability for all services.",
-    startDate: "Start date",
-    endDate: "End date",
-    vacationNote:
-      "Existing bookings within this period will remain active. New bookings will be disabled.",
-    bookingRules: "Booking rules",
-    autoAccept: "Auto-accept bookings",
-    leadTime: "Lead time (hours)",
-    bufferTime: "Buffer between bookings (minutes)",
-    maxPerDay: "Max bookings per day",
-    paymentsPolicies: "Payments & policies",
-    depositPercent: "Deposit required (%)",
-    cancellationWindow: "Free cancellation window (hours)",
-    rescheduleWindow: "Free reschedule window (hours)",
-    notifications: "Notifications",
-    notifyEmail: "Email alerts",
-    notifySms: "SMS alerts",
-    quietHours: "Quiet hours",
-    quietStart: "Start (HH:MM)",
-    quietEnd: "End (HH:MM)",
-    accountManagement: "Account management",
-    passwordHint:
-      "Update your login password. You will use it next time you sign in.",
-    currentPassword: "Current password",
-    newPassword: "New password",
-    confirmPassword: "Confirm new password",
-    updatePassword: "Update password",
-    passwordSaved: "Password updated successfully.",
-    saveSettings: "Save settings",
-    saving: "Saving...",
-    settingsSaved: "Settings saved.",
-    unavailableHint: "Customers won't be able to book these dates.",
-    listingPreview: "Listing Preview",
-    quickTips: "Quick Tips",
-    checklist: "Checklist",
-    previewTitleFallback: "Service Title",
-    previewLocationFallback: "Location",
-    previewAddPrice: "Add price",
-    previewEventTypeFallback: "Event type",
-    previewStatusActive: "Active",
-    previewStatusDraft: "Draft",
-    previewHint: "This is a quick look at how customers see your card.",
-    tipShortName: "Use a short, clear service name.",
-    tipAddPhoto: "Add a cover photo to boost clicks.",
-    tipAddLocation: "Include location for better matching.",
-    tipSetPrice: "Set a price so customers can book faster.",
-    tipAddDescription: "Write a short description of what is included.",
-    checklistBasics: "Title and description added",
-    checklistPricing: "Price and capacity set",
-    checklistMedia: "Cover photo uploaded",
-    checklistPayment: "Payment QR added",
-    bookingDetails: "Booking Details",
-    customerDetails: "Customer Details",
-    eventLocationLabel: "Event Location",
-    serviceDetails: "Service Details",
-    customerContact: "Customer Contact",
-    dateLabel: "Date",
-    statusLabel: "Status",
-    quantityLabel: "Quantity",
-    totalLabel: "Total",
-    bookedItems: "Booked Items",
-    noItems: "No items listed",
-    viewDetails: "View Details",
-    getDirections: "Get Directions",
-    close: "Close",
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -306,8 +227,6 @@ const copyByLanguage = {
     customerMessages: "សារអតិថិជន",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
-<<<<<<< HEAD
-=======
     availabilitySettings: "Availability & calendar",
     availabilityIntro:
       "Set your working hours and block off dates you cannot take bookings.",
@@ -384,7 +303,6 @@ const copyByLanguage = {
     viewDetails: "View Details",
     getDirections: "Get Directions",
     close: "Close",
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
   },
   zh: {
     overview: "概览",
@@ -452,8 +370,6 @@ const copyByLanguage = {
     customerMessages: "客户消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
-<<<<<<< HEAD
-=======
     availabilitySettings: "Availability & calendar",
     availabilityIntro:
       "Set your working hours and block off dates you cannot take bookings.",
@@ -530,12 +446,10 @@ const copyByLanguage = {
     viewDetails: "View Details",
     getDirections: "Get Directions",
     close: "Close",
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
 
-<<<<<<< HEAD
 const effectiveNotice = computed(() => {
   if (props.notice) return props.notice;
   if (props.isLoadingEvents || props.isLoadingVendorBookings) return "";
@@ -548,7 +462,7 @@ const effectiveNotice = computed(() => {
 
   return "";
 });
-=======
+
 function applySettingsFromProps(settings) {
   const source = settings && typeof settings === "object" ? settings : {};
 
@@ -709,7 +623,6 @@ watch(
   },
   { deep: true, immediate: true },
 );
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
 
 const safeIncome = computed(() => ({
   total: Number(props.vendorIncome?.total || 0),
@@ -1809,27 +1722,6 @@ watch(
       </nav>
 
       <div class="sidebar-footer">
-<<<<<<< HEAD
-        <RouterLink class="side-utility home" to="/">
-          <span class="side-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 12L12 3l9 9" />
-              <path d="M5 10v10h5v-6h4v6h5V10" />
-            </svg>
-          </span>
-          <span class="side-label">{{ uiText.backHome }}</span>
-        </RouterLink>
-        <button type="button" class="side-utility">
-          <span class="side-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.7 0 1.32.4 1.6 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
-              />
-            </svg>
-          </span>
-          <span class="side-label">{{ uiText.settings }}</span>
-=======
         <RouterLink class="side-utility home" to="/">{{
           uiText.backHome
         }}</RouterLink>
@@ -1840,7 +1732,6 @@ watch(
           @click="setActiveTab('settings')"
         >
           {{ uiText.settings }}
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
         </button>
         <button
           type="button"
@@ -7975,11 +7866,12 @@ watch(
   }
 }
 
-<<<<<<< HEAD
 @keyframes dashSpin {
   to {
     transform: rotate(360deg);
-=======
+  }
+}
+
 @media (max-width: 560px) {
   .booking-detail-grid {
     grid-template-columns: 1fr;
@@ -7989,7 +7881,6 @@ watch(
   .detail-block-customer,
   .detail-block-contact {
     grid-column: auto;
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
   }
 }
 </style>

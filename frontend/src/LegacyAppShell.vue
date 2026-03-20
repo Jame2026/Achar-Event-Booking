@@ -431,15 +431,12 @@ const vendorServiceForm = ref({
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
-<<<<<<< HEAD
 const vendorDashboardNotice = ref('')
-=======
 const vendorSettings = ref(null)
 const vendorSettingsServiceId = ref('all')
 const isLoadingVendorSettings = ref(false)
 const isSavingVendorSettings = ref(false)
 const vendorSettingsNotice = ref('')
->>>>>>> 39a94620dc4cb932416d37f60b423ad64f3209c4
 const bookings = ref([])
 const selectedQuantities = ref({})
 const availabilityByEvent = ref({})
