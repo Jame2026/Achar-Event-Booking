@@ -445,15 +445,8 @@ const bookingLink = computed(() => {
             {{ uiText.service }}
           </RouterLink>
           <div class="nav-drop-menu">
-<<<<<<< HEAD
-            <RouterLink to="/services/packages">Packages</RouterLink>
-            <RouterLink to="/services/overall">General Service</RouterLink>
-            <RouterLink to="/services/packages" :class="{ active: isServicePackagesActive }">Packages</RouterLink>
-            <RouterLink to="/services/overall" :class="{ active: isServiceOverallActive }">Overall Service</RouterLink>
-=======
             <RouterLink to="/services/packages" :class="{ active: isServicePackagesActive }">{{ uiText.packages }}</RouterLink>
             <RouterLink to="/services/overall" :class="{ active: isServiceOverallActive }">{{ uiText.overallService }}</RouterLink>
->>>>>>> d747b0fda817c176c083a16814f4a82f487a6368
           </div>
         </div>
 
@@ -601,15 +594,12 @@ const bookingLink = computed(() => {
 .public-nav-wrap {
   position: sticky;
   top: 0;
-<<<<<<< HEAD
   z-index: 60;
   z-index: 80;
   background: #fff;
-=======
   z-index: 80;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(8px);
->>>>>>> d747b0fda817c176c083a16814f4a82f487a6368
   border-top: 3px solid #2f333c;
   border-bottom: 1px solid #e3e7ef;
   padding: 0.72rem 0;
