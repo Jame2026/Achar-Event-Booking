@@ -7,6 +7,10 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use libphonenumber\PhoneNumberUtil;
+use libphonenumber\NumberParseException;
 
 class AuthController extends Controller
 {
@@ -20,9 +24,26 @@ class AuthController extends Controller
         ]);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'string', 'email', 'max:255', 'required_without:phone', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'regex:/^\+?[0-9]{8,15}$/', 'required_without:email', 'unique:users,phone'],
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\pL\s\-]+$/u'],
+            'email' => [
+                'nullable',
+                'string',
+                'email:rfc,dns',
+                'max:255',
+                'required_without:phone',
+                'unique:users,email',
+            ],
+            'phone' => [
+                'nullable',
+                'string',
+                'required_without:email',
+                'unique:users,phone',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $this->isValidPhone($value)) {
+                        $fail('The phone number is invalid. Please include a valid country code (e.g. +85512345678).');
+                    }
+                },
+            ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', 'in:user,vendor'],
         ]);
@@ -30,21 +51,18 @@ class AuthController extends Controller
         $userEmail = (string) ($validated['email'] ?? '');
         $userPhone = (string) ($validated['phone'] ?? '');
 
-        if ($userEmail === '' && $userPhone !== '') {
-            $userEmail = $this->phoneFallbackEmail($userPhone);
-        }
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $userEmail,
-            'phone' => $userPhone !== '' ? $userPhone : null,
+            'name'     => $validated['name'],
+            'email'    => $userEmail !== '' ? $userEmail : null,
+            'phone'    => $userPhone !== '' ? $userPhone : null,
             'password' => $validated['password'],
-            'role' => $validated['role'],
+            'role'     => $validated['role'],
         ]);
 
         return response()->json([
             'message' => 'Registration successful.',
-            'user' => $user,
+            'user' => $user->only(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role']),
         ], 201);
     }
 
@@ -64,9 +82,22 @@ class AuthController extends Controller
         }
 
         $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+        if ($isEmail && str_ends_with(strtolower($identifier), '@users.achar.local')) {
+            return response()->json([
+                'message' => 'Invalid login credentials.',
+            ], 401);
+        }
+
         $user = $isEmail
-            ? User::where('email', strtolower($identifier))->first()
-            : User::where('phone', $this->normalizePhone($identifier))->first();
+            ? User::query()
+            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
+            ->where('email', strtolower($identifier))
+            ->whereNotNull('email')
+            ->first()
+            : User::query()
+            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
+            ->where('phone', $this->normalizePhone($identifier))
+            ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
@@ -76,8 +107,89 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => $user,
+            'user' => $user->only(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role']),
         ]);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $status = Password::sendResetLink([
+            'email' => strtolower(trim((string) $validated['email'])),
+        ]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return response()->json([
+                'message' => __($status),
+            ]);
+        }
+
+        return response()->json([
+            'message' => __($status),
+        ], 422);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string', 'min:8'],
+        ]);
+
+        $status = Password::reset(
+            [
+                'email' => strtolower(trim((string) $validated['email'])),
+                'password' => $validated['password'],
+                'password_confirmation' => $validated['password_confirmation'],
+                'token' => $validated['token'],
+            ],
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => $password,
+                    'remember_token' => Str::random(60),
+                ])->save();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => __($status),
+            ]);
+        }
+
+        return response()->json([
+            'message' => __($status),
+        ], 422);
+    }
+
+    private function isValidPhone(string $value): bool
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        // Auto-convert local format: 0882446786 → +855882446786
+        if (! str_starts_with($trimmed, '+')) {
+            $digits = preg_replace('/\D+/', '', $trimmed);
+            if (str_starts_with((string) $digits, '0')) {
+                $digits = substr((string) $digits, 1); // remove leading 0
+            }
+            $trimmed = '+855' . $digits;
+        }
+
+        try {
+            $phoneUtil = PhoneNumberUtil::getInstance();
+            $parsed    = $phoneUtil->parse($trimmed, null);
+            return $phoneUtil->isValidNumber($parsed);
+        } catch (NumberParseException) {
+            return false;
+        }
     }
 
     private function normalizePhone(string $value): string
@@ -87,17 +199,17 @@ class AuthController extends Controller
             return '';
         }
 
-        $hasPlus = str_starts_with($trimmed, '+');
+        // Auto-convert local format: 0882446786 → +855882446786
+        if (! str_starts_with($trimmed, '+')) {
+            $digits = preg_replace('/\D+/', '', $trimmed);
+            if (is_string($digits) && str_starts_with($digits, '0')) {
+                $digits = substr($digits, 1); // remove leading 0
+            }
+            return '+855' . $digits;
+        }
+
         $digits = preg_replace('/\D+/', '', $trimmed);
-        if (! is_string($digits)) {
-            return '';
-        }
-
-        if ($digits === '') {
-            return '';
-        }
-
-        return $hasPlus ? '+'.$digits : $digits;
+        return is_string($digits) && $digits !== '' ? '+' . $digits : '';
     }
 
     private function phoneFallbackEmail(string $phone): string
@@ -107,6 +219,6 @@ class AuthController extends Controller
             return '';
         }
 
-        return 'phone_'.$digits.'@users.achar.local';
+        return 'phone_' . $digits . '@users.achar.local';
     }
 }

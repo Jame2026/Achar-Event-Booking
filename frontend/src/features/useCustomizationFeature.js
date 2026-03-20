@@ -1,12 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import {
-  buildPackageServiceDescriptions,
   eventTypeMap,
-  eventTypeOptions,
-  fallbackVendorLocation,
-  matchingServicesCatalog,
-  packageCatalogByEventType,
-  packageImageByEventType,
   serviceFeeRate,
 } from './appData'
 
@@ -30,35 +24,27 @@ export function useCustomizationFeature({
   const expandedPackageIds = ref([])
   const expandedServiceIds = ref([])
 
-  const fallbackBookingEvent = computed(() => vendorEvents.value[0] || null)
   const catalogPackages = computed(() => {
-    const types = customizationEventType.value === 'all'
-      ? eventTypeOptions.map((opt) => opt.value).filter((value) => value !== 'all')
-      : [customizationEventType.value]
-
-    const packages = []
-    types.forEach((type) => {
-      const entries = packageCatalogByEventType[type] || []
-      entries.forEach((entry) => {
-        const exactEvent = vendorEvents.value.find((event) => event.eventType === type)
-        const fallbackEvent = fallbackBookingEvent.value
-        const backing = exactEvent || fallbackEvent
-        packages.push({
-          id: `${type}-${entry.id}`,
-          title: entry.title,
-          description: entry.description,
-          price: entry.basePrice,
-          image: packageImageByEventType[type] || packageImageByEventType.other,
-          services: buildPackageServiceDescriptions(type, entry.title),
-          eventType: type,
-          eventTypeLabel: eventTypeMap[type] || 'Other',
-          location: backing?.location || fallbackVendorLocation,
-          date: backing?.date || 'Date TBD',
-          backingEventId: backing?.id || null,
-        })
-      })
-    })
-    return packages
+    return vendorEvents.value
+      .filter((event) => event.serviceMode === 'package')
+      .filter((event) => customizationEventType.value === 'all' || event.eventType === customizationEventType.value)
+      .map((event) => ({
+        id: String(event.id),
+        title: event.title,
+        description: event.description || 'Professional vendor service ready for booking.',
+        price: Number(event.price || 0),
+        image: event.image,
+        services: [],
+        eventType: event.eventType,
+        eventTypeLabel: event.eventTypeLabel || eventTypeMap[event.eventType] || 'Other',
+        location: event.location || 'Location TBD',
+        date: event.date || 'Date TBD',
+        backingEventId: event.id || null,
+        qrCodeUrl: event.qrCodeUrl || '',
+        vendorId: event.vendorId || null,
+        vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
+      }))
   })
 
   const filteredCustomizationPackages = computed(() => {
@@ -81,18 +67,35 @@ export function useCustomizationFeature({
   })
   const filteredMatchingServices = computed(() => {
     const q = customizationSearch.value.trim().toLowerCase()
-    return matchingServicesCatalog.filter((service) => {
-      const matchesEvent =
-        effectiveCustomizationEventType.value === 'all' ||
-        service.eventTypes.includes(effectiveCustomizationEventType.value) ||
-        service.eventTypes.includes('other')
-      const matchesSearch =
-        !q || service.name.toLowerCase().includes(q) || service.description.toLowerCase().includes(q)
-      return matchesEvent && matchesSearch
-    })
+    return vendorEvents.value
+      .filter((event) => event.serviceMode === 'overall')
+      .filter((event) => {
+        const matchesEvent =
+          effectiveCustomizationEventType.value === 'all' ||
+          event.eventType === effectiveCustomizationEventType.value
+        const matchesSearch =
+          !q ||
+          event.title.toLowerCase().includes(q) ||
+          String(event.description || '').toLowerCase().includes(q) ||
+          String(event.location || '').toLowerCase().includes(q)
+        return matchesEvent && matchesSearch
+      })
+      .map((event) => ({
+        id: String(event.id),
+        name: event.title,
+        description: event.description || 'Professional vendor service ready for booking.',
+        price: Number(event.price || 0),
+        eventTypes: [event.eventType || 'other'],
+        backingEventId: event.id || null,
+        vendorId: event.vendorId || null,
+        vendorName: event.vendorName || 'Vendor',
+        vendorEmail: event.vendorEmail || '',
+        location: event.location || 'Location TBD',
+        qrCodeUrl: event.qrCodeUrl || '',
+      }))
   })
   const selectedMatchingServices = computed(() =>
-    matchingServicesCatalog.filter((service) => selectedServiceIds.value.includes(service.id)),
+    filteredMatchingServices.value.filter((service) => selectedServiceIds.value.includes(service.id)),
   )
   const selectedServicesSubtotal = computed(() =>
     selectedMatchingServices.value.reduce((sum, service) => sum + service.price, 0),

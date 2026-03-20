@@ -1,12 +1,11 @@
 import { computed, ref } from 'vue'
-import { conversationsSeed } from './appData'
 
 export function useMessagesFeature(currentPage) {
   const conversationSearch = ref('')
   const composerText = ref('')
   const isSharingLocation = ref(false)
-  const conversations = ref(conversationsSeed.map((chat) => ({ ...chat, messages: [...chat.messages] })))
-  const selectedConversationId = ref(conversations.value[0].id)
+  const conversations = ref([])
+  const selectedConversationId = ref(conversations.value[0]?.id || null)
 
   const filteredConversations = computed(() => {
     const q = conversationSearch.value.trim().toLowerCase()
@@ -18,7 +17,7 @@ export function useMessagesFeature(currentPage) {
 
   const activeConversation = computed(() => {
     const active = conversations.value.find((item) => item.id === selectedConversationId.value)
-    return active || conversations.value[0]
+    return active || conversations.value[0] || null
   })
 
   const recentConversations = computed(() => conversations.value.slice(0, 3))
