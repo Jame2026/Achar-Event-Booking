@@ -4,7 +4,7 @@ import { useLanguageCopy } from '../features/language'
 
 const emit = defineEmits<{
   switch: []
-  success: [user: { id: number; name: string; email: string; role: string }]
+  success: [user: { id: number; name: string; email?: string | null; phone?: string | null; role: string }]
 }>()
 
 const form = reactive({
@@ -118,7 +118,8 @@ function autoFormatPhone(event) {
 
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
-  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+  const selectedRole = encodeURIComponent(String(form.role || 'user'))
+  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}&role=${selectedRole}`
 }
 
 onMounted(() => {
@@ -168,11 +169,12 @@ const submitRegister = async () => {
 
     successMessage.value = data?.message ?? 'Registration successful.'
 
-    if (data?.user && data.user.name && data.user.email) {
+    if (data?.user && data.user.name && (data.user.email || data.user.phone)) {
       emit('success', {
         id: Number(data.user.id || Date.now()),
         name: String(data.user.name),
-        email: String(data.user.email),
+        email: data.user.email ? String(data.user.email) : '',
+        phone: data.user.phone ? String(data.user.phone) : '',
         role: String(data.user.role || form.role || 'user'),
       })
       return
@@ -243,7 +245,7 @@ const submitRegister = async () => {
 
           <label v-else class="field">
             <span>{{ uiText.phoneNumber }}</span>
-            <input v-model="form.phone" type="tel" inputmode="tel" placeholder="+85512345678" pattern="^\[0-9]{8,15}$"
+            <input v-model="form.phone" type="tel" inputmode="tel" placeholder="+85512345678" pattern="^\+?[0-9]{8,15}$"
               title="Please include country code e.g. +85512345678" required @input="autoFormatPhone" />
           </label>
 

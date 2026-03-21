@@ -103,6 +103,7 @@ class EventController extends Controller
             'capacity' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
@@ -161,6 +162,7 @@ class EventController extends Controller
             'capacity' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
@@ -240,6 +242,26 @@ class EventController extends Controller
         }
 
         $request->merge(['packages' => $decoded]);
+    }
+
+    private function syncPackagePrice(array $validated): array
+    {
+        if (($validated['service_mode'] ?? null) !== 'package') {
+            return $validated;
+        }
+
+        $packages = $validated['packages'] ?? [];
+        if (! is_array($packages)) {
+            $validated['price'] = 0;
+
+            return $validated;
+        }
+
+        $validated['price'] = round(array_reduce($packages, function ($sum, $package) {
+            return $sum + (float) ($package['price'] ?? 0);
+        }, 0), 2);
+
+        return $validated;
     }
 
     private function storeEventImage(UploadedFile $image): string

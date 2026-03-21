@@ -3,6 +3,7 @@ import { apiGet, apiPost } from './apiClient'
 
 export function useProfileFeature(notice, loggedInUser) {
   const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+  const MISSING_PROFILE_MESSAGE = 'User profile not found.'
   const customerName = ref(localStorage.getItem('achar_customer_name') || '')
   const customerEmail = ref(localStorage.getItem('achar_customer_email') || '')
   const userPhone = ref(localStorage.getItem('achar_user_phone') || '')
@@ -94,8 +95,10 @@ export function useProfileFeature(notice, loggedInUser) {
     const user = loggedInUser?.value || {}
     const userId = Number(user.id || 0)
     const email = String(user.email || '').trim().toLowerCase()
+    const phone = String(user.phone || '').trim()
     if (userId > 0) return { user_id: userId }
     if (email) return { email }
+    if (phone) return { phone }
     return null
   }
 
@@ -136,7 +139,11 @@ export function useProfileFeature(notice, loggedInUser) {
         role: String(user.role || loggedInUser?.value?.role || 'user'),
       })
     } catch (error) {
-      notice.value = error?.message || 'Could not load profile data.'
+      const message = String(error?.message || '').trim()
+      if (message === MISSING_PROFILE_MESSAGE) {
+        return
+      }
+      notice.value = message || 'Could not load profile data.'
     }
   }
 

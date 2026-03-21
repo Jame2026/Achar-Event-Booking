@@ -275,7 +275,7 @@ const copyByLanguage = {
     savingService: 'Saving service...',
     addService: 'Add Service',
     fullNamePlaceholder: 'Your full name',
-    emailPlaceholder: 'Your email',
+    emailPlaceholder: 'Your email or phone',
     loadMyBookings: 'Load My Bookings',
     loadingPackages: 'Loading packages from API...',
     noPackages: 'No packages match your search and event type filter.',
@@ -314,7 +314,7 @@ const copyByLanguage = {
     savingService: 'កំពុងរក្សាទុកសេវាកម្ម...',
     addService: 'បន្ថែមសេវាកម្ម',
     fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
-    emailPlaceholder: 'អ៊ីមែលរបស់អ្នក',
+    emailPlaceholder: 'អ៊ីមែល ឬ លេខទូរស័ព្ទរបស់អ្នក',
     loadMyBookings: 'ផ្ទុកការកក់របស់ខ្ញុំ',
     loadingPackages: 'កំពុងផ្ទុកកញ្ចប់ពី API...',
     noPackages: 'មិនមានកញ្ចប់ដែលត្រូវនឹងការស្វែងរក និងតម្រងប្រភេទព្រឹត្តិការណ៍របស់អ្នកទេ។',
@@ -353,7 +353,7 @@ const copyByLanguage = {
     savingService: '正在保存服务...',
     addService: '添加服务',
     fullNamePlaceholder: '您的姓名',
-    emailPlaceholder: '您的邮箱',
+    emailPlaceholder: '您的邮箱或手机号',
     loadMyBookings: '加载我的预订',
     loadingPackages: '正在从 API 加载套餐...',
     noPackages: '没有符合搜索和活动类型筛选的套餐。',
@@ -898,7 +898,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             />
             <input
               :value="props.bindings.customerEmail.value"
-              type="email"
+              type="text"
               :placeholder="uiText.emailPlaceholder"
               @input="props.bindings.customerEmail.value = $event.target.value"
             />

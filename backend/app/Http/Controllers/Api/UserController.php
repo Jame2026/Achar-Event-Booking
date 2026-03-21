@@ -18,6 +18,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer'],
             'email' => ['nullable', 'string', 'email'],
+            'phone' => ['nullable', 'string', 'regex:/^\+?[0-9]{8,15}$/'],
         ]);
 
         $user = $this->resolveUser($validated);
@@ -113,6 +114,7 @@ class UserController extends Controller
     {
         $userId = (int) ($validated['user_id'] ?? 0);
         $email = strtolower(trim((string) ($validated['email'] ?? '')));
+        $phone = trim((string) ($validated['phone'] ?? ''));
 
         if ($userId > 0) {
             $user = User::query()->find($userId);
@@ -123,6 +125,10 @@ class UserController extends Controller
 
         if ($email !== '') {
             return User::query()->where('email', $email)->first();
+        }
+
+        if ($phone !== '') {
+            return User::query()->where('phone', $phone)->first();
         }
 
         return null;
