@@ -7,6 +7,10 @@ import AvailabilityPage from './components/pages/AvailabilityPage.vue'
 import BookingsPage from './components/pages/BookingsPage.vue'
 import CustomizationPage from './components/pages/CustomizationPage.vue'
 import AdminDashboardPage from './components/pages/AdminDashboardPage.vue'
+import AdminBookingsPage from './components/pages/AdminBookingsPage.vue'
+import AdminEventsPage from './components/pages/AdminEventsPage.vue'
+import AdminRevenuePage from './components/pages/AdminRevenuePage.vue'
+import AdminVendorsPage from './components/pages/AdminVendorsPage.vue'
 import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
@@ -298,7 +302,7 @@ const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
 const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
-const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
+const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors']
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
@@ -2111,9 +2115,33 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-      <PublicNavbar />
+      <PublicNavbar v-if="!(isAdminAccount && ['dashboard', 'revenue', 'events', 'admin-bookings', 'vendors'].includes(currentPage))" />
       <AdminDashboardPage
         v-if="isAdminAccount && currentPage === 'dashboard'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminBookingsPage
+        v-else-if="isAdminAccount && currentPage === 'admin-bookings'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminEventsPage
+        v-else-if="isAdminAccount && currentPage === 'events'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminRevenuePage
+        v-else-if="isAdminAccount && currentPage === 'revenue'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminVendorsPage
+        v-else-if="isAdminAccount && currentPage === 'vendors'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :logout-user="logout"
