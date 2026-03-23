@@ -3305,30 +3305,30 @@ a {
 
 .auth-shell-login,
 .auth-shell-register {
-  grid-template-columns: 1.05fr 1fr;
-  gap: 0;
-  padding: 0;
-  align-items: stretch;
-  background: transparent;
-  max-width: 1140px;
-  margin: 48px auto;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow:
-    0 24px 60px rgba(15, 23, 42, 0.16),
-    0 2px 10px rgba(15, 23, 42, 0.08);
-  isolation: isolate;
-}
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    align-items: stretch;
+    background: transparent;
+    width: min(96vw, 1240px);
+    margin: 36px auto;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow:
+      0 26px 68px rgba(15, 23, 42, 0.18),
+      0 3px 12px rgba(15, 23, 42, 0.08);
+    isolation: isolate;
+  }
 
-.auth-visual-login-panel,
-.auth-visual-register-panel {
-  height: 100%;
-  min-height: 640px;
-  border-radius: 0;
-  box-shadow: none;
-  border-right: 1px solid #e5e7eb;
-  overflow: hidden;
-}
+  .auth-visual-login-panel,
+  .auth-visual-register-panel {
+    height: 100%;
+    min-height: 680px;
+    border-radius: 28px 0 0 28px;
+    box-shadow: none;
+    border-right: none;
+    overflow: hidden;
+  }
 
 .auth-visual-login-panel::before {
   content: "";
@@ -3336,31 +3336,32 @@ a {
   inset: 0;
 
   /* Layered backgrounds (top → bottom) */
-  background-image:
-    linear-gradient(140deg, rgba(15, 23, 42, 0.12), rgba(255, 255, 255, 0.08)),
-    linear-gradient(120deg, rgba(255, 182, 90, 0.22), rgba(255, 255, 255, 0.05)),
-    url("W1.png");
+    background-image:
+      linear-gradient(140deg, rgba(15, 23, 42, 0.16), rgba(255, 255, 255, 0.08)),
+      linear-gradient(120deg, rgba(255, 182, 90, 0.24), rgba(255, 255, 255, 0.05)),
+      url("W1.png");
 
-  /* Match EXACT number of layers (3 only) */
-  background-size:
-    cover,
-    cover,
-    40% auto;
+    /* Full-bleed visual so it sits flush with the form */
+    background-size:
+      cover,
+      cover,
+      cover;
 
-  background-position:
-    center,
-    center,
-    center 45%;
+    background-position:
+      center,
+      center,
+      center;
 
   background-repeat: no-repeat;
 
   /* Smooth professional motion */
   transform: scale(1.02);
-  animation: heroFloat 22s ease-in-out infinite alternate;
-  transition: transform 600ms ease, filter 400ms ease;
-
-  z-index: -1;
-}
+    animation: heroFloat 22s ease-in-out infinite alternate;
+    transition: transform 600ms ease, filter 400ms ease;
+  
+    z-index: -1;
+    border-radius: inherit;
+  }
 
 /* Smooth floating animation */
 @keyframes heroFloat {
@@ -3533,14 +3534,14 @@ a {
   overflow: hidden;
 }
 
-.auth-panel-login,
-.auth-panel-register {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  border-radius: 20px;
-  padding: 48px 56px;
+  .auth-panel-login,
+  .auth-panel-register {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  
+    border-radius: 0 28px 28px 0;
+    padding: 48px 56px;
 
   /* Soft professional shadow */
   box-shadow:
