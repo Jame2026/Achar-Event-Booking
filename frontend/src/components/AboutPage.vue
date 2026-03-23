@@ -334,7 +334,7 @@ function toggleCard(index) {
         </article>
       </section>
 
-      <section class="about-whats-new card">
+      <!-- <section class="about-whats-new card">
         <h2>What’s New + Why clients love us</h2>
         <div class="about-whats-new-grid">
           <article>
@@ -353,7 +353,7 @@ function toggleCard(index) {
             <p>The page adapts to any device with better spacing, scalable cards and bold colors.</p>
           </article>
         </div>
-      </section>
+      </section> -->
 
       <section class="card about-mission">
         <div class="about-mission-copy">
