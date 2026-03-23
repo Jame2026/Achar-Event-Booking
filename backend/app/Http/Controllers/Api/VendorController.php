@@ -467,13 +467,39 @@ class VendorController extends Controller
 
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
     {
-        $validated = $request->validate([
-            'vendor_user_id' => ['required', 'integer', 'min:1'],
-        ]);
+        $authUser = $request->user();
+        $vendorIdParam = $request->input('vendor_user_id');
+
+        // If the caller is authenticated as a vendor/admin, default to their own account.
+        if ($authUser && in_array($authUser->role, ['vendor', 'admin'], true)) {
+            // Admins can target a specific vendor via vendor_user_id; vendors always act on themselves.
+            if ($authUser->role === 'admin' && $vendorIdParam) {
+                $vendor = User::query()
+                    ->select(['id', 'role'])
+                    ->find((int) $vendorIdParam);
+
+                if (! $vendor) {
+                    return response()->json(['message' => 'Selected vendor account does not exist.'], 422);
+                }
+
+                if (! in_array($vendor->role, ['vendor', 'admin'], true)) {
+                    return response()->json(['message' => 'Selected user is not a vendor account.'], 422);
+                }
+
+                return $vendor;
+            }
+
+            return $authUser;
+        }
+
+        // Public callers must supply a vendor_user_id.
+        if (! $vendorIdParam || ! is_numeric($vendorIdParam) || (int) $vendorIdParam < 1) {
+            return response()->json(['message' => 'Please provide a valid vendor_user_id.'], 422);
+        }
 
         $vendor = User::query()
             ->select(['id', 'role'])
-            ->find((int) $validated['vendor_user_id']);
+            ->find((int) $vendorIdParam);
 
         if (! $vendor) {
             return response()->json(['message' => 'Selected vendor account does not exist.'], 422);
