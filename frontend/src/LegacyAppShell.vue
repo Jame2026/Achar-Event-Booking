@@ -6,6 +6,7 @@ import Register from './components/RegisterForm.vue'
 import AvailabilityPage from './components/pages/AvailabilityPage.vue'
 import BookingsPage from './components/pages/BookingsPage.vue'
 import CustomizationPage from './components/pages/CustomizationPage.vue'
+import AdminDashboardPage from './components/pages/AdminDashboardPage.vue'
 import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
@@ -301,6 +302,9 @@ const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'b
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
+const isAdminAccount = computed(
+  () => String(loggedInUser.value?.role || '').trim().toLowerCase() === 'admin',
+)
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
 )
@@ -651,6 +655,9 @@ const dashboardStats = computed(() => {
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 const vendorDisplayName = computed(
   () => String(loggedInUser.value?.name || vendorProfile.name || 'Vendor').trim() || 'Vendor',
+)
+const adminDisplayName = computed(
+  () => String(loggedInUser.value?.name || 'Admin').trim() || 'Admin',
 )
 const messagesSummary = computed(() =>
   conversations.value.filter((item) => {
@@ -2105,8 +2112,14 @@ onBeforeUnmount(() => {
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
       <PublicNavbar />
+      <AdminDashboardPage
+        v-if="isAdminAccount && currentPage === 'dashboard'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
       <VendorDashboardPage
-        v-if="isVendorAccount && currentPage === 'dashboard'"
+        v-else-if="isVendorAccount && currentPage === 'dashboard'"
         :app-logo-src="brandLogoSrc"
         :vendor-display-name="vendorDisplayName"
         v-model:active-tab="vendorDashboardTab"
