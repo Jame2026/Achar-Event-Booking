@@ -858,19 +858,15 @@ async function loadLiveVendorEvents() {
         cachedRows = parsed;
       } else if (parsed && Array.isArray(parsed.data)) {
         cachedRows = parsed.data;
-      if (Array.isArray(parsed) && parsed.length) {
-        liveVendorEvents.value = parsed;
       }
-     }
     }
-   } catch {
+  } catch {
     // ignore cache read errors
   }
 
   if (cachedRows.length) {
     liveVendorEvents.value = cachedRows;
   }
-}
 
   let rows = [];
   try {
@@ -946,12 +942,10 @@ async function loadLiveVendorEvents() {
   }
 
   if (!liveVendorEvents.value.length) {
-    liveVendorEvents.value = fallbackDemoEvents;
-
+    sessionStorage.removeItem(EVENTS_CACHE_KEY);
+    liveVendorEvents.value = fallbackPublicEvents;
   }
-
-  sessionStorage.removeItem(EVENTS_CACHE_KEY);
-  liveVendorEvents.value = fallbackPublicEvents;
+}
 
 async function loadGuestBookings() {
   const authRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -3577,9 +3571,6 @@ function noop() {}
               :disabled="isPreviewPrebookTarget || (activePrebookEventId && !canSubmitPrebook)"
             >
               {{
-                isCheckingPrebookAvailability
-                  ? "Checking..."
-                  : "Continue to Checkout"
                 isPreviewPrebookTarget
                   ? "Preview Only"
                   : isCheckingPrebookAvailability
