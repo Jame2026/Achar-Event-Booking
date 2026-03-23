@@ -16,6 +16,7 @@ class SocialAuthController extends Controller
     public function redirectToProvider(Request $request, string $provider): RedirectResponse
     {
         $preferredFrontendUrl = $this->sanitizeFrontendUrl($request->query('frontend_url'));
+        $preferredRole = $this->preferredRole($request->query('role'));
 
         if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
             return $this->redirectToFrontendError('Unsupported social provider.', $preferredFrontendUrl);
@@ -26,7 +27,7 @@ class SocialAuthController extends Controller
             return $this->redirectToFrontendError(ucfirst($provider).' OAuth is not configured.', $preferredFrontendUrl);
         }
 
-        $state = $this->makeState($provider, $preferredFrontendUrl);
+        $state = $this->makeState($provider, $preferredFrontendUrl, $preferredRole);
         $query = [
             'client_id' => $config['client_id'],
             'redirect_uri' => $config['redirect_uri'],
@@ -66,6 +67,7 @@ class SocialAuthController extends Controller
             return $this->redirectToFrontendError('Invalid OAuth state. Please try again.');
         }
         $preferredFrontendUrl = $this->sanitizeFrontendUrl($statePayload['frontend_url'] ?? null);
+        $preferredRole = $this->preferredRole($statePayload['role'] ?? null);
 
         $code = $request->query('code');
         if (! is_string($code) || $code === '') {
@@ -89,11 +91,16 @@ class SocialAuthController extends Controller
         $user = User::firstOrNew(['email' => $email]);
         if (! $user->exists) {
             $user->name = $name;
-            $user->role = 'user';
+            $user->role = $preferredRole ?: 'user';
             $user->password = Str::random(40);
         } elseif (! $user->name) {
             $user->name = $name;
         }
+
+        if ($preferredRole === 'vendor' && $user->role === 'user') {
+            $user->role = 'vendor';
+        }
+
         $user->save();
 
         return $this->redirectToFrontendSuccess($user, $preferredFrontendUrl);
@@ -155,7 +162,7 @@ class SocialAuthController extends Controller
         ];
     }
 
-    private function makeState(string $provider, ?string $frontendUrl = null): string
+    private function makeState(string $provider, ?string $frontendUrl = null, ?string $role = null): string
     {
         $payloadData = [
             'provider' => $provider,
@@ -164,6 +171,9 @@ class SocialAuthController extends Controller
         ];
         if (is_string($frontendUrl) && $frontendUrl !== '') {
             $payloadData['frontend_url'] = $frontendUrl;
+        }
+        if ($role !== null) {
+            $payloadData['role'] = $role;
         }
         $payload = $this->base64UrlEncode(json_encode($payloadData));
         $signature = hash_hmac('sha256', $payload, $this->stateKey());
@@ -278,5 +288,11 @@ class SocialAuthController extends Controller
         $port = isset($parts['port']) ? ':'.$parts['port'] : '';
 
         return $scheme.'://'.$host.$port;
+    }
+
+    private function preferredRole(mixed $value): ?string
+    {
+        $role = strtolower(trim((string) $value));
+        return in_array($role, ['user', 'vendor'], true) ? $role : null;
     }
 }

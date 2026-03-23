@@ -4,18 +4,17 @@ import { RouterLink } from "vue-router";
 import MessagesPage from "./MessagesPage.vue";
 import { apiPatch } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
+import { sumPackageServicePrices } from "../../features/packagePricing";
 
 const props = defineProps([
   "appLogoSrc",
   "vendorDisplayName",
-  "vendorProfileImage",
   "activeTab",
   "eventTypeOptions",
   "vendorEvents",
   "vendorBookings",
   "isLoadingEvents",
   "isLoadingVendorBookings",
-  "notice",
   "vendorServiceForm",
   "isSubmittingVendorService",
   "vendorServiceNotice",
@@ -148,9 +147,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "Current listings",
     loadingServices: "Loading services...",
     bookingRequests: "Requests",
@@ -159,6 +158,82 @@ const copyByLanguage = {
     customerMessages: "Customer Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    availabilitySettings: "Availability & calendar",
+    availabilityIntro:
+      "Set your working hours and block off dates you cannot take bookings.",
+    applyToService: "Apply to",
+    allServices: "All services (default)",
+    weeklyHours: "Weekly hours",
+    closed: "Closed",
+    hoursLabel: "Hours",
+    timezone: "Timezone",
+    blockedDates: "Vacation Mode / Day Off",
+    vacationMode: "Vacation Mode / Day Off",
+    vacationHint: "Temporarily block your availability for all services.",
+    startDate: "Start date",
+    endDate: "End date",
+    vacationNote:
+      "Existing bookings within this period will remain active. New bookings will be disabled.",
+    bookingRules: "Booking rules",
+    autoAccept: "Auto-accept bookings",
+    leadTime: "Lead time (hours)",
+    bufferTime: "Buffer between bookings (minutes)",
+    maxPerDay: "Max bookings per day",
+    paymentsPolicies: "Payments & policies",
+    depositPercent: "Deposit required (%)",
+    cancellationWindow: "Free cancellation window (hours)",
+    rescheduleWindow: "Free reschedule window (hours)",
+    notifications: "Notifications",
+    notifyEmail: "Email alerts",
+    notifySms: "SMS alerts",
+    quietHours: "Quiet hours",
+    quietStart: "Start (HH:MM)",
+    quietEnd: "End (HH:MM)",
+    accountManagement: "Account management",
+    passwordHint:
+      "Update your login password. You will use it next time you sign in.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    updatePassword: "Update password",
+    passwordSaved: "Password updated successfully.",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    settingsSaved: "Settings saved.",
+    unavailableHint: "Customers won't be able to book these dates.",
+    listingPreview: "Listing Preview",
+    quickTips: "Quick Tips",
+    checklist: "Checklist",
+    previewTitleFallback: "Service Title",
+    previewLocationFallback: "Location",
+    previewAddPrice: "Add price",
+    previewEventTypeFallback: "Event type",
+    previewStatusActive: "Active",
+    previewStatusDraft: "Draft",
+    previewHint: "This is a quick look at how customers see your card.",
+    tipShortName: "Use a short, clear service name.",
+    tipAddPhoto: "Add a cover photo to boost clicks.",
+    tipAddLocation: "Include location for better matching.",
+    tipSetPrice: "Set a price so customers can book faster.",
+    tipAddDescription: "Write a short description of what is included.",
+    checklistBasics: "Title and description added",
+    checklistPricing: "Price and capacity set",
+    checklistMedia: "Cover photo uploaded",
+    checklistPayment: "Payment QR added",
+    bookingDetails: "Booking Details",
+    customerDetails: "Customer Details",
+    eventLocationLabel: "Event Location",
+    serviceDetails: "Service Details",
+    customerContact: "Customer Contact",
+    dateLabel: "Date",
+    statusLabel: "Status",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    bookedItems: "Booked Items",
+    noItems: "No items listed",
+    viewDetails: "View Details",
+    getDirections: "Get Directions",
+    close: "Close",
   },
   km: {
     overview: "ទិដ្ឋភាពទូទៅ",
@@ -216,9 +291,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "បញ្ជីបច្ចុប្បន្ន",
     loadingServices: "កំពុងផ្ទុកសេវាកម្ម...",
     bookingRequests: "សំណើ",
@@ -359,9 +434,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "当前列表",
     loadingServices: "正在加载服务...",
     bookingRequests: "请求",
@@ -449,19 +524,6 @@ const copyByLanguage = {
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
-
-const effectiveNotice = computed(() => {
-  if (props.notice) return props.notice;
-  if (props.isLoadingEvents || props.isLoadingVendorBookings) return "";
-
-  const hasServices = Array.isArray(props.vendorEvents) && props.vendorEvents.length > 0;
-  if (!hasServices) return uiText.value.vendorDataHintServices;
-
-  const hasBookings = Array.isArray(props.vendorBookings) && props.vendorBookings.length > 0;
-  if (!hasBookings) return uiText.value.vendorDataHintBookings;
-
-  return "";
-});
 
 function applySettingsFromProps(settings) {
   const source = settings && typeof settings === "object" ? settings : {};
@@ -844,15 +906,6 @@ const incomeAverageValue = computed(() =>
       ) / activeIncomePoints.value.length
     : 0,
 );
-const profileCard = computed(() => {
-  const name = String(props.vendorDisplayName || uiText.value.vendor).trim();
-  return {
-    name,
-    role: uiText.value.verifiedWorkspace,
-    initial: (name || "V").slice(0, 1).toUpperCase(),
-    image: props.vendorProfileImage || "",
-  };
-});
 const incomeMidValue = computed(() => incomePeakValue.value / 2);
 const topIncomePoint = computed(() => {
   if (!activeIncomePoints.value.length) return null;
@@ -921,15 +974,6 @@ const chartTooltipTop = computed(() => {
   if (y > 92) y = 92;
   return `${y}%`;
 });
-const showProfileMenu = ref(false);
-
-function toggleProfileMenu() {
-  showProfileMenu.value = !showProfileMenu.value;
-}
-
-function closeProfileMenu() {
-  showProfileMenu.value = false;
-}
 
 function updateChartHover(event) {
   const points = normalizedIncomeChartPoints.value;
@@ -1016,8 +1060,18 @@ const hasServiceDescription = computed(() =>
 const hasServiceLocation = computed(() =>
   Boolean(String(props.vendorServiceForm?.location || "").trim()),
 );
+const packageServicesTotal = computed(() =>
+  Array.isArray(props.vendorServiceForm?.packages)
+    ? sumPackageServicePrices(props.vendorServiceForm.packages)
+    : 0,
+);
+const effectiveServicePrice = computed(() =>
+  serviceMode.value === "package"
+    ? packageServicesTotal.value
+    : Number(props.vendorServiceForm?.price ?? 0),
+);
 const hasServicePrice = computed(() =>
-  Number(props.vendorServiceForm?.price ?? 0) > 0,
+  effectiveServicePrice.value > 0,
 );
 const hasServiceCapacity = computed(() =>
   Number(props.vendorServiceForm?.capacity ?? 0) > 0,
@@ -1047,7 +1101,7 @@ const previewEventTypeLabel = computed(() => {
 
 const previewPriceLabel = computed(() =>
   hasServicePrice.value
-    ? formatCurrency(props.vendorServiceForm?.price ?? 0)
+    ? formatCurrency(effectiveServicePrice.value)
     : uiText.value.previewAddPrice,
 );
 
@@ -1169,6 +1223,15 @@ const vendorServicePackages = computed(() =>
   Array.isArray(props.vendorServiceForm?.packages)
     ? props.vendorServiceForm.packages
     : [],
+);
+
+watch(
+  [serviceMode, packageServicesTotal],
+  ([mode, total]) => {
+    if (!props.vendorServiceForm || mode !== "package") return;
+    props.vendorServiceForm.price = total;
+  },
+  { immediate: true },
 );
 
 const showPackageBuilder = ref(false);
@@ -1738,24 +1801,8 @@ watch(
           class="side-utility logout"
           @click="props.logoutUser"
         >
-          <span class="side-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-          </span>
-          <span class="side-label">{{ uiText.logout }}</span>
+          {{ uiText.logout }}
         </button>
-        <div class="vendor-card">
-          <span class="vendor-avatar">{{
-            (props.vendorDisplayName || "V").slice(0, 1).toUpperCase()
-          }}</span>
-          <div>
-            <strong>{{ props.vendorDisplayName || uiText.vendor }}</strong>
-            <small>{{ uiText.verifiedWorkspace }}</small>
-          </div>
-        </div>
       </div>
     </aside>
 
@@ -1804,63 +1851,8 @@ watch(
               {{ uiText.addNewService }}
             </button>
           </div>
-          <div class="profile-menu-wrap">
-            <button
-              type="button"
-              class="profile-trigger"
-              @click="toggleProfileMenu"
-              :aria-expanded="showProfileMenu"
-              aria-haspopup="true"
-            >
-              <img
-                v-if="profileCard.image"
-                :src="profileCard.image"
-                :alt="profileCard.name"
-              />
-              <span v-else>{{ profileCard.initial }}</span>
-            </button>
-            <div
-              v-if="showProfileMenu"
-              class="profile-menu"
-              role="menu"
-            >
-              <div class="profile-menu__user">
-                <img
-                  v-if="profileCard.image"
-                  :src="profileCard.image"
-                  :alt="profileCard.name"
-                />
-                <span v-else class="profile-menu__initial">{{ profileCard.initial }}</span>
-                <div>
-                  <strong>{{ profileCard.name }}</strong>
-                  <small>{{ profileCard.role }}</small>
-                </div>
-              </div>
-              <button type="button" class="profile-menu__action" @click="setActiveTab('overview'); closeProfileMenu()" role="menuitem">
-                <span class="dot dot-orange"></span>
-                {{ uiText.dashboardEyebrow }}
-              </button>
-              <button type="button" class="profile-menu__action" @click="setActiveTab('services'); closeProfileMenu()" role="menuitem">
-                <span class="dot dot-blue"></span>
-                {{ uiText.myServices }}
-              </button>
-              <button type="button" class="profile-menu__action danger" @click="props.logoutUser; closeProfileMenu()" role="menuitem">
-                <span class="dot dot-red"></span>
-                {{ uiText.logout }}
-              </button>
-            </div>
-          </div>
         </div>
       </header>
-
-      <div
-        v-if="effectiveNotice"
-        class="vendor-inline-notice"
-        :class="{ 'is-error': !!props.notice }"
-        role="status"
-      >
-        {{ effectiveNotice }}
-      </div>
 
       <section v-show="localActiveTab === 'overview'" class="stats-grid">
         <article class="stat-card stat-income">
@@ -2411,18 +2403,18 @@ watch(
                   <div class="package-editor">
                     <div class="package-editor-head">
                       <p class="package-hint">
-                        Add package tiers so clients can choose the best fit.
+                        Add the services included in this package. The whole package total is summed automatically.
                       </p>
                       <button
                         type="button"
                         class="secondary-button package-add"
                         @click="addVendorPackage"
                       >
-                        + Add package
+                        + Add service
                       </button>
                     </div>
                     <p v-if="!vendorServicePackages.length" class="package-empty">
-                      No packages added yet.
+                      No services added yet.
                     </p>
                     <div
                       v-for="(pkg, index) in vendorServicePackages"
@@ -2430,7 +2422,7 @@ watch(
                       class="package-row"
                     >
                       <div class="package-row-head">
-                        <strong>Package {{ index + 1 }}</strong>
+                        <strong>Service {{ index + 1 }}</strong>
                         <button
                           type="button"
                           class="text-button danger"
@@ -2441,34 +2433,38 @@ watch(
                       </div>
                       <div class="package-row-grid">
                         <label class="field">
-                          <span>Package name</span>
+                          <span>Service name</span>
                           <input
                             :value="pkg?.name || ''"
                             type="text"
-                            placeholder="Basic / Standard / Premium"
+                            placeholder="Photography / Decoration / Makeup"
                             @input="pkg.name = $event.target.value"
                           />
                         </label>
                         <label class="field">
-                          <span>Package price</span>
+                          <span>Service price</span>
                           <input
                             :value="pkg?.price ?? 0"
                             type="number"
                             min="0"
                             step="0.01"
-                            placeholder="250"
+                            placeholder="120"
                             @input="pkg.price = Number($event.target.value)"
                           />
                         </label>
                       </div>
                       <label class="field">
-                        <span>What is included</span>
+                        <span>Service details</span>
                         <textarea
                           :value="pkg?.details || ''"
-                          placeholder="List what this package covers."
+                          placeholder="Describe what this service includes."
                           @input="pkg.details = $event.target.value"
                         ></textarea>
                       </label>
+                    </div>
+                    <div class="package-row-head package-total-row">
+                      <strong>Whole package total</strong>
+                      <strong>{{ formatCurrency(packageServicesTotal) }}</strong>
                     </div>
                   </div>
                 </section>
@@ -2655,39 +2651,39 @@ watch(
               <div class="package-builder-head">
                 <div>
                   <p class="eyebrow">{{ uiText.addNewService }}</p>
-                  <h3>Add Package</h3>
+                  <h3>Add Service</h3>
                 </div>
                 <div class="package-builder-actions">
                   <button type="button" class="secondary-button" @click="closePackageBuilder">Cancel</button>
-                  <button type="button" class="primary-button" @click="savePackageDraft">Save Package</button>
+                  <button type="button" class="primary-button" @click="savePackageDraft">Save Service</button>
                 </div>
               </div>
               <div class="package-builder-body">
                 <label class="field">
-                  <span>Package name</span>
+                  <span>Service name</span>
                   <input
                     :value="packageDraft.name"
                     type="text"
-                    placeholder="Basic / Standard / Premium"
+                    placeholder="Photography / Decoration / Makeup"
                     @input="packageDraft.name = $event.target.value"
                   />
                 </label>
                 <label class="field">
-                  <span>Package price</span>
+                  <span>Service price</span>
                   <input
                     :value="packageDraft.price"
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="250"
+                    placeholder="120"
                     @input="packageDraft.price = Number($event.target.value)"
                   />
                 </label>
                 <label class="field field-full">
-                  <span>What is included</span>
+                  <span>Service details</span>
                   <textarea
                     :value="packageDraft.details"
-                    placeholder="List what this package covers."
+                    placeholder="Describe what this service includes."
                     @input="packageDraft.details = $event.target.value"
                   ></textarea>
                 </label>
@@ -2738,7 +2734,7 @@ watch(
                 </div>
                 <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
                 <small v-if="item.packages?.length" class="service-packages">
-                  Packages: {{ item.packages.length }}
+                  Services: {{ item.packages.length }}
                 </small>
                 <p>{{ item.description }}</p>
               </div>
@@ -3921,8 +3917,8 @@ watch(
 }
 
 .sidebar-icon {
-    width: 32px;
-    height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3935,8 +3931,8 @@ watch(
 }
 
 .sidebar-icon svg {
-    width: 15px;
-    height: 15px;
+  width: 17px;
+  height: 17px;
   display: block;
 }
 
@@ -3957,51 +3953,27 @@ watch(
   margin-top: auto;
   display: grid;
   gap: 6px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   position: relative;
   z-index: 1;
 }
 
-  .side-utility {
-    display: block;
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.7);
-    color: #334155;
-    font-size: 13.5px;
-    font-weight: 700;
-    text-align: left;
-    text-decoration: none;
-    transition: all 150ms ease;
-    cursor: pointer;
-    }
-
-  .side-utility .side-icon {
-    width: 22px;
-    height: 22px;
-    border-radius: 10px;
-    display: inline-grid;
-    place-items: center;
-    background: rgba(148, 163, 184, 0.16);
-    color: #475569;
-    margin-right: 8px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-  }
-
-  .side-utility.home .side-icon {
-    background: rgba(249, 115, 22, 0.1);
-    color: #c2410c;
-    border-color: rgba(249, 115, 22, 0.22);
-  }
-
-  .side-utility.logout .side-icon {
-    background: rgba(248, 113, 113, 0.12);
-    color: #b91c1c;
-    border-color: rgba(248, 113, 113, 0.24);
-  }
+.side-utility {
+  display: block;
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
 
 .side-utility.active {
   background: #fff7ed;
@@ -4018,7 +3990,7 @@ watch(
 }
 
 .side-utility.home {
-  background: linear-gradient(135deg, #fffaf4 0%, #ffecd8 100%);
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
   border-color: rgba(234, 88, 12, 0.22);
   color: #9a3412;
   font-weight: 700;
@@ -4040,54 +4012,6 @@ watch(
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.3);
   box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
-}
-
-.vendor-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.9) 100%
-  );
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow:
-    0 4px 18px rgba(15, 23, 42, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
-
-.vendor-avatar {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
-  font-weight: 800;
-  font-size: 16px;
-  flex-shrink: 0;
-  border: 2px solid rgba(59, 130, 246, 0.22);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-}
-
-.vendor-card strong {
-  display: block;
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.vendor-card small {
-  display: block;
-  color: #94a3b8;
-  font-size: 11px;
-  margin-top: 2px;
-  font-weight: 500;
 }
 
 /* ─── Main Panel ──────────────────────────────────────────────── */
@@ -4134,9 +4058,7 @@ watch(
 
 .vendor-head-actions {
   display: grid;
-  grid-template-columns: auto auto auto;
   gap: 0.75rem;
-  align-items: center;
   justify-items: end;
   align-self: start;
 }
@@ -4284,182 +4206,6 @@ watch(
 .header-action .action-icon svg {
   width: 16px;
   height: 16px;
-}
-
-.profile-menu-wrap {
-  position: relative;
-  justify-self: end;
-}
-
-.profile-trigger {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    cursor: pointer;
-    padding: 0;
-    overflow: visible;
-    position: relative;
-  }
-
-  .profile-trigger {
-  position: relative;
-  border-radius: 16px;
-  z-index: 1;
-}
-
-/* animated glow ring */
-.profile-trigger::before {
-  content: "";
-  position: absolute;
-  inset: -3px; /* tighter = cleaner */
-  border-radius: inherit;
-
-  background: conic-gradient(
-    from 0deg,
-    #ff6a00,
-    #fbbf24,
-    #fb923c,
-    #ff6a00
-  );
-
-  /* controlled glow */
-  filter: blur(4px);
-  opacity: 0.65;
-
-  animation: dashSpin 6s linear infinite;
-
-  z-index: -1;
-}
-
-/* clean inner surface (important for pro look) */
-.profile-trigger::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: inherit; /* matches button/card */
-  z-index: -1;
-}
-
-/* smooth spin */
-@keyframes dashSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-  .profile-trigger > * {
-    position: relative;
-    z-index: 1;
-  }
-
-.profile-trigger img,
-.profile-menu__user img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.profile-trigger span,
-.profile-menu__initial {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  color: #0f172a;
-  font-weight: 800;
-}
-
-.profile-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  min-width: 220px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: #fff;
-  box-shadow:
-    0 18px 50px rgba(15, 23, 42, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-  display: grid;
-  gap: 10px;
-  z-index: 20;
-}
-
-.profile-menu__user {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 10px;
-  align-items: center;
-}
-
-.profile-menu__user img,
-.profile-menu__initial {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  color: #0f3c89;
-  font-weight: 800;
-  border: 1px solid rgba(37, 99, 235, 0.2);
-}
-
-.profile-menu__user strong {
-  display: block;
-  margin: 0;
-}
-
-.profile-menu__user small {
-  color: #64748b;
-}
-
-.profile-menu__action {
-  width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  color: #0f172a;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.profile-menu__action:hover {
-  background: #fff7ed;
-  border-color: rgba(234, 88, 12, 0.28);
-  color: #9a3412;
-}
-
-.profile-menu__action.danger {
-  background: #fef2f2;
-  border-color: rgba(248, 113, 113, 0.3);
-  color: #b91c1c;
-}
-
-.profile-menu__action .dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  border: 2px solid currentColor;
-}
-
-.dot-orange {
-  color: #ea580c;
-}
-.dot-blue {
-  color: #2563eb;
-}
-.dot-red {
-  color: #dc2626;
 }
 
 
@@ -6987,23 +6733,6 @@ watch(
   color: #b91c1c;
 }
 
-.vendor-inline-notice {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #ecfeff;
-  border: 1px solid #a5f3fc;
-  color: #075985;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.vendor-inline-notice.is-error {
-  background: #fef2f2;
-  border-color: #fecdd3;
-  color: #b91c1c;
-}
-
 .service-copy p {
   margin: 8px 0 0;
   color: #334155;
@@ -7364,7 +7093,7 @@ watch(
 }
 
 .booking-detail-card {
-  width: min(760px, 100%);
+  width: min(960px, calc(100vw - 36px));
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -7546,6 +7275,16 @@ watch(
   font-size: 13px;
   color: #0f172a;
   text-align: left;
+}
+
+.detail-block-customer .detail-list span {
+  font-size: 10px;
+}
+
+.detail-block-customer .detail-list strong {
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .detail-block-wide {
@@ -7863,12 +7602,6 @@ watch(
 
   .period-switcher {
     justify-content: flex-start;
-  }
-}
-
-@keyframes dashSpin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

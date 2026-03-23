@@ -451,3 +451,9 @@ onBeforeUnmount(() => {
     </main>
   </section>
 </template>
+
+<style scoped>
+.auth-reset :deep(.auth-card) {
+  width: min(100%, 700px);
+}
+</style>

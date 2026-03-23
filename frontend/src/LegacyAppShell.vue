@@ -22,7 +22,16 @@ import {
   vendorProfile,
 } from './features/appData'
 import { apiDelete, apiGet, apiPatch, apiPost } from './features/apiClient'
-import { mapBooking as mapApiBooking, mapEvent as mapApiEvent } from './features/bookingMappers'
+import {
+  deriveBookingType,
+  formatDateTime,
+  getBookingMatchKey,
+  mapBooking as mapApiBooking,
+  mapEvent as mapApiEvent,
+  normalizeBookingEventTypeKey,
+  summarizeBookedServices,
+} from './features/bookingMappers'
+import { sumPackageServicePrices } from './features/packagePricing'
 import { useAvailabilityFeature } from './features/useAvailabilityFeature'
 import { useCustomizationFeature } from './features/useCustomizationFeature'
 import { useVendorMessagesFeature } from './features/useVendorMessagesFeature'
@@ -36,6 +45,7 @@ const POST_AUTH_REDIRECT_TTL_MS = 5 * 60 * 1000
 const MESSAGE_VENDOR_TARGET_KEY = 'achar_message_vendor_target'
 const LOCAL_BOOKINGS_STORAGE_KEY = 'achar_local_bookings'
 const LAST_BOOKING_EMAIL_KEY = 'achar_last_booking_email'
+const LAST_BOOKING_PHONE_KEY = 'achar_last_booking_phone'
 const GLOBAL_SEARCH_SESSION_KEY = 'achar_global_search'
 const EVENTS_CACHE_KEY = 'achar_guest_events_cache_v1'
 const router = useRouter()
@@ -74,12 +84,14 @@ const copyByLanguage = {
     loadedLatestBooking: 'Loaded your latest booking from this device.',
     couldNotLoadBookings: 'Could not load bookings. Check backend API and database migrations.',
     signInBeforeBooking: 'Please sign in before checking availability and booking.',
-    enterNameEmail: 'Please enter your name and email before booking.',
+    enterNameEmail: 'Please enter your name and email or phone before booking.',
     selectValidQuantity: 'Please select a valid quantity.',
     serviceUnavailable: 'This service is not available at the moment.',
     bookingCreatedFor: 'Booking created for',
     bookingFailed: 'Booking failed.',
     rescheduleRequested: 'Reschedule request sent. Waiting for confirmation.',
+    deleteBooking: 'Delete',
+    confirmDeleteCompletedBooking: 'Delete this completed booking?',
     signInConfirmPackage: 'Please sign in before confirming your package booking.',
     justNow: 'Just now',
     last7Days: 'Last 7 days',
@@ -119,12 +131,14 @@ const copyByLanguage = {
     loadedLatestBooking: 'បានផ្ទុកការកក់ចុងក្រោយរបស់អ្នកពីឧបករណ៍នេះ។',
     couldNotLoadBookings: 'មិនអាចផ្ទុកការកក់បានទេ។ សូមពិនិត្យ backend API និង migrations មូលដ្ឋានទិន្នន័យ។',
     signInBeforeBooking: 'សូមចូលគណនីមុនពិនិត្យពេលទំនេរ និងធ្វើការកក់។',
-    enterNameEmail: 'សូមបញ្ចូលឈ្មោះ និងអ៊ីមែលរបស់អ្នកមុនពេលកក់។',
+    enterNameEmail: 'សូមបញ្ចូលឈ្មោះ និងអ៊ីមែល ឬ លេខទូរស័ព្ទរបស់អ្នកមុនពេលកក់។',
     selectValidQuantity: 'សូមជ្រើសរើសចំនួនត្រឹមត្រូវ។',
     serviceUnavailable: 'សេវាកម្មនេះមិនមានទំនេរនៅពេលនេះទេ។',
     bookingCreatedFor: 'ការកក់ត្រូវបានបង្កើតសម្រាប់',
     bookingFailed: 'ការកក់បានបរាជ័យ។',
     rescheduleRequested: 'សំណើកំណត់ពេលឡើងវិញត្រូវបានផ្ញើ។ កំពុងរង់ចាំការបញ្ជាក់។',
+    deleteBooking: 'លុប',
+    confirmDeleteCompletedBooking: 'លុបការកក់ដែលបានបញ្ចប់នេះមែនទេ?',
     signInConfirmPackage: 'សូមចូលគណនីមុនពេលបញ្ជាក់ការកក់កញ្ចប់របស់អ្នក។',
     justNow: 'ឥឡូវនេះ',
     last7Days: '7 ថ្ងៃចុងក្រោយ',
@@ -164,12 +178,14 @@ const copyByLanguage = {
     loadedLatestBooking: '已从此设备加载您最近的预订。',
     couldNotLoadBookings: '无法加载预订。请检查后端 API 和数据库迁移。',
     signInBeforeBooking: '请先登录再检查档期并预订。',
-    enterNameEmail: '请在预订前输入您的姓名和邮箱。',
+    enterNameEmail: '请在预订前输入您的姓名和邮箱或手机号。',
     selectValidQuantity: '请选择有效数量。',
     serviceUnavailable: '该服务当前不可用。',
     bookingCreatedFor: '已为以下项目创建预订：',
     bookingFailed: '预订失败。',
     rescheduleRequested: '改期请求已发送，正在等待确认。',
+    deleteBooking: '删除',
+    confirmDeleteCompletedBooking: '要删除这条已完成的预订吗？',
     signInConfirmPackage: '请先登录再确认您的套餐预订。',
     justNow: '刚刚',
     last7Days: '最近 7 天',
@@ -202,6 +218,7 @@ function onLoginSuccess(user) {
   loggedInUser.value = user
   if (!customerName.value?.trim()) customerName.value = user?.name ?? ''
   if (!customerEmail.value?.trim()) customerEmail.value = user?.email ?? ''
+  if (!userPhone.value?.trim()) userPhone.value = user?.phone ?? ''
   const redirected = handlePostAuthRedirect()
   if (!redirected) {
     const role = String(user?.role || '').trim().toLowerCase()
@@ -431,7 +448,6 @@ const vendorServiceForm = ref({
 
 const vendorEvents = ref([])
 const vendorBookings = ref([])
-const vendorDashboardNotice = ref('')
 const vendorSettings = ref(null)
 const vendorSettingsServiceId = ref('all')
 const isLoadingVendorSettings = ref(false)
@@ -456,6 +472,8 @@ const notificationDropdownOpen = ref(false)
 const notificationMenuRef = ref(null)
 const isBootstrappingAuth = ref(false)
 let notificationPollTimer = null
+let latestCustomerBookingStatusNotificationId = null
+let hasInitializedCustomerBookingStatusNotifications = false
 const {
   customerName,
   customerEmail,
@@ -555,10 +573,11 @@ const {
   vendorEvents,
   customerName,
   customerEmail,
+  userPhone,
   notice,
   bookingSubmittingEventId,
   checkEventAvailability,
-  createBooking: (payload) => apiPost('bookings', payload),
+  createBooking: (payload) => apiPost('bookings', normalizeBookingRequestPayload(payload)),
   loadBookings,
   goToBookings,
   bookingFilter,
@@ -841,68 +860,109 @@ const vendorIncome = computed(() => {
   }
 })
 
-function getLocalBookingsByEmail(email) {
-  if (!email) return []
+function normalizeBookingEmail(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function normalizeBookingPhone(value) {
+  return String(value || '').replace(/\D+/g, '')
+}
+
+function splitBookingContact(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) {
+    return { email: '', phone: '' }
+  }
+
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+  return {
+    email: looksLikeEmail ? trimmed.toLowerCase() : '',
+    phone: looksLikeEmail ? '' : trimmed,
+  }
+}
+
+function formatBookingIdentityNote(row, fallbackEmail = '', fallbackPhone = '') {
+  const contact = row?.customerEmail || row?.customerPhone || fallbackEmail || fallbackPhone || ''
+  return [row?.customerName || 'Guest User', contact].filter(Boolean).join(' | ')
+}
+
+function decorateCustomerBookingActions(row) {
+  const canDelete = Boolean(row?.canDelete)
+
+  return {
+    ...row,
+    canDelete,
+    secondaryBtn: canDelete ? uiText.value.deleteBooking : row?.secondaryBtn || 'Reschedule',
+  }
+}
+
+function getLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email)
+  const normalizedPhone = normalizeBookingPhone(phone)
+  if (!normalizedEmail && !normalizedPhone) return []
+
   try {
     const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
     if (!raw) return []
     const rows = JSON.parse(raw)
     if (!Array.isArray(rows)) return []
-    const normalizedEmail = email.trim().toLowerCase()
+
     return rows
-      .filter((row) => String(row?.customerEmail || '').trim().toLowerCase() === normalizedEmail)
-      .map((row, index) => ({
-        id: row.id || `local-${index}`,
-        vendor: row.vendor || vendorProfile.name,
-        service: row.service || uiText.value.serviceBooking,
-        date: row.dateLabel || uiText.value.dateTbd,
-        metaLabel: 'Event Type',
-        metaValue: eventTypeMap[row.eventType] || 'Other',
-        placeLabel: 'Total',
-        placeValue: `$${Number(row.total || 0).toLocaleString()}`,
-        status: row.status || 'Confirmed',
-        statusClass: row.statusClass || 'confirmed',
-        type: row.type || 'Upcoming',
-        eventType: row.eventType || 'other',
-        eventId: row.eventId || null,
-        image:
-          row.image ||
-          'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
-        primaryBtn: 'View Details',
-        secondaryBtn: 'Reschedule',
-        note: `${row.customerName || 'Guest User'} | ${row.customerEmail || normalizedEmail}`,
-      }))
+      .filter((row) => {
+        const matchesEmail =
+          normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail
+        const matchesPhone =
+          normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone
+        return matchesEmail || matchesPhone
+      })
+      .map((row, index) => {
+        const bookingDate =
+          row?.requestedEventDate ||
+          row?.requested_event_date ||
+          row?.dateLabel ||
+          row?.eventDate ||
+          ''
+        const eventType = normalizeBookingEventTypeKey(
+          row?.eventType,
+          row?.requestedEventType,
+          row?.requested_event_type,
+        )
+        const bookedItems = Array.isArray(row?.booked_items) ? row.booked_items : []
+        const bookingStatus = String(row?.status || 'confirmed').trim().toLowerCase()
+        const type = deriveBookingType(bookingStatus, bookingDate)
+        const canDelete = type === 'Completed'
+
+        return decorateCustomerBookingActions({
+          id: row.id || `local-${index}`,
+          vendor: row.vendor || vendorProfile.name,
+          service: summarizeBookedServices(bookedItems, row.service || uiText.value.serviceBooking),
+          date: formatDateTime(bookingDate),
+          metaLabel: 'Event Type',
+          metaValue: eventTypeMap[eventType] || 'Other',
+          placeLabel: 'Total',
+          placeValue: `$${Number(row.total || 0).toLocaleString()}`,
+          status: row.status || 'Confirmed',
+          statusClass: row.statusClass || 'confirmed',
+          type,
+          eventType,
+          eventId: row.eventId || null,
+          image:
+            row.image ||
+            'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
+          bookedItems,
+          canDelete,
+          primaryBtn: 'View Details',
+          secondaryBtn: 'Reschedule',
+          note: formatBookingIdentityNote(row, normalizedEmail, phone),
+        })
+      })
   } catch {
     return []
   }
 }
 
-function getBookingMatchKey(row) {
-  const eventId = row?.eventId || row?.event_id || row?.event?.id || null
-  const date =
-    row?.date ||
-    row?.dateLabel ||
-    row?.requested_event_date ||
-    row?.event?.starts_at ||
-    ''
-  if (eventId) {
-    return `event:${eventId}|${String(date).trim().toLowerCase()}`
-  }
-  const service =
-    row?.service ||
-    row?.service_name ||
-    row?.name ||
-    ''
-  const total =
-    row?.total ||
-    row?.total_amount ||
-    row?.servicePrice ||
-    0
-  return `service:${String(service).trim().toLowerCase()}|${Number(total || 0)}|${String(date).trim().toLowerCase()}`
-}
-
-function clearLocalBookingsByEmail(email) {
-  if (!email) return
+function deleteLocalBookingEntry(target) {
+  if (!target) return
 
   try {
     const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
@@ -911,9 +971,48 @@ function clearLocalBookingsByEmail(email) {
     const rows = JSON.parse(raw)
     if (!Array.isArray(rows)) return
 
-    const normalizedEmail = email.trim().toLowerCase()
+    const targetId = String(target?.id || '').trim()
+    const targetKey = getBookingMatchKey(target)
+    const remainingRows = rows.filter((row) => {
+      const rowId = String(row?.id || '').trim()
+      if (targetId && rowId && rowId === targetId) {
+        return false
+      }
+
+      return getBookingMatchKey(row) !== targetKey
+    })
+
+    if (remainingRows.length === rows.length) return
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY)
+      return
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows))
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
+}
+
+function clearLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email)
+  const normalizedPhone = normalizeBookingPhone(phone)
+  if (!normalizedEmail && !normalizedPhone) return
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY)
+    if (!raw) return
+
+    const rows = JSON.parse(raw)
+    if (!Array.isArray(rows)) return
+
     const remainingRows = rows.filter(
-      (row) => String(row?.customerEmail || '').trim().toLowerCase() !== normalizedEmail,
+      (row) =>
+        !(
+          (normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail) ||
+          (normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone)
+        ),
     )
 
     if (remainingRows.length === rows.length) return
@@ -926,6 +1025,35 @@ function clearLocalBookingsByEmail(email) {
     localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows))
   } catch {
     // Ignore local-storage cleanup failures.
+  }
+}
+
+function resolveBookingLookup() {
+  const userId = Number(loggedInUser.value?.id || 0)
+  const typedContact = splitBookingContact(customerEmail.value)
+  const typedEmail = normalizeBookingEmail(typedContact.email)
+  const loggedEmail = normalizeBookingEmail(loggedInUser.value?.email)
+  const lastEmail = normalizeBookingEmail(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || '')
+  const primaryEmail = typedEmail || loggedEmail || lastEmail
+  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : ''
+  const primaryPhone =
+    String(typedContact.phone || userPhone.value || loggedInUser.value?.phone || localStorage.getItem(LAST_BOOKING_PHONE_KEY) || '').trim()
+
+  return {
+    userId: userId > 0 ? userId : null,
+    email: primaryEmail,
+    fallbackEmail,
+    phone: primaryPhone,
+    hasIdentity: Boolean((userId > 0) || primaryEmail || primaryPhone),
+  }
+}
+
+function normalizeBookingRequestPayload(payload = {}) {
+  const contact = splitBookingContact(payload?.customer_email)
+  return {
+    ...payload,
+    customer_email: contact.email || undefined,
+    customer_phone: payload?.customer_phone || contact.phone || userPhone.value.trim() || undefined,
   }
 }
 
@@ -1014,6 +1142,37 @@ function startNotificationPolling() {
   }, 30000)
 }
 
+function getLatestCustomerBookingStatusNotificationId(rows = []) {
+  if (isVendorAccount.value || !Array.isArray(rows)) return null
+
+  const match = rows.find(
+    (item) =>
+      String(item?.kind || '').trim().toLowerCase() === 'booking_status_changed' &&
+      String(item?.recipient_type || '').trim().toLowerCase() === 'user',
+  )
+
+  return Number(match?.id || 0) || null
+}
+
+async function syncCustomerBookingsFromNotifications(rows) {
+  if (isVendorAccount.value || !resolveBookingLookup().hasIdentity) return
+
+  const latestNotificationId = getLatestCustomerBookingStatusNotificationId(rows)
+
+  if (!hasInitializedCustomerBookingStatusNotifications) {
+    latestCustomerBookingStatusNotificationId = latestNotificationId
+    hasInitializedCustomerBookingStatusNotifications = true
+    return
+  }
+
+  if (!latestNotificationId || latestNotificationId === latestCustomerBookingStatusNotificationId) {
+    return
+  }
+
+  latestCustomerBookingStatusNotificationId = latestNotificationId
+  await loadBookings({ silent: true })
+}
+
 function closeNotificationDropdown() {
   notificationDropdownOpen.value = false
 }
@@ -1044,6 +1203,7 @@ async function loadNotifications(options = {}) {
     const rows = Array.isArray(result.data) ? result.data : []
     notifications.value = rows
     notificationsUnreadCount.value = Number(result.unread_count || 0)
+    await syncCustomerBookingsFromNotifications(rows)
   } catch (error) {
     notificationsError.value = 'Could not load notifications right now.'
   } finally {
@@ -1302,7 +1462,10 @@ async function submitVendorService() {
     location: String(vendorServiceForm.value.location || '').trim(),
     starts_at: vendorServiceForm.value.starts_at || null,
     ends_at: vendorServiceForm.value.ends_at || null,
-    price: Number(vendorServiceForm.value.price || 0),
+    price:
+      String(vendorServiceForm.value.service_mode || 'overall') === 'package'
+        ? sumPackageServicePrices(normalizedPackages)
+        : Number(vendorServiceForm.value.price || 0),
     capacity: Number(vendorServiceForm.value.capacity || 0),
     is_active: Boolean(vendorServiceForm.value.is_active),
   }
@@ -1319,22 +1482,22 @@ async function submitVendorService() {
 
   isSubmittingVendorService.value = true
   vendorServiceNotice.value = ''
+  const serviceId = Number(vendorServiceForm.value.id || 0)
   try {
-    const serviceId = Number(vendorServiceForm.value.id || 0)
-    const payload = imageFile
+    const isEditingService = Number.isFinite(serviceId) && serviceId > 0
+    const hasBinaryUpload = Boolean(imageFile || qrCodeFile)
+    const payload = hasBinaryUpload
       ? (() => {
           const formData = new FormData()
           Object.entries(normalizedPayload).forEach(([key, value]) => {
-            if (key === 'image_url') {
+            if (key === 'image_url' && imageFile) {
               return
             }
             if (key === 'qr_code_url' && qrCodeFile) {
               return
             }
             if (key === 'packages') {
-              if (Array.isArray(value) && value.length > 0) {
-                formData.append(key, JSON.stringify(value))
-              }
+              formData.append(key, JSON.stringify(Array.isArray(value) ? value : []))
               return
             }
             if (value !== null && value !== undefined) {
@@ -1353,15 +1516,27 @@ async function submitVendorService() {
         })()
       : normalizedPayload
 
-    await apiPost('vendor/services', payload)
+    if (isEditingService) {
+      if (payload instanceof FormData) {
+        payload.append('_method', 'PATCH')
+        await apiPost(`vendor/services/${serviceId}`, payload)
+      } else {
+        await apiPatch(`vendor/services/${serviceId}`, payload)
+      }
+    } else {
+      await apiPost('vendor/services', payload)
+    }
     await loadEvents()
     clearGuestEventsCache()
     selectedEventType.value = normalizedPayload.event_type
     resetVendorServiceForm()
+    vendorServiceNotice.value = `${normalizedPayload.title || uiText.value.serviceBooking} - ${
+      isEditingService ? uiText.value.serviceUpdated : uiText.value.serviceCreated
+    }`
   } catch (error) {
     vendorServiceNotice.value =
       error?.message ||
-      (vendorServiceForm.value.id ? uiText.value.couldNotUpdateServiceDetails : uiText.value.couldNotCreateService)
+      (serviceId ? uiText.value.couldNotUpdateServiceDetails : uiText.value.couldNotCreateService)
   } finally {
     isSubmittingVendorService.value = false
   }
@@ -1476,19 +1651,17 @@ async function loadVendorBookings() {
   const vendorUserId = Number(loggedInUser.value?.id || 0)
   if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
     vendorBookings.value = []
-    vendorDashboardNotice.value = uiText.value.vendorAccountMissing
     return
   }
 
   isLoadingVendorBookings.value = true
-  vendorDashboardNotice.value = ''
   try {
     const result = await apiGet('vendor/bookings', { vendor_user_id: vendorUserId })
     const rows = Array.isArray(result.data) ? result.data : []
     vendorBookings.value = rows.map(mapVendorBookingRow)
   } catch (error) {
     vendorBookings.value = []
-    vendorDashboardNotice.value = error?.message || uiText.value.couldNotLoadVendorBookings
+    notice.value = uiText.value.couldNotLoadVendorBookings
   } finally {
     isLoadingVendorBookings.value = false
   }
@@ -1546,48 +1719,67 @@ async function checkEventAvailability(item) {
   }
 }
 
-async function loadBookings() {
-  const typedEmail = customerEmail.value.trim()
-  const loggedEmail = String(loggedInUser.value?.email || '').trim()
-  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || '').trim()
-  const primaryEmail = typedEmail || loggedEmail || lastEmail
-  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : ''
-  const email = primaryEmail
-  if (!email) {
+async function loadBookings(options = {}) {
+  const { silent = false } = options
+  const lookup = resolveBookingLookup()
+  if (!lookup.hasIdentity) {
     bookings.value = []
     return
   }
 
-  isLoadingBookings.value = true
+  if (!silent) {
+    isLoadingBookings.value = true
+  }
   try {
-    const result = await apiGet('bookings', { customer_email: email })
+    const result = await apiGet('bookings', {
+      user_id: lookup.userId || undefined,
+      customer_email: lookup.email || undefined,
+      customer_phone: lookup.phone || undefined,
+    })
     const rows = Array.isArray(result.data) ? result.data : []
     let apiRows = rows
-    if (!apiRows.length && fallbackEmail) {
-      const fallbackResult = await apiGet('bookings', { customer_email: fallbackEmail })
+    if (!apiRows.length && lookup.fallbackEmail) {
+      const fallbackResult = await apiGet('bookings', {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.fallbackEmail,
+        customer_phone: lookup.phone || undefined,
+      })
       apiRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : []
     }
     const apiMappedRows = apiRows.map((row) =>
-      mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
+      decorateCustomerBookingActions(
+        mapApiBooking(row, { vendorName: vendorProfile.name, eventTypeMap }),
+      ),
     )
     const localRows = [
-      ...getLocalBookingsByEmail(email),
-      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+      ...getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone }),
+      ...(lookup.fallbackEmail ? getLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone }) : []),
     ]
+    const uniqueLocalRows = localRows.filter(
+      (row, index, items) =>
+        index === items.findIndex((candidate) => getBookingMatchKey(candidate) === getBookingMatchKey(row)),
+    )
     const apiKeys = new Set(apiMappedRows.map((row) => getBookingMatchKey(row)))
-    const extraLocalRows = localRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)))
+    const extraLocalRows = uniqueLocalRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)))
     bookings.value = [...apiMappedRows, ...extraLocalRows]
     if (extraLocalRows.length === 0) {
-      clearLocalBookingsByEmail(email)
+      clearLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone })
+      if (lookup.fallbackEmail) {
+        clearLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone })
+      }
     }
   } catch (error) {
-    const localRows = getLocalBookingsByEmail(email)
+    const localRows = getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone })
     bookings.value = localRows
-    notice.value = localRows.length
-      ? uiText.value.loadedLatestBooking
-      : uiText.value.couldNotLoadBookings
+    if (!silent) {
+      notice.value = localRows.length
+        ? uiText.value.loadedLatestBooking
+        : uiText.value.couldNotLoadBookings
+    }
   } finally {
-    isLoadingBookings.value = false
+    if (!silent) {
+      isLoadingBookings.value = false
+    }
   }
 }
 
@@ -1601,7 +1793,7 @@ async function bootstrapAuthenticatedShell() {
       tasks.push(loadVendorBookings())
       tasks.push(loadVendorSettings({ silent: true }))
     }
-    if (!isVendorAccount.value && customerEmail.value.trim()) tasks.push(loadBookings())
+    if (!isVendorAccount.value && resolveBookingLookup().hasIdentity) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
   } finally {
@@ -1664,6 +1856,9 @@ function goToProfile() {
 
 function goToBookings() {
   currentPage.value = 'bookings'
+  if (!isVendorAccount.value && resolveBookingLookup().hasIdentity) {
+    loadBookings({ silent: true })
+  }
 }
 
 function goToHomePage() {
@@ -1701,9 +1896,11 @@ async function bookPackage(item) {
   }
 
   const name = customerName.value.trim()
-  const email = customerEmail.value.trim()
+  const contact = splitBookingContact(customerEmail.value)
+  const email = contact.email
+  const phone = contact.phone || userPhone.value.trim()
 
-  if (!name || !email) {
+  if (!name || (!email && !phone)) {
     notice.value = uiText.value.enterNameEmail
     return
   }
@@ -1722,12 +1919,13 @@ async function bookPackage(item) {
 
   bookingSubmittingEventId.value = item.id
   try {
-    await apiPost('bookings', {
+    await apiPost('bookings', normalizeBookingRequestPayload({
       event_id: item.id,
       quantity,
       customer_name: name,
-      customer_email: email,
-    })
+      customer_email: email || customerEmail.value.trim(),
+      customer_phone: phone || undefined,
+    }))
 
     notice.value = `${uiText.value.bookingCreatedFor} ${item.title}.`
     await loadBookings()
@@ -1757,7 +1955,40 @@ function bookingPrimaryAction(item) {
 }
 
 function bookingSecondaryAction(item) {
+  if (item?.canDelete) {
+    void deleteCustomerBooking(item)
+    return
+  }
+
   item.note = uiText.value.rescheduleRequested
+}
+
+async function deleteCustomerBooking(item) {
+  if (!item) return
+
+  const shouldDelete =
+    typeof window === 'undefined'
+      ? true
+      : window.confirm(uiText.value.confirmDeleteCompletedBooking || 'Delete this completed booking?')
+
+  if (!shouldDelete) return
+
+  const bookingId = Number(item.id || 0)
+
+  try {
+    if (Number.isFinite(bookingId) && bookingId > 0 && loggedInUser.value) {
+      await apiDelete(`user/bookings/${bookingId}`)
+    }
+
+    deleteLocalBookingEntry(item)
+    bookings.value = bookings.value.filter(
+      (candidate) => getBookingMatchKey(candidate) !== getBookingMatchKey(item),
+    )
+    await loadNotifications({ silent: true })
+    notice.value = `${item.service || uiText.value.serviceBooking} - ${uiText.value.bookingDeleted}`
+  } catch (error) {
+    notice.value = error?.message || uiText.value.couldNotDeleteBooking
+  }
 }
 
 async function confirmCustomization() {
@@ -1778,7 +2009,7 @@ watch([customerName, customerEmail, userPhone, userLocation, userProfileImageUrl
   localStorage.setItem('achar_user_profile_image', userProfileImageUrl.value || '')
 })
 
-watch(customerEmail, () => {
+watch([customerEmail, userPhone], () => {
   if (!loggedInUser.value || isBootstrappingAuth.value) return
 
   if (!isVendorAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
@@ -1799,6 +2030,8 @@ watch(loggedInUser, (user) => {
   notificationsUnreadCount.value = 0
   notificationsError.value = ''
   notificationDropdownOpen.value = false
+  latestCustomerBookingStatusNotificationId = null
+  hasInitializedCustomerBookingStatusNotifications = false
   window.dispatchEvent(new Event('achar:auth-updated'))
 })
 watch(
@@ -1840,6 +2073,7 @@ onMounted(async () => {
   }
   if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
+  if (!userPhone.value.trim()) userPhone.value = loggedInUser.value?.phone || ''
   handlePostAuthRedirect()
   await bootstrapAuthenticatedShell()
   consumeMessageVendorTarget()
@@ -1868,7 +2102,6 @@ onBeforeUnmount(() => {
         :vendor-bookings="vendorBookings"
         :is-loading-events="isLoadingEvents"
         :is-loading-vendor-bookings="isLoadingVendorBookings"
-        :notice="vendorDashboardNotice"
         :vendor-service-form="vendorServiceForm"
         :is-submitting-vendor-service="isSubmittingVendorService"
         :vendor-service-notice="vendorServiceNotice"
@@ -1914,7 +2147,6 @@ onBeforeUnmount(() => {
       :go-to-messages="goToMessages"
       :go-to-package-customization="goToPackageCustomization"
       :open-upcoming-bookings="openUpcomingBookings"
-      :logout-user="logout"
     />
 
       <VendorPage

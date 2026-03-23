@@ -7,8 +7,21 @@ import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
-import { mapBooking as mapApiBooking } from "../features/bookingMappers";
+import {
+  formatDateTime,
+  getBookingMatchKey,
+  mapBooking as mapApiBooking,
+  normalizeBookingEventTypeKey,
+  summarizeBookedServices,
+} from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
+import {
+  formatEventPriceLabel,
+  mapPackageServicesForDisplay,
+  normalizePackageServices,
+  resolveEventPrice,
+} from "../features/packagePricing";
+import { fallbackPublicEvents } from "../features/publicEventFallbacks";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -261,57 +274,112 @@ const copyByLanguage = {
 };
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 
-// Demo seed for when API returns no events (keeps services list visible in preview)
-const fallbackDemoEvents = [
-  {
-    id: 9001,
-    title: "Signature Wedding Floral & Styling",
-    description: "Full-venue floral design, aisle & backdrop styling tailored for intimate to mid-size weddings.",
-    price: 1800,
-    event_type: "wedding",
-    location: "Phnom Penh, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.wedding,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9002,
-    title: "Monk Ceremony Setup",
-    description: "Respectful altar layout, seating, sound, and offering coordination with flexible timing.",
-    price: 650,
-    event_type: "monk_ceremony",
-    location: "Kandal Province",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.monk_ceremony,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9003,
-    title: "Corporate Gala Décor",
-    description: "Stage styling, centerpieces, brand color palette execution, and guest flow support.",
-    price: 2400,
-    event_type: "company_party",
-    location: "Phnom Penh, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.company_party,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9004,
-    title: "Birthday Backdrop & Balloon Bar",
-    description: "Photo-ready backdrop, themed props, and balloon bar for kids or adult celebrations.",
-    price: 520,
-    event_type: "birthday",
-    location: "Siem Reap, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.birthday,
-    vendor: { name: vendorProfile.name },
-  },
-];
-
 const DEMO_BOOKINGS_STORAGE_KEY = "achar_demo_bookings";
 const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
 const LAST_BOOKING_EMAIL_KEY = "achar_last_booking_email";
+const LAST_BOOKING_PHONE_KEY = "achar_last_booking_phone";
+
+function normalizeBookingEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeBookingPhone(value) {
+  return String(value || "").replace(/\D+/g, "");
+}
+
+function splitBookingContact(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return { email: "", phone: "" };
+  }
+
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  return {
+    email: looksLikeEmail ? trimmed.toLowerCase() : "",
+    phone: looksLikeEmail ? "" : trimmed,
+  };
+}
+
+function getLocalBookingsByIdentity({ email = "", phone = "" } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email);
+  const normalizedPhone = normalizeBookingPhone(phone);
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return [];
+    if (!normalizedEmail && !normalizedPhone) return rows;
+    return rows.filter((row) => {
+      const matchesEmail =
+        normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail;
+      const matchesPhone =
+        normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone;
+      return matchesEmail || matchesPhone;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function clearLocalBookingsByIdentity({ email = "", phone = "" } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email);
+  const normalizedPhone = normalizeBookingPhone(phone);
+  if (!normalizedEmail && !normalizedPhone) return;
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return;
+
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return;
+
+    const remainingRows = rows.filter(
+      (row) =>
+        !(
+          (normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail) ||
+          (normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone)
+        ),
+    );
+
+    if (remainingRows.length === rows.length) return;
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows));
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
+}
+
+function resolveBookingLookup(authUser = null) {
+  const userId = Number(authUser?.id || 0);
+  const typedContact = splitBookingContact(localStorage.getItem("achar_customer_email") || "");
+  const typedEmail = normalizeBookingEmail(typedContact.email);
+  const loggedEmail = normalizeBookingEmail(authUser?.email || "");
+  const lastEmail = normalizeBookingEmail(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "");
+  const email = typedEmail || loggedEmail || lastEmail;
+  const fallbackEmail = lastEmail && lastEmail !== email ? lastEmail : "";
+  const phone = String(
+    typedContact.phone ||
+      authUser?.phone ||
+      localStorage.getItem("achar_user_phone") ||
+      localStorage.getItem(LAST_BOOKING_PHONE_KEY) ||
+      "",
+  ).trim();
+
+  return {
+    userId: userId > 0 ? userId : null,
+    email,
+    fallbackEmail,
+    phone,
+    hasIdentity: Boolean(userId > 0 || email || phone),
+  };
+}
+
 function shouldShowDemoBookings() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -455,50 +523,43 @@ const fallbackDemoBookings = [
   },
 ];
 
-function getLocalBookingsByEmail(email) {
-  try {
-    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
-    if (!raw) return [];
-    const rows = JSON.parse(raw);
-    if (!Array.isArray(rows)) return [];
-    if (!email) return rows;
-    return rows.filter(
-      (row) => String(row?.customerEmail || "").trim().toLowerCase() === email.trim().toLowerCase(),
-    );
-  } catch {
-    return [];
-  }
-}
-
 function mapLocalBookingRow(row) {
   const status = String(row?.status || "pending").toLowerCase();
   const statusText =
     status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending Approval";
   const statusClass =
     status === "confirmed" ? "confirmed" : status === "cancelled" ? "done" : "pending";
+  const bookingDate =
+    row?.requestedEventDate || row?.requested_event_date || row?.dateLabel || row?.eventDate || "";
+  const eventType = normalizeBookingEventTypeKey(
+    row?.eventType,
+    row?.requestedEventType,
+    row?.requested_event_type,
+  );
+  const bookedItems = Array.isArray(row?.booked_items) ? row.booked_items : [];
   return {
     id: row?.id || `local-${Date.now()}`,
     vendor: row?.vendor || "Selected Vendor",
-    service: row?.service || "Service Booking",
+    service: summarizeBookedServices(bookedItems, row?.service || "Service Booking"),
     servicePrice: Number(row?.total || row?.total_amount || 0),
     quantity: Number(row?.quantity || 1),
-    date: row?.dateLabel || row?.eventDate || "Date TBD",
+    date: formatDateTime(bookingDate),
     metaLabel: "Event Type",
-    metaValue: eventTypeMap[row?.eventType] || "Other",
+    metaValue: eventTypeMap[eventType] || "Other",
     placeLabel: "Total",
     placeValue: `$${Number(row?.total || row?.total_amount || 0).toLocaleString()}`,
     status: statusText,
     statusClass,
     type: row?.type || "Upcoming",
-    eventType: row?.eventType || "other",
+    eventType,
     eventId: row?.eventId || null,
     image:
       row?.image ||
       "https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80",
-    bookedItems: Array.isArray(row?.booked_items) ? row.booked_items : [],
+    bookedItems,
     primaryBtn: "View Details",
     secondaryBtn: statusClass === "pending" ? "Message Vendor" : "Reschedule",
-    note: [row?.customerName, row?.customerEmail].filter(Boolean).join(" | "),
+    note: [row?.customerName, row?.customerEmail || row?.customerPhone].filter(Boolean).join(" | "),
     rawBooking: row,
   };
 }
@@ -725,10 +786,16 @@ function formatEventDateLabel(value) {
 function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
   const serviceMode = String(item.service_mode || "overall");
-  const price = Number(item.price || 0);
+  const packages = normalizePackageServices(item.packages);
+  const price = resolveEventPrice({
+    packages,
+    serviceMode,
+    fallbackPrice: item.price,
+  });
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
+  const isPreview = Boolean(item.is_demo);
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -738,15 +805,18 @@ function mapEventToGuestPackage(item) {
     location: item.location || "Location TBD",
     date: formatEventDateLabel(item.starts_at),
     price,
-    priceLabel: `From $${price.toLocaleString()}`,
+    priceLabel: formatEventPriceLabel(price, serviceMode),
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
-    services: buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
-    isPreview: false,
-    backingEventId: Number(item.id || 0) || null,
+    services: packages.length
+      ? mapPackageServicesForDisplay(packages)
+      : buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
+    isPreview,
+    backingEventId: isPreview ? null : Number(item.id || 0) || null,
     vendorName,
     vendorImage,
     vendorId,
     vendor: item.vendor || null,
+    packages,
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
@@ -757,6 +827,7 @@ function mapEventToGuestService(item) {
   const serviceMode = String(item.service_mode || "overall");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
+  const isPreview = Boolean(item.is_demo);
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -764,7 +835,7 @@ function mapEventToGuestService(item) {
     price: Number(item.price || 0),
     eventType,
     eventTypes: [eventType],
-    backingEventId: Number(item.id || 0) || null,
+    backingEventId: isPreview ? null : Number(item.id || 0) || null,
     vendorName: String(item.vendor?.name || "Verified Vendor"),
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
@@ -773,6 +844,7 @@ function mapEventToGuestService(item) {
     vendor: item.vendor || null,
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
+    isPreview,
   };
 }
 
@@ -801,7 +873,6 @@ async function loadLiveVendorEvents() {
   try {
     const result = await apiGet("events", {
       per_page: 100,
-      include_inactive: 1,
       ts: Date.now(),
     });
     rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
@@ -811,7 +882,7 @@ async function loadLiveVendorEvents() {
 
   if (!rows.length) {
     try {
-      const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      const fallbackResponse = await fetch("/api/events?per_page=100", {
         headers: {
           Accept: "application/json",
         },
@@ -837,11 +908,11 @@ async function loadLiveVendorEvents() {
       EVENTS_CACHE_KEY,
       JSON.stringify({ data: rows, cachedAt: Date.now() }),
     );
+    return;
   }
 
-  if (!liveVendorEvents.value.length) {
-    liveVendorEvents.value = fallbackDemoEvents;
-  }
+  sessionStorage.removeItem(EVENTS_CACHE_KEY);
+  liveVendorEvents.value = fallbackPublicEvents;
 }
 
 async function loadGuestBookings() {
@@ -856,11 +927,10 @@ async function loadGuestBookings() {
     }
   }
 
+  const lookup = resolveBookingLookup(authUser);
+
   if (!authUser) {
-    const fallbackEmail =
-      String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim() ||
-      String(localStorage.getItem("achar_customer_email") || "").trim();
-    const localRows = getLocalBookingsByEmail(fallbackEmail);
+    const localRows = getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone });
     if (localRows.length) {
       guestBookings.value = mapRowsToGuestBookings(localRows);
       bookingPageNotice.value = "";
@@ -876,13 +946,7 @@ async function loadGuestBookings() {
     return;
   }
 
-  const typedEmail = String(localStorage.getItem("achar_customer_email") || "").trim();
-  const loggedEmail = String(authUser?.email || "").trim();
-  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim();
-  const primaryEmail = typedEmail || loggedEmail || lastEmail;
-  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : "";
-  const customerEmail = primaryEmail.trim().toLowerCase();
-  if (!customerEmail) {
+  if (!lookup.hasIdentity) {
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
     return;
@@ -890,20 +954,40 @@ async function loadGuestBookings() {
 
   isLoadingGuestBookings.value = true;
   try {
-    const result = await apiGet("bookings", { customer_email: customerEmail });
+    const result = await apiGet("bookings", {
+      user_id: lookup.userId || undefined,
+      customer_email: lookup.email || undefined,
+      customer_phone: lookup.phone || undefined,
+    });
     let rows = Array.isArray(result?.data) ? result.data : [];
-    if (!rows.length && fallbackEmail) {
-      const fallbackResult = await apiGet("bookings", { customer_email: fallbackEmail });
+    if (!rows.length && lookup.fallbackEmail) {
+      const fallbackResult = await apiGet("bookings", {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.fallbackEmail,
+        customer_phone: lookup.phone || undefined,
+      });
       rows = Array.isArray(fallbackResult?.data) ? fallbackResult.data : [];
     }
     const localRows = [
-      ...getLocalBookingsByEmail(customerEmail),
-      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+      ...getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone }),
+      ...(lookup.fallbackEmail
+        ? getLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone })
+        : []),
     ];
+    const uniqueLocalRows = localRows.filter(
+      (row, index, items) =>
+        index === items.findIndex((candidate) => getBookingMatchKey(candidate) === getBookingMatchKey(row)),
+    );
     const apiMapped = mapRowsToGuestBookings(rows);
-    const apiKeys = new Set(apiMapped.map((row) => row.id));
-    const extraLocal = localRows.filter((row) => !apiKeys.has(row.id));
+    const apiKeys = new Set(apiMapped.map((row) => getBookingMatchKey(row)));
+    const extraLocal = uniqueLocalRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)));
     guestBookings.value = [...apiMapped, ...mapRowsToGuestBookings(extraLocal)];
+    if (extraLocal.length === 0) {
+      clearLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone });
+      if (lookup.fallbackEmail) {
+        clearLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone });
+      }
+    }
     bookingPageNotice.value = "";
   } catch (error) {
     guestBookings.value = [];
@@ -993,6 +1077,11 @@ const prebookSummaryQuantity = computed(() => {
 const prebookSummaryPackage = computed(() => {
   const byTarget = guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) || null;
   return byTarget || selectedPackage.value || null;
+});
+
+const isPreviewPrebookTarget = computed(() => {
+  if (prebookSummaryPackage.value?.isPreview) return true;
+  return Boolean(section.value === "services-overall" && primarySelectedService.value?.isPreview);
 });
 
 const prebookSummaryPackageSubtotal = computed(() => {
@@ -1219,8 +1308,18 @@ function scheduleTypedPrebookLocationResolve() {
 }
 
 async function submitPrebookForm() {
+  if (isPreviewPrebookTarget.value) {
+    prebookSuccess.value = prebookAvailabilityLabel.value;
+    return;
+  }
+
   if (activePrebookEventId.value && !canSubmitPrebook.value) {
     prebookSuccess.value = prebookAvailabilityLabel.value;
+    return;
+  }
+
+  if (!String(prebookForm.value.email || "").trim() && !String(prebookForm.value.phone || "").trim()) {
+    prebookSuccess.value = "Please enter email or phone number.";
     return;
   }
 
@@ -1270,27 +1369,44 @@ async function submitPrebookForm() {
     targetPackage?.qrCodeUrl ||
     primaryService?.qrCodeUrl ||
     "";
-
-  const payload = {
-    vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
-    vendorName:
+  const requestedEventType = normalizeBookingEventTypeKey(
+    usingOverallFlow ? primaryService?.eventType || primaryService?.eventTypes?.[0] : targetPackage?.eventType,
+    targetPackage?.eventType,
+    usingOverallFlow && customizationEventType.value !== "all" ? customizationEventType.value : "",
+  );
+  const checkoutDisplayTitle = usingOverallFlow
+    ? primaryService?.name || prebookTargetTitle.value || targetPackage?.title || "Selected Vendor"
+    : prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor";
+  const checkoutVendorName = usingOverallFlow
+    ? primaryService?.vendorName ||
       selectedPackage.value?.vendorName ||
       activePackage.value?.vendorName ||
+      "Selected Vendor"
+    : selectedPackage.value?.vendorName ||
+      activePackage.value?.vendorName ||
       primaryService?.vendorName ||
-      "Selected Vendor",
-    eventId:
+      "Selected Vendor";
+  const checkoutEventId = usingOverallFlow
+    ? primaryService?.backingEventId ||
       selectedPackage.value?.backingEventId ||
       activePackage.value?.backingEventId ||
+      null
+    : selectedPackage.value?.backingEventId ||
+      activePackage.value?.backingEventId ||
       primaryService?.backingEventId ||
-      null,
-    image:
-      selectedPackage.value?.image ||
-      activePackage.value?.image ||
-      primaryService?.image ||
-      packageImageByEventType[
-        selectedPackage.value?.eventType || activePackage.value?.eventType || primaryService?.eventType || "other"
-      ] ||
-      packageImageByEventType.other,
+      null;
+  const checkoutImage =
+    (usingOverallFlow
+      ? primaryService?.image || selectedPackage.value?.image || activePackage.value?.image
+      : selectedPackage.value?.image || activePackage.value?.image || primaryService?.image) ||
+    packageImageByEventType[requestedEventType] ||
+    packageImageByEventType.other;
+
+  const payload = {
+    vendorTitle: checkoutDisplayTitle,
+    vendorName: checkoutVendorName,
+    eventId: checkoutEventId,
+    image: checkoutImage,
     fullName: prebookForm.value.fullName,
     email: prebookForm.value.email,
     phone: prebookForm.value.phone,
@@ -1300,9 +1416,7 @@ async function submitPrebookForm() {
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
-    requestedEventType: usingOverallFlow
-      ? customizationEventType.value
-      : targetPackage?.eventType || "other",
+    requestedEventType,
     items: checkoutItems,
     qrCodeUrl: paymentQrCodeUrl,
   };
@@ -1396,6 +1510,7 @@ const activePrebookEventId = computed(
 );
 
 const prebookAvailabilityTone = computed(() => {
+  if (isPreviewPrebookTarget.value) return "neutral";
   if (!activePrebookEventId.value || !prebookForm.value.eventDate) return "neutral";
   if (isCheckingPrebookAvailability.value) return "neutral";
   if (!prebookAvailability.value) return "neutral";
@@ -1405,6 +1520,9 @@ const prebookAvailabilityTone = computed(() => {
 });
 
 const prebookAvailabilityLabel = computed(() => {
+  if (isPreviewPrebookTarget.value) {
+    return "Preview service only. Add a live vendor service to allow booking.";
+  }
   if (!activePrebookEventId.value) return "Select a live vendor service to check date availability.";
   if (!prebookForm.value.eventDate) return "Choose your event date to check if this vendor is free.";
   if (isCheckingPrebookAvailability.value) return "Checking selected date...";
@@ -1412,6 +1530,7 @@ const prebookAvailabilityLabel = computed(() => {
 });
 
 const canSubmitPrebook = computed(() => {
+  if (isPreviewPrebookTarget.value) return false;
   if (!activePrebookEventId.value) return true;
   if (isCheckingPrebookAvailability.value || !prebookForm.value.eventDate || !prebookAvailability.value) {
     return false;
@@ -1419,6 +1538,14 @@ const canSubmitPrebook = computed(() => {
 
   return Boolean(prebookAvailability.value.service_available && prebookAvailability.value.vendor_available);
 });
+
+function toFriendlyPrebookErrorMessage(error) {
+  const message = String(error?.message || "").trim();
+  if (/No query results for model \[App\\Models\\Event\]/.test(message)) {
+    return "This service is no longer available. Please choose another one.";
+  }
+  return message || "Could not check availability for the selected date.";
+}
 
 async function checkPrebookAvailability() {
   if (!activePrebookEventId.value || !prebookForm.value.eventDate) {
@@ -1437,7 +1564,7 @@ async function checkPrebookAvailability() {
       service_available: false,
       vendor_available: false,
       is_active: true,
-      message: error?.message || "Could not check availability for the selected date.",
+      message: toFriendlyPrebookErrorMessage(error),
     };
   } finally {
     isCheckingPrebookAvailability.value = false;
@@ -2020,7 +2147,12 @@ watch(
     if (lastHandledPrebookEventId.value === eventId) return;
 
     const targetPackage = packages.find((item) => Number(item.backingEventId || 0) === eventId);
-    if (!targetPackage) return;
+    if (!targetPackage) {
+      const nextQuery = { ...route.query };
+      delete nextQuery.prebookEventId;
+      router.replace({ path: route.path, query: nextQuery }).catch(() => {});
+      return;
+    }
 
     selectedPackageId.value = targetPackage.id;
     packageQuantity.value = 1;
@@ -2915,7 +3047,7 @@ function noop() {}
 
                   <label class="prebook-field">
                     <span>Email</span>
-                    <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" required />
+                    <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" />
                   </label>
 
                   <label class="prebook-field prebook-span-2">
@@ -2923,7 +3055,6 @@ function noop() {}
                     <input
                       v-model.trim="prebookForm.phone"
                       type="tel"
-                      required
                       placeholder="+1 555 234 5678"
                     />
                   </label>
@@ -3146,9 +3277,15 @@ function noop() {}
             <button
               type="submit"
               class="modal-action-btn modal-action-primary"
-              :disabled="activePrebookEventId && !canSubmitPrebook"
+              :disabled="isPreviewPrebookTarget || (activePrebookEventId && !canSubmitPrebook)"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "Continue to Checkout" }}
+              {{
+                isPreviewPrebookTarget
+                  ? "Preview Only"
+                  : isCheckingPrebookAvailability
+                    ? "Checking..."
+                    : "Continue to Checkout"
+              }}
             </button>
           </div>
         </form>

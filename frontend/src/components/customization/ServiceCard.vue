@@ -106,6 +106,15 @@ function formatCurrency(value) {
     @click="emit('toggle-details', service.id)"
     @keyup.enter="emit('toggle-details', service.id)"
   >
+    <div v-if="service.image" class="addon-card-preview">
+      <img
+        class="addon-card-thumb"
+        :src="service.image"
+        :alt="service.name"
+        loading="lazy"
+      />
+    </div>
+
     <div class="addon-card-row">
       <strong>{{ service.name }}</strong>
       <div class="addon-card-meta">
