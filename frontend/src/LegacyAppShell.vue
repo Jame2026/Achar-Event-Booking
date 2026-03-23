@@ -1974,10 +1974,20 @@ async function deleteCustomerBooking(item) {
   if (!shouldDelete) return
 
   const bookingId = Number(item.id || 0)
+  const lookup = resolveBookingLookup()
 
   try {
-    if (Number.isFinite(bookingId) && bookingId > 0 && loggedInUser.value) {
-      await apiDelete(`user/bookings/${bookingId}`)
+    if (Number.isFinite(bookingId) && bookingId > 0) {
+      if (!lookup.hasIdentity) {
+        notice.value = uiText.value.signInToContinue
+        return
+      }
+
+      await apiDelete(`user/bookings/${bookingId}`, {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.email || lookup.fallbackEmail || undefined,
+        customer_phone: lookup.phone || undefined,
+      })
     }
 
     deleteLocalBookingEntry(item)

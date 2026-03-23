@@ -392,16 +392,45 @@ class BookingController extends Controller
 
     public function destroyForUser(Request $request, Booking $booking): JsonResponse
     {
-        /** @var \App\Models\User $user */
-        $user = $request->user();
-
         $booking->loadMissing([
             'event:id,title,starts_at,location,vendor_id',
             'event.vendor:id,name,email',
             'user:id,name,email,phone',
         ]);
 
-        if (! $this->canUserAccessBooking($user, $booking)) {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        $canAccess = false;
+
+        if ($user instanceof User) {
+            $canAccess = $this->canUserAccessBooking($user, $booking);
+        } else {
+            $validated = $request->validate([
+                'user_id' => ['nullable', 'integer', 'min:1'],
+                'customer_email' => ['nullable', 'email', 'max:255'],
+                'customer_phone' => ['nullable', 'string', 'max:20'],
+            ]);
+
+            $customerEmail = isset($validated['customer_email'])
+                ? strtolower(trim((string) $validated['customer_email']))
+                : null;
+            $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+            $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+
+            if (! $userId && ! $customerEmail && ! $customerPhoneVariants) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+
+            $canAccess = $this->canIdentityAccessBooking(
+                $booking,
+                $userId,
+                $customerEmail,
+                $customerPhoneVariants,
+            );
+        }
+
+        if (! $canAccess) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -507,23 +536,38 @@ class BookingController extends Controller
 
     private function canUserAccessBooking(User $user, Booking $booking): bool
     {
-        if ((int) ($booking->user_id ?? 0) === (int) $user->id) {
-            return true;
-        }
-
         $userEmail = strtolower(trim((string) ($user->email ?? '')));
-        $bookingEmail = strtolower(trim((string) ($booking->customer_email ?? $booking->user?->email ?? '')));
-        if ($userEmail !== '' && $bookingEmail !== '' && $userEmail === $bookingEmail) {
+        $userPhoneVariants = $this->bookingPhoneLookupVariants($user->phone ?? null);
+
+        return $this->canIdentityAccessBooking(
+            $booking,
+            (int) $user->id,
+            $userEmail !== '' ? $userEmail : null,
+            $userPhoneVariants,
+        );
+    }
+
+    private function canIdentityAccessBooking(
+        Booking $booking,
+        ?int $userId = null,
+        ?string $customerEmail = null,
+        array $customerPhoneVariants = [],
+    ): bool {
+        if ($userId && (int) ($booking->user_id ?? 0) === $userId) {
             return true;
         }
 
-        $userPhoneVariants = $this->bookingPhoneLookupVariants($user->phone ?? null);
+        $bookingEmail = strtolower(trim((string) ($booking->customer_email ?? $booking->user?->email ?? '')));
+        if ($customerEmail && $bookingEmail !== '' && $bookingEmail === strtolower(trim($customerEmail))) {
+            return true;
+        }
+
         $bookingPhoneVariants = array_values(array_unique(array_merge(
             $this->bookingPhoneLookupVariants($booking->customer_phone ?? null),
             $this->bookingPhoneLookupVariants($booking->user?->phone ?? null),
         )));
 
-        return count(array_intersect($userPhoneVariants, $bookingPhoneVariants)) > 0;
+        return count(array_intersect($customerPhoneVariants, $bookingPhoneVariants)) > 0;
     }
 
     private function canCustomerDeleteBooking(Booking $booking): bool

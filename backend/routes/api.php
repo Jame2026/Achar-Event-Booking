@@ -94,12 +94,12 @@ Route::prefix('user')->group(function () {
     Route::post('/chats', [ChatController::class, 'userCreate']);
     Route::get('/chats', [ChatController::class, 'userIndex']);
     Route::post('/chats/{conversation}/messages', [ChatController::class, 'userSendMessage']);
+    Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
 });
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
-    Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
     Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 
