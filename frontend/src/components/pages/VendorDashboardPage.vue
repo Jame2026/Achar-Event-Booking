@@ -7104,7 +7104,7 @@ watch(
 }
 
 .booking-detail-card {
-  width: min(760px, 100%);
+  width: min(960px, calc(100vw - 36px));
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -7286,6 +7286,16 @@ watch(
   font-size: 13px;
   color: #0f172a;
   text-align: left;
+}
+
+.detail-block-customer .detail-list span {
+  font-size: 10px;
+}
+
+.detail-block-customer .detail-list strong {
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .detail-block-wide {
