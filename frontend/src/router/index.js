@@ -24,8 +24,18 @@ function getStoredRole() {
   }
 }
 
+function isDashboardRole(role) {
+  return role === 'vendor' || role === 'admin'
+}
+
 function dashboardRedirect() {
-  return getStoredRole() === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+  return isDashboardRole(getStoredRole()) ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+}
+
+function adminLoginRedirect() {
+  return isDashboardRole(getStoredRole())
+    ? '/legacy-app?page=dashboard'
+    : '/legacy-app?view=login&page=dashboard'
 }
 
 const routes = [
@@ -82,6 +92,26 @@ const routes = [
     path: "/legacy-app",
     name: "LegacyApp",
     component: LegacyAppShell,
+  },
+  {
+    path: "/login",
+    redirect: "/legacy-app?view=login",
+  },
+  {
+    path: "/register",
+    redirect: "/legacy-app?view=register",
+  },
+  {
+    path: "/admin",
+    redirect: adminLoginRedirect,
+  },
+  {
+    path: "/admin/login",
+    redirect: adminLoginRedirect,
+  },
+  {
+    path: "/admin/dashboard",
+    redirect: adminLoginRedirect,
   },
   {
     path: "/forgot-password",
