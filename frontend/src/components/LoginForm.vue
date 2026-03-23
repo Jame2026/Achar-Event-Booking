@@ -4,7 +4,7 @@ import { useLanguageCopy } from '../features/language'
 
 const emit = defineEmits<{
   switch: []
-  success: [user: { id: number; name: string; email: string; role: string }]
+  success: [user: { id: number; name: string; email?: string | null; phone?: string | null; role: string }]
 }>()
 
 const showPassword = ref(false)
