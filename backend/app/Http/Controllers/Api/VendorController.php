@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\VendorSetting;
@@ -79,6 +80,7 @@ class VendorController extends Controller
             'capacity' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         $vendor = $this->resolveVendorFromRequest($request);
         if ($vendor instanceof JsonResponse) {
@@ -148,6 +150,7 @@ class VendorController extends Controller
             'capacity' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
@@ -241,12 +244,28 @@ class VendorController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $booking->update([
-            'status' => $validated['status'],
-        ]);
+        $previousStatus = (string) ($booking->status ?? 'pending');
+        $nextStatus = (string) $validated['status'];
+
+        if ($previousStatus !== $nextStatus) {
+            $booking->update([
+                'status' => $nextStatus,
+            ]);
+        }
+
         VendorCache::flushVendor($vendor->id);
 
-        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url']));
+        $updatedBooking = $booking->fresh()->load([
+            'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone,location,profile_image_url',
+        ]);
+
+        if ($previousStatus !== $nextStatus) {
+            $this->createCustomerBookingStatusNotification($updatedBooking, $nextStatus);
+        }
+
+        return response()->json($updatedBooking);
     }
 
     public function destroyBookingByVendorId(Request $request, Booking $booking): JsonResponse
@@ -426,6 +445,26 @@ class VendorController extends Controller
         $request->merge(['packages' => $decoded]);
     }
 
+    private function syncPackagePrice(array $validated): array
+    {
+        if (($validated['service_mode'] ?? null) !== 'package') {
+            return $validated;
+        }
+
+        $packages = $validated['packages'] ?? [];
+        if (! is_array($packages)) {
+            $validated['price'] = 0;
+
+            return $validated;
+        }
+
+        $validated['price'] = round(array_reduce($packages, function ($sum, $package) {
+            return $sum + (float) ($package['price'] ?? 0);
+        }, 0), 2);
+
+        return $validated;
+    }
+
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
     {
         $validated = $request->validate([
@@ -458,6 +497,45 @@ class VendorController extends Controller
         }
 
         return $bookingDate->lt(Carbon::today());
+    }
+
+    private function createCustomerBookingStatusNotification(Booking $booking, string $nextStatus): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()
+                ->with('vendor:id,name,email')
+                ->select(['id', 'title', 'starts_at', 'vendor_id'])
+                ->first();
+
+        if (! $event || (! $booking->user_id && ! $booking->customer_email)) {
+            return;
+        }
+
+        $statusLabel = ucfirst($nextStatus);
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? Carbon::parse($event->starts_at)->format('M d, Y g:i A') : 'the scheduled date');
+        $message = $nextStatus === 'confirmed'
+            ? "Your booking for {$serviceName} on {$eventDate} has been confirmed by the vendor."
+            : "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.";
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'user',
+            'recipient_user_id' => $booking->user_id ? (int) $booking->user_id : null,
+            'recipient_email' => $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null,
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => $message,
+        ]);
+
+        $this->flushNotificationCache(
+            'user',
+            $booking->user_id ? (int) $booking->user_id : null,
+            $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null
+        );
     }
 
     private function flushNotificationCacheForBooking(Booking $booking, ?Event $event = null): void

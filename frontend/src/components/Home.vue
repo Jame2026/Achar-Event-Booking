@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
 import { useLanguage } from "../features/language";
+import { fallbackPublicEvents } from "../features/publicEventFallbacks";
 
 const router = useRouter();
 const { language } = useLanguage();
@@ -485,6 +486,7 @@ const eventTypes = computed(() => {
       eventId: Number(item.id || 0) || null,
       vendorName: item.vendor?.name || uiText.value.fallbackVendor,
       requestedEventType: eventTypeKey,
+      serviceMode: "package",
       name: item.title || uiText.value.serviceBooking,
       note: toEventLabel(eventTypeKey),
       description: String(item.description || "").trim() || uiText.value.professionalServiceReady,
@@ -512,6 +514,7 @@ const vendors = computed(() => {
       vendorId: Number(item.vendor_id || 0) || null,
       vendorName: item.vendor?.name || uiText.value.fallbackVendor,
       requestedEventType: eventTypeKey,
+      serviceMode: "overall",
       tag: price >= 2500 ? uiText.value.premium : uiText.value.topRated,
       title: item.title || uiText.value.serviceBooking,
       categories: [toEventLabel(eventTypeKey), item.location || uiText.value.fallbackLocation],
@@ -579,13 +582,13 @@ function onEventCardImageError(event, fallback) {
 function goToEvent(event) {
   const query = {};
   const eventType = String(event.requestedEventType || "").trim();
-  const title = String(event.name || "").trim();
-  const eventId = Number(event.eventId || 0);
+  const title = String(event.name || event.title || "").trim();
+  const targetPath = event.serviceMode === "overall" ? "/services/overall" : "/services/packages";
 
   if (eventType && eventType !== "other") query.event = eventType;
   if (title) query.q = title;
 
-  router.push({ path: "/services/packages", query });
+  router.push({ path: targetPath, query });
 }
 
 async function loadHomeData() {
@@ -609,14 +612,14 @@ async function loadHomeData() {
     }
 
     const fallbackJson = await fallbackResponse.json().catch(() => ({}));
-    eventRows.value = Array.isArray(fallbackJson?.data)
+    const fallbackRows = Array.isArray(fallbackJson?.data)
       ? fallbackJson.data
       : Array.isArray(fallbackJson)
         ? fallbackJson
         : [];
+    eventRows.value = fallbackRows.length ? fallbackRows : fallbackPublicEvents;
   } catch (error) {
-    dataLoadFailed.value = true;
-    eventRows.value = [];
+    eventRows.value = fallbackPublicEvents;
   } finally {
     isLoadingHomeData.value = false;
   }
