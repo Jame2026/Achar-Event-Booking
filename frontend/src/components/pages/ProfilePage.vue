@@ -1,4 +1,5 @@
 <script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
@@ -16,6 +17,34 @@ const props = defineProps([
   'isSavingProfile',
   'logoutUser',
 ])
+
+const showImagePreview = ref(false)
+const profileImageUrl = computed(() => props.bindings.userProfileDraft.value.profile_image_url || '')
+const isAvatarClickable = computed(() => Boolean(profileImageUrl.value))
+
+const openImagePreview = () => {
+  if (profileImageUrl.value) {
+    showImagePreview.value = true
+  }
+}
+
+const closeImagePreview = () => {
+  showImagePreview.value = false
+}
+
+const handleEscape = (event) => {
+  if (event.key === 'Escape' && showImagePreview.value) {
+    closeImagePreview()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscape)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleEscape)
+})
 
 const copyByLanguage = {
   en: {
@@ -102,7 +131,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       <section class="card profile-panel">
         <div class="profile-identity-card">
           <div class="profile-avatar-main">
-            <div class="profile-avatar-preview">
+            <div class="profile-avatar-preview" :class="{ 'clickable': isAvatarClickable }" @click="openImagePreview" role="button" tabindex="0" @keydown.enter="openImagePreview" @keydown.space.prevent="openImagePreview" :aria-label="isAvatarClickable ? 'Click to view full size' : 'No profile image'">
               <img
                 v-if="props.bindings.userProfileDraft.value.profile_image_url"
                 :src="props.bindings.userProfileDraft.value.profile_image_url"
@@ -112,6 +141,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                 {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
               </span>
             </div>
+
             <div class="profile-avatar-copy">
               <strong>{{ props.bindings.userProfileDraft.value.name || 'Your Profile' }}</strong>
               <small>{{ props.bindings.userProfileDraft.value.email || 'No email yet' }}</small>
@@ -123,6 +153,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
               </div>
             </div>
           </div>
+
           <div class="profile-avatar-actions">
             <label class="btn-light profile-upload-btn">
               <span class="btn-icon" aria-hidden="true">
@@ -212,6 +243,12 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           </button>
         </div>
       </section>
+
+      <div v-if="showImagePreview" class="image-preview-overlay" @click.self="closeImagePreview">
+        <button class="image-preview-close" aria-label="Close preview" @click="closeImagePreview">×</button>
+        <img class="image-preview-large" :src="profileImageUrl" alt="Large profile image" />
+        <div class="image-preview-hint">Press Esc or click outside to close</div>
+      </div>
 
       <aside class="card profile-side">
         <div class="section-head">
@@ -396,10 +433,92 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
+.profile-avatar-preview.clickable {
+  cursor: zoom-in;
+}
+
+.profile-avatar-preview.clickable:hover {
+  opacity: 0.92;
+}
+
 .profile-avatar-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 30, 0.7);
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.image-preview-large {
+  max-width: min(90vw, 550px);
+  max-height: min(90vh, 550px);
+  border-radius: 14px;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.45);
+  object-fit: contain;
+  background: #111;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  font-size: 1.4rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.image-preview-close:hover {
+  background: #fff;
+}
+
+.image-preview-large {
+  animation: scaleIn 220ms ease-out;
+}
+
+.image-preview-hint {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  padding: 4px 10px;
+  text-align: center;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .profile-avatar-copy {
