@@ -154,6 +154,14 @@ watch(() => route.query.page, syncActiveKey);
           </span>
           <span>{{ item.label }}</span>
         </button>
+        <RouterLink class="nav-item home-link" to="/">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z" />
+            </svg>
+          </span>
+          <span>Back to Home</span>
+        </RouterLink>
       </nav>
 
       <div class="admin-user-card">
@@ -439,6 +447,10 @@ watch(() => route.query.page, syncActiveKey);
   background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
   color: var(--accent);
   border-color: rgba(255, 122, 26, 0.25);
+}
+
+.home-link {
+  text-decoration: none;
 }
 
 .admin-user-card {
