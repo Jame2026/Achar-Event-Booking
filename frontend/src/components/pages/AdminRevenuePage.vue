@@ -17,6 +17,8 @@ const props = defineProps({
   },
 });
 
+const router = useRouter();
+const route = useRoute();
 const searchQuery = ref("");
 const navItems = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -27,21 +29,19 @@ const navItems = [
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
-const router = useRouter();
-const route = useRoute();
-const activeKey = ref("dashboard");
+const activeKey = ref("revenue");
 const stats = [
-  { label: "Total Events", value: "1,284", delta: "+12%", tone: "up" },
-  { label: "Total Bookings", value: "856", delta: "+5.4%", tone: "up" },
-  { label: "Total Users", value: "4,320", delta: "-2.1%", tone: "down" },
-  { label: "Revenue Summary", value: "$42,950.00", delta: "+18%", tone: "solid" },
+  { label: "Total Revenue", value: "$42,950.00", delta: "+12.4%" },
+  { label: "Pending Payouts", value: "$12,400.00", delta: "8 active" },
+  { label: "Platform Fees", value: "$6,442.50", delta: "1.5% fixed" },
+  { label: "Net Profit", value: "$24,107.50", delta: "+5.2%" },
 ];
-const activity = [
-  { name: "Sophea Van", detail: "created a new event “Modern Loft Showcase”", time: "2 hours ago" },
-  { name: "Meng Kong", detail: "completed a booking for “Design Consultation”", time: "5 hours ago" },
-  { name: "Dara Rath", detail: "submitted a revenue withdrawal request", time: "1 day ago" },
-  { name: "Srey Pich", detail: "registered as a new user", time: "2 days ago" },
+const transactions = [
+  { id: "#TXN-88421", name: "Skyline Media", date: "Oct 24, 2023", amount: "$1,240.00", status: "Completed" },
+  { id: "#TXN-88390", name: "Lumina Projects", date: "Oct 23, 2023", amount: "$2,850.00", status: "Pending" },
+  { id: "#TXN-88385", name: "Vertex Build", date: "Oct 22, 2023", amount: "$4,100.00", status: "Failed" },
 ];
+
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
     .split(" ")
@@ -58,7 +58,7 @@ const getRoutePage = () => {
 
 const syncActiveKey = () => {
   const page = getRoutePage();
-  activeKey.value = page || "dashboard";
+  activeKey.value = page || "revenue";
 };
 
 const navigateTo = (key) => {
@@ -71,7 +71,7 @@ watch(() => route.query.page, syncActiveKey);
 </script>
 
 <template>
-  <section class="admin-shell">
+  <section class="admin-shell revenue-shell">
     <aside class="admin-sidebar">
       <div class="brand">
         <div class="brand-logo">
@@ -79,7 +79,7 @@ watch(() => route.query.page, syncActiveKey);
           <div v-else class="brand-mark">A</div>
         </div>
         <div>
-          <p class="brand-title">Architect Admin</p>
+          <p class="brand-title">Revenue Admin</p>
           <p class="brand-subtitle">Management Suite</p>
         </div>
       </div>
@@ -88,46 +88,32 @@ watch(() => route.query.page, syncActiveKey);
         <button
           v-for="item in navItems"
           :key="item.key"
-        type="button"
-        class="nav-item"
-        :class="{ active: activeKey === item.key }"
-        @click="navigateTo(item.key)"
-      >
+          type="button"
+          class="nav-item"
+          :class="{ active: activeKey === item.key }"
+          @click="navigateTo(item.key)"
+        >
           <span class="nav-icon" aria-hidden="true">
             <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path
-                d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
-              />
+              <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
             </svg>
             <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path
-                d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
-              />
+              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
             </svg>
             <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path
-                d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
-              />
+              <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
             </svg>
             <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path
-                d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z"
-              />
+              <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
             </svg>
             <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path
-                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
-              />
+              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
             </svg>
             <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path
-                d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z"
-              />
+              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
             </svg>
             <svg v-else viewBox="0 0 24 24">
-              <path
-                d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z"
-              />
+              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
             </svg>
           </span>
           <span>{{ item.label }}</span>
@@ -138,7 +124,7 @@ watch(() => route.query.page, syncActiveKey);
         <div class="avatar">{{ initials }}</div>
         <div>
           <p class="user-name">{{ adminDisplayName }}</p>
-          <p class="user-role">Super Admin</p>
+          <p class="user-role">Revenue Manager</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
           Log out
@@ -151,107 +137,120 @@ watch(() => route.query.page, syncActiveKey);
         <label class="search">
           <span class="search-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
-              <path
-                d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z"
-              />
+              <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" type="search" placeholder="Search insights..." />
+          <input v-model="searchQuery" type="search" placeholder="Search revenue records..." />
         </label>
         <div class="topbar-actions">
           <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
             <svg viewBox="0 0 24 24">
-              <path
-                d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z"
-              />
+              <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
           </button>
           <button class="icon-btn" type="button" title="Help" aria-label="Help">
             <svg viewBox="0 0 24 24">
-              <path
-                d="M12 19a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm0-15a6 6 0 0 1 6 6c0 2.455-1.812 3.498-2.83 4.085-.87.505-1.17.75-1.17 1.415v.5h-2v-.5c0-1.86 1.126-2.512 2.17-3.115C14.98 11.83 16 11.235 16 10a4 4 0 0 0-8 0H6a6 6 0 0 1 6-6Z"
-              />
+              <path d="M12 19a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm0-15a6 6 0 0 1 6 6c0 2.455-1.812 3.498-2.83 4.085-.87.505-1.17.75-1.17 1.415v.5h-2v-.5c0-1.86 1.126-2.512 2.17-3.115C14.98 11.83 16 11.235 16 10a4 4 0 0 0-8 0H6a6 6 0 0 1 6-6Z" />
             </svg>
           </button>
           <div class="topbar-avatar">{{ initials }}</div>
         </div>
       </header>
 
-      <section class="admin-hero">
-        <p class="eyebrow">Achar Event Admin</p>
-        <h1 class="hero-title">Dashboard Overview</h1>
-        <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
+      <section class="revenue-hero">
+        <div>
+          <p class="eyebrow">Revenue Management</p>
+          <h1 class="hero-title">Financial Health Overview</h1>
+          <p class="hero-subtitle">Monitor payouts, platform fees, and profit trends in one place.</p>
+        </div>
         <div class="hero-actions">
-          <button class="ghost-btn" type="button">Create Event</button>
+          <button class="ghost-btn" type="button">Last 30 Days</button>
           <button class="primary-btn" type="button">Export Report</button>
         </div>
       </section>
 
-      <section class="admin-stats">
-        <article
-          v-for="card in stats"
-          :key="card.label"
-          class="stat-card"
-          :class="card.tone"
-        >
-          <div class="stat-icon"></div>
-          <p class="stat-label">{{ card.label }}</p>
+      <section class="revenue-stats">
+        <article v-for="card in stats" :key="card.label" class="stat-card">
+          <div class="stat-meta">
+            <p class="stat-label">{{ card.label }}</p>
+            <span class="stat-delta">{{ card.delta }}</span>
+          </div>
           <p class="stat-value">{{ card.value }}</p>
-          <span class="stat-delta" :class="card.tone">{{ card.delta }}</span>
+          <div class="sparkline">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
         </article>
       </section>
 
-      <section class="admin-grid">
-        <article class="activity-card">
+      <section class="revenue-grid">
+        <article class="card wide">
           <header>
-            <h3>Recent Activity</h3>
+            <h3>Revenue Trends</h3>
+            <div class="pill-group">
+              <button class="pill active" type="button">Gross</button>
+              <button class="pill" type="button">Net</button>
+            </div>
+          </header>
+          <div class="bar-chart">
+            <span v-for="i in 12" :key="i" class="bar"></span>
+          </div>
+        </article>
+
+        <article class="card side">
+          <h3>Payout Management</h3>
+          <div class="payout-summary">
+            <div>
+              <p>Available for Payout</p>
+              <h4>$18,650.00</h4>
+            </div>
+            <span class="status-pill">Ready</span>
+          </div>
+          <div class="payout-list">
+            <div>
+              <span>Bank Transfers</span>
+              <strong>$12,400</strong>
+            </div>
+            <div>
+              <span>Card Refunds</span>
+              <strong>$1,200</strong>
+            </div>
+            <div>
+              <span>Platform Fees</span>
+              <strong class="danger">$942</strong>
+            </div>
+          </div>
+          <button class="primary-btn full" type="button">Process Payouts Now</button>
+        </article>
+
+        <article class="card wide">
+          <header>
+            <h3>Transaction History</h3>
             <button class="link-btn" type="button">View All →</button>
           </header>
-          <div class="activity-list">
-            <div v-for="item in activity" :key="item.name + item.time" class="activity-item">
-              <div class="activity-icon"></div>
-              <div>
-                <p class="activity-text">
-                  <strong>{{ item.name }}</strong>
-                  {{ item.detail }}
-                </p>
-                <p class="activity-time">{{ item.time }}</p>
-              </div>
+          <div class="table">
+            <div class="table-head">
+              <span>Transaction</span>
+              <span>Vendor</span>
+              <span>Date</span>
+              <span>Amount</span>
+              <span>Status</span>
+            </div>
+            <div v-for="item in transactions" :key="item.id" class="table-row">
+              <span>{{ item.id }}</span>
+              <span>{{ item.name }}</span>
+              <span>{{ item.date }}</span>
+              <span>{{ item.amount }}</span>
+              <span class="status" :class="item.status.toLowerCase()">{{ item.status }}</span>
             </div>
           </div>
         </article>
 
-        <div class="side-stack">
-          <article class="report-card">
-            <h3>Monthly Report</h3>
-            <p>
-              Design project growth has increased by 24% compared to last month.
-            </p>
-            <button class="primary-btn" type="button">Download PDF</button>
-          </article>
-
-          <article class="status-card">
-            <h3>System Status</h3>
-            <div class="status-row">
-              <div>
-                <p>Server Uptime</p>
-                <span>99.9%</span>
-              </div>
-              <div class="bar">
-                <span class="bar-fill" style="width: 99.9%"></span>
-              </div>
-            </div>
-            <div class="status-row">
-              <div>
-                <p>Database Load</p>
-                <span>32%</span>
-              </div>
-              <div class="bar">
-                <span class="bar-fill warning" style="width: 32%"></span>
-              </div>
-            </div>
-          </article>
-        </div>
+        <article class="card side projection">
+          <h3>Quarterly Projection</h3>
+          <p>Based on current growth of 12.4% MoM.</p>
+          <h4>$154,200</h4>
+          <span class="status-pill">On track</span>
+        </article>
       </section>
     </main>
   </section>
@@ -260,24 +259,42 @@ watch(() => route.query.page, syncActiveKey);
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
 
-.admin-shell {
-  --ink: #111827;
-  --muted: #5f6b7a;
+.revenue-shell {
+  --ink: #0f172a;
+  --muted: #64748b;
   --accent: #ff7a1a;
   --accent-strong: #f15b2a;
-  --accent-soft: #ffe7d2;
-  --accent-cool: #4a90e2;
-  --surface: rgba(255, 255, 255, 0.86);
+  --accent-soft: #fff1e7;
+  --accent-cool: #ff9a4d;
+  --surface: rgba(255, 255, 255, 0.9);
   --surface-strong: #ffffff;
-  --stroke: rgba(17, 24, 39, 0.08);
-  --shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
+  --stroke: rgba(15, 23, 42, 0.08);
+  --shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
   --shadow-soft: 0 14px 30px rgba(15, 23, 42, 0.08);
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
   min-height: calc(100vh - 90px);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 12% 0%, #fff2e6 0%, #f5f6ff 45%, #eef6f9 100%);
+  background: radial-gradient(circle at 8% 0%, #fff1e6 0%, #f7f2ee 35%, #eef6f9 100%);
   color: var(--ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.revenue-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255, 122, 26, 0.16), transparent 45%),
+    radial-gradient(circle at 80% 12%, rgba(255, 154, 77, 0.16), transparent 55%),
+    radial-gradient(circle at 60% 85%, rgba(255, 122, 26, 0.12), transparent 45%);
+  pointer-events: none;
+}
+
+.revenue-shell > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-sidebar {
@@ -296,7 +313,7 @@ watch(() => route.query.page, syncActiveKey);
   position: absolute;
   inset: 24px;
   border-radius: 24px;
-  background: linear-gradient(160deg, rgba(255, 122, 26, 0.06), transparent 45%);
+  background: linear-gradient(160deg, rgba(255, 122, 26, 0.08), transparent 45%);
   pointer-events: none;
 }
 
@@ -337,7 +354,6 @@ watch(() => route.query.page, syncActiveKey);
   font-weight: 600;
   margin: 0;
   font-family: "Fraunces", serif;
-  letter-spacing: 0.2px;
 }
 
 .brand-subtitle {
@@ -351,7 +367,7 @@ watch(() => route.query.page, syncActiveKey);
   flex-direction: column;
   gap: 10px;
   background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(17, 24, 39, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.06);
   padding: 14px;
   border-radius: 24px;
   box-shadow: var(--shadow-soft);
@@ -367,7 +383,7 @@ watch(() => route.query.page, syncActiveKey);
   border-radius: 18px;
   font-size: 15px;
   cursor: pointer;
-  color: #4b5563;
+  color: #475569;
   transition: all 0.2s ease;
 }
 
@@ -456,23 +472,6 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   flex-direction: column;
   gap: 24px;
-  position: relative;
-  overflow: hidden;
-}
-
-.admin-main::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 16% 8%, rgba(255, 122, 26, 0.08), transparent 42%),
-    radial-gradient(circle at 80% 18%, rgba(74, 144, 226, 0.12), transparent 50%),
-    radial-gradient(circle at 60% 80%, rgba(255, 122, 26, 0.06), transparent 45%);
-  pointer-events: none;
-}
-
-.admin-main > * {
-  position: relative;
-  z-index: 1;
 }
 
 .admin-topbar {
@@ -484,7 +483,7 @@ watch(() => route.query.page, syncActiveKey);
 
 .search {
   flex: 1;
-  max-width: 380px;
+  max-width: 360px;
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.9);
@@ -504,7 +503,7 @@ watch(() => route.query.page, syncActiveKey);
 .search-icon svg {
   width: 16px;
   height: 16px;
-  fill: #9aa5b1;
+  fill: #94a3b8;
 }
 
 .search input {
@@ -557,54 +556,56 @@ watch(() => route.query.page, syncActiveKey);
   font-weight: 600;
 }
 
-.admin-hero {
-  display: grid;
-  gap: 10px;
+.revenue-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 20px 24px;
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
 }
 
-.admin-hero .eyebrow {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 1.6px;
+.eyebrow {
   text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  color: #c45a12;
   margin: 0;
-  color: #9a4d14;
 }
 
 .hero-title {
-  margin: 0;
-  font-size: 36px;
-  font-weight: 700;
+  margin: 6px 0 0;
+  font-size: 34px;
   font-family: "Fraunces", serif;
-  color: var(--ink);
 }
 
 .hero-subtitle {
-  margin: 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  font-size: 15px;
 }
 
 .hero-actions {
   display: flex;
   gap: 12px;
-  align-items: center;
 }
 
-.admin-stats {
+.revenue-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .stat-card {
   background: var(--surface);
-  padding: 18px;
   border-radius: 18px;
+  padding: 16px;
+  border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--stroke);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -612,13 +613,9 @@ watch(() => route.query.page, syncActiveKey);
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.08), transparent 55%);
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.14), transparent 55%);
   opacity: 0;
   transition: opacity 0.2s ease;
-}
-
-.stat-card:hover::after {
-  opacity: 1;
 }
 
 .stat-card:hover {
@@ -626,180 +623,243 @@ watch(() => route.query.page, syncActiveKey);
   box-shadow: 0 28px 60px rgba(15, 23, 42, 0.14);
 }
 
-.stat-card.solid {
-  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
-  color: #fff;
-  border-color: transparent;
+.stat-card:hover::after {
+  opacity: 1;
 }
 
-.stat-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #ffe6d1;
-  margin-bottom: 12px;
-}
-
-.stat-card.solid .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
+.stat-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .stat-label {
   margin: 0;
   font-size: 12px;
-  color: inherit;
-  opacity: 0.75;
+  color: var(--muted);
 }
 
 .stat-value {
-  margin: 6px 0 0;
-  font-size: 24px;
+  margin: 12px 0 0;
+  font-size: 22px;
   font-weight: 700;
 }
 
 .stat-delta {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  font-size: 12px;
+  font-size: 11px;
   padding: 4px 8px;
   border-radius: 999px;
   background: #e9f7ef;
   color: #2f9e5f;
+  position: relative;
+  z-index: 1;
 }
 
-.stat-delta.down {
-  background: #ffe8e5;
-  color: #e2553f;
-}
-
-.stat-card.solid .stat-delta {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-}
-
-.admin-grid {
+.sparkline {
   display: grid;
-  grid-template-columns: minmax(280px, 2fr) minmax(240px, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-top: 12px;
 }
 
-.activity-card,
-.report-card,
-.status-card {
+.sparkline span {
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 122, 26, 0.45), rgba(255, 122, 26, 0.08));
+}
+
+.revenue-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 18px;
+}
+
+.card {
   background: var(--surface);
   border-radius: 18px;
-  padding: 20px;
-  box-shadow: var(--shadow);
+  padding: 18px;
   border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-.activity-card header {
+.card header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
-.activity-card h3,
-.report-card h3,
-.status-card h3 {
-  margin: 0;
-  font-family: "Fraunces", serif;
-  font-weight: 600;
-  color: var(--ink);
+.pill-group {
+  display: inline-flex;
+  gap: 6px;
+  background: #f8fafc;
+  padding: 4px;
+  border-radius: 999px;
 }
 
-.activity-list {
-  display: grid;
-  gap: 14px;
-}
-
-.activity-item {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f4f8;
-  transition: transform 0.2s ease;
-}
-
-.activity-item:hover {
-  transform: translateX(4px);
-}
-
-.activity-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.activity-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: #ffe6d1;
-}
-
-.activity-text {
-  margin: 0;
-  font-size: 14px;
-}
-
-.activity-time {
-  margin: 4px 0 0;
+.pill {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
   font-size: 12px;
   color: var(--muted);
+  cursor: pointer;
+}
+
+.pill.active {
+  background: #fff;
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.bar-chart {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px;
+  align-items: end;
+  height: 180px;
+}
+
+.bar {
+  background: linear-gradient(180deg, #e2e8f0, #f8fafc);
+  border-radius: 999px;
+  height: 40%;
+}
+
+.bar:nth-child(2) { height: 65%; }
+.bar:nth-child(3) { height: 80%; }
+.bar:nth-child(4) { height: 35%; }
+.bar:nth-child(5) { height: 60%; }
+.bar:nth-child(6) { height: 90%; background: linear-gradient(180deg, #ff7a1a, #f15b2a); }
+.bar:nth-child(7) { height: 55%; }
+.bar:nth-child(8) { height: 70%; }
+.bar:nth-child(9) { height: 50%; }
+.bar:nth-child(10) { height: 45%; }
+.bar:nth-child(11) { height: 68%; }
+.bar:nth-child(12) { height: 75%; }
+
+.payout-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 14px;
+  margin: 12px 0;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.payout-summary h4 {
+  margin: 6px 0 0;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e9f7ef;
+  color: #2f9e5f;
+  font-size: 12px;
+}
+
+.payout-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.payout-list div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.payout-list .danger {
+  color: #e2553f;
+}
+
+.table {
+  display: grid;
+  gap: 8px;
+}
+
+.table-head,
+.table-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 1fr;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.table-head {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.table-row {
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.table-row:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-soft);
+}
+
+.status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.status.completed {
+  background: #fff3e6;
+  color: #f15b2a;
+}
+
+.status.pending {
+  background: #ffe9d5;
+  color: #ff7a1a;
+}
+
+.status.failed {
+  background: #ffe0d8;
+  color: #e2553f;
+}
+
+.projection {
+  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  color: #fff;
+}
+
+.projection h4 {
+  font-size: 26px;
+  margin: 12px 0;
 }
 
 .link-btn {
   border: none;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-strong);
   cursor: pointer;
-  font-weight: 600;
-}
-
-.side-stack {
-  display: grid;
-  gap: 18px;
-}
-
-.report-card {
-  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 60%, #ff9a4d 100%);
-  color: #fff;
-  border: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.report-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 45%);
-  opacity: 0.7;
-}
-
-.report-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.report-card p {
-  margin: 12px 0 16px;
-  opacity: 0.9;
 }
 
 .primary-btn {
   border: none;
-  background: linear-gradient(135deg, #ff8a3c 0%, #f15b2a 100%);
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
   color: #fff;
-  padding: 10px 14px;
+  padding: 10px 16px;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.25);
+  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.28);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -808,11 +868,15 @@ watch(() => route.query.page, syncActiveKey);
   box-shadow: 0 16px 30px rgba(241, 91, 42, 0.3);
 }
 
+.primary-btn.full {
+  width: 100%;
+}
+
 .ghost-btn {
   border: 1px solid rgba(255, 122, 26, 0.3);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   color: #c65300;
-  padding: 10px 14px;
+  padding: 10px 16px;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -824,74 +888,25 @@ watch(() => route.query.page, syncActiveKey);
   box-shadow: var(--shadow-soft);
 }
 
-.report-card .primary-btn {
-  background: #fff;
-  color: #f15b2a;
-  box-shadow: none;
-}
-
-.status-row {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.status-row p {
-  margin: 0;
-  font-size: 13px;
-}
-
-.status-row span {
-  font-weight: 600;
-}
-
-.bar {
-  height: 6px;
-  border-radius: 999px;
-  background: #eef2f6;
-  overflow: hidden;
-}
-
-.bar-fill {
-  display: block;
-  height: 100%;
-  background: #2f9e5f;
-}
-
-.bar-fill.warning {
-  background: #f59f00;
+@media (max-width: 1100px) {
+  .revenue-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
-  .admin-shell {
+  .revenue-shell {
     grid-template-columns: 1fr;
-  }
-
-  .admin-sidebar {
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    padding: 20px;
-    gap: 16px;
   }
 
   .admin-nav {
-    display: flex;
     flex-direction: row;
-    gap: 10px;
     overflow-x: auto;
-    padding: 10px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid var(--stroke);
   }
 
-  .admin-user-card {
-    margin-top: 0;
-  }
-
-  .admin-grid {
-    grid-template-columns: 1fr;
+  .revenue-hero {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -905,18 +920,13 @@ watch(() => route.query.page, syncActiveKey);
     align-items: stretch;
   }
 
-  .search {
-    max-width: none;
+  .table-head {
+    display: none;
   }
 
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .nav-item {
-    flex: 0 0 auto;
-    white-space: nowrap;
+  .table-row {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 6px;
   }
 }
 </style>
