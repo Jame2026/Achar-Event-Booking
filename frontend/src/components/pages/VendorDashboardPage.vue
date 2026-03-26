@@ -4,6 +4,7 @@ import { RouterLink } from "vue-router";
 import MessagesPage from "./MessagesPage.vue";
 import { apiPatch } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
+import { sumPackageServicePrices } from "../../features/packagePricing";
 
 const props = defineProps([
   "appLogoSrc",
@@ -148,9 +149,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "Current listings",
     loadingServices: "Loading services...",
     bookingRequests: "Requests",
@@ -216,9 +217,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "បញ្ជីបច្ចុប្បន្ន",
     loadingServices: "កំពុងផ្ទុកសេវាកម្ម...",
     bookingRequests: "សំណើ",
@@ -359,9 +360,9 @@ const copyByLanguage = {
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
-    packageServiceHint: "Offer tiered packages clients can choose.",
+    packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
-    packageBuilder: "Package Builder",
+    packageBuilder: "Package Services",
     currentListings: "当前列表",
     loadingServices: "正在加载服务...",
     bookingRequests: "请求",
@@ -1016,8 +1017,18 @@ const hasServiceDescription = computed(() =>
 const hasServiceLocation = computed(() =>
   Boolean(String(props.vendorServiceForm?.location || "").trim()),
 );
+const packageServicesTotal = computed(() =>
+  Array.isArray(props.vendorServiceForm?.packages)
+    ? sumPackageServicePrices(props.vendorServiceForm.packages)
+    : 0,
+);
+const effectiveServicePrice = computed(() =>
+  serviceMode.value === "package"
+    ? packageServicesTotal.value
+    : Number(props.vendorServiceForm?.price ?? 0),
+);
 const hasServicePrice = computed(() =>
-  Number(props.vendorServiceForm?.price ?? 0) > 0,
+  effectiveServicePrice.value > 0,
 );
 const hasServiceCapacity = computed(() =>
   Number(props.vendorServiceForm?.capacity ?? 0) > 0,
@@ -1047,7 +1058,7 @@ const previewEventTypeLabel = computed(() => {
 
 const previewPriceLabel = computed(() =>
   hasServicePrice.value
-    ? formatCurrency(props.vendorServiceForm?.price ?? 0)
+    ? formatCurrency(effectiveServicePrice.value)
     : uiText.value.previewAddPrice,
 );
 
@@ -1169,6 +1180,15 @@ const vendorServicePackages = computed(() =>
   Array.isArray(props.vendorServiceForm?.packages)
     ? props.vendorServiceForm.packages
     : [],
+);
+
+watch(
+  [serviceMode, packageServicesTotal],
+  ([mode, total]) => {
+    if (!props.vendorServiceForm || mode !== "package") return;
+    props.vendorServiceForm.price = total;
+  },
+  { immediate: true },
 );
 
 const showPackageBuilder = ref(false);
@@ -2411,18 +2431,18 @@ watch(
                   <div class="package-editor">
                     <div class="package-editor-head">
                       <p class="package-hint">
-                        Add package tiers so clients can choose the best fit.
+                        Add the services included in this package. The whole package total is summed automatically.
                       </p>
                       <button
                         type="button"
                         class="secondary-button package-add"
                         @click="addVendorPackage"
                       >
-                        + Add package
+                        + Add service
                       </button>
                     </div>
                     <p v-if="!vendorServicePackages.length" class="package-empty">
-                      No packages added yet.
+                      No services added yet.
                     </p>
                     <div
                       v-for="(pkg, index) in vendorServicePackages"
@@ -2430,7 +2450,7 @@ watch(
                       class="package-row"
                     >
                       <div class="package-row-head">
-                        <strong>Package {{ index + 1 }}</strong>
+                        <strong>Service {{ index + 1 }}</strong>
                         <button
                           type="button"
                           class="text-button danger"
@@ -2441,34 +2461,38 @@ watch(
                       </div>
                       <div class="package-row-grid">
                         <label class="field">
-                          <span>Package name</span>
+                          <span>Service name</span>
                           <input
                             :value="pkg?.name || ''"
                             type="text"
-                            placeholder="Basic / Standard / Premium"
+                            placeholder="Photography / Decoration / Makeup"
                             @input="pkg.name = $event.target.value"
                           />
                         </label>
                         <label class="field">
-                          <span>Package price</span>
+                          <span>Service price</span>
                           <input
                             :value="pkg?.price ?? 0"
                             type="number"
                             min="0"
                             step="0.01"
-                            placeholder="250"
+                            placeholder="120"
                             @input="pkg.price = Number($event.target.value)"
                           />
                         </label>
                       </div>
                       <label class="field">
-                        <span>What is included</span>
+                        <span>Service details</span>
                         <textarea
                           :value="pkg?.details || ''"
-                          placeholder="List what this package covers."
+                          placeholder="Describe what this service includes."
                           @input="pkg.details = $event.target.value"
                         ></textarea>
                       </label>
+                    </div>
+                    <div class="package-row-head package-total-row">
+                      <strong>Whole package total</strong>
+                      <strong>{{ formatCurrency(packageServicesTotal) }}</strong>
                     </div>
                   </div>
                 </section>
@@ -2655,39 +2679,39 @@ watch(
               <div class="package-builder-head">
                 <div>
                   <p class="eyebrow">{{ uiText.addNewService }}</p>
-                  <h3>Add Package</h3>
+                  <h3>Add Service</h3>
                 </div>
                 <div class="package-builder-actions">
                   <button type="button" class="secondary-button" @click="closePackageBuilder">Cancel</button>
-                  <button type="button" class="primary-button" @click="savePackageDraft">Save Package</button>
+                  <button type="button" class="primary-button" @click="savePackageDraft">Save Service</button>
                 </div>
               </div>
               <div class="package-builder-body">
                 <label class="field">
-                  <span>Package name</span>
+                  <span>Service name</span>
                   <input
                     :value="packageDraft.name"
                     type="text"
-                    placeholder="Basic / Standard / Premium"
+                    placeholder="Photography / Decoration / Makeup"
                     @input="packageDraft.name = $event.target.value"
                   />
                 </label>
                 <label class="field">
-                  <span>Package price</span>
+                  <span>Service price</span>
                   <input
                     :value="packageDraft.price"
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="250"
+                    placeholder="120"
                     @input="packageDraft.price = Number($event.target.value)"
                   />
                 </label>
                 <label class="field field-full">
-                  <span>What is included</span>
+                  <span>Service details</span>
                   <textarea
                     :value="packageDraft.details"
-                    placeholder="List what this package covers."
+                    placeholder="Describe what this service includes."
                     @input="packageDraft.details = $event.target.value"
                   ></textarea>
                 </label>
@@ -2738,7 +2762,7 @@ watch(
                 </div>
                 <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
                 <small v-if="item.packages?.length" class="service-packages">
-                  Packages: {{ item.packages.length }}
+                  Services: {{ item.packages.length }}
                 </small>
                 <p>{{ item.description }}</p>
               </div>
@@ -7364,7 +7388,7 @@ watch(
 }
 
 .booking-detail-card {
-  width: min(760px, 100%);
+  width: min(960px, calc(100vw - 36px));
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -7546,6 +7570,16 @@ watch(
   font-size: 13px;
   color: #0f172a;
   text-align: left;
+}
+
+.detail-block-customer .detail-list span {
+  font-size: 10px;
+}
+
+.detail-block-customer .detail-list strong {
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .detail-block-wide {

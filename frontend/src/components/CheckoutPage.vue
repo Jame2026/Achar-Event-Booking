@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { apiPost } from "../features/apiClient";
+import { formatDateTime } from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
 
 const router = useRouter();
@@ -119,25 +120,38 @@ function saveLocalBooking(user) {
     const existing = raw ? JSON.parse(raw) : [];
     const rows = Array.isArray(existing) ? existing : [];
     const email = String(booking.email || user?.email || "").trim().toLowerCase();
-    if (!email) return;
+    const phone = String(booking.phone || user?.phone || "").trim();
+    if (!email && !phone) return;
     const firstItem = bookingItems.value[0] || {};
     rows.unshift({
       id: `local-${Date.now()}`,
       eventId: booking.eventId || null,
       customerEmail: email,
+      customerPhone: phone,
       customerName: booking.fullName || user?.name || "Guest User",
       vendor: booking.vendorName || booking.vendorTitle || "Selected Vendor",
       service: firstItem.name || booking.vendorTitle || "Service Booking",
       image: booking.image || "",
-      dateLabel: booking.eventDate || "Date TBD",
-      eventType: "other",
+      dateLabel: formatDateTime(booking.eventDate),
+      requestedEventDate: booking.eventDate || null,
+      eventType: booking.requestedEventType || "other",
+      requestedEventType: booking.requestedEventType || "other",
       total: Number(bookingTotal.value || 0),
+      booked_items: bookingItems.value.map((item) => ({
+        type: item.type || "service",
+        name: item.name || "",
+        description: item.description || "",
+        qty: Math.max(1, Number(item.qty || 1)),
+        unitPrice: Number(item.unitPrice || 0),
+        totalPrice: Number(item.totalPrice || 0),
+      })),
       status: "Confirmed",
       statusClass: "confirmed",
       type: "Upcoming",
       createdAt: new Date().toISOString(),
     });
-    localStorage.setItem("achar_last_booking_email", email);
+    if (email) localStorage.setItem("achar_last_booking_email", email);
+    if (phone) localStorage.setItem("achar_last_booking_phone", phone);
     localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(rows.slice(0, 100)));
   } catch {
     // Ignore local-storage issues and continue checkout flow.
@@ -177,11 +191,12 @@ function resolveEventId() {
 function buildPendingBookingKey() {
   const user = getStoredUser();
   const customerEmail = String(booking.email || user?.email || "").trim().toLowerCase();
+  const customerPhone = String(booking.phone || user?.phone || "").trim();
   const firstItem = bookingItems.value[0] || {};
   const eventId = resolveEventId();
   const qty = Math.max(1, Number(firstItem.qty || 1));
   return [
-    customerEmail,
+    customerEmail || customerPhone,
     String(eventId || ""),
     String(firstItem.name || ""),
     String(qty),
@@ -210,8 +225,9 @@ function clearPendingBooking() {
 async function createPendingBooking() {
   const user = getStoredUser();
   const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerPhone = String(booking.phone || user?.phone || "").trim();
   const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
-  if (!customerEmail) {
+  if (!customerEmail && !customerPhone) {
     paymentNotice.value = uiText.value.addEmailBeforePayment;
     return null;
   }
@@ -226,7 +242,8 @@ async function createPendingBooking() {
     event_id: eventId,
     quantity,
     customer_name: customerName,
-    customer_email: customerEmail,
+    customer_email: customerEmail || undefined,
+    customer_phone: customerPhone || undefined,
     service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
     requested_event_type: booking.requestedEventType || "other",
     requested_event_date: booking.eventDate || null,
@@ -331,8 +348,9 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
   }
   const user = getStoredUser();
   const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerPhone = String(booking.phone || user?.phone || "").trim();
   const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
-  if (!customerEmail) {
+  if (!customerEmail && !customerPhone) {
     paymentNotice.value = uiText.value.addEmailBeforePayment;
     return;
   }
@@ -352,10 +370,11 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
   } else {
     try {
       const result = await apiPost("bookings", {
-      event_id: resolveEventId(),
+        event_id: resolveEventId(),
         quantity,
         customer_name: customerName,
-        customer_email: customerEmail,
+        customer_email: customerEmail || undefined,
+        customer_phone: customerPhone || undefined,
         service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
         requested_event_type: booking.requestedEventType || "other",
         requested_event_date: booking.eventDate || null,
@@ -484,7 +503,7 @@ const copyByLanguage = {
     invalidCardExpiry: "Your card expiry date is invalid or already expired.",
     signInToContinuePayment: "Please sign in or register to continue payment.",
     guestUser: "Guest User",
-    addEmailBeforePayment: "Please add your email before confirming payment.",
+    addEmailBeforePayment: "Please add your email or phone before confirming payment.",
     serviceBooking: "Service Booking",
     unableSaveBooking: "Unable to save booking to database.",
     noAdditionalDetails: "No additional details.",
@@ -534,7 +553,7 @@ const copyByLanguage = {
     invalidCardExpiry: "កាលបរិច្ឆេទផុតកំណត់កាតរបស់អ្នកមិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ។",
     signInToContinuePayment: "សូមចូលគណនី ឬចុះឈ្មោះ ដើម្បីបន្តការទូទាត់។",
     guestUser: "ភ្ញៀវ",
-    addEmailBeforePayment: "សូមបន្ថែមអ៊ីមែលរបស់អ្នកមុនពេលបញ្ជាក់ការទូទាត់។",
+    addEmailBeforePayment: "សូមបន្ថែមអ៊ីមែល ឬ លេខទូរស័ព្ទរបស់អ្នក មុនពេលបញ្ជាក់ការទូទាត់។",
     serviceBooking: "ការកក់សេវាកម្ម",
     unableSaveBooking: "មិនអាចរក្សាទុកការកក់ទៅមូលដ្ឋានទិន្នន័យបានទេ។",
     noAdditionalDetails: "មិនមានព័ត៌មានលម្អិតបន្ថែមទេ។",
@@ -584,7 +603,7 @@ const copyByLanguage = {
     invalidCardExpiry: "您的卡片有效期无效或已过期。",
     signInToContinuePayment: "请先登录或注册再继续支付。",
     guestUser: "访客",
-    addEmailBeforePayment: "请在确认支付前添加您的邮箱。",
+    addEmailBeforePayment: "请在确认支付前添加您的邮箱或手机号。",
     serviceBooking: "服务预订",
     unableSaveBooking: "无法将预订保存到数据库。",
     noAdditionalDetails: "无其他详细信息。",
