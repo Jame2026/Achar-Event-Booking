@@ -8,11 +8,12 @@ use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
 use App\Support\NotificationCache;
+use App\Support\VendorDayOff;
 use App\Support\VendorCache;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\CarbonPeriod;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -121,26 +122,38 @@ class BookingController extends Controller
             ? null
             : max(0, $event->capacity - $reserved);
 
+        $vendorDayOff = VendorDayOff::resolve($event, $requestedDate);
         $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $requestedDate);
 
         $serviceAvailable = $event->is_active
             && ! $hasExistingBooking
             && ($event->capacity === 0 || $remainingCapacity >= $requestedQuantity);
 
+        $vendorAvailable = ! $hasOtherVendorBooking && ! ($vendorDayOff['is_day_off'] ?? false);
+
         return response()->json([
             'event_id' => $event->id,
             'requested_date' => $requestedDate,
             'service_available' => $serviceAvailable,
-            'vendor_available' => ! $hasOtherVendorBooking,
-            'is_busy' => ! $serviceAvailable || $hasOtherVendorBooking,
+            'vendor_available' => $vendorAvailable,
+            'is_busy' => ! $serviceAvailable || ! $vendorAvailable,
             'has_another_booked' => $hasOtherVendorBooking,
             'has_existing_booking' => $hasExistingBooking,
+            'has_vendor_day_off' => (bool) ($vendorDayOff['is_day_off'] ?? false),
+            'vendor_day_off_scope' => $vendorDayOff['scope'] ?? null,
             'is_active' => (bool) $event->is_active,
             'capacity' => $event->capacity,
             'requested_quantity' => $requestedQuantity,
             'reserved' => (int) $reserved,
             'remaining_capacity' => $remainingCapacity,
-            'message' => $this->availabilityMessage($event, $serviceAvailable, $hasOtherVendorBooking, $remainingCapacity, $requestedDate),
+            'message' => $this->availabilityMessage(
+                $event,
+                $serviceAvailable,
+                $hasOtherVendorBooking,
+                $remainingCapacity,
+                $requestedDate,
+                $vendorDayOff
+            ),
         ]);
     }
 
@@ -165,9 +178,11 @@ class BookingController extends Controller
             $remainingCapacity = $event->capacity === 0
                 ? null
                 : max(0, $event->capacity - $reserved);
+            $vendorDayOff = VendorDayOff::resolve($event, $dateString);
             $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $dateString);
             $isAvailable = $event->is_active
                 && ! $hasExistingBooking
+                && ! ($vendorDayOff['is_day_off'] ?? false)
                 && ! $hasOtherVendorBooking
                 && ($event->capacity === 0 || $remainingCapacity > 0);
 
@@ -179,6 +194,8 @@ class BookingController extends Controller
                 'remaining_capacity' => $remainingCapacity,
                 'has_another_booked' => $hasOtherVendorBooking,
                 'has_existing_booking' => $hasExistingBooking,
+                'has_vendor_day_off' => (bool) ($vendorDayOff['is_day_off'] ?? false),
+                'vendor_day_off_scope' => $vendorDayOff['scope'] ?? null,
             ];
         }
 
@@ -220,6 +237,13 @@ class BookingController extends Controller
         if ($event) {
             if (! $event->is_active) {
                 return response()->json(['message' => 'This event is not available for booking.'], 422);
+            }
+
+            $vendorDayOff = VendorDayOff::resolve($event, $requestedDate);
+            if ($vendorDayOff['is_day_off'] ?? false) {
+                return response()->json([
+                    'message' => $vendorDayOff['message'] ?? 'Vendor is unavailable on the selected date.',
+                ], 422);
             }
 
             if ($this->hasBookingOnDate($event, $requestedDate)) {
@@ -640,10 +664,15 @@ class BookingController extends Controller
         bool $serviceAvailable,
         bool $hasOtherVendorBooking,
         ?int $remainingCapacity,
-        ?string $requestedDate = null
+        ?string $requestedDate = null,
+        array $vendorDayOff = []
     ): string {
         if (! $event->is_active) {
             return 'Service is not active right now.';
+        }
+
+        if ($vendorDayOff['is_day_off'] ?? false) {
+            return $vendorDayOff['message'] ?? 'Vendor is unavailable on the selected date.';
         }
 
         if ($this->hasBookingOnDate($event, $requestedDate)) {

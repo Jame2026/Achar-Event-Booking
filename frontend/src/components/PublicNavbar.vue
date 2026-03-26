@@ -34,6 +34,7 @@ const copyByLanguage = {
     packages: 'Packages',
     overallService: 'Overall Service',
     dashboard: 'Dashboard',
+    adminDashboard: 'Admin Dashboard',
     myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
@@ -356,8 +357,7 @@ function refreshNotifications() {
 async function openNotification(notification) {
   await markNotificationAsRead(notification, { silent: true })
   closeNotificationDropdown()
-  const role = String(currentUser.value?.role || '').trim().toLowerCase()
-  router.push(role === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
+  router.push(isDashboardRole.value ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
 }
 
 const isHomeActive = computed(() => route.path === '/' || route.path === '/home')
@@ -365,13 +365,16 @@ const isAboutActive = computed(() => route.path === '/about')
 const isServiceActive = computed(() => route.path.startsWith('/services'))
 const isServicePackagesActive = computed(() => route.path === '/services/packages')
 const isServiceOverallActive = computed(() => route.path === '/services/overall')
-const isVendorRole = computed(() => String(currentUser.value?.role || '').trim().toLowerCase() === 'vendor')
+const currentRole = computed(() => String(currentUser.value?.role || '').trim().toLowerCase())
+const isVendorRole = computed(() => currentRole.value === 'vendor')
+const isAdminRole = computed(() => currentRole.value === 'admin')
+const isDashboardRole = computed(() => isVendorRole.value || isAdminRole.value)
 const legacyPage = computed(() => {
   const page = route.query?.page
   return typeof page === 'string' ? page : 'bookings'
 })
-const isVendorDashboardActive = computed(
-  () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isVendorRole.value,
+const isDashboardActive = computed(
+  () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isDashboardRole.value,
 )
 const isProfileActive = computed(() => route.path === '/legacy-app' && legacyPage.value === 'profile')
 const isBookingSearchContext = computed(() => route.path === '/legacy-app' && legacyPage.value === 'bookings')
@@ -418,10 +421,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
+const dashboardLink = computed(() => '/legacy-app?page=dashboard')
+const dashboardNavLabel = computed(() =>
+  isAdminRole.value ? uiText.value.adminDashboard || uiText.value.dashboard : uiText.value.dashboard,
+)
 const bookingLink = computed(() => {
   if (!isLoggedIn.value) return '/booking'
-  const role = String(currentUser.value?.role || '').trim().toLowerCase()
-  return role === 'vendor' ? '/legacy-app?page=dashboard&vtab=bookings' : '/legacy-app?page=bookings'
+  return isDashboardRole.value ? dashboardLink.value : '/legacy-app?page=bookings'
 })
 </script>
 
@@ -451,13 +457,13 @@ const bookingLink = computed(() => {
         </div>
 
         <RouterLink
-          v-if="isLoggedIn && isVendorRole"
-          to="/legacy-app?page=dashboard"
-          :class="{ active: isVendorDashboardActive }"
+          v-if="isLoggedIn && isDashboardRole"
+          :to="dashboardLink"
+          :class="{ active: isDashboardActive }"
         >
-          {{ uiText.dashboard }}
+          {{ dashboardNavLabel }}
         </RouterLink>
-        <RouterLink v-if="!isVendorRole" :to="bookingLink" :class="{ active: isBookingActive }">{{ uiText.myBooking }}</RouterLink>
+        <RouterLink v-if="!isDashboardRole" :to="bookingLink" :class="{ active: isBookingActive }">{{ uiText.myBooking }}</RouterLink>
         <RouterLink to="/favorite" :class="{ active: isFavoriteActive }" class="favorite-link">
           <span>{{ uiText.favorite }}</span>
           <span v-if="favoriteCount > 0" class="fav-badge">
