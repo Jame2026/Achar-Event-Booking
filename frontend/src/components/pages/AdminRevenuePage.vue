@@ -475,7 +475,7 @@ onMounted(() => void adminStore.loadAll());
         <div class="hero-copy">
           <p class="eyebrow">Revenue Intelligence</p>
           <h1 class="hero-title">Financial Health Overview</h1>
-          <p class="hero-subtitle">Monitor payouts, platform fees, and profit trends in one place.</p>
+          <p class="hero-subtitle">Monitor revenue health, platform fees, and profit trends in one place.</p>
           <div class="hero-tags">
             <span class="hero-tag">Automated Payouts</span>
             <span class="hero-tag soft">Fraud Watch</span>
@@ -577,18 +577,18 @@ onMounted(() => void adminStore.loadAll());
         <article class="card side payout-card">
           <header class="side-header">
             <div>
-              <h3>Payout Management</h3>
+              <h3>Revenue Breakdown</h3>
               <p class="card-subtitle">Based on confirmed bookings in range</p>
             </div>
             <span class="status-pill">Ready</span>
           </header>
           <div class="payout-summary">
             <div>
-              <p>Available for Payout</p>
+              <p>Available Revenue</p>
               <h4>{{ payoutSummary.available }}</h4>
             </div>
             <div class="payout-progress">
-              <span>{{ payoutSummary.progress }}% cleared</span>
+              <span>{{ payoutSummary.progress }}% recognized</span>
               <div class="progress">
                 <span class="progress-fill" :style="{ width: `${payoutSummary.progress}%` }"></span>
               </div>
@@ -608,7 +608,7 @@ onMounted(() => void adminStore.loadAll());
               <strong class="danger">{{ payoutSummary.platformFees }}</strong>
             </div>
           </div>
-          <button class="primary-btn full" type="button">Process Payouts Now</button>
+          <button class="primary-btn full" type="button">View Revenue Details</button>
         </article>
 
         <article class="card wide table-card">

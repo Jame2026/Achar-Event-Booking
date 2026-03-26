@@ -19,6 +19,7 @@ const props = defineProps({
 });
 
 const searchQuery = ref("");
+const usersSearchQuery = ref("");
 const navItems = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
   { key: "events", label: "Events", icon: "events" },
@@ -39,6 +40,8 @@ const bookingRows = computed(() => adminStore.state.bookings);
 const eventRows = computed(() => adminStore.state.events);
 const userRows = computed(() => adminStore.state.users);
 const healthStatus = computed(() => adminStore.state.health);
+const isUsersLoading = computed(() => adminStore.loading.all || adminStore.loading.users);
+const usersLoadError = computed(() => adminStore.errors.users);
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
     .split(" ")
@@ -66,6 +69,15 @@ const navigateTo = (key) => {
 const formatNumber = (value) => {
   const amount = Number(value || 0);
   return new Intl.NumberFormat("en-US").format(Number.isFinite(amount) ? amount : 0);
+};
+
+const formatCompactNumber = (value) => {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return "0";
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
 };
 
 const formatCurrency = (value) => {
@@ -96,6 +108,159 @@ const timeAgo = (value) => {
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} days ago`;
 };
+
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Date TBD";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const getInitials = (value) =>
+  String(value || "User")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+const normalizeUserStatus = (user) => {
+  const status = String(user?.status || "").toLowerCase();
+  if (status === "inactive" || status === "banned" || user?.is_active === false) return "Inactive";
+  return "Active";
+};
+
+const bookingCountForUser = (user) => {
+  const id = Number(user?.id || 0);
+  const email = String(user?.email || user?.customer_email || "").toLowerCase();
+  const rows = bookingRows.value.filter((row) => {
+    if (id && Number(row?.user_id || row?.user?.id || 0) === id) return true;
+    const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+    return email && rowEmail === email;
+  });
+  return rows.length;
+};
+
+const spentForUser = (user) => {
+  const id = Number(user?.id || 0);
+  const email = String(user?.email || user?.customer_email || "").toLowerCase();
+  return bookingRows.value.reduce((sum, row) => {
+    const status = normalizeBookingStatus(row);
+    if (status !== "confirmed") return sum;
+    const matchesId = id && Number(row?.user_id || row?.user?.id || 0) === id;
+    const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+    const matchesEmail = email && rowEmail === email;
+    if (!matchesId && !matchesEmail) return sum;
+    return sum + Number(row?.total_amount || 0);
+  }, 0);
+};
+
+const normalizedUsers = computed(() =>
+  userRows.value.map((user) => {
+    const createdAt = user?.created_at || user?.registered_at || user?.createdAt || null;
+    const lastLogin = user?.last_login_at || user?.last_active_at || user?.updated_at || null;
+    const bookingsCount = Number(user?.bookings_count || user?.bookings_total || bookingCountForUser(user));
+    const spent = Number(user?.total_spent || spentForUser(user));
+    return {
+      id: user?.id ? `#${user.id}` : "N/A",
+      rawId: Number(user?.id || 0),
+      name: user?.name || user?.full_name || "Guest User",
+      email: user?.email || user?.customer_email || "No email",
+      phone: user?.phone || user?.phone_number || "No phone",
+      createdAt,
+      joinedLabel: formatDate(createdAt),
+      status: normalizeUserStatus(user),
+      initials: getInitials(user?.name || user?.full_name),
+      bookingsCount,
+      spent,
+      lastLogin,
+      lastLoginLabel: timeAgo(lastLogin),
+    };
+  }),
+);
+
+const filteredUsers = computed(() => {
+  const query = usersSearchQuery.value.trim().toLowerCase();
+  const base = query
+    ? normalizedUsers.value.filter((user) =>
+        [user.name, user.email, user.phone, user.id].join(" ").toLowerCase().includes(query),
+      )
+    : normalizedUsers.value;
+  return [...base].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+});
+
+const selectedUserId = ref("");
+
+watch(
+  filteredUsers,
+  (rows) => {
+    if (!rows.length) {
+      selectedUserId.value = "";
+      return;
+    }
+    if (!rows.some((row) => row.id === selectedUserId.value)) {
+      selectedUserId.value = rows[0].id;
+    }
+  },
+  { immediate: true },
+);
+
+const selectedUser = computed(() => filteredUsers.value.find((row) => row.id === selectedUserId.value) || null);
+
+const usersStats = computed(() => {
+  const total = normalizedUsers.value.length;
+  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const newUsers = normalizedUsers.value.filter((user) => new Date(user.createdAt || 0).getTime() >= monthAgo).length;
+  const active = normalizedUsers.value.filter((user) => normalizeUserStatus(user) === "Active").length;
+  const retention = total ? Math.round((active / total) * 100) : 0;
+  const inactive = total - active;
+  const churn = total ? (inactive / total) * 100 : 0;
+  return {
+    totalLabel: formatNumber(total),
+    totalDelta: `${formatNumber(newUsers)} new this month`,
+    newUsersLabel: formatNumber(newUsers),
+    newUsersDelta: total ? `${((newUsers / total) * 100).toFixed(1)}% of total` : "No data",
+    activeLabel: formatNumber(active),
+    activeDelta: `${retention}% retention`,
+    churnLabel: total ? `${churn.toFixed(1)}%` : "N/A",
+    churnDelta: `${formatNumber(inactive)} inactive`,
+  };
+});
+
+const usersFooterLabel = computed(() => {
+  const total = normalizedUsers.value.length;
+  const shown = filteredUsers.value.length;
+  if (!total) return "Showing 0 of 0 users";
+  return `Showing 1-${shown} of ${formatNumber(total)} users`;
+});
+
+const selectedUserActivities = computed(() => {
+  if (!selectedUser.value) return [];
+  const email = String(selectedUser.value.email || "").toLowerCase();
+  const id = Number(selectedUser.value.rawId || 0);
+  const rows = bookingRows.value
+    .filter((row) => {
+      if (id && Number(row?.user_id || row?.user?.id || 0) === id) return true;
+      const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+      return email && rowEmail === email;
+    })
+    .sort((a, b) => {
+      const left = getRowDate(a, a?.event?.starts_at)?.getTime() || 0;
+      const right = getRowDate(b, b?.event?.starts_at)?.getTime() || 0;
+      return right - left;
+    })
+    .slice(0, 3);
+
+  return rows.map((row) => ({
+    title: row?.event?.title || row?.service_name || "Booking",
+    time: timeAgo(getRowDate(row, row?.event?.starts_at)),
+    meta: formatCurrency(row?.total_amount || 0),
+  }));
+});
 
 const normalizeBookingStatus = (row) => {
   const status = String(row?.status || "").toLowerCase();
@@ -161,15 +326,16 @@ const dashboardStats = computed(() => {
   );
 
   return [
-    { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up" },
-    { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up" },
+    { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
+    { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
     {
       label: "Total Users",
       value: totalUsers ? formatNumber(totalUsers) : "N/A",
       delta: usersDelta,
       tone: totalUsers ? "down" : "neutral",
+      icon: "users",
     },
-    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid" },
+    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid", icon: "revenue" },
   ];
 });
 
@@ -383,7 +549,26 @@ onMounted(() => void adminStore.loadAll());
           class="stat-card"
           :class="card.tone"
         >
-          <div class="stat-icon"></div>
+          <div class="stat-icon" aria-hidden="true">
+            <svg v-if="card.icon === 'events'" viewBox="0 0 24 24">
+              <path
+                d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
+              />
+            </svg>
+            <svg v-else-if="card.icon === 'bookings'" viewBox="0 0 24 24">
+              <path
+                d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+              />
+            </svg>
+            <svg v-else-if="card.icon === 'users'" viewBox="0 0 24 24">
+              <path
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
+              />
+            </svg>
+            <svg v-else viewBox="0 0 24 24">
+              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
+            </svg>
+          </div>
           <p class="stat-label">{{ card.label }}</p>
           <p class="stat-value">{{ card.value }}</p>
           <span class="stat-delta" :class="card.tone">{{ card.delta }}</span>
@@ -653,30 +838,52 @@ onMounted(() => void adminStore.loadAll());
                 />
               </svg>
             </span>
-            <input type="search" placeholder="Search users by name, email..." />
+            <input v-model="usersSearchQuery" type="search" placeholder="Search users by name, email..." />
           </label>
         </div>
 
         <section class="users-stats">
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
+              </svg>
+            </div>
             <p>Total Users</p>
-            <h3>24,892</h3>
-            <span class="delta up">+12.5% from last month</span>
+            <h3>{{ usersStats.totalLabel }}</h3>
+            <span class="delta up">{{ usersStats.totalDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M9 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm6.5 1H19v2h-3.5v3h-2v-3H10v-2h3.5V9h2v3ZM4 19a5 5 0 0 1 10 0H4Z"
+                />
+              </svg>
+            </div>
             <p>New Users (Month)</p>
-            <h3>1,402</h3>
-            <span class="delta up">+8% growth rate</span>
+            <h3>{{ usersStats.newUsersLabel }}</h3>
+            <span class="delta up">{{ usersStats.newUsersDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M20.285 6.709 9 18l-5.285-5.291 1.414-1.414L9 15.172l9.871-9.877z" />
+              </svg>
+            </div>
             <p>Active Users</p>
-            <h3>18,245</h3>
-            <span class="delta neutral">73% retention</span>
+            <h3>{{ usersStats.activeLabel }}</h3>
+            <span class="delta neutral">{{ usersStats.activeDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 7h10l-3-3 1.414-1.414L19.828 9l-6.414 6.414L12 14l3-3H5V7zm14 10H9l3 3-1.414 1.414L4.172 15l6.414-6.414L12 10l-3 3h10v4z" />
+              </svg>
+            </div>
             <p>Churn Rate</p>
-            <h3>2.4%</h3>
-            <span class="delta down">0.5% decrease</span>
+            <h3>{{ usersStats.churnLabel }}</h3>
+            <span class="delta down">{{ usersStats.churnDelta }}</span>
           </article>
         </section>
 
@@ -702,78 +909,37 @@ onMounted(() => void adminStore.loadAll());
                 <span>Status</span>
                 <span>Action</span>
               </div>
-              <div class="table-row">
+              <div v-if="isUsersLoading" class="table-empty">Loading users...</div>
+              <div v-else-if="usersLoadError" class="table-empty">{{ usersLoadError }}</div>
+              <div v-else-if="!filteredUsers.length" class="table-empty">No users found.</div>
+              <div
+                v-else
+                v-for="user in filteredUsers"
+                :key="user.id + user.email"
+                class="table-row"
+                @click="selectedUserId = user.id"
+              >
                 <div class="user-cell">
-                  <div class="user-avatar">SC</div>
+                  <div class="user-avatar">{{ user.initials }}</div>
                   <div>
-                    <p>Sarah Connor</p>
-                    <span>ID: #88219</span>
+                    <p>{{ user.name }}</p>
+                    <span>ID: {{ user.id }}</span>
                   </div>
                 </div>
                 <div class="contact-cell">
-                  <p>sarah.c@gmail.com</p>
-                  <span>+855 12 345 678</span>
+                  <p>{{ user.email }}</p>
+                  <span>{{ user.phone }}</span>
                 </div>
-                <div>Oct 12, 2023</div>
-                <div><span class="tag">42 Total</span></div>
-                <div><span class="status active">Active</span></div>
+                <div>{{ user.joinedLabel }}</div>
+                <div><span class="tag">{{ formatCompactNumber(user.bookingsCount) }} Total</span></div>
+                <div><span class="status" :class="user.status.toLowerCase()">{{ user.status }}</span></div>
                 <div class="dots">• • •</div>
               </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar dark">MW</div>
-                  <div>
-                    <p>Marcus Wright</p>
-                    <span>ID: #88154</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>m.wright@tech.io</p>
-                  <span>+855 88 990 112</span>
-                </div>
-                <div>Nov 03, 2023</div>
-                <div><span class="tag">12 Total</span></div>
-                <div><span class="status active">Active</span></div>
-                <div class="dots">• • •</div>
-              </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar">JH</div>
-                  <div>
-                    <p>John Henry</p>
-                    <span>ID: #88001</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>j.henry@global.com</p>
-                  <span>+855 96 111 223</span>
-                </div>
-                <div>Aug 21, 2023</div>
-                <div><span class="tag">8 Total</span></div>
-                <div><span class="status inactive">Inactive</span></div>
-                <div class="dots">• • •</div>
-              </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar">GB</div>
-                  <div>
-                    <p>Grace Brewster</p>
-                    <span>ID: #87992</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>g.brew@outlook.com</p>
-                  <span>+855 77 445 566</span>
-                </div>
-                <div>Jan 15, 2024</div>
-                <div><span class="tag">105 Total</span></div>
-                <div><span class="status active">Active</span></div>
-                <div class="dots">• • •</div>
-              </div>
+
             </div>
 
             <footer class="directory-footer">
-              <span>Showing 1-10 of 24,892 users</span>
+              <span>{{ usersFooterLabel }}</span>
               <div class="pager">
                 <button class="pager-btn" type="button">1</button>
                 <button class="pager-btn active" type="button">2</button>
@@ -787,44 +953,42 @@ onMounted(() => void adminStore.loadAll());
             <div class="profile-card">
               <div class="profile-hero"></div>
               <div class="profile-body">
-                <div class="profile-photo">SC</div>
-                <h3>Sarah Connor</h3>
-                <p class="profile-email">sarah.c@gmail.com</p>
+                <div class="profile-photo">{{ selectedUser?.initials || "?" }}</div>
+                <h3>{{ selectedUser?.name || "Select a user" }}</h3>
+                <p class="profile-email">{{ selectedUser?.email || "No email available" }}</p>
                 <div class="profile-stats">
                   <div>
                     <span>Spent</span>
-                    <strong>$12.4k</strong>
+                    <strong>{{ selectedUser ? formatCurrency(selectedUser.spent) : "$0.00" }}</strong>
                   </div>
                   <div>
                     <span>Bookings</span>
-                    <strong>42</strong>
+                    <strong>{{ selectedUser ? formatNumber(selectedUser.bookingsCount) : "0" }}</strong>
                   </div>
                   <div>
                     <span>Last Login</span>
-                    <strong>2h ago</strong>
+                    <strong>{{ selectedUser?.lastLoginLabel || "N/A" }}</strong>
                   </div>
                 </div>
                 <div class="profile-activity">
                   <p>Recent Activity</p>
-                  <div class="activity-item">
+                  <div v-if="!selectedUserActivities.length" class="activity-item">
                     <div class="activity-dot"></div>
                     <div>
-                      <strong>Booked: Angkor Night Run</strong>
-                      <span>Today, 10:45 AM • $45.00</span>
+                      <strong>No recent activity</strong>
+                      <span>Activity will appear when the user books or updates their account.</span>
                     </div>
                   </div>
-                  <div class="activity-item">
+                  <div
+                    v-else
+                    v-for="activity in selectedUserActivities"
+                    :key="activity.title + activity.time"
+                    class="activity-item"
+                  >
                     <div class="activity-dot"></div>
                     <div>
-                      <strong>Updated Profile Picture</strong>
-                      <span>Yesterday, 04:22 PM</span>
-                    </div>
-                  </div>
-                  <div class="activity-item">
-                    <div class="activity-dot"></div>
-                    <div>
-                      <strong>Canceled: Tech Meetup '24</strong>
-                      <span>Feb 18, 2024 • Refunded</span>
+                      <strong>{{ activity.title }}</strong>
+                      <span>{{ activity.time }} • {{ activity.meta }}</span>
                     </div>
                   </div>
                 </div>
@@ -837,7 +1001,7 @@ onMounted(() => void adminStore.loadAll());
             </div>
             <div class="elite-card">
               <h4>Elite Member</h4>
-              <p>Sarah is in the top 2% of contributors in the Siem Reap region.</p>
+              <p>{{ selectedUser?.name || "This user" }} is in the top 2% of contributors in the Siem Reap region.</p>
               <button class="link-btn" type="button">View full engagement report</button>
             </div>
           </aside>
@@ -1098,21 +1262,21 @@ onMounted(() => void adminStore.loadAll());
 
 .search {
   flex: 1;
-  max-width: 380px;
+  max-width: 420px;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 18px;
+  padding: 12px 16px;
   gap: 8px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search:focus-within {
   transform: translateY(-1px);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
 }
 
 .search-icon svg {
@@ -1174,26 +1338,50 @@ onMounted(() => void adminStore.loadAll());
 .admin-hero {
   display: grid;
   gap: 12px;
-  padding: 22px 24px;
-  border-radius: 26px;
-  background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: var(--shadow);
+  padding: 26px 28px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 244, 236, 0.9) 65%, rgba(236, 244, 255, 0.92) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40% 50% 30% -10%;
+  background: radial-gradient(circle at top, rgba(255, 122, 26, 0.28), transparent 60%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.admin-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 55%);
+  pointer-events: none;
+}
+
+.admin-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-hero .eyebrow {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.6px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   margin: 0;
-  color: #b45309;
+  color: #c45a12;
 }
 
 .hero-title {
   margin: 0;
-  font-size: 38px;
-  font-weight: 700;
+  font-size: 40px;
+  font-weight: 720;
   font-family: "Fraunces", serif;
   color: var(--ink);
 }
@@ -1201,7 +1389,7 @@ onMounted(() => void adminStore.loadAll());
 .hero-subtitle {
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .hero-actions {
@@ -1209,6 +1397,7 @@ onMounted(() => void adminStore.loadAll());
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .hero-actions .ghost-btn,
@@ -1219,68 +1408,130 @@ onMounted(() => void adminStore.loadAll());
 .admin-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .stat-card {
-  background: var(--surface);
-  padding: 18px;
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 255, 0.92));
+  padding: 22px 24px 20px;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: stat-pop 0.6s ease both;
 }
 
 .stat-card::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.14), transparent 55%);
-  opacity: 0;
+  background:
+    radial-gradient(circle at top right, rgba(255, 122, 26, 0.16), transparent 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.6), transparent 55%);
+  opacity: 0.6;
   transition: opacity 0.2s ease;
 }
 
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  width: 54px;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.9), rgba(255, 154, 77, 0.5));
+  opacity: 0.7;
+}
+
 .stat-card:hover::after {
-  opacity: 1;
+  opacity: 0.9;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.16);
+  transform: translateY(-5px);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+  border-color: rgba(255, 122, 26, 0.2);
+}
+
+.stat-card:nth-child(1)::before {
+  background: linear-gradient(90deg, #ff7a1a, #ffb26b);
+}
+
+.stat-card:nth-child(2)::before {
+  background: linear-gradient(90deg, #3b82f6, #67e8f9);
+}
+
+.stat-card:nth-child(3)::before {
+  background: linear-gradient(90deg, #10b981, #6ee7b7);
+}
+
+.stat-card:nth-child(4)::before {
+  background: linear-gradient(90deg, #f15b2a, #ff9a4d);
+}
+
+.stat-card:nth-child(1) {
+  animation-delay: 0.02s;
+}
+
+.stat-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.stat-card:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.stat-card:nth-child(4) {
+  animation-delay: 0.2s;
 }
 
 .stat-card.solid {
-  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 52%, #ff9a4d 100%);
   color: #fff;
   border-color: transparent;
+  box-shadow: 0 30px 70px rgba(241, 91, 42, 0.35);
 }
 
 .stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  margin-bottom: 12px;
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 226, 206, 0.5));
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 122, 26, 0.22);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  display: grid;
+  place-items: center;
+  color: #ff7a1a;
 }
 
 .stat-card.solid .stat-icon {
   background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 .stat-label {
   margin: 0;
   font-size: 12px;
   color: inherit;
-  opacity: 0.75;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 .stat-value {
   margin: 6px 0 0;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 720;
 }
 
 .stat-delta {
@@ -1288,10 +1539,35 @@ onMounted(() => void adminStore.loadAll());
   top: 16px;
   right: 16px;
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 999px;
-  background: #e9f7ef;
+  background: #eaf8ef;
   color: #2f9e5f;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card.solid::after {
+  opacity: 0.35;
+}
+
+.stat-card.solid .stat-label {
+  opacity: 0.9;
+  letter-spacing: 0.08em;
+}
+
+.stat-card.solid .stat-value {
+  font-size: 30px;
+}
+
+@keyframes stat-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .stat-delta.down {
@@ -1881,26 +2157,73 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .users-search {
-  max-width: 420px;
+  max-width: 520px;
+  width: 100%;
+  border-radius: 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+.users-search:focus-within {
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+
+.users-search .search-icon svg {
+  fill: #94a3b8;
 }
 
 .users-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .users-stat {
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-soft);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.92));
+  border-radius: 20px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.users-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 55%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.users-stat:nth-child(1)::after {
+  background: radial-gradient(circle at top right, rgba(255, 122, 26, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(2)::after {
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(3)::after {
+  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(4)::after {
+  background: radial-gradient(circle at top right, rgba(239, 68, 68, 0.16), transparent 55%);
+}
+
+.users-stat > * {
+  position: relative;
+  z-index: 1;
 }
 
 .users-stat h3 {
   margin: 8px 0;
-  font-size: 22px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .users-stat p {
@@ -1908,7 +2231,38 @@ onMounted(() => void adminStore.loadAll());
   font-size: 12px;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
+}
+
+.users-stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+  color: #ff7a1a;
+  margin-bottom: 10px;
+}
+
+.users-stat-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.users-stat:nth-child(2) .users-stat-icon {
+  color: #3b82f6;
+}
+
+.users-stat:nth-child(3) .users-stat-icon {
+  color: #10b981;
+}
+
+.users-stat:nth-child(4) .users-stat-icon {
+  color: #ef4444;
 }
 
 .delta {
@@ -1931,6 +2285,8 @@ onMounted(() => void adminStore.loadAll());
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 20px;
+  align-items: start;
+  min-width: 0;
 }
 
 .users-directory {
@@ -1978,6 +2334,15 @@ onMounted(() => void adminStore.loadAll());
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 4px;
+}
+
+.table-empty {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .table-head,
@@ -2108,6 +2473,9 @@ onMounted(() => void adminStore.loadAll());
   display: grid;
   gap: 16px;
   min-width: 0;
+  width: 100%;
+  max-width: 360px;
+  justify-self: stretch;
 }
 
 .profile-card {
@@ -2116,6 +2484,7 @@ onMounted(() => void adminStore.loadAll());
   border: 1px solid var(--stroke);
   overflow: hidden;
   box-shadow: var(--shadow);
+  width: 100%;
 }
 
 .profile-hero {
@@ -2196,13 +2565,14 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .profile-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
 }
 
 .profile-actions .ghost-btn {
-  flex: 1 1 120px;
+  width: 100%;
   white-space: nowrap;
 }
 
@@ -2215,6 +2585,7 @@ onMounted(() => void adminStore.loadAll());
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  width: 100%;
 }
 
 .elite-card {
@@ -2223,6 +2594,26 @@ onMounted(() => void adminStore.loadAll());
   padding: 18px;
   color: #fff;
   box-shadow: var(--shadow-soft);
+  width: 100%;
+}
+
+.admin-shell :is(
+    .stat-card,
+    .activity-card,
+    .report-card,
+    .status-card,
+    .settings-card,
+    .users-directory,
+    .profile-card,
+    .elite-card,
+    .users-stat
+  ) {
+  outline: 1px solid rgba(255, 122, 26, 0.2);
+  outline-offset: -10px;
+}
+
+.admin-shell :is(.stat-card.solid, .report-card, .elite-card) {
+  outline-color: rgba(255, 255, 255, 0.35);
 }
 
 .elite-card h4 {

@@ -77,6 +77,9 @@ Route::post('bookings/{booking}/confirm-payment', [BookingController::class, 'co
 Route::get('notifications/bookings', [NotificationController::class, 'index']);
 Route::patch('notifications/bookings/read-all', [NotificationController::class, 'markAllRead']);
 Route::patch('notifications/bookings/{notification}/read', [NotificationController::class, 'markRead']);
+Route::get('vendor/settings', [VendorSettingController::class, 'show']);
+Route::put('vendor/settings', [VendorSettingController::class, 'update']);
+Route::patch('vendor/settings', [VendorSettingController::class, 'update']);
 Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
 Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
 Route::patch('vendor/services/{event}', [VendorController::class, 'updateServiceByVendorId']);
@@ -94,12 +97,12 @@ Route::prefix('user')->group(function () {
     Route::post('/chats', [ChatController::class, 'userCreate']);
     Route::get('/chats', [ChatController::class, 'userIndex']);
     Route::post('/chats/{conversation}/messages', [ChatController::class, 'userSendMessage']);
+    Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
 });
 
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
-    Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
     Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 
@@ -110,9 +113,6 @@ Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(functi
     Route::put('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::patch('/events/{event}', [VendorController::class, 'updateEvent']);
     Route::delete('/events/{event}', [VendorController::class, 'destroyEvent']);
-    Route::get('/settings', [VendorSettingController::class, 'show']);
-    Route::put('/settings', [VendorSettingController::class, 'update']);
-    Route::patch('/settings', [VendorSettingController::class, 'update']);
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {

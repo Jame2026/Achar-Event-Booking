@@ -1360,6 +1360,11 @@ async function loadVendorSettings({ eventId = null, silent = false } = {}) {
   isLoadingVendorSettings.value = true
   if (!silent) vendorSettingsNotice.value = ''
   try {
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+      throw new Error('Vendor account could not be identified.')
+    }
+
     const targetEventId =
       eventId !== null && eventId !== undefined
         ? eventId
@@ -1367,7 +1372,10 @@ async function loadVendorSettings({ eventId = null, silent = false } = {}) {
           ? null
           : Number(vendorSettingsServiceId.value)
 
-    const result = await apiGet('vendor/settings', targetEventId ? { event_id: targetEventId } : {})
+    const result = await apiGet('vendor/settings', {
+      vendor_user_id: vendorUserId,
+      ...(targetEventId ? { event_id: targetEventId } : {}),
+    })
     const settings = result?.settings || result?.data || result
     vendorSettings.value = normalizeVendorSettings(settings)
     if (targetEventId !== null && targetEventId !== undefined) {
@@ -1388,13 +1396,22 @@ async function saveVendorSettings(payload) {
   isSavingVendorSettings.value = true
   vendorSettingsNotice.value = ''
   try {
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+      throw new Error('Vendor account could not be identified.')
+    }
+
     const targetEventId =
       payload?.event_id !== undefined
         ? payload.event_id
         : vendorSettingsServiceId.value === 'all'
           ? null
           : Number(vendorSettingsServiceId.value)
-    const normalizedPayload = { ...payload, event_id: targetEventId }
+    const normalizedPayload = {
+      ...payload,
+      vendor_user_id: vendorUserId,
+      event_id: targetEventId,
+    }
     const result = await apiPatch('vendor/settings', normalizedPayload)
     const settings = result?.settings || result?.data || result
     vendorSettings.value = normalizeVendorSettings(settings)
@@ -1998,10 +2015,20 @@ async function deleteCustomerBooking(item) {
   if (!shouldDelete) return
 
   const bookingId = Number(item.id || 0)
+  const lookup = resolveBookingLookup()
 
   try {
-    if (Number.isFinite(bookingId) && bookingId > 0 && loggedInUser.value) {
-      await apiDelete(`user/bookings/${bookingId}`)
+    if (Number.isFinite(bookingId) && bookingId > 0) {
+      if (!lookup.hasIdentity) {
+        notice.value = uiText.value.signInToContinue
+        return
+      }
+
+      await apiDelete(`user/bookings/${bookingId}`, {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.email || lookup.fallbackEmail || undefined,
+        customer_phone: lookup.phone || undefined,
+      })
     }
 
     deleteLocalBookingEntry(item)
@@ -2115,7 +2142,7 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-      <PublicNavbar v-if="!(isAdminAccount && ['dashboard', 'revenue', 'events', 'admin-bookings', 'vendors'].includes(currentPage))" />
+      <PublicNavbar />
       <AdminDashboardPage
         v-if="isAdminAccount && currentPage === 'dashboard'"
         :app-logo-src="brandLogoSrc"
