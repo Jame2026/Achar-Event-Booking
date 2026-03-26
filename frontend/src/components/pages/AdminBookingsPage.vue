@@ -97,10 +97,6 @@ const initials = computed(() => {
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
-const activeNavLabel = computed(
-  () => navItems.find((item) => item.key === activeKey.value)?.label || "Bookings",
-);
-
 const normalizedBookings = computed(() =>
   adminBookings.value.map((booking) => {
     const event = booking?.event || {};
@@ -307,11 +303,6 @@ onMounted(() => void loadAdminBookings());
             <p class="brand-subtitle">Customer booking workspace</p>
           </div>
         </div>
-        <div class="brand-spotlight">
-          <span class="brand-spotlight-label">Focused Area</span>
-          <strong>{{ activeNavLabel }}</strong>
-          <small>{{ pendingBookingsCount }} pending booking(s) across {{ totalBookingsCount }} total orders</small>
-        </div>
       </div>
 
       <section class="sidebar-block">
@@ -360,34 +351,6 @@ onMounted(() => void loadAdminBookings());
         </nav>
       </section>
 
-      <article class="sidebar-support-card">
-        <small>Booking Monitor</small>
-        <strong>{{ totalBookingsCount }} customer booking(s) tracked</strong>
-        <p>Review customer activity, package demand, and booking status updates from one booking workspace.</p>
-      </article>
-
-      <div class="admin-user-card">
-        <div class="user-card-top">
-          <div class="avatar-shell">
-            <div class="avatar">{{ initials }}</div>
-          </div>
-          <div>
-            <p class="user-name">{{ adminDisplayName }}</p>
-            <p class="user-role">Super Admin</p>
-          </div>
-        </div>
-        <div class="user-tags">
-          <span>Booking Desk</span>
-          <span>{{ packageBookingsCount }} package orders</span>
-          <span>{{ serviceBookingsCount }} service orders</span>
-        </div>
-        <div class="user-actions">
-          <RouterLink class="user-link" to="/">Back to Home</RouterLink>
-          <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-            Log out
-          </button>
-        </div>
-      </div>
     </aside>
 
     <main class="admin-main">
@@ -694,9 +657,7 @@ onMounted(() => void loadAdminBookings());
 }
 
 .brand-card,
-.sidebar-block,
-.sidebar-support-card,
-.admin-user-card {
+.sidebar-block {
   border: 1px solid rgba(15, 23, 42, 0.07);
   background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
@@ -762,32 +723,12 @@ onMounted(() => void loadAdminBookings());
   color: #66758d;
 }
 
-.brand-spotlight {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(255, 244, 234, 0.94), rgba(255, 255, 255, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.14);
-}
-
-.brand-spotlight-label,
 .sidebar-section-label {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #9a6a4b;
-}
-
-.brand-spotlight strong {
-  font-size: 18px;
-  color: #17263d;
-}
-
-.brand-spotlight small {
-  color: #6f7d93;
 }
 
 .sidebar-block {
@@ -890,129 +831,6 @@ onMounted(() => void loadAdminBookings());
   background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
   color: #d7641d;
   border-color: rgba(255, 122, 26, 0.24);
-}
-
-.sidebar-support-card {
-  display: grid;
-  gap: 8px;
-  padding: 16px 18px;
-  border-radius: 24px;
-}
-
-.sidebar-support-card small {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9a6a4b;
-}
-
-.sidebar-support-card strong {
-  font-size: 18px;
-  line-height: 1.35;
-  color: #19283f;
-}
-
-.sidebar-support-card p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #6d7c91;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  border-radius: 26px;
-  padding: 18px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 14px;
-}
-
-.user-card-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar-shell {
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255, 244, 234, 0.95), rgba(255, 228, 207, 0.86));
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 122, 26, 0.14);
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #ffb77f, #ff7a1a);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  box-shadow: 0 12px 24px rgba(255, 122, 26, 0.24);
-}
-
-.user-name {
-  font-weight: 700;
-  margin: 0;
-  color: #17263d;
-}
-
-.user-role {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #6f7d93;
-}
-
-.user-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.user-tags span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f3f6fb;
-  color: #56657d;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.user-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.user-link {
-  text-decoration: none;
-  color: #314258;
-  background: #f7fafc;
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 14px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.logout-btn {
-  border: none;
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.24);
 }
 
 .admin-main {

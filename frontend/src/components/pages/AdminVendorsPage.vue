@@ -41,10 +41,6 @@ const initials = computed(() => {
   const parts = String(props.adminDisplayName || "Admin").split(" ").filter(Boolean);
   return `${parts[0]?.[0] || "A"}${parts[1]?.[0] || ""}`.toUpperCase();
 });
-const activeNavLabel = computed(
-  () => navItems.find((item) => item.key === activeKey.value)?.label || "Vendors",
-);
-
 function vendorKey(id, name) {
   return id ? `vendor:${id}` : `vendor-name:${String(name || "vendor").trim().toLowerCase()}`;
 }
@@ -234,9 +230,6 @@ const highlightCards = computed(() => [
   { label: "Listings In System", value: count(vendorRows.value.reduce((sum, item) => sum + item.serviceCount, 0)), note: `${count(vendorRows.value.reduce((sum, item) => sum + item.packageCount, 0))} package listings` },
   { label: "Bookings", value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Across vendor listings" },
 ]);
-const totalListingCount = computed(() => vendorRows.value.reduce((sum, item) => sum + item.serviceCount, 0));
-const liveVendorCount = computed(() => vendorRows.value.filter((item) => ["live", "mixed"].includes(item.visibility)).length);
-
 const hasVendorProfileImage = (vendor) =>
   Boolean(String(vendor?.profileImageUrl || "").trim())
   && !failedVendorImages.value.has(vendor?.vendorImageKey || vendor?.key);
@@ -345,11 +338,6 @@ onMounted(() => void loadVendorDirectory());
             <p class="brand-subtitle">Vendor directory workspace</p>
           </div>
         </div>
-        <div class="brand-spotlight">
-          <span class="brand-spotlight-label">Focused Area</span>
-          <strong>{{ activeNavLabel }}</strong>
-          <small>{{ liveVendorCount }} live vendor account(s) across {{ totalListingCount }} listing(s)</small>
-        </div>
       </div>
 
       <section class="sidebar-block">
@@ -391,32 +379,6 @@ onMounted(() => void loadVendorDirectory());
         </nav>
       </section>
 
-      <article class="sidebar-support-card">
-        <small>Vendor Monitor</small>
-        <strong>{{ liveVendorCount }} vendor account(s) currently have visible listings</strong>
-        <p>Review vendor profiles, contacts, and published services or packages from one admin workspace.</p>
-      </article>
-
-      <div class="admin-user-card">
-        <div class="user-card-top">
-          <div class="avatar-shell">
-            <div class="avatar">{{ initials }}</div>
-          </div>
-          <div>
-            <p class="user-name">{{ adminDisplayName }}</p>
-            <p class="user-role">Super Admin</p>
-          </div>
-        </div>
-        <div class="user-tags">
-          <span>Vendor Desk</span>
-          <span>{{ totalListingCount }} listings</span>
-          <span>{{ count(filteredVendors.length) }} visible now</span>
-        </div>
-        <div class="user-actions">
-          <RouterLink class="user-link" to="/">Back to Home</RouterLink>
-          <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">Log out</button>
-        </div>
-      </div>
     </aside>
 
     <main class="admin-main">
@@ -692,9 +654,7 @@ onMounted(() => void loadVendorDirectory());
 }
 
 .brand-card,
-.sidebar-block,
-.sidebar-support-card,
-.admin-user-card {
+.sidebar-block {
   border: 1px solid rgba(15, 23, 42, 0.07);
   background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
@@ -760,17 +720,6 @@ onMounted(() => void loadVendorDirectory());
   color: #66758d;
 }
 
-.brand-spotlight {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(255, 244, 234, 0.94), rgba(255, 255, 255, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.14);
-}
-
-.brand-spotlight-label,
 .sidebar-section-label {
   font-size: 11px;
   font-weight: 700;
@@ -779,14 +728,6 @@ onMounted(() => void loadVendorDirectory());
   color: #9a6a4b;
 }
 
-.brand-spotlight strong {
-  font-size: 18px;
-  color: #17263d;
-}
-
-.brand-spotlight small,
-.sidebar-support-card p,
-.user-role,
 .hero-copy p,
 .hero-selected small,
 .highlight-label,
@@ -905,110 +846,124 @@ onMounted(() => void loadVendorDirectory());
   border-color: rgba(255, 122, 26, 0.24);
 }
 
-.sidebar-support-card {
-  display: grid;
-  gap: 8px;
-  padding: 16px 18px;
-  border-radius: 24px;
+.hero-copy p,
+.hero-selected small,
+.highlight-label,
+.highlight-note,
+.vendor-copy p,
+.vendor-side small,
+.sidebar-head p,
+.identity-copy small,
+.detail-block span,
+.service-copy p,
+.service-copy small,
+.empty,
+.empty-selection,
+.card-meta {
+  color: var(--muted);
 }
 
-.sidebar-support-card small {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9a6a4b;
-}
-
-.sidebar-support-card strong {
-  font-size: 18px;
-  line-height: 1.35;
-  color: #19283f;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  border-radius: 26px;
-  padding: 18px;
-  box-shadow: var(--shadow-soft);
+.sidebar-block {
   display: grid;
   gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
 }
 
-.user-card-top {
+.sidebar-block-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
 }
 
-.avatar-shell {
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255, 244, 234, 0.95), rgba(255, 228, 207, 0.86));
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 122, 26, 0.14);
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #ffb77f, #ff7a1a);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  box-shadow: 0 12px 24px rgba(255, 122, 26, 0.24);
-}
-
-.user-name {
-  margin: 0;
-  font-weight: 700;
-  color: #17263d;
-}
-
-.user-role {
-  margin: 4px 0 0;
+.sidebar-section-caption {
   font-size: 12px;
+  color: #7b8ba2;
 }
 
-.user-tags {
+.admin-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 
-.user-tags span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f3f6fb;
-  color: #56657d;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.user-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
+.nav-item {
+  display: flex;
   align-items: center;
-}
-
-.user-link {
-  text-decoration: none;
+  gap: 14px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
+  font-size: 15px;
+  cursor: pointer;
   color: #314258;
-  background: #f7fafc;
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 14px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.logout-btn,
+.nav-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
+}
+
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.nav-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.nav-copy strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nav-copy small {
+  font-size: 12px;
+  color: #7f8ca3;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+.nav-item.active {
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
+}
+
+.nav-item.active .nav-icon {
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
+}
+
 .ghost-btn,
 .primary-btn,
 .search-input,
@@ -1016,7 +971,6 @@ select {
   font: inherit;
 }
 
-.logout-btn,
 .ghost-btn,
 .primary-btn {
   padding: 10px 14px;
@@ -1024,12 +978,6 @@ select {
   border: 1px solid transparent;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-}
-
-.logout-btn {
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
-  color: #fff;
-  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.24);
 }
 
 .admin-main {
@@ -1677,19 +1625,15 @@ button:disabled {
     font-size: 34px;
   }
 
-  .topbar-actions,
-  .user-actions {
+  .topbar-actions {
     width: 100%;
   }
 
   .topbar-actions {
     justify-content: space-between;
   }
-
-  .user-actions {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
+
 
 

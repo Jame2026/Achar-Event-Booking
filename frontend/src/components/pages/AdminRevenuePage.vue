@@ -128,16 +128,6 @@ watch(() => route.query.page, syncActiveKey);
         </RouterLink>
       </nav>
 
-      <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
-        <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
-          <p class="user-role">Revenue Manager</p>
-        </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
     </aside>
 
     <main class="admin-main">
@@ -434,49 +424,6 @@ watch(() => route.query.page, syncActiveKey);
 
 .home-link {
   text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
 }
 
 .admin-main {
