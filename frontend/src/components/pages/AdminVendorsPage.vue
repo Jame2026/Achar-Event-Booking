@@ -49,11 +49,23 @@ const noticeTone = ref("info");
 const vendorEvents = ref([]);
 const selectedVendorKey = ref("");
 const adminState = ref(loadState());
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
 
 const initials = computed(() => {
-  const parts = String(props.adminDisplayName || "Admin").split(" ").filter(Boolean);
+  const parts = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
+    .split(" ")
+    .filter(Boolean);
   return `${parts[0]?.[0] || "A"}${parts[1]?.[0] || ""}`.toUpperCase();
 });
+const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
 
 const vendorRows = computed(() => {
   const groups = new Map();
@@ -148,10 +160,10 @@ const selectedServices = computed(() => {
 });
 
 const highlightCards = computed(() => [
-  { label: "Total Vendors", value: count(vendorRows.value.length), note: `${count(filteredVendors.value.length)} visible now` },
-  { label: "Needs Review", value: count(vendorRows.value.filter((item) => item.reviewState !== "approved").length), note: "Admin follow-up" },
-  { label: "Live Services", value: count(vendorRows.value.reduce((sum, item) => sum + item.activeCount, 0)), note: "Publicly visible" },
-  { label: "Bookings", value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Vendor total" },
+  { label: "Total Vendors", value: count(vendorRows.value.length), note: `${count(filteredVendors.value.length)} visible now`, icon: "vendors" },
+  { label: "Needs Review", value: count(vendorRows.value.filter((item) => item.reviewState !== "approved").length), note: "Admin follow-up", icon: "review" },
+  { label: "Live Services", value: count(vendorRows.value.reduce((sum, item) => sum + item.activeCount, 0)), note: "Publicly visible", icon: "live" },
+  { label: "Bookings", value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Vendor total", icon: "bookings" },
 ]);
 
 function defaultState() {
@@ -371,9 +383,12 @@ onMounted(() => void loadVendorDirectory());
       </nav>
 
       <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
+        <div class="avatar" :class="{ 'has-image': avatarUrl }">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+          <span v-else>{{ initials }}</span>
+        </div>
         <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
+          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
           <p class="user-role">Super Admin</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">Log out</button>
@@ -395,8 +410,11 @@ onMounted(() => void loadVendorDirectory());
             <span>Visible Vendors</span>
             <strong>{{ count(filteredVendors.length) }}</strong>
           </div>
-          <button class="ghost-btn" type="button" :disabled="isLoading" @click="loadVendorDirectory">{{ isLoading ? "Refreshing..." : "Refresh" }}</button>
-          <div class="topbar-avatar">{{ initials }}</div>
+          <!-- <button class="ghost-btn" type="button" :disabled="isLoading" @click="loadVendorDirectory">{{ isLoading ? "Refreshing..." : "Refresh" }}</button> -->
+          <div class="topbar-avatar" :class="{ 'has-image': avatarUrl }">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+            <span v-else>{{ initials }}</span>
+          </div>
         </div>
       </header>
 
@@ -426,6 +444,23 @@ onMounted(() => void loadVendorDirectory());
 
       <section class="highlights">
         <article v-for="card in highlightCards" :key="card.label" class="highlight-card">
+          <div class="highlight-spot"></div>
+          <div class="highlight-icon" :class="card.icon">
+            <svg v-if="card.icon === 'vendors'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1Z" />
+              <path d="M8 4h8l1 4H7Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'review'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4h14v14H7l-2 2V4Zm2 2v10h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'live'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 7a5 5 0 1 1-3.536 1.464A5 5 0 0 1 12 7Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+              <path d="M4.222 4.222 5.636 5.636 4.5 6.772A9 9 0 0 0 12 21v-2a7 7 0 0 1-7-7c0-1.81.688-3.461 1.818-4.707L4.222 4.222ZM19.778 4.222l-1.414 1.414A7 7 0 0 1 19 12a7 7 0 0 1-7 7v2a9 9 0 0 0 9-9c0-2.308-.88-4.413-2.308-6.036l1.086-1.086Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'bookings'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 4h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2Z" />
+            </svg>
+          </div>
           <span class="highlight-label">{{ card.label }}</span>
           <strong>{{ card.value }}</strong>
           <small class="highlight-note">{{ card.note }}</small>
@@ -594,16 +629,21 @@ onMounted(() => void loadVendorDirectory());
 .admin-nav{display:grid;gap:10px;padding:14px;background:rgba(255,255,255,.72);border:1px solid rgba(15,23,42,.06);border-radius:24px;box-shadow:var(--shadow-soft)}
 .nav-item{gap:12px;padding:14px 16px;border:1px solid transparent;border-radius:18px;background:transparent;color:#475569;cursor:pointer;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease,background .2s ease}
 .nav-item:hover,.nav-item.active{color:var(--accent);background:linear-gradient(135deg,#fff4ea,#ffe2ce);border-color:rgba(255,122,26,.18);box-shadow:inset 3px 0 0 var(--accent),0 10px 18px rgba(255,122,26,.14);transform:translateX(2px)}
-.nav-icon{width:38px;height:38px;border-radius:12px;background:radial-gradient(circle at 30% 20%,#f8fafc,#eef2f7 70%);color:#94a3b8;border:1px solid rgba(148,163,184,.16)}
+.nav-icon{width:38px;height:38px;border-radius:12px;background:radial-gradient(circle at 30% 20%,#f8fafc,#eef2f7 70%);color:#94a3b8;border:1px solid rgba(148,163,184,.16);display:grid;place-items:center}
 .admin-user-card,.card,.highlight-card,.hero{background:var(--surface);border:1px solid var(--stroke);border-radius:22px;box-shadow:var(--shadow)}
 .admin-user-card{margin-top:auto;padding:16px;display:grid;gap:8px}.avatar,.vendor-photo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#ffe9d6,#ffd2aa);color:#bf5c06}.user-name{margin:0;font-weight:600}
 .logout-btn,.ghost-btn,.primary-btn,.danger-btn,.mini-btn,.search-input,select,textarea,.vendor-row{font:inherit}.logout-btn,.ghost-btn,.primary-btn,.danger-btn,.mini-btn{padding:10px 14px;border-radius:12px;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,opacity .2s ease;border:1px solid transparent}.logout-btn{background:#f1f5f9;border:none}
-.admin-main{padding:28px 32px 40px;display:grid;gap:20px}.topbar{justify-content:space-between;gap:14px}.topbar-actions{gap:12px}.topbar-badge{display:grid;gap:2px;padding:10px 14px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(15,23,42,.07);box-shadow:var(--shadow-soft)}.topbar-badge strong{font-size:16px}
-.search{display:flex;align-items:center;gap:10px;flex:1;min-height:52px;padding:0 16px;border:1px solid rgba(15,23,42,.08);border-radius:18px;background:rgba(255,255,255,.94);box-shadow:var(--shadow-soft)}.search-icon svg{width:18px;height:18px;fill:#94a3b8}.search-input{width:100%;border:none;background:transparent;outline:none;color:var(--ink)}
-.topbar-avatar{width:40px;height:40px;border-radius:14px;color:#fff;background:linear-gradient(135deg,#ffb98b,#ff8b3d)}
+.admin-main{padding:28px 32px 40px;display:grid;gap:20px;overflow:visible}.topbar{justify-content:space-between;gap:14px;background:rgba(255,255,255,.9);border:1px solid rgba(15,23,42,.06);border-radius:18px;padding:12px 14px;box-shadow:var(--shadow-soft)}.topbar-actions{gap:10px;align-items:center;display:flex;padding:6px 8px;border-radius:14px;background:rgba(255,255,255,.85);border:1px solid rgba(15,23,42,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}.topbar-badge{display:grid;gap:2px;padding:10px 14px;border-radius:16px;background:linear-gradient(180deg,#fff,#f6f7fb);border:1px solid rgba(15,23,42,.07);box-shadow:var(--shadow-soft)}.topbar-badge strong{font-size:16px}
+.search{display:flex;align-items:center;gap:10px;flex:1;min-height:54px;padding:0 18px;border:1px solid rgba(15,23,42,.08);border-radius:18px;background:linear-gradient(180deg,#fff,#f8fafc);box-shadow:var(--shadow-soft)}.search-icon svg{width:18px;height:18px;fill:#94a3b8}.search-input{width:100%;border:none;background:transparent;outline:none;color:var(--ink)}
+.topbar-avatar{width:40px;height:40px;border-radius:14px;color:#fff;background:linear-gradient(135deg,#ffb98b,#ff8b3d);box-shadow:0 10px 18px rgba(241,91,42,.22);overflow:hidden;display:grid;place-items:center}
+.topbar-avatar.has-image{background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 8px 14px rgba(15,23,42,.08)}
+.topbar-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar{overflow:hidden}
+.avatar.has-image{background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 8px 14px rgba(15,23,42,.08)}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
 .hero{justify-content:space-between;gap:22px;padding:26px 28px;position:relative;overflow:hidden}.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 14% 12%,rgba(255,122,26,.12),transparent 28%),radial-gradient(circle at 88% 18%,rgba(90,146,240,.14),transparent 30%);pointer-events:none}.hero>*{position:relative;z-index:1}.hero-copy{max-width:620px}.eyebrow,.card-eyebrow{margin:0 0 8px;text-transform:uppercase;letter-spacing:.12em;font-size:12px;color:#c45a12}.hero h1{font-size:38px;line-height:1.05}.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.hero-pill{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,122,26,.14);color:#b45309}.hero-pill.soft{background:rgba(15,23,42,.06);color:#475569}.hero-actions{gap:14px;justify-content:flex-end}.hero-selected{display:grid;gap:3px;min-width:220px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.78);border:1px solid rgba(15,23,42,.07);box-shadow:var(--shadow-soft)}.hero-selected-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.hero-selected small{color:var(--muted)}
 .notice{margin:0;padding:12px 14px;border-radius:16px;border:1px solid transparent}.notice.success{background:rgba(31,157,108,.12);color:#0f7a51;border-color:rgba(31,157,108,.18)}.notice.error{background:rgba(220,38,38,.1);color:#b42318;border-color:rgba(220,38,38,.16)}.notice.info{background:rgba(15,23,42,.05);color:#334155;border-color:rgba(15,23,42,.08)}
-.highlights,.content-grid,.stats-grid{display:grid;gap:14px}.highlights{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.highlight-card{display:grid;gap:8px;padding:16px;position:relative;overflow:hidden}.highlight-card::before{content:"";position:absolute;inset:auto 16px 16px auto;width:38px;height:38px;border-radius:14px;background:linear-gradient(135deg,rgba(255,122,26,.14),rgba(255,122,26,.04))}.highlight-card strong{font-size:26px}.content-grid{grid-template-columns:minmax(0,1.45fr) minmax(340px,1fr);align-items:start}.card{padding:20px}.card-head{justify-content:space-between;gap:12px;margin-bottom:16px}.card-meta{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.05)}
+.highlights,.content-grid,.stats-grid{display:grid;gap:14px}.highlights{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.highlight-card{display:grid;gap:8px;padding:16px;position:relative;overflow:hidden}.highlight-card::before{content:"";position:absolute;inset:auto 16px 16px auto;width:38px;height:38px;border-radius:14px;background:linear-gradient(135deg,rgba(255,122,26,.14),rgba(255,122,26,.04))}.highlight-spot{position:absolute;right:18px;bottom:14px;width:32px;height:26px;border-radius:12px;background:rgba(255,122,26,.12);backdrop-filter:blur(6px)}.highlight-icon{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid rgba(148,163,184,.18);color:#f15b2a}.highlight-icon svg{width:18px;height:18px;fill:currentColor}.highlight-card strong{font-size:26px}.content-grid{grid-template-columns:minmax(0,1.45fr) minmax(340px,1fr);align-items:start}.card{padding:20px}.card-head{justify-content:space-between;gap:12px;margin-bottom:16px}.card-meta{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.05)}
 .filters,.button-row,.chips,.actions,.service-actions{display:flex;gap:10px;flex-wrap:wrap}.filters{margin-bottom:16px}.filter-field,.control-group,.notes-area,.vendor-copy,.vendor-progress,.service-copy{display:grid;gap:8px}.filter-field{min-width:170px}.filter-field span,.group-label,.field-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
 select,textarea{width:100%;border:1px solid rgba(15,23,42,.08);background:#fff;border-radius:14px;padding:11px 12px;outline:none;transition:border-color .2s ease,box-shadow .2s ease}select:focus,textarea:focus{border-color:rgba(255,122,26,.24);box-shadow:0 0 0 4px rgba(255,122,26,.08)}
 .vendor-list,.side-column,.stack,.service-list{display:grid;gap:12px}.vendor-row{width:100%;display:flex;justify-content:space-between;gap:16px;padding:16px;border:1px solid rgba(15,23,42,.06);background:rgba(255,255,255,.92);border-radius:18px;text-align:left;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.vendor-row:hover{transform:translateY(-2px);border-color:rgba(255,122,26,.18);box-shadow:0 16px 26px rgba(15,23,42,.08)}.vendor-row.selected{border-color:rgba(255,122,26,.24);background:linear-gradient(135deg,rgba(255,247,240,.96),rgba(255,255,255,.98));box-shadow:0 18px 30px rgba(255,122,26,.12)}.vendor-main{align-items:flex-start;gap:12px}.vendor-title-row,.service-title-row{gap:8px;flex-wrap:wrap}.vendor-copy strong,.service-copy strong{display:block}.vendor-copy p,.service-copy p{margin:0;font-size:13px}

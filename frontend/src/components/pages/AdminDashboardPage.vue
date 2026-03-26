@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet } from "../../features/apiClient";
+import { apiGet, apiPatch } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: {
@@ -38,14 +38,31 @@ const bookingRows = ref([]);
 const eventRows = ref([]);
 const userRows = ref([]);
 const healthStatus = ref(null);
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
+
+const notifications = ref([]);
+const notificationsUnreadCount = ref(0);
+const notificationsError = ref("");
+const isLoadingNotifications = ref(false);
+const notificationDropdownOpen = ref(false);
+const notificationMenuRef = ref(null);
 const initials = computed(() => {
-  const pieces = String(props.adminDisplayName || "Admin")
+  const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
     .filter(Boolean);
   const first = pieces[0]?.[0] || "A";
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
+const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -95,6 +112,119 @@ const timeAgo = (value) => {
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} days ago`;
 };
+
+const notificationItems = computed(() =>
+  notifications.value.map((item) => ({
+    ...item,
+    createdLabel: timeAgo(item.created_at),
+  })),
+);
+
+function notificationRole(role) {
+  if (role === "vendor") return "vendor";
+  if (role === "admin") return "admin";
+  return "user";
+}
+
+function buildNotificationQuery() {
+  const user = (() => {
+    try {
+      const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const query = {
+    role: notificationRole(user?.role || "admin"),
+    limit: 20,
+  };
+
+  const userId = Number(user?.id);
+  if (Number.isFinite(userId) && userId > 0) query.user_id = userId;
+
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (email) query.email = email;
+
+  if (!query.user_id && !query.email) return null;
+  return query;
+}
+
+async function loadNotifications(options = {}) {
+  const { silent = false } = options;
+  const query = buildNotificationQuery();
+
+  if (!query) {
+    notifications.value = [];
+    notificationsUnreadCount.value = 0;
+    notificationsError.value = "Please sign in as admin.";
+    return;
+  }
+
+  if (!silent) isLoadingNotifications.value = true;
+  notificationsError.value = "";
+
+  try {
+    const result = await apiGet("notifications/bookings", query);
+    const rows = Array.isArray(result.data) ? result.data : [];
+    notifications.value = rows;
+    notificationsUnreadCount.value = Number(result.unread_count || 0);
+  } catch {
+    notificationsError.value = "Could not load notifications right now.";
+  } finally {
+    if (!silent) isLoadingNotifications.value = false;
+  }
+}
+
+async function markNotificationAsRead(notification) {
+  if (!notification || notification.is_read) return;
+  const query = buildNotificationQuery();
+  if (!query) return;
+
+  notification.is_read = true;
+  notificationsUnreadCount.value = Math.max(0, notificationsUnreadCount.value - 1);
+
+  try {
+    await apiPatch(`notifications/bookings/${notification.id}/read`, query);
+  } catch {
+    notification.is_read = false;
+    await loadNotifications({ silent: true });
+  }
+}
+
+async function markAllNotificationsAsRead() {
+  if (notificationsUnreadCount.value < 1) return;
+  const query = buildNotificationQuery();
+  if (!query) return;
+
+  try {
+    await apiPatch("notifications/bookings/read-all", query);
+    notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }));
+    notificationsUnreadCount.value = 0;
+  } catch {
+    notificationsError.value = "Could not mark all notifications as read.";
+  }
+}
+
+async function toggleNotificationDropdown() {
+  notificationDropdownOpen.value = !notificationDropdownOpen.value;
+  if (notificationDropdownOpen.value) {
+    await loadNotifications();
+  }
+}
+
+function closeNotificationDropdown() {
+  notificationDropdownOpen.value = false;
+}
+
+function handleDocumentClick(event) {
+  if (!notificationDropdownOpen.value) return;
+  if (!notificationMenuRef.value) return;
+  if (!notificationMenuRef.value.contains(event.target)) {
+    closeNotificationDropdown();
+  }
+}
 
 const normalizeBookingStatus = (row) => {
   const status = String(row?.status || "").toLowerCase();
@@ -160,15 +290,16 @@ const dashboardStats = computed(() => {
   );
 
   return [
-    { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up" },
-    { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up" },
+    { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
+    { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
     {
       label: "Total Users",
       value: totalUsers ? formatNumber(totalUsers) : "N/A",
       delta: usersDelta,
       tone: totalUsers ? "down" : "neutral",
+      icon: "users",
     },
-    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid" },
+    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid", icon: "revenue" },
   ];
 });
 
@@ -305,6 +436,14 @@ async function loadDashboardData() {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
+
+onMounted(() => {
+  document.addEventListener("click", handleDocumentClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleDocumentClick);
+});
 onMounted(loadDashboardData);
 </script>
 
@@ -383,9 +522,12 @@ onMounted(loadDashboardData);
       </nav>
 
       <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
+        <div class="avatar" :class="{ 'has-image': avatarUrl }">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+          <span v-else>{{ initials }}</span>
+        </div>
         <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
+          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
           <p class="user-role">Super Admin</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
@@ -407,13 +549,70 @@ onMounted(loadDashboardData);
           <input v-model="searchQuery" type="search" placeholder="Search insights..." />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z"
-              />
-            </svg>
-          </button>
+          <div class="notification-wrap" ref="notificationMenuRef">
+            <button
+              class="icon-btn"
+              type="button"
+              title="Notifications"
+              aria-label="Notifications"
+              :aria-expanded="notificationDropdownOpen ? 'true' : 'false'"
+              @click.stop="toggleNotificationDropdown"
+            >
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z"
+                />
+              </svg>
+              <span v-if="notificationsUnreadCount > 0" class="notification-badge">
+                {{ notificationsUnreadCount > 99 ? "99+" : notificationsUnreadCount }}
+              </span>
+            </button>
+
+            <section v-if="notificationDropdownOpen" class="notification-panel" @click.stop>
+              <div class="notification-head">
+                <strong>Notifications</strong>
+                <div class="notification-actions">
+                  <button type="button" class="notification-action-btn" @click="loadNotifications">Refresh</button>
+                  <button
+                    v-if="notificationsUnreadCount > 0"
+                    type="button"
+                    class="notification-action-btn"
+                    @click="markAllNotificationsAsRead"
+                  >
+                    Mark all read
+                  </button>
+                  <button type="button" class="notification-action-btn is-muted" @click="closeNotificationDropdown">
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <p v-if="isLoadingNotifications" class="notification-empty">Loading notifications...</p>
+              <p v-else-if="notificationsError" class="notification-empty">{{ notificationsError }}</p>
+              <p v-else-if="notificationItems.length === 0" class="notification-empty">No notifications yet.</p>
+
+              <ul v-else class="notification-list">
+                <li v-for="item in notificationItems" :key="item.id">
+                  <article class="notification-item" :class="{ unread: !item.is_read }">
+                    <div class="notification-item-top">
+                      <strong>{{ item.title }}</strong>
+                      <span class="muted">{{ item.createdLabel }}</span>
+                    </div>
+                    <p class="notification-body">{{ item.message }}</p>
+                    <div class="notification-item-actions">
+                      <button
+                        class="notification-inline-btn is-muted"
+                        type="button"
+                        @click="markNotificationAsRead(item)"
+                      >
+                        Mark read
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              </ul>
+            </section>
+          </div>
           <button class="icon-btn" type="button" title="Help" aria-label="Help">
             <svg viewBox="0 0 24 24">
               <path
@@ -421,7 +620,10 @@ onMounted(loadDashboardData);
               />
             </svg>
           </button>
-          <div class="topbar-avatar">{{ initials }}</div>
+          <div class="topbar-avatar" :class="{ 'has-image': avatarUrl }">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+            <span v-else>{{ initials }}</span>
+          </div>
         </div>
       </header>
 
@@ -442,7 +644,20 @@ onMounted(loadDashboardData);
           class="stat-card"
           :class="card.tone"
         >
-          <div class="stat-icon"></div>
+          <div class="stat-icon" :class="card.icon">
+            <svg v-if="card.icon === 'events'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3H7Zm12 6H5v10h14V9Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'bookings'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 4h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2Zm0 2v10.764l2-.999 4 2 4-2 2 .999V6H6Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'users'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.79-6 4v1h12v-1c0-2.21-2.67-4-6-4Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'revenue'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 3h2v18H5V3Zm12 6h2v12h-2V9Zm-6-4h2v16h-2V5Z" />
+            </svg>
+          </div>
           <p class="stat-label">{{ card.label }}</p>
           <p class="stat-value">{{ card.value }}</p>
           <span class="stat-delta" :class="card.tone">{{ card.delta }}</span>
@@ -1019,7 +1234,7 @@ onMounted(loadDashboardData);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
   border: 1px solid rgba(17, 24, 39, 0.06);
   padding: 14px;
   border-radius: 24px;
@@ -1030,13 +1245,13 @@ onMounted(loadDashboardData);
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: #fff;
   padding: 14px 16px;
   border-radius: 18px;
   font-size: 15px;
   cursor: pointer;
-  color: #4b5563;
+  color: #475569;
   transition: all 0.2s ease;
 }
 
@@ -1046,10 +1261,10 @@ onMounted(loadDashboardData);
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
+  background: linear-gradient(180deg, #f8fafc, #eef2f7);
   color: #94a3b8;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .nav-icon svg {
@@ -1059,22 +1274,24 @@ onMounted(loadDashboardData);
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
+  background: linear-gradient(180deg, #fff9f3, #fef6ef);
   color: var(--accent);
   transform: translateX(2px);
+  border-color: rgba(255, 122, 26, 0.18);
 }
 
 .nav-item.active {
   background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
   color: var(--accent);
   border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  box-shadow: inset 3px 0 0 var(--accent), 0 10px 22px rgba(255, 122, 26, 0.2);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
+  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(241, 91, 42, 0.25);
 }
 
 .home-link {
@@ -1130,7 +1347,7 @@ onMounted(loadDashboardData);
   flex-direction: column;
   gap: 24px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .admin-main::before {
@@ -1153,6 +1370,8 @@ onMounted(loadDashboardData);
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  position: relative;
+  z-index: 1350;
 }
 
 .search {
@@ -1193,6 +1412,142 @@ onMounted(loadDashboardData);
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+  z-index: 1400;
+}
+
+.notification-wrap {
+  position: relative;
+  z-index: 1500;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f15b2a;
+  color: #fff;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-panel {
+  position: absolute;
+  right: 0;
+  margin-top: 10px;
+  width: min(360px, 80vw);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  z-index: 1600;
+}
+
+.notification-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notification-action-btn {
+  border: none;
+  background: #f6f8fb;
+  color: #0f172a;
+  padding: 7px 11px;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notification-action-btn.is-muted {
+  color: #64748b;
+}
+
+.notification-empty {
+  padding: 12px;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.notification-item.unread {
+  background: linear-gradient(180deg, #fff7f2, #fff);
+  border-color: rgba(241, 91, 42, 0.35);
+  box-shadow: 0 16px 32px rgba(241, 91, 42, 0.16);
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+}
+
+.notification-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.notification-item-top .muted {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.notification-body {
+  margin: 6px 0 10px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.notification-item-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.notification-inline-btn {
+  border: none;
+  background: transparent;
+  color: #f15b2a;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notification-inline-btn.is-muted {
+  color: #64748b;
 }
 
 .icon-btn {
@@ -1228,6 +1583,42 @@ onMounted(loadDashboardData);
   place-items: center;
   color: #fff;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.topbar-avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.avatar {
+  overflow: hidden;
+}
+
+.avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.topbar-avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .admin-hero {
@@ -1323,10 +1714,20 @@ onMounted(loadDashboardData);
   background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
   margin-bottom: 12px;
   border: 1px solid rgba(255, 122, 26, 0.2);
+  display: grid;
+  place-items: center;
+  color: #f15b2a;
 }
 
 .stat-card.solid .stat-icon {
   background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 .stat-label {

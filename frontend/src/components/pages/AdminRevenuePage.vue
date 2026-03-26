@@ -43,14 +43,25 @@ const rangeOptions = [
   { key: "year", label: "Year", days: 365 },
 ];
 
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
+
 const initials = computed(() => {
-  const pieces = String(props.adminDisplayName || "Admin")
+  const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
     .filter(Boolean);
   const first = pieces[0]?.[0] || "A";
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
+const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -208,21 +219,25 @@ const revenueStats = computed(() => [
     label: "Total Revenue",
     value: formatCurrency(revenueTotals.value.confirmed),
     delta: formatDelta(revenueTotals.value.confirmed, previousRevenueTotals.value.confirmed),
+    icon: "revenue",
   },
   {
     label: "Pending Payouts",
     value: formatCurrency(revenueTotals.value.pending),
     delta: `${revenueTotals.value.pendingCount} active`,
+    icon: "payouts",
   },
   {
     label: "Platform Fees",
     value: formatCurrency(revenueTotals.value.fees),
     delta: `${(serviceFeeRate * 100).toFixed(1)}% fee`,
+    icon: "fees",
   },
   {
     label: "Net Profit",
     value: formatCurrency(revenueTotals.value.net),
     delta: formatDelta(revenueTotals.value.net, previousRevenueTotals.value.net),
+    icon: "profit",
   },
 ]);
 
@@ -466,9 +481,12 @@ onMounted(loadRevenueBookings);
       </nav>
 
       <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
+        <div class="avatar" :class="{ 'has-image': avatarUrl }">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+          <span v-else>{{ initials }}</span>
+        </div>
         <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
+          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
           <p class="user-role">Revenue Manager</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
@@ -498,7 +516,10 @@ onMounted(loadRevenueBookings);
               <path d="M12 19a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm0-15a6 6 0 0 1 6 6c0 2.455-1.812 3.498-2.83 4.085-.87.505-1.17.75-1.17 1.415v.5h-2v-.5c0-1.86 1.126-2.512 2.17-3.115C14.98 11.83 16 11.235 16 10a4 4 0 0 0-8 0H6a6 6 0 0 1 6-6Z" />
             </svg>
           </button>
-          <div class="topbar-avatar">{{ initials }}</div>
+          <div class="topbar-avatar" :class="{ 'has-image': avatarUrl }">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+            <span v-else>{{ initials }}</span>
+          </div>
         </div>
       </header>
 
@@ -532,8 +553,19 @@ onMounted(loadRevenueBookings);
 
       <section class="revenue-stats">
         <article v-for="card in revenueStats" :key="card.label" class="stat-card">
-          <div class="stat-icon">
-            <span></span>
+          <div class="stat-icon" :class="card.icon">
+            <svg v-if="card.icon === 'revenue'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 3h2v18H5V3Zm12 6h2v12h-2V9Zm-6-4h2v16h-2V5Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'payouts'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16v2H4V7Zm0 4h10v2H4v-2Zm0 4h7v2H4v-2Zm12.5-2.5 2.5 2.5-2.5 2.5v-2h-3v-3h3v-2Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'fees'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h2v6H8V9Zm4 0h2v6h-2V9Zm4 0h2v6h-2V9Z" />
+            </svg>
+            <svg v-else-if="card.icon === 'profit'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 19h14v2H5v-2Zm1.5-5 3-4.5 3 3 4.5-6V9l-4.5 6-3-3-3 4.5H6.5Z" />
+            </svg>
           </div>
           <div class="stat-body">
             <div class="stat-meta">
@@ -928,6 +960,7 @@ onMounted(loadRevenueBookings);
   display: flex;
   flex-direction: column;
   gap: 24px;
+  overflow: visible;
 }
 
 .admin-topbar {
@@ -1010,6 +1043,37 @@ onMounted(loadRevenueBookings);
   place-items: center;
   color: #fff;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.topbar-avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar {
+  overflow: hidden;
+}
+
+.avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .revenue-hero {
@@ -1154,14 +1218,17 @@ onMounted(loadRevenueBookings);
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 122, 26, 0.2);
+  color: #f15b2a;
 }
 
 .stat-icon span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 6px 14px rgba(241, 91, 42, 0.4);
+  display: none;
+}
+
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 .stat-body {

@@ -178,7 +178,9 @@ function runSearch() {
 }
 
 function notificationRole(role) {
-  return role === 'vendor' ? 'vendor' : 'user'
+  if (role === 'vendor') return 'vendor'
+  if (role === 'admin') return 'admin'
+  return 'user'
 }
 
 function buildNotificationQuery() {

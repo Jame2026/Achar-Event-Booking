@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
+use App\Services\AdminBookingAlertService;
 use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,10 @@ use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
+    public function __construct(private AdminBookingAlertService $adminAlerts)
+    {
+    }
+
     public function publicIndex(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -267,6 +272,7 @@ class BookingController extends Controller
         $booking->setRelation('event', $event);
         $this->flushVendorCacheForBooking($booking);
         $this->createBookingCreatedNotifications($booking);
+        $this->adminAlerts->notifyBookingCreated($booking);
 
         return response()->json(
             $booking
@@ -340,6 +346,7 @@ class BookingController extends Controller
 
         if (array_key_exists('status', $validated) && $validated['status'] !== $previousStatus) {
             $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
+            $this->adminAlerts->notifyBookingStatusChanged($updatedBooking, $validated['status']);
         }
 
         return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email,phone,location']));
@@ -376,6 +383,7 @@ class BookingController extends Controller
 
         if ($previousStatus !== $nextStatus) {
             $this->createBookingStatusNotifications($updatedBooking, $nextStatus);
+            $this->adminAlerts->notifyBookingStatusChanged($updatedBooking, $nextStatus);
         }
 
         return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));

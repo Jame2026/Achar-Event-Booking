@@ -78,14 +78,25 @@ const vendorSnapshot = {
   rating: "4.9",
 };
 
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
+
 const initials = computed(() => {
-  const pieces = String(props.adminDisplayName || "Admin")
+  const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
     .filter(Boolean);
   const first = pieces[0]?.[0] || "A";
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
+const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -165,9 +176,12 @@ watch(() => route.query.page, syncActiveKey);
       </nav>
 
       <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
+        <div class="avatar" :class="{ 'has-image': avatarUrl }">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+          <span v-else>{{ initials }}</span>
+        </div>
         <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
+          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
           <p class="user-role">Super Admin</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
@@ -187,13 +201,16 @@ watch(() => route.query.page, syncActiveKey);
           <input v-model="searchQuery" type="search" placeholder="Search service applications..." />
         </label>
         <div class="topbar-actions">
-          <button class="ghost-btn" type="button">Export CSV</button>
+          <!-- <button class="ghost-btn" type="button">Export CSV</button> -->
           <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
           </button>
-          <div class="topbar-avatar">{{ initials }}</div>
+          <div class="topbar-avatar" :class="{ 'has-image': avatarUrl }">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+            <span v-else>{{ initials }}</span>
+          </div>
         </div>
       </header>
 
@@ -208,9 +225,16 @@ watch(() => route.query.page, syncActiveKey);
         <button class="primary-btn" type="button">Approve Queue</button>
       </section>
 
-      <section class="events-highlights">
+<section class="events-highlights">
         <article v-for="card in highlights" :key="card.label" class="highlight-card">
-          <p class="highlight-label">{{ card.label }}</p>
+          <div class="highlight-top">
+            <span class="highlight-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12.5 10 17l9-11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <p class="highlight-label">{{ card.label }}</p>
+          </div>
           <h3>{{ card.value }}</h3>
           <span class="highlight-delta">{{ card.delta }}</span>
         </article>
@@ -236,7 +260,7 @@ watch(() => route.query.page, syncActiveKey);
               <span class="queue-date">{{ item.submitted }}</span>
               <span class="status" :class="item.status.toLowerCase()">{{ item.status }}</span>
               <div class="row-actions">
-                <button class="ghost-btn" type="button">Reject</button>
+                <!-- <button class="ghost-btn" type="button">Reject</button> -->
                 <button class="primary-btn" type="button">Approve</button>
               </div>
             </div>
@@ -273,7 +297,7 @@ watch(() => route.query.page, syncActiveKey);
             <h3>Ready to Approve?</h3>
             <p>Approve the selected vendor and notify them instantly.</p>
             <button class="primary-btn full" type="button">Approve Vendor</button>
-            <button class="ghost-btn full" type="button">Request Changes</button>
+         
           </article>
         </aside>
       </section>
@@ -299,6 +323,7 @@ watch(() => route.query.page, syncActiveKey);
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
   min-height: calc(100vh - 90px);
+  padding-bottom: 32px;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   background: radial-gradient(circle at 8% 0%, #fff1e6 0%, #f7f2ee 35%, #eef6f9 100%);
   color: var(--ink);
@@ -391,7 +416,7 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
   border: 1px solid rgba(15, 23, 42, 0.06);
   padding: 14px;
   border-radius: 24px;
@@ -402,8 +427,8 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: #fff;
   padding: 14px 16px;
   border-radius: 18px;
   font-size: 15px;
@@ -418,10 +443,10 @@ watch(() => route.query.page, syncActiveKey);
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
+  background: linear-gradient(180deg, #f8fafc, #eef2f7);
   color: #94a3b8;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .nav-icon svg {
@@ -431,22 +456,24 @@ watch(() => route.query.page, syncActiveKey);
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
+  background: linear-gradient(180deg, #fff9f3, #fef6ef);
   color: var(--accent);
   transform: translateX(2px);
+  border-color: rgba(255, 122, 26, 0.18);
 }
 
 .nav-item.active {
   background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
   color: var(--accent);
   border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  box-shadow: inset 3px 0 0 var(--accent), 0 10px 22px rgba(255, 122, 26, 0.2);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
+  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(241, 91, 42, 0.25);
 }
 
 .home-link {
@@ -497,10 +524,11 @@ watch(() => route.query.page, syncActiveKey);
 }
 
 .admin-main {
-  padding: 28px 36px 40px;
+  padding: 28px 36px 56px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  overflow: visible;
 }
 
 .admin-topbar {
@@ -583,16 +611,47 @@ watch(() => route.query.page, syncActiveKey);
   place-items: center;
   color: #fff;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.topbar-avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar {
+  overflow: hidden;
+}
+
+.avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .events-hero {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: 24px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 243, 230, 0.6));
   border: 1px solid rgba(255, 122, 26, 0.12);
-  padding: 20px 24px;
+  padding: 24px 28px;
   border-radius: 26px;
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
 }
@@ -618,19 +677,21 @@ watch(() => route.query.page, syncActiveKey);
 
 .events-highlights {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
 }
 
 .highlight-card {
   background: var(--surface);
   border-radius: 18px;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
   position: relative;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: grid;
+  gap: 6px;
 }
 
 .highlight-card::after {
@@ -644,6 +705,28 @@ watch(() => route.query.page, syncActiveKey);
 
 .highlight-card:hover::after {
   opacity: 1;
+}
+
+.highlight-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlight-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 122, 26, 0.08);
+  color: #f15b2a;
+}
+
+.highlight-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .highlight-card:hover {
@@ -673,16 +756,21 @@ watch(() => route.query.page, syncActiveKey);
 .events-grid {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-  gap: 18px;
+  gap: 22px;
   align-items: start;
+  margin-top: 8px;
+  margin-bottom: 12px;
 }
 
 .queue-card {
   background: var(--surface);
   border-radius: 18px;
-  padding: 18px;
+  padding: 22px;
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  margin-bottom: 6px;
 }
 
 .queue-card header {
@@ -718,15 +806,15 @@ watch(() => route.query.page, syncActiveKey);
 
 .queue-list {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .queue-row {
   display: grid;
-  grid-template-columns: auto minmax(160px, 1.4fr) minmax(90px, 0.8fr) auto minmax(140px, 180px);
-  gap: 10px;
+  grid-template-columns: auto minmax(210px, 1.6fr) minmax(120px, 1fr) auto minmax(160px, 200px);
+  gap: 14px;
   align-items: center;
-  padding: 12px;
+  padding: 14px;
   border-radius: 14px;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.05);
@@ -787,19 +875,20 @@ watch(() => route.query.page, syncActiveKey);
 
 .row-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-self: end;
   align-items: center;
   min-width: 0;
+  justify-content: flex-end;
 }
 
 .row-actions .primary-btn,
 .row-actions .ghost-btn {
-  padding: 6px 10px;
-  border-radius: 10px;
-  min-width: 76px;
-  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  min-width: 94px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -827,7 +916,7 @@ watch(() => route.query.page, syncActiveKey);
 .card {
   background: var(--surface);
   border-radius: 18px;
-  padding: 18px;
+  padding: 20px;
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
   position: relative;
@@ -836,7 +925,9 @@ watch(() => route.query.page, syncActiveKey);
 
 .side-column {
   display: grid;
-  gap: 16px;
+  gap: 18px;
+  position: sticky;
+  top: 18px;
 }
 
 .detail-card header {

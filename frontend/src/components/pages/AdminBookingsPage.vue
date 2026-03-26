@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { apiGet, apiPatch } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: {
@@ -36,6 +37,17 @@ const stats = [
   { label: "Pending Confirmation", value: "42", delta: "Needs action" },
   { label: "Avg. Response Time", value: "1.4h", delta: "Top 5% Vendor" },
 ];
+
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  try {
+    const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+});
+const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
 
 const bookings = [
   {
@@ -77,7 +89,7 @@ const bookings = [
 ];
 
 const initials = computed(() => {
-  const pieces = String(props.adminDisplayName || "Admin")
+  const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
     .filter(Boolean);
   const first = pieces[0]?.[0] || "A";
@@ -102,6 +114,143 @@ const navigateTo = (key) => {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
+
+const notifications = ref([]);
+const notificationsUnreadCount = ref(0);
+const notificationsError = ref("");
+const isLoadingNotifications = ref(false);
+const notificationDropdownOpen = ref(false);
+const notificationMenuRef = ref(null);
+
+const notificationItems = computed(() =>
+  notifications.value.map((item) => ({
+    ...item,
+    createdLabel: formatNotificationTime(item.created_at),
+  })),
+);
+
+function notificationRole(role) {
+  if (role === "vendor") return "vendor";
+  if (role === "admin") return "admin";
+  return "user";
+}
+
+function buildNotificationQuery() {
+  const user = currentAdmin.value || {};
+  const query = {
+    role: notificationRole(user.role || "admin"),
+    limit: 20,
+  };
+
+  const userId = Number(user.id);
+  if (Number.isFinite(userId) && userId > 0) query.user_id = userId;
+
+  const email = String(user.email || "").trim().toLowerCase();
+  if (email) query.email = email;
+
+  if (!query.user_id && !query.email) return null;
+  return query;
+}
+
+function formatNotificationTime(value) {
+  if (!value) return "Just now";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Just now";
+
+  const diffMinutes = Math.floor((Date.now() - parsed.getTime()) / 60000);
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 24 * 60) return `${Math.floor(diffMinutes / 60)}h ago`;
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+  });
+}
+
+async function loadNotifications(options = {}) {
+  const { silent = false } = options;
+  const query = buildNotificationQuery();
+
+  if (!query) {
+    notifications.value = [];
+    notificationsUnreadCount.value = 0;
+    notificationsError.value = "Please sign in as admin.";
+    return;
+  }
+
+  if (!silent) isLoadingNotifications.value = true;
+  notificationsError.value = "";
+
+  try {
+    const result = await apiGet("notifications/bookings", query);
+    const rows = Array.isArray(result.data) ? result.data : [];
+    notifications.value = rows;
+    notificationsUnreadCount.value = Number(result.unread_count || 0);
+  } catch (error) {
+    notificationsError.value = "Could not load notifications right now.";
+  } finally {
+    if (!silent) isLoadingNotifications.value = false;
+  }
+}
+
+async function markNotificationAsRead(notification) {
+  if (!notification || notification.is_read) return;
+  const query = buildNotificationQuery();
+  if (!query) return;
+
+  notification.is_read = true;
+  notificationsUnreadCount.value = Math.max(0, notificationsUnreadCount.value - 1);
+
+  try {
+    await apiPatch(`notifications/bookings/${notification.id}/read`, query);
+  } catch {
+    // revert on failure
+    notification.is_read = false;
+    await loadNotifications({ silent: true });
+  }
+}
+
+async function markAllNotificationsAsRead() {
+  if (notificationsUnreadCount.value < 1) return;
+  const query = buildNotificationQuery();
+  if (!query) return;
+
+  try {
+    await apiPatch("notifications/bookings/read-all", query);
+    notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }));
+    notificationsUnreadCount.value = 0;
+  } catch {
+    notificationsError.value = "Could not mark all notifications as read.";
+  }
+}
+
+async function toggleNotificationDropdown() {
+  notificationDropdownOpen.value = !notificationDropdownOpen.value;
+  if (notificationDropdownOpen.value) {
+    await loadNotifications();
+  }
+}
+
+function closeNotificationDropdown() {
+  notificationDropdownOpen.value = false;
+}
+
+function handleDocumentClick(event) {
+  if (!notificationDropdownOpen.value) return;
+  if (!notificationMenuRef.value) return;
+  if (!notificationMenuRef.value.contains(event.target)) {
+    closeNotificationDropdown();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("click", handleDocumentClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleDocumentClick);
+});
 </script>
 
 <template>
@@ -163,9 +312,12 @@ watch(() => route.query.page, syncActiveKey);
       </nav>
 
       <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
+        <div class="avatar" :class="{ 'has-image': avatarUrl }">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+          <span v-else>{{ initials }}</span>
+        </div>
         <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
+          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
           <p class="user-role">Super Admin</p>
         </div>
         <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
@@ -186,12 +338,71 @@ watch(() => route.query.page, syncActiveKey);
         </label>
         <div class="topbar-actions">
           <button class="primary-btn" type="button">Create Event</button>
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
-            </svg>
-          </button>
-          <div class="topbar-avatar">{{ initials }}</div>
+          <div class="notification-wrap" ref="notificationMenuRef">
+            <button
+              class="icon-btn"
+              type="button"
+              title="Notifications"
+              aria-label="Notifications"
+              :aria-expanded="notificationDropdownOpen ? 'true' : 'false'"
+              @click.stop="toggleNotificationDropdown"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
+              </svg>
+              <span v-if="notificationsUnreadCount > 0" class="notification-badge">
+                {{ notificationsUnreadCount > 99 ? "99+" : notificationsUnreadCount }}
+              </span>
+            </button>
+            <section v-if="notificationDropdownOpen" class="notification-panel" @click.stop>
+              <div class="notification-head">
+                <strong>Notifications</strong>
+                <div class="notification-actions">
+                  <button type="button" class="notification-action-btn" @click="loadNotifications">Refresh</button>
+                  <button
+                    v-if="notificationsUnreadCount > 0"
+                    type="button"
+                    class="notification-action-btn"
+                    @click="markAllNotificationsAsRead"
+                  >
+                    Mark all read
+                  </button>
+                  <button type="button" class="notification-action-btn is-muted" @click="closeNotificationDropdown">
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <p v-if="isLoadingNotifications" class="notification-empty">Loading notifications...</p>
+              <p v-else-if="notificationsError" class="notification-empty">{{ notificationsError }}</p>
+              <p v-else-if="notificationItems.length === 0" class="notification-empty">No notifications yet.</p>
+
+              <ul v-else class="notification-list">
+                <li v-for="item in notificationItems" :key="item.id">
+                  <article class="notification-item" :class="{ unread: !item.is_read }">
+                    <div class="notification-item-top">
+                      <strong>{{ item.title }}</strong>
+                      <span class="muted">{{ item.createdLabel }}</span>
+                    </div>
+                    <p class="notification-body">{{ item.message }}</p>
+                    <div class="notification-item-actions">
+                      <button
+                        class="notification-inline-btn is-muted"
+                        type="button"
+                        @click="markNotificationAsRead(item)"
+                      >
+                        Mark read
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <div class="topbar-avatar" :class="{ 'has-image': avatarUrl }">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
+            <span v-else>{{ initials }}</span>
+          </div>
         </div>
       </header>
 
@@ -221,10 +432,6 @@ watch(() => route.query.page, syncActiveKey);
         <article class="card table-card">
           <header>
             <h3>Recent Bookings</h3>
-            <div class="table-actions">
-              <button class="ghost-btn" type="button">Sort by Date</button>
-              <button class="ghost-btn" type="button">Export CSV</button>
-            </div>
           </header>
           <div class="table">
             <div class="table-head">
@@ -251,7 +458,7 @@ watch(() => route.query.page, syncActiveKey);
           <article class="card insight-card">
             <h3>Vendor Performance Insights</h3>
             <p>Your most ?International Tech Summit? has reached 85% capacity. Consider opening additional seating.</p>
-            <button class="ghost-btn" type="button">View Analytics</button>
+         
           </article>
 
           <article class="card support-card">
@@ -374,7 +581,7 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
   border: 1px solid rgba(15, 23, 42, 0.06);
   padding: 14px;
   border-radius: 24px;
@@ -385,8 +592,8 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: #fff;
   padding: 14px 16px;
   border-radius: 18px;
   font-size: 15px;
@@ -401,10 +608,10 @@ watch(() => route.query.page, syncActiveKey);
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
+  background: linear-gradient(180deg, #f8fafc, #eef2f7);
   color: #94a3b8;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .nav-icon svg {
@@ -414,22 +621,24 @@ watch(() => route.query.page, syncActiveKey);
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
+  background: linear-gradient(180deg, #fff9f3, #fef6ef);
   color: var(--accent);
   transform: translateX(2px);
+  border-color: rgba(255, 122, 26, 0.18);
 }
 
 .nav-item.active {
   background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
   color: var(--accent);
   border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  box-shadow: inset 3px 0 0 var(--accent), 0 10px 22px rgba(255, 122, 26, 0.2);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
+  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(241, 91, 42, 0.25);
 }
 
 .home-link {
@@ -484,6 +693,7 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   flex-direction: column;
   gap: 24px;
+  overflow: visible;
 }
 
 .admin-topbar {
@@ -491,6 +701,8 @@ watch(() => route.query.page, syncActiveKey);
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  position: relative;
+  z-index: 1350;
 }
 
 .search {
@@ -531,6 +743,134 @@ watch(() => route.query.page, syncActiveKey);
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+  z-index: 1400;
+}
+
+.notification-wrap {
+  position: relative;
+  z-index: 1500;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f15b2a;
+  color: #fff;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-panel {
+  position: absolute;
+  right: 0;
+  margin-top: 10px;
+  width: min(360px, 80vw);
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+  border-radius: 16px;
+  padding: 12px;
+  z-index: 1600;
+}
+
+.notification-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.notification-action-btn {
+  border: none;
+  background: #f6f8fb;
+  color: #0f172a;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notification-action-btn.is-muted {
+  color: #64748b;
+}
+
+.notification-empty {
+  padding: 12px;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.notification-item.unread {
+  background: #fff7f2;
+  border-color: rgba(241, 91, 42, 0.25);
+}
+
+.notification-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.notification-item-top .muted {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.notification-body {
+  margin: 6px 0 8px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.notification-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notification-inline-btn {
+  border: none;
+  background: transparent;
+  color: #f15b2a;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notification-inline-btn.is-muted {
+  color: #64748b;
 }
 
 .icon-btn {
@@ -566,6 +906,37 @@ watch(() => route.query.page, syncActiveKey);
   place-items: center;
   color: #fff;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.topbar-avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar {
+  overflow: hidden;
+}
+
+.avatar.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .bookings-hero {

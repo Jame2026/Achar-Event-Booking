@@ -8,6 +8,7 @@ use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\VendorSetting;
+use App\Services\AdminBookingAlertService;
 use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use App\Support\PublicEventCache;
@@ -21,6 +22,10 @@ use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
+    public function __construct(private AdminBookingAlertService $adminAlerts)
+    {
+    }
+
     public function servicesByVendorId(Request $request): JsonResponse
     {
         $vendor = $this->resolveVendorFromRequest($request);
@@ -263,6 +268,7 @@ class VendorController extends Controller
 
         if ($previousStatus !== $nextStatus) {
             $this->createCustomerBookingStatusNotification($updatedBooking, $nextStatus);
+            $this->adminAlerts->notifyBookingStatusChanged($updatedBooking, $nextStatus);
         }
 
         return response()->json($updatedBooking);

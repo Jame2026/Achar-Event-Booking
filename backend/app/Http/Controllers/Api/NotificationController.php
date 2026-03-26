@@ -85,7 +85,7 @@ class NotificationController extends Controller
     private function validateRecipientRequest(Request $request, bool $allowLimit): array
     {
         $rules = [
-            'role' => ['nullable', Rule::in(['user', 'vendor'])],
+            'role' => ['nullable', Rule::in(['user', 'vendor', 'admin'])],
             'user_id' => ['nullable', 'integer', 'min:1', 'required_without:email'],
             'email' => ['nullable', 'email', 'max:255', 'required_without:user_id'],
         ];
