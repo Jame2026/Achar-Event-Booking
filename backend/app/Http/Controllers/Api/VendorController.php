@@ -21,6 +21,24 @@ use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
+    public function directory(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
+
+        $vendors = User::query()
+            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at'])
+            ->where('role', 'vendor')
+            ->withCount('events')
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json($vendors);
+    }
+
     public function servicesByVendorId(Request $request): JsonResponse
     {
         $vendor = $this->resolveVendorFromRequest($request);

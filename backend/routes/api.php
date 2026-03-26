@@ -71,6 +71,7 @@ Route::apiResource('events', EventController::class)->only(['index', 'show']);
 Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']);
 Route::get('events/{event}/availability', [BookingController::class, 'availability']);
 Route::get('events/{event}/availability-calendar', [BookingController::class, 'availabilityCalendar']);
+Route::get('vendors', [VendorController::class, 'directory']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
 Route::post('bookings/{booking}/confirm-payment', [BookingController::class, 'confirmPayment']);
@@ -80,6 +81,7 @@ Route::patch('notifications/bookings/{notification}/read', [NotificationControll
 Route::get('vendor/settings', [VendorSettingController::class, 'show']);
 Route::put('vendor/settings', [VendorSettingController::class, 'update']);
 Route::patch('vendor/settings', [VendorSettingController::class, 'update']);
+Route::get('admin/customer-directory', [AdminController::class, 'customerDirectory']);
 Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
 Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
 Route::patch('vendor/services/{event}', [VendorController::class, 'updateServiceByVendorId']);

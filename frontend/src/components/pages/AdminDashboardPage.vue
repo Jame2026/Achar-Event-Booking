@@ -23,7 +23,7 @@ const navItems = [
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
@@ -33,14 +33,14 @@ const activeKey = ref("dashboard");
 const stats = [
   { label: "Total Events", value: "1,284", delta: "+12%", tone: "up" },
   { label: "Total Bookings", value: "856", delta: "+5.4%", tone: "up" },
-  { label: "Total Users", value: "4,320", delta: "-2.1%", tone: "down" },
+  { label: "Total Customers", value: "4,320", delta: "-2.1%", tone: "down" },
   { label: "Revenue Summary", value: "$42,950.00", delta: "+18%", tone: "solid" },
 ];
 const activity = [
   { name: "Sophea Van", detail: "created a new event “Modern Loft Showcase”", time: "2 hours ago" },
   { name: "Meng Kong", detail: "completed a booking for “Design Consultation”", time: "5 hours ago" },
   { name: "Dara Rath", detail: "submitted a revenue withdrawal request", time: "1 day ago" },
-  { name: "Srey Pich", detail: "registered as a new user", time: "2 days ago" },
+  { name: "Srey Pich", detail: "registered as a new customer", time: "2 days ago" },
 ];
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -934,3 +934,5 @@ watch(() => route.query.page, syncActiveKey);
   }
 }
 </style>
+
+

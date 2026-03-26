@@ -25,7 +25,7 @@ const navItems = [
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
@@ -942,3 +942,4 @@ watch(() => route.query.page, syncActiveKey);
   }
 }
 </style>
+
