@@ -849,7 +849,6 @@ function mapEventToGuestService(item) {
 }
 
 async function loadLiveVendorEvents() {
-  // Use session cache for fast paint, but still fetch fresh data.
   let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
@@ -910,9 +909,42 @@ async function loadLiveVendorEvents() {
     );
     return;
   }
+  try {
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
+    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+    if (rows.length) {
+      liveVendorEvents.value = rows;
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
+      return;
+    }
 
-  sessionStorage.removeItem(EVENTS_CACHE_KEY);
-  liveVendorEvents.value = fallbackPublicEvents;
+    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
+    if (liveVendorEvents.value.length) {
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
+    }
+  } catch (error) {
+    console.error(error);
+    liveVendorEvents.value = [];
+  }
+
+  if (!liveVendorEvents.value.length) {
+    sessionStorage.removeItem(EVENTS_CACHE_KEY);
+    liveVendorEvents.value = fallbackPublicEvents;
+  }
 }
 
 async function loadGuestBookings() {
@@ -2250,7 +2282,11 @@ function noop() {}
 
     <main class="shell guest-content">
       <section
-        v-if="section !== 'services-overall' && section !== 'services-packages' && section !== 'bookings'"
+        v-if="
+          section !== 'services-overall' &&
+          section !== 'services-packages' &&
+          section !== 'bookings'
+        "
         class="guest-panel"
       >
         <h1>{{ pageContent.title }}</h1>
@@ -2272,34 +2308,38 @@ function noop() {}
         :open-upcoming-bookings="() => goToSection('bookings')"
       />
 
-	      <section
-	        v-else-if="section === 'services-packages'"
-	        class="overall-service-page packages-service-page"
-	      >
-	        <section class="overall-head card">
-	          <div class="overall-head-main">
-	            <div class="flow-head-row">
-	              <h1>{{ uiText.packagePageTitle }}</h1>
-	              <div v-if="isFromCheckout" class="checkout-flow-steps">
-	                <RouterLink
-	                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+      <section
+        v-else-if="section === 'services-packages'"
+        class="overall-service-page packages-service-page"
+      >
+        <section class="overall-head card">
+          <div class="overall-head-main">
+            <div class="flow-head-row">
+              <h1>{{ uiText.packagePageTitle }}</h1>
+              <div v-if="isFromCheckout" class="checkout-flow-steps">
+                <RouterLink
+                  :to="
+                    section === 'services-overall'
+                      ? '/services/overall'
+                      : '/services/packages'
+                  "
                   class="step-link active"
                 >
-                  {{ uiText.servicesStep || '1 Services' }}
+                  {{ uiText.servicesStep || "1 Services" }}
                 </RouterLink>
                 <RouterLink to="/checkout" class="step-link">
-                  {{ uiText.reviewStep || '2 Review & Payment' }}
+                  {{ uiText.reviewStep || "2 Review & Payment" }}
                 </RouterLink>
               </div>
             </div>
-	            <p>
-	              {{ uiText.packagePageText }}
-	            </p>
-	            <div class="overall-toolbar">
-	              <label class="filter-field">
-	                <span>{{ uiText.eventType }}</span>
-	                <select
-	                  class="event-type-select"
+            <p>
+              {{ uiText.packagePageText }}
+            </p>
+            <div class="overall-toolbar">
+              <label class="filter-field">
+                <span>{{ uiText.eventType }}</span>
+                <select
+                  class="event-type-select"
                   :value="packageEventType"
                   @change="packageEventType = $event.target.value"
                 >
@@ -2321,158 +2361,187 @@ function noop() {}
                   :value="packageSearch"
                   @input="packageSearch = $event.target.value"
                 />
-	              </label>
-	              <div class="overall-count">
-	                {{ guestPreviewPackagesFiltered.length }}
-	                {{ guestPreviewPackagesFiltered.length === 1 ? uiText.packageCountSingle : uiText.packageCount }}
-	              </div>
-	            </div>
-	          </div>
-	        </section>
-
-	        <section class="overall-layout">
-	          <div class="overall-list">
-	            <article class="customization-section">
-	              <div class="customization-section-head">
-	                <span>P</span>
-	                <h2>{{ uiText.packageCatalog }}</h2>
-	              </div>
-
-	              <div
-	                v-if="guestPreviewPackagesFiltered.length === 0"
-	                class="card empty-state"
-	              >
-	                {{ uiText.noPackagesForEvent }}
-	              </div>
-
-	              <div v-else class="package-grid">
-	                <article
-	                  v-for="item in guestPreviewPackagesFiltered"
-	                  :key="item.id"
-	                  class="package-product-card"
-	                  :id="`package-card-${item.id}`"
-	                  :class="{ 'focused-target-card': focusedCardKey === `package-card-${item.id}` }"
-	                  role="button"
-	                  tabindex="0"
-	                  @click="openPackageDetails(item.id)"
-	                  @keyup.enter="openPackageDetails(item.id)"
-	                >
-	                  <div class="package-card-image-wrap">
-	                    <img class="package-card-image" :src="item.image" :alt="item.title" />
-	                    <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
-	                    <button
-	                      type="button"
-	                      class="package-fav-badge"
-	                      :class="{ active: isPackageFavorite(item.id) }"
-	                      @click.stop="toggleFavoritePackage(item.id)"
-	                      :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
-	                    >
-	                      {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
-	                    </button>
-	                  </div>
-
-	                  <div class="package-product-body">
-	                    <h3>{{ item.title }}</h3>
-	                    <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
-	                    <div class="package-rating">
-	                      <span class="star">★</span>
-	                      <strong>{{ (item.rating || 4.7).toFixed ? (item.rating || 4.7).toFixed(1) : '4.7' }}</strong>
-	                      <small>{{ uiText.reviewsLabel || '0 reviews' }}</small>
-	                    </div>
-
-	                    <div class="package-bottom">
-	                      <div class="package-price-stack">
-	                        <small>{{ uiText.startsFrom || 'Starts from' }}</small>
-	                        <strong class="package-price">{{ item.priceLabel }}</strong>
-	                      </div>
-	                      <button
-	                        type="button"
-	                        class="choice-indicator package-book-btn"
-	                        :class="{ selected: selectedPackageId === item.id }"
-	                        @click.stop="selectPackage(item.id)"
-	                      >
-	                        {{
-	                          selectedPackageId === item.id
-	                            ? uiText.selected
-	                            : uiText.selectPackage
-	                        }}
-	                      </button>
-	                    </div>
-	                  </div>
-	                </article>
-	              </div>
-	            </article>
-	          </div>
-
-	          <aside class="card customization-summary overall-summary package-summary">
-	            <h2>{{ uiText.bookingSummary }}</h2>
-	          <div class="summary-items">
-	            <h3>{{ uiText.selectedPackage }}</h3>
-	            <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
-	            <div v-else class="summary-package">
-              <strong>{{ selectedPackage.title }}</strong>
-              <p>
-                {{ selectedPackage.eventTypeLabel }} |
-                {{ selectedPackage.location }}
-              </p>
-            </div>
-          </div>
-
-          <div class="summary-row">
-            <span>{{ uiText.quantity }}</span>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              :value="packageQuantity"
-              @input="packageQtyChanged"
-            />
-          </div>
-          <div class="summary-row">
-            <span>{{ uiText.packagePrice }}</span>
-            <strong>${{ packagePrice.toLocaleString() }}</strong>
-          </div>
-          <div class="summary-items">
-            <h3>{{ uiText.selectedServices }}</h3>
-            <p v-if="selectedServices.length === 0">
-              {{ uiText.noAdditionalServices }}
-            </p>
-            <div v-else>
-              <div
-                v-for="svc in selectedServices"
-                :key="svc.id"
-                class="summary-row"
-              >
-                <span>{{ svc.name }}</span>
-                <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+              </label>
+              <div class="overall-count">
+                {{ guestPreviewPackagesFiltered.length }}
+                {{
+                  guestPreviewPackagesFiltered.length === 1
+                    ? uiText.packageCountSingle
+                    : uiText.packageCount
+                }}
               </div>
             </div>
           </div>
-          <div class="summary-row">
-            <span>{{ uiText.servicesSubtotal }}</span>
-            <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
-          </div>
-          <div class="summary-row muted">
-            <span>{{ uiText.serviceFee }}</span>
-            <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+        </section>
+
+        <section class="overall-layout">
+          <div class="overall-list">
+            <article class="customization-section">
+              <div class="customization-section-head">
+                <span>P</span>
+                <h2>{{ uiText.packageCatalog }}</h2>
+              </div>
+
+              <div
+                v-if="guestPreviewPackagesFiltered.length === 0"
+                class="card empty-state"
+              >
+                {{ uiText.noPackagesForEvent }}
+              </div>
+
+              <div v-else class="package-grid">
+                <article
+                  v-for="item in guestPreviewPackagesFiltered"
+                  :key="item.id"
+                  class="package-product-card"
+                  :id="`package-card-${item.id}`"
+                  :class="{
+                    'focused-target-card':
+                      focusedCardKey === `package-card-${item.id}`,
+                  }"
+                  role="button"
+                  tabindex="0"
+                  @click="openPackageDetails(item.id)"
+                  @keyup.enter="openPackageDetails(item.id)"
+                >
+                  <div class="package-card-image-wrap">
+                    <img
+                      class="package-card-image"
+                      :src="item.image"
+                      :alt="item.title"
+                    />
+                    <span class="package-card-pill">{{
+                      item.eventTypeLabel || "Event"
+                    }}</span>
+                    <button
+                      type="button"
+                      class="package-fav-badge"
+                      :class="{ active: isPackageFavorite(item.id) }"
+                      @click.stop="toggleFavoritePackage(item.id)"
+                      :aria-label="
+                        isPackageFavorite(item.id)
+                          ? 'Remove from favorites'
+                          : 'Add to favorites'
+                      "
+                    >
+                      {{ isPackageFavorite(item.id) ? "♥" : "♡" }}
+                    </button>
+                  </div>
+
+                  <div class="package-product-body">
+                    <h3>{{ item.title }}</h3>
+                    <p class="package-vendor">
+                      {{ item.vendorName || "Verified Vendor" }}
+                    </p>
+                    <div class="package-rating">
+                      <span class="star">★</span>
+                      <strong>{{
+                        (item.rating || 4.7).toFixed
+                          ? (item.rating || 4.7).toFixed(1)
+                          : "4.7"
+                      }}</strong>
+                      <small>{{ uiText.reviewsLabel || "0 reviews" }}</small>
+                    </div>
+
+                    <div class="package-bottom">
+                      <div class="package-price-stack">
+                        <small>{{ uiText.startsFrom || "Starts from" }}</small>
+                        <strong class="package-price">{{
+                          item.priceLabel
+                        }}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        class="choice-indicator package-book-btn"
+                        :class="{ selected: selectedPackageId === item.id }"
+                        @click.stop="selectPackage(item.id)"
+                      >
+                        {{
+                          selectedPackageId === item.id
+                            ? uiText.selected
+                            : uiText.selectPackage
+                        }}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </article>
           </div>
 
-          <div class="summary-total">
-            <span>{{ uiText.totalPrice }}</span>
-            <strong>${{ totalPrice.toLocaleString() }}</strong>
-          </div>
-
-          <button
-            type="button"
-            class="confirm-selection"
-            :disabled="!selectedPackage && selectedServices.length === 0"
-            @click="openPrebookForm"
+          <aside
+            class="card customization-summary overall-summary package-summary"
           >
-	            {{ uiText.prebookNow }}
-	          </button>
-	        </aside>
-	        </section>
-	      </section>
+            <h2>{{ uiText.bookingSummary }}</h2>
+            <div class="summary-items">
+              <h3>{{ uiText.selectedPackage }}</h3>
+              <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
+              <div v-else class="summary-package">
+                <strong>{{ selectedPackage.title }}</strong>
+                <p>
+                  {{ selectedPackage.eventTypeLabel }} |
+                  {{ selectedPackage.location }}
+                </p>
+              </div>
+            </div>
+
+            <div class="summary-row">
+              <span>{{ uiText.quantity }}</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                :value="packageQuantity"
+                @input="packageQtyChanged"
+              />
+            </div>
+            <div class="summary-row">
+              <span>{{ uiText.packagePrice }}</span>
+              <strong>${{ packagePrice.toLocaleString() }}</strong>
+            </div>
+            <div class="summary-items">
+              <h3>{{ uiText.selectedServices }}</h3>
+              <p v-if="selectedServices.length === 0">
+                {{ uiText.noAdditionalServices }}
+              </p>
+              <div v-else>
+                <div
+                  v-for="svc in selectedServices"
+                  :key="svc.id"
+                  class="summary-row"
+                >
+                  <span>{{ svc.name }}</span>
+                  <strong
+                    >+${{ Number(svc.price || 0).toLocaleString() }}</strong
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="summary-row">
+              <span>{{ uiText.servicesSubtotal }}</span>
+              <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
+            </div>
+            <div class="summary-row muted">
+              <span>{{ uiText.serviceFee }}</span>
+              <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+            </div>
+
+            <div class="summary-total">
+              <span>{{ uiText.totalPrice }}</span>
+              <strong>${{ totalPrice.toLocaleString() }}</strong>
+            </div>
+
+            <button
+              type="button"
+              class="confirm-selection"
+              :disabled="!selectedPackage && selectedServices.length === 0"
+              @click="openPrebookForm"
+            >
+              {{ uiText.prebookNow }}
+            </button>
+          </aside>
+        </section>
+      </section>
 
       <CustomizationPage
         v-else-if="section === 'customization'"
@@ -2518,7 +2587,11 @@ function noop() {}
               <h1>General Services</h1>
               <div v-if="isFromCheckout" class="checkout-flow-steps">
                 <RouterLink
-                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+                  :to="
+                    section === 'services-overall'
+                      ? '/services/overall'
+                      : '/services/packages'
+                  "
                   class="step-link active"
                 >
                   1 Services
@@ -2559,11 +2632,10 @@ function noop() {}
                   @input="customizationSearch.value = $event.target.value"
                 />
               </label>
-                <div class="overall-count">
+              <div class="overall-count">
                 {{ matchingServicesFiltered.length }} services
-                
-                </div>
               </div>
+            </div>
           </div>
         </section>
 
@@ -2588,7 +2660,10 @@ function noop() {}
                   :key="service.id"
                   :id="`service-card-${service.id}`"
                   class="service-card-anchor"
-                  :class="{ 'focused-target-card': focusedCardKey === `service-card-${service.id}` }"
+                  :class="{
+                    'focused-target-card':
+                      focusedCardKey === `service-card-${service.id}`,
+                  }"
                 >
                   <ServiceCard
                     :service="service"
@@ -2640,7 +2715,9 @@ function noop() {}
                   class="summary-row"
                 >
                   <span>{{ svc.name }}</span>
-                  <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+                  <strong
+                    >+${{ Number(svc.price || 0).toLocaleString() }}</strong
+                  >
                 </div>
               </div>
             </div>
@@ -2653,15 +2730,19 @@ function noop() {}
               <strong>${{ overallServiceFeeAmount.toLocaleString() }}</strong>
             </div>
 
-          <div class="summary-total">
-            <span>{{ uiText.totalPrice }}</span>
-            <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
-          </div>
+            <div class="summary-total">
+              <span>{{ uiText.totalPrice }}</span>
+              <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
+            </div>
 
-          <button type="button" class="confirm-selection" @click="openPrebookForm">
-            {{ uiText.prebookNow }}
-          </button>
-        </aside>
+            <button
+              type="button"
+              class="confirm-selection"
+              @click="openPrebookForm"
+            >
+              {{ uiText.prebookNow }}
+            </button>
+          </aside>
         </section>
       </section>
 
@@ -2677,7 +2758,12 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
-                <img class="favorite-thumb" :src="item.image" :alt="item.title" loading="lazy" />
+                <img
+                  class="favorite-thumb"
+                  :src="item.image"
+                  :alt="item.title"
+                  loading="lazy"
+                />
                 <div class="favorite-text">
                   <strong>{{ item.title }}</strong>
                   <small
@@ -2702,7 +2788,12 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
-                <img class="favorite-thumb" :src="service.image" :alt="service.name" loading="lazy" />
+                <img
+                  class="favorite-thumb"
+                  :src="service.image"
+                  :alt="service.name"
+                  loading="lazy"
+                />
                 <div class="favorite-text">
                   <strong>{{ service.name }}</strong>
                   <small
@@ -2779,7 +2870,9 @@ function noop() {}
           <button
             type="button"
             class="confirm-selection"
-            :disabled="!favoriteSelectedPackage && favoriteServices.length === 0"
+            :disabled="
+              !favoriteSelectedPackage && favoriteServices.length === 0
+            "
             @click="openFavoritePrebookForm"
           >
             {{ uiText.prebookFavoriteItems }}
@@ -2812,7 +2905,9 @@ function noop() {}
       <div class="package-modal booking-details-modal" @click.stop>
         <div class="package-modal-head">
           <div>
-            <p class="package-product-type">{{ selectedBookingDetails.status }}</p>
+            <p class="package-product-type">
+              {{ selectedBookingDetails.status }}
+            </p>
             <h3>{{ selectedBookingDetails.service }}</h3>
           </div>
           <button
@@ -2829,31 +2924,87 @@ function noop() {}
           :alt="selectedBookingDetails.service"
         />
         <div class="booking-detail-grid">
-          <p><strong>Vendor</strong><span>{{ selectedBookingDetails.vendor }}</span></p>
-          <p><strong>Date</strong><span>{{ selectedBookingDetails.date }}</span></p>
-          <p><strong>Event Type</strong><span>{{ selectedBookingDetails.metaValue }}</span></p>
-          <p><strong>Total</strong><span>{{ selectedBookingDetails.placeValue }}</span></p>
-          <p><strong>Quantity</strong><span>{{ selectedBookingDetails.quantity }}</span></p>
-          <p><strong>Service Price</strong><span>${{ Number(selectedBookingDetails.servicePrice || 0).toLocaleString() }}</span></p>
-          <p><strong>Status</strong><span>{{ selectedBookingDetails.status }}</span></p>
-          <p><strong>Booking ID</strong><span>#{{ selectedBookingDetails.id }}</span></p>
+          <p>
+            <strong>Vendor</strong
+            ><span>{{ selectedBookingDetails.vendor }}</span>
+          </p>
+          <p>
+            <strong>Date</strong><span>{{ selectedBookingDetails.date }}</span>
+          </p>
+          <p>
+            <strong>Event Type</strong
+            ><span>{{ selectedBookingDetails.metaValue }}</span>
+          </p>
+          <p>
+            <strong>Total</strong
+            ><span>{{ selectedBookingDetails.placeValue }}</span>
+          </p>
+          <p>
+            <strong>Quantity</strong
+            ><span>{{ selectedBookingDetails.quantity }}</span>
+          </p>
+          <p>
+            <strong>Service Price</strong
+            ><span
+              >${{
+                Number(
+                  selectedBookingDetails.servicePrice || 0,
+                ).toLocaleString()
+              }}</span
+            >
+          </p>
+          <p>
+            <strong>Status</strong
+            ><span>{{ selectedBookingDetails.status }}</span>
+          </p>
+          <p>
+            <strong>Booking ID</strong
+            ><span>#{{ selectedBookingDetails.id }}</span>
+          </p>
         </div>
         <div class="booking-items-panel">
           <h4>Booked Services</h4>
-          <ul v-if="selectedBookingDetails.bookedItems?.length" class="booking-items-list">
-            <li v-for="(item, index) in selectedBookingDetails.bookedItems" :key="`${selectedBookingDetails.id}-${index}`">
+          <ul
+            v-if="selectedBookingDetails.bookedItems?.length"
+            class="booking-items-list"
+          >
+            <li
+              v-for="(item, index) in selectedBookingDetails.bookedItems"
+              :key="`${selectedBookingDetails.id}-${index}`"
+            >
               <div>
-                <strong>{{ item.name || selectedBookingDetails.service }}</strong>
-                <small>{{ item.type || "service" }} | Qty {{ Number(item.qty || 1) }}</small>
-                <small v-if="item.description" class="booking-item-description">{{ item.description }}</small>
+                <strong>{{
+                  item.name || selectedBookingDetails.service
+                }}</strong>
+                <small
+                  >{{ item.type || "service" }} | Qty
+                  {{ Number(item.qty || 1) }}</small
+                >
+                <small
+                  v-if="item.description"
+                  class="booking-item-description"
+                  >{{ item.description }}</small
+                >
               </div>
               <div class="booking-item-prices">
-                <span>${{ Number(item.totalPrice || item.unitPrice || 0).toLocaleString() }}</span>
-                <small v-if="item.unitPrice">Unit ${{ Number(item.unitPrice || 0).toLocaleString() }}</small>
+                <span
+                  >${{
+                    Number(
+                      item.totalPrice || item.unitPrice || 0,
+                    ).toLocaleString()
+                  }}</span
+                >
+                <small v-if="item.unitPrice"
+                  >Unit ${{
+                    Number(item.unitPrice || 0).toLocaleString()
+                  }}</small
+                >
               </div>
             </li>
           </ul>
-          <p v-else class="booking-detail-empty">{{ selectedBookingDetails.service }}</p>
+          <p v-else class="booking-detail-empty">
+            {{ selectedBookingDetails.service }}
+          </p>
         </div>
         <p class="booking-detail-note">{{ selectedBookingDetails.note }}</p>
       </div>
@@ -2951,7 +3102,9 @@ function noop() {}
               {{ activeVendorProfile.eventTypeLabel }}
             </p>
             <h3>{{ activeVendorProfile.name }}</h3>
-            <small class="vendor-subtitle">{{ activeVendorProfile.subtitle }}</small>
+            <small class="vendor-subtitle">{{
+              activeVendorProfile.subtitle
+            }}</small>
           </div>
           <button
             type="button"
@@ -2967,13 +3120,31 @@ function noop() {}
           :alt="activeVendorProfile.name"
         />
         <div class="vendor-meta">
-          <p><strong>Service</strong><span>{{ activeVendorProfile.serviceName }}</span></p>
-          <p><strong>Price</strong><span>{{ activeVendorProfile.servicePriceLabel }}</span></p>
-          <p><strong>Event</strong><span>{{ activeVendorProfile.eventTypeLabel }}</span></p>
-          <p><strong>Rating</strong><span>{{ activeVendorProfile.rating }}</span></p>
-          <p><strong>Location</strong><span>{{ activeVendorProfile.location }}</span></p>
-          <p v-if="activeVendorProfile.phone"><strong>Phone</strong><span>{{ activeVendorProfile.phone }}</span></p>
-          <p v-if="activeVendorProfile.email"><strong>Email</strong><span>{{ activeVendorProfile.email }}</span></p>
+          <p>
+            <strong>Service</strong
+            ><span>{{ activeVendorProfile.serviceName }}</span>
+          </p>
+          <p>
+            <strong>Price</strong
+            ><span>{{ activeVendorProfile.servicePriceLabel }}</span>
+          </p>
+          <p>
+            <strong>Event</strong
+            ><span>{{ activeVendorProfile.eventTypeLabel }}</span>
+          </p>
+          <p>
+            <strong>Rating</strong><span>{{ activeVendorProfile.rating }}</span>
+          </p>
+          <p>
+            <strong>Location</strong
+            ><span>{{ activeVendorProfile.location }}</span>
+          </p>
+          <p v-if="activeVendorProfile.phone">
+            <strong>Phone</strong><span>{{ activeVendorProfile.phone }}</span>
+          </p>
+          <p v-if="activeVendorProfile.email">
+            <strong>Email</strong><span>{{ activeVendorProfile.email }}</span>
+          </p>
           <p v-if="activeVendorProfile.website">
             <strong>Website</strong>
             <span>{{ activeVendorProfile.website }}</span>
@@ -2981,10 +3152,18 @@ function noop() {}
         </div>
         <p class="package-modal-desc">{{ activeVendorProfile.description }}</p>
         <div class="package-modal-actions">
-          <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
+          <button
+            type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="closeVendorProfile"
+          >
             Close
           </button>
-          <button type="button" class="modal-action-btn modal-action-primary" @click="messageVendorFromProfile">
+          <button
+            type="button"
+            class="modal-action-btn modal-action-primary"
+            @click="messageVendorFromProfile"
+          >
             {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
@@ -3011,7 +3190,9 @@ function noop() {}
             </span>
             <div class="prebook-head-copy">
               <h3>Book {{ prebookTargetTitle }}</h3>
-              <p>Fill in the details below—then review everything at checkout.</p>
+              <p>
+                Fill in the details below—then review everything at checkout.
+              </p>
               <div class="prebook-steps" aria-hidden="true">
                 <span class="prebook-step prebook-step-active">1 Details</span>
                 <span class="prebook-step">2 Location</span>
@@ -3025,8 +3206,18 @@ function noop() {}
             @click="closePrebookModal"
             aria-label="Close booking form"
           >
-            <svg class="prebook-close-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <svg
+              class="prebook-close-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.5 6.5l11 11M17.5 6.5l-11 11"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -3042,11 +3233,22 @@ function noop() {}
                 <div class="prebook-grid">
                   <label class="prebook-field">
                     <span>Full name</span>
-                    <input v-model.trim="prebookForm.fullName" type="text" placeholder="Your name" required />
+                    <input
+                      v-model.trim="prebookForm.fullName"
+                      type="text"
+                      placeholder="Your name"
+                      required
+                    />
                   </label>
 
                   <label class="prebook-field">
                     <span>Email</span>
+                    <input
+                      v-model.trim="prebookForm.email"
+                      type="email"
+                      placeholder="you@example.com"
+                      required
+                    />
                     <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" />
                   </label>
 
@@ -3070,8 +3272,14 @@ function noop() {}
                   <label class="prebook-field prebook-span-2">
                     <span>Event date</span>
                     <div class="prebook-date-picker">
-                      <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
-                        <span>{{ prebookForm.eventDate || "Select event date" }}</span>
+                      <button
+                        type="button"
+                        class="prebook-date-trigger"
+                        @click="openPrebookCalendar"
+                      >
+                        <span>{{
+                          prebookForm.eventDate || "Select event date"
+                        }}</span>
                         <span class="prebook-date-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24" fill="none">
                             <path
@@ -3091,10 +3299,18 @@ function noop() {}
                             <small>{{ prebookCalendarSelectedLabel }}</small>
                           </div>
                           <div class="prebook-calendar-nav">
-                            <button type="button" @click="previousPrebookCalendarMonth" aria-label="Previous month">
+                            <button
+                              type="button"
+                              @click="previousPrebookCalendarMonth"
+                              aria-label="Previous month"
+                            >
                               &lt;
                             </button>
-                            <button type="button" @click="nextPrebookCalendarMonth" aria-label="Next month">
+                            <button
+                              type="button"
+                              @click="nextPrebookCalendarMonth"
+                              aria-label="Next month"
+                            >
                               &gt;
                             </button>
                             <button
@@ -3103,7 +3319,11 @@ function noop() {}
                               @click="closePrebookCalendar"
                               aria-label="Close calendar"
                             >
-                              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                              >
                                 <path
                                   d="M6.5 6.5l11 11M17.5 6.5l-11 11"
                                   stroke="currentColor"
@@ -3116,7 +3336,18 @@ function noop() {}
                         </div>
 
                         <div class="prebook-calendar-weekdays">
-                          <span v-for="label in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="label">
+                          <span
+                            v-for="label in [
+                              'Sun',
+                              'Mon',
+                              'Tue',
+                              'Wed',
+                              'Thu',
+                              'Fri',
+                              'Sat',
+                            ]"
+                            :key="label"
+                          >
                             {{ label }}
                           </span>
                         </div>
@@ -3134,7 +3365,9 @@ function noop() {}
                               available: cell.available && cell.inMonth,
                               selected: isPrebookCalendarCellSelected(cell),
                             }"
-                            :disabled="!cell.inMonth || cell.disabled || cell.booked"
+                            :disabled="
+                              !cell.inMonth || cell.disabled || cell.booked
+                            "
                             @click="selectPrebookCalendarDate(cell)"
                           >
                             {{ cell.day || "" }}
@@ -3146,7 +3379,12 @@ function noop() {}
                           <span><i class="dot booked"></i> Already Booked</span>
                           <span><i class="dot selected"></i> Selected</span>
                         </div>
-                        <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
+                        <p
+                          v-if="isLoadingPrebookCalendar"
+                          class="prebook-calendar-loading"
+                        >
+                          Loading date availability...
+                        </p>
                       </div>
                     </div>
                   </label>
@@ -3163,7 +3401,12 @@ function noop() {}
 
                   <label class="prebook-field">
                     <span>Guests</span>
-                    <input v-model.number="prebookForm.guests" type="number" min="1" required />
+                    <input
+                      v-model.number="prebookForm.guests"
+                      type="number"
+                      min="1"
+                      required
+                    />
                   </label>
 
                   <label class="prebook-field prebook-span-2">
@@ -3177,35 +3420,65 @@ function noop() {}
                 </div>
               </section>
 
-              <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
+              <p v-if="prebookSuccess" class="prebook-success">
+                {{ prebookSuccess }}
+              </p>
             </div>
 
             <div class="prebook-col prebook-col-aside">
               <div class="prebook-summary" aria-label="Booking summary">
                 <div class="prebook-summary-top">
-                  <div class="prebook-summary-title">{{ prebookTargetTitle }}</div>
-                  <div class="prebook-summary-pill">Qty {{ prebookSummaryQuantity }}</div>
+                  <div class="prebook-summary-title">
+                    {{ prebookTargetTitle }}
+                  </div>
+                  <div class="prebook-summary-pill">
+                    Qty {{ prebookSummaryQuantity }}
+                  </div>
                 </div>
                 <div class="prebook-summary-lines">
-                  <div v-if="prebookSummaryPackage" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryPackage"
+                    class="prebook-summary-line"
+                  >
                     <span>Package</span>
                     <strong>{{ prebookSummaryPackage.title }}</strong>
                   </div>
-                  <div v-if="prebookSummaryPackageSubtotal > 0" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryPackageSubtotal > 0"
+                    class="prebook-summary-line"
+                  >
                     <span>Package subtotal</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryPackageSubtotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryPackageSubtotal)
+                    }}</strong>
                   </div>
-                  <div v-if="prebookSummaryServicesSubtotal > 0" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryServicesSubtotal > 0"
+                    class="prebook-summary-line"
+                  >
                     <span>{{ prebookSummaryServicesLabel }}</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryServicesSubtotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryServicesSubtotal)
+                    }}</strong>
                   </div>
-                  <div v-if="prebookSummaryServiceFee > 0" class="prebook-summary-line prebook-summary-muted">
-                    <span>Service fee ({{ Math.round(serviceFeeRate * 100) }}%)</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryServiceFee) }}</strong>
+                  <div
+                    v-if="prebookSummaryServiceFee > 0"
+                    class="prebook-summary-line prebook-summary-muted"
+                  >
+                    <span
+                      >Service fee ({{
+                        Math.round(serviceFeeRate * 100)
+                      }}%)</span
+                    >
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryServiceFee)
+                    }}</strong>
                   </div>
                   <div class="prebook-summary-total">
                     <span>Estimated total</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryTotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryTotal)
+                    }}</strong>
                   </div>
                 </div>
               </div>
@@ -3232,10 +3505,17 @@ function noop() {}
                       <button
                         type="button"
                         class="modal-action-btn modal-action-neutral"
-                        :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
+                        :disabled="
+                          isDetectingPrebookLocation ||
+                          isResolvingTypedPrebookLocation
+                        "
                         @click="detectPrebookLocation"
                       >
-                        {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+                        {{
+                          isDetectingPrebookLocation
+                            ? "Detecting location..."
+                            : "Use Current Location"
+                        }}
                       </button>
 
                       <a
@@ -3249,12 +3529,21 @@ function noop() {}
                       </a>
                     </div>
 
-                    <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
                     <p
-                      v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
+                      v-if="prebookLocationNotice"
+                      class="prebook-location-notice"
+                    >
+                      {{ prebookLocationNotice }}
+                    </p>
+                    <p
+                      v-if="
+                        prebookForm.latitude !== null &&
+                        prebookForm.longitude !== null
+                      "
                       class="prebook-location-coords"
                     >
-                      Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng: {{ Number(prebookForm.longitude).toFixed(6) }}
+                      Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng:
+                      {{ Number(prebookForm.longitude).toFixed(6) }}
                     </p>
                     <iframe
                       v-if="prebookLocationMapEmbedUrl"
@@ -3273,7 +3562,9 @@ function noop() {}
           </div>
 
           <div class="prebook-actions">
-            <p class="prebook-actions-hint">You’ll review details before placing your order.</p>
+            <p class="prebook-actions-hint">
+              You’ll review details before placing your order.
+            </p>
             <button
               type="submit"
               class="modal-action-btn modal-action-primary"
@@ -3314,7 +3605,11 @@ function noop() {}
   border: 1px solid #dbe4f2;
   border-radius: 24px;
   background:
-    radial-gradient(circle at 95% 12%, rgba(255, 106, 0, 0.12), transparent 35%),
+    radial-gradient(
+      circle at 95% 12%,
+      rgba(255, 106, 0, 0.12),
+      transparent 35%
+    ),
     linear-gradient(180deg, #ffffff, #fbfdff);
   padding: 22px 24px;
 }
@@ -3854,7 +4149,11 @@ function noop() {}
   border-radius: 14px;
   background:
     radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 58%),
-    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.12), transparent 52%),
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(255, 106, 0, 0.12),
+      transparent 52%
+    ),
     #ffffff;
 }
 
@@ -4076,8 +4375,16 @@ function noop() {}
   flex-direction: column;
   background:
     radial-gradient(circle at 92% 0%, rgba(255, 107, 0, 0.14), transparent 46%),
-    radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.1), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
+    radial-gradient(
+      circle at 0% 100%,
+      rgba(59, 130, 246, 0.1),
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 255, 255, 0.92)
+    );
   border-radius: 24px;
   border: 1px solid rgba(229, 231, 235, 0.9);
   box-shadow:
@@ -4231,7 +4538,11 @@ function noop() {}
   border: 1px solid rgba(229, 231, 235, 0.9);
   background:
     radial-gradient(circle at 0% 0%, rgba(255, 106, 0, 0.08), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.06), transparent 46%),
+    radial-gradient(
+      circle at 100% 100%,
+      rgba(37, 99, 235, 0.06),
+      transparent 46%
+    ),
     rgba(255, 255, 255, 0.72);
   box-shadow:
     0 18px 48px rgba(15, 23, 42, 0.06),
@@ -4270,7 +4581,11 @@ function noop() {}
   padding: 14px;
   background:
     radial-gradient(circle at 10% 0%, rgba(255, 107, 0, 0.22), transparent 56%),
-    radial-gradient(circle at 100% 90%, rgba(59, 130, 246, 0.16), transparent 52%),
+    radial-gradient(
+      circle at 100% 90%,
+      rgba(59, 130, 246, 0.16),
+      transparent 52%
+    ),
     rgba(255, 255, 255, 0.74);
   box-shadow:
     0 22px 56px rgba(15, 23, 42, 0.08),
@@ -4289,7 +4604,8 @@ function noop() {}
 }
 
 .prebook-summary-title {
-  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family:
+    "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -4358,7 +4674,8 @@ function noop() {}
 }
 
 .prebook-summary-total strong {
-  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family:
+    "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--accent-dark);
   font-size: 18px;
   font-weight: 700;
@@ -4662,8 +4979,16 @@ function noop() {}
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 20% 10%, rgba(234, 88, 12, 0.08), transparent 55%),
-    radial-gradient(circle at 90% 90%, rgba(37, 99, 235, 0.06), transparent 55%),
+    radial-gradient(
+      circle at 20% 10%,
+      rgba(234, 88, 12, 0.08),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 90% 90%,
+      rgba(37, 99, 235, 0.06),
+      transparent 55%
+    ),
     rgba(226, 232, 240, 0.45);
   color: rgba(75, 85, 99, 0.86);
   font-size: 13px;
@@ -4766,7 +5091,8 @@ function noop() {}
   letter-spacing: 0.01em;
   box-shadow: 0 18px 44px rgba(255, 107, 0, 0.28);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)) padding-box,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0))
+      padding-box,
     linear-gradient(90deg, #ff6b00 0%, #ff7a1f 45%, #ff6b00 100%) border-box;
   border: 1px solid transparent;
 }
@@ -5010,8 +5336,16 @@ function noop() {}
   border-radius: 18px;
   padding: 16px;
   background:
-    radial-gradient(circle at 8% 12%, rgba(255, 195, 113, 0.14), transparent 42%),
-    radial-gradient(circle at 90% 0%, rgba(99, 179, 237, 0.14), transparent 42%),
+    radial-gradient(
+      circle at 8% 12%,
+      rgba(255, 195, 113, 0.14),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(99, 179, 237, 0.14),
+      transparent 42%
+    ),
     #ffffff;
   box-shadow:
     0 12px 30px rgba(15, 23, 42, 0.1),
@@ -5020,7 +5354,9 @@ function noop() {}
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 14px;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .favorite-list li:hover {
@@ -5065,7 +5401,10 @@ function noop() {}
   font-weight: 800;
   padding: 10px 16px;
   cursor: pointer;
-  transition: background 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
   flex-shrink: 0;
   box-shadow: 0 10px 22px rgba(234, 88, 12, 0.12);
 }

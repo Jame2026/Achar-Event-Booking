@@ -6,6 +6,11 @@ import Register from './components/RegisterForm.vue'
 import AvailabilityPage from './components/pages/AvailabilityPage.vue'
 import BookingsPage from './components/pages/BookingsPage.vue'
 import CustomizationPage from './components/pages/CustomizationPage.vue'
+import AdminDashboardPage from './components/pages/AdminDashboardPage.vue'
+import AdminBookingsPage from './components/pages/AdminBookingsPage.vue'
+import AdminEventsPage from './components/pages/AdminEventsPage.vue'
+import AdminRevenuePage from './components/pages/AdminRevenuePage.vue'
+import AdminVendorsPage from './components/pages/AdminVendorsPage.vue'
 import DashboardPage from './components/pages/DashboardPage.vue'
 import MessagesPage from './components/pages/MessagesPage.vue'
 import ProfilePage from './components/pages/ProfilePage.vue'
@@ -297,10 +302,13 @@ const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
 const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
-const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages']
+const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors']
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
+const isAdminAccount = computed(
+  () => String(loggedInUser.value?.role || '').trim().toLowerCase() === 'admin',
+)
 const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
 )
@@ -652,6 +660,9 @@ const dashboardStats = computed(() => {
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 const vendorDisplayName = computed(
   () => String(loggedInUser.value?.name || vendorProfile.name || 'Vendor').trim() || 'Vendor',
+)
+const adminDisplayName = computed(
+  () => String(loggedInUser.value?.name || 'Admin').trim() || 'Admin',
 )
 const messagesSummary = computed(() =>
   conversations.value.filter((item) => {
@@ -1517,6 +1528,17 @@ async function submitVendorService() {
         })()
       : normalizedPayload
 
+    if (Number.isFinite(serviceId) && serviceId > 0) {
+      const result = await apiPatch(`vendor/services/${serviceId}`, payload)
+      upsertVendorEvent(result?.data || result)
+      vendorServiceNotice.value = uiText.value.serviceUpdated
+    } else {
+      const result = await apiPost('vendor/services', payload)
+      upsertVendorEvent(result?.data || result)
+      vendorServiceNotice.value = uiText.value.serviceCreated
+    }
+    loadEvents({ silent: true })
+    await apiPost('vendor/services', payload)
     if (isEditingService) {
       if (payload instanceof FormData) {
         payload.append('_method', 'PATCH')
@@ -1619,6 +1641,8 @@ function mapVendorBookingRow(row) {
   return {
     id: row.id,
     service_name: row.service_name || event.title || uiText.value.serviceBooking,
+    customer_name: row.customer_name || row.user?.name || uiText.value.customer,
+    customer_email: row.customer_email || row.user?.email || '',
     customer_id: user.id || null,
     customer_name: row.customer_name || user.name || uiText.value.customer,
     customer_email: customerEmail,
@@ -2094,9 +2118,39 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-      <PublicNavbar />
+      <PublicNavbar v-if="!(isAdminAccount && ['dashboard', 'revenue', 'events', 'admin-bookings', 'vendors'].includes(currentPage))" />
+      <AdminDashboardPage
+        v-if="isAdminAccount && currentPage === 'dashboard'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminBookingsPage
+        v-else-if="isAdminAccount && currentPage === 'admin-bookings'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminEventsPage
+        v-else-if="isAdminAccount && currentPage === 'events'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminRevenuePage
+        v-else-if="isAdminAccount && currentPage === 'revenue'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminVendorsPage
+        v-else-if="isAdminAccount && currentPage === 'vendors'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
       <VendorDashboardPage
-        v-if="isVendorAccount && currentPage === 'dashboard'"
+        v-else-if="isVendorAccount && currentPage === 'dashboard'"
         :app-logo-src="brandLogoSrc"
         :vendor-display-name="vendorDisplayName"
         v-model:active-tab="vendorDashboardTab"
