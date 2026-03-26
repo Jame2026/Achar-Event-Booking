@@ -54,6 +54,7 @@ const notificationsError = ref("");
 const isLoadingNotifications = ref(false);
 const notificationDropdownOpen = ref(false);
 const notificationMenuRef = ref(null);
+const notificationPollTimer = ref(null);
 const initials = computed(() => {
   const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
@@ -216,6 +217,24 @@ async function toggleNotificationDropdown() {
 
 function closeNotificationDropdown() {
   notificationDropdownOpen.value = false;
+}
+
+function stopNotificationPolling() {
+  if (notificationPollTimer.value) {
+    window.clearInterval(notificationPollTimer.value);
+    notificationPollTimer.value = null;
+  }
+}
+
+function startNotificationPolling() {
+  stopNotificationPolling();
+  const query = buildNotificationQuery();
+  if (!query) return;
+
+  loadNotifications({ silent: true });
+  notificationPollTimer.value = window.setInterval(() => {
+    loadNotifications({ silent: true });
+  }, 60000);
 }
 
 function handleDocumentClick(event) {
@@ -439,10 +458,12 @@ watch(() => route.query.page, syncActiveKey);
 
 onMounted(() => {
   document.addEventListener("click", handleDocumentClick);
+  startNotificationPolling();
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("click", handleDocumentClick);
+  stopNotificationPolling();
 });
 onMounted(loadDashboardData);
 </script>
