@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -31,50 +32,90 @@ const navItems = [
 ];
 const activeKey = ref("admin-bookings");
 
-const stats = [
-  { label: "Total Bookings", value: "1,284", delta: "+12%" },
-  { label: "Pending Confirmation", value: "42", delta: "Needs action" },
-  { label: "Avg. Response Time", value: "1.4h", delta: "Top 5% Vendor" },
-];
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
+const loadError = computed(() => adminStore.errors.bookings);
 
-const bookings = [
-  {
-    id: "#BK-1201",
-    name: "Sarah Mitchell",
-    email: "s.mitchell@email.com",
-    event: "International Tech Summit 2024",
-    date: "Oct 24, 2024",
-    time: "9:30 PM",
-    status: "Pending",
-  },
-  {
-    id: "#BK-1194",
-    name: "David Ling",
-    email: "d.ling@email.com",
-    event: "Product Launch: Ali Nexus",
-    date: "Nov 02, 2024",
-    time: "10:30 AM",
-    status: "Confirmed",
-  },
-  {
-    id: "#BK-1188",
-    name: "Elena Kovac",
-    email: "e.kovac@email.com",
-    event: "Modern UI Workshop",
-    date: "Oct 29, 2024",
-    time: "2:00 PM",
-    status: "Pending",
-  },
-  {
-    id: "#BK-1179",
-    name: "James Roland",
-    email: "j.roland@email.com",
-    event: "Networking Night",
-    date: "Oct 15, 2024",
-    time: "7:00 PM",
-    status: "Cancelled",
-  },
-];
+const normalizeBookingStatus = (row) => {
+  const status = String(row?.status || "").toLowerCase();
+  const payment = String(row?.payment_status || "").toLowerCase();
+  if (status === "cancelled") return "Cancelled";
+  if (status === "confirmed" || payment === "confirmed") return "Confirmed";
+  return "Pending";
+};
+
+const getBookingDate = (row) => {
+  const raw = row?.event?.starts_at || row?.requested_event_date || row?.created_at || row?.updated_at || null;
+  const date = raw ? new Date(raw) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const formatDate = (value) =>
+  value
+    ? value.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+    : "Date TBD";
+
+const formatTime = (value) =>
+  value ? value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "Time TBD";
+
+const normalizeBookings = computed(() =>
+  adminStore.state.bookings.map((row) => {
+    const date = getBookingDate(row);
+    return {
+      id: row?.id ? `#BK-${row.id}` : "#BK",
+      name: row?.customer_name || row?.user?.name || "Guest",
+      email: row?.customer_email || row?.user?.email || row?.email || "No email",
+      event: row?.event?.title || row?.service_name || row?.event_title || "Event booking",
+      date: formatDate(date),
+      time: formatTime(date),
+      status: normalizeBookingStatus(row),
+      stamp: date ? date.getTime() : 0,
+      raw: row,
+    };
+  }),
+);
+
+const filteredBookings = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  const rows = query
+    ? normalizeBookings.value.filter((row) =>
+        [row.id, row.name, row.email, row.event, row.status].join(" ").toLowerCase().includes(query),
+      )
+    : normalizeBookings.value;
+  return [...rows].sort((a, b) => b.stamp - a.stamp);
+});
+
+const avgResponseHours = computed(() => {
+  const rows = adminStore.state.bookings
+    .map((row) => {
+      const created = row?.created_at ? new Date(row.created_at) : null;
+      const updated = row?.updated_at ? new Date(row.updated_at) : null;
+      if (!created || !updated) return null;
+      const diff = (updated.getTime() - created.getTime()) / (1000 * 60 * 60);
+      return diff >= 0 ? diff : null;
+    })
+    .filter((value) => Number.isFinite(value));
+  if (!rows.length) return null;
+  const avg = rows.reduce((sum, value) => sum + value, 0) / rows.length;
+  return avg;
+});
+
+const stats = computed(() => {
+  const total = adminStore.state.bookings.length;
+  const pending = adminStore.state.bookings.filter((row) => normalizeBookingStatus(row) === "Pending").length;
+  const confirmed = adminStore.state.bookings.filter((row) => normalizeBookingStatus(row) === "Confirmed").length;
+  const avgHours = avgResponseHours.value;
+  return [
+    { label: "Total Bookings", value: total.toLocaleString(), delta: `${pending} pending` },
+    { label: "Pending Confirmation", value: pending.toLocaleString(), delta: `${confirmed} confirmed` },
+    {
+      label: "Avg. Response Time",
+      value: avgHours ? `${avgHours.toFixed(1)}h` : "N/A",
+      delta: avgHours ? "Based on history" : "Not enough data",
+    },
+  ];
+});
 
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -102,6 +143,7 @@ const navigateTo = (key) => {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
+onMounted(() => void adminStore.loadAll());
 </script>
 
 <template>
@@ -234,7 +276,10 @@ watch(() => route.query.page, syncActiveKey);
               <span>Status</span>
               <span>Actions</span>
             </div>
-            <div v-for="item in bookings" :key="item.id" class="table-row">
+            <div v-if="isLoading" class="table-empty">Loading latest bookings...</div>
+            <div v-else-if="loadError" class="table-empty">{{ loadError }}</div>
+            <div v-else-if="!filteredBookings.length" class="table-empty">No bookings found yet.</div>
+            <div v-else v-for="item in filteredBookings" :key="item.id" class="table-row">
               <div>
                 <p class="attendee">{{ item.name }}</p>
                 <span class="attendee-email">{{ item.email }}</span>
@@ -688,6 +733,15 @@ watch(() => route.query.page, syncActiveKey);
 .table {
   display: grid;
   gap: 8px;
+}
+
+.table-empty {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .table-head,

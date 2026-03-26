@@ -1,6 +1,8 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { eventTypeMap } from "../../features/appData";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -30,53 +32,82 @@ const navItems = [
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 const activeKey = ref("events");
-const reviewQueue = [
-  {
-    id: "EG",
-    name: "Elite Gatherings",
-    title: "Grand Ballroom at The Marquee",
-    category: "Event Venue",
-    submitted: "Oct 18, 2023",
-    status: "Pending",
-  },
-  {
-    id: "SV",
-    name: "Savory Fusion",
-    title: "Artisan Buffet Experience",
-    category: "Catering",
-    submitted: "Oct 15, 2023",
-    status: "Approved",
-  },
-  {
-    id: "VV",
-    name: "Vivid D?cor",
-    title: "Minimalist Zen Wedding Setup",
-    category: "Decoration",
-    submitted: "Oct 12, 2023",
-    status: "Pending",
-  },
-  {
-    id: "AS",
-    name: "Aurea Soundscapes",
-    title: "Premium AV Live Band Package",
-    category: "Entertainment",
-    submitted: "Oct 10, 2023",
-    status: "Pending",
-  },
-];
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.events);
+const loadError = computed(() => adminStore.errors.events);
 
-const highlights = [
-  { label: "Total Submissions", value: "142", delta: "+12%" },
-  { label: "Pending Review", value: "28", delta: "Action required" },
-  { label: "Approved This Week", value: "85", delta: "Trending up" },
-];
+const eventRows = computed(() => adminStore.state.events);
 
-const vendorSnapshot = {
-  name: "Elite Gatherings Co.",
-  location: "Phnom Penh",
-  listings: "14 Active",
-  rating: "4.9",
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Date TBD";
+  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 };
+
+const normalizeStatus = (row) => {
+  const status = String(row?.status || "").toLowerCase();
+  if (status === "approved" || status === "active") return "Approved";
+  if (status === "pending" || status === "review") return "Pending";
+  if (row?.is_active === false) return "Pending";
+  return "Approved";
+};
+
+const reviewQueue = computed(() => {
+  const sorted = [...eventRows.value].sort((a, b) => {
+    const left = new Date(a?.created_at || a?.updated_at || 0).getTime();
+    const right = new Date(b?.created_at || b?.updated_at || 0).getTime();
+    return right - left;
+  });
+  return sorted.slice(0, 8).map((event) => ({
+    id: event?.id ? `EV-${event.id}` : "EV",
+    name: event?.vendor?.name || event?.vendor_name || "Vendor",
+    title: event?.title || "Event listing",
+    category: eventTypeMap[event?.event_type] || event?.event_type || "Other",
+    submitted: formatDate(event?.created_at || event?.updated_at),
+    status: normalizeStatus(event),
+  }));
+});
+
+const highlights = computed(() => {
+  const total = eventRows.value.length;
+  const pending = eventRows.value.filter((row) => normalizeStatus(row) === "Pending").length;
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const approvedThisWeek = eventRows.value.filter((row) => {
+    const created = row?.created_at ? new Date(row.created_at).getTime() : 0;
+    return created >= weekAgo && normalizeStatus(row) === "Approved";
+  }).length;
+  return [
+    { label: "Total Submissions", value: total.toLocaleString(), delta: `${pending} pending` },
+    { label: "Pending Review", value: pending.toLocaleString(), delta: "Action required" },
+    { label: "Approved This Week", value: approvedThisWeek.toLocaleString(), delta: "Trending up" },
+  ];
+});
+
+const vendorSnapshot = computed(() => {
+  if (!eventRows.value.length) {
+    return {
+      name: "No vendors yet",
+      location: "Location TBD",
+      listings: "0 Active",
+      rating: "N/A",
+    };
+  }
+  const counts = new Map();
+  eventRows.value.forEach((event) => {
+    const key = event?.vendor?.name || event?.vendor_name || "Vendor";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const [name] = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+  const vendorEvent = eventRows.value.find(
+    (event) => (event?.vendor?.name || event?.vendor_name || "Vendor") === name,
+  );
+  return {
+    name: name || "Vendor",
+    location: vendorEvent?.location || vendorEvent?.vendor?.location || "Location TBD",
+    listings: `${counts.get(name) || 0} Active`,
+    rating: vendorEvent?.vendor?.rating ? String(vendorEvent.vendor.rating) : "N/A",
+  };
+});
 
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -104,6 +135,7 @@ const navigateTo = (key) => {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
+onMounted(() => void adminStore.loadAll());
 </script>
 
 <template>
@@ -227,7 +259,10 @@ watch(() => route.query.page, syncActiveKey);
             </div>
           </header>
           <div class="queue-list">
-            <div v-for="item in reviewQueue" :key="item.title" class="queue-row">
+            <div v-if="isLoading" class="queue-empty">Loading event submissions...</div>
+            <div v-else-if="loadError" class="queue-empty">{{ loadError }}</div>
+            <div v-else-if="!reviewQueue.length" class="queue-empty">No event submissions yet.</div>
+            <div v-else v-for="item in reviewQueue" :key="item.title" class="queue-row">
               <div class="badge">{{ item.id }}</div>
               <div>
                 <p class="queue-title">{{ item.title }}</p>
@@ -719,6 +754,15 @@ watch(() => route.query.page, syncActiveKey);
 .queue-list {
   display: grid;
   gap: 12px;
+}
+
+.queue-empty {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .queue-row {

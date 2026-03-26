@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet } from "../../features/apiClient";
 import { serviceFeeRate } from "../../features/appData";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -32,9 +32,10 @@ const navItems = [
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 const activeKey = ref("revenue");
-const isLoading = ref(false);
-const loadError = ref("");
-const rawBookings = ref([]);
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
+const loadError = computed(() => adminStore.errors.bookings);
+const rawBookings = computed(() => adminStore.state.bookings);
 const rangeKey = ref("30d");
 const chartMetric = ref("gross");
 const rangeOptions = [
@@ -370,41 +371,9 @@ const setChartMetric = (metric) => {
   chartMetric.value = metric;
 };
 
-async function fetchPagedBookings(endpoint) {
-  const allRows = [];
-  let page = 1;
-  let lastPage = 1;
-  const maxPages = 40;
-  do {
-    const result = await apiGet(endpoint, { page });
-    const rows = Array.isArray(result?.data) ? result.data : [];
-    allRows.push(...rows);
-    lastPage = Number(result?.last_page || result?.lastPage || 1);
-    page += 1;
-  } while (page <= lastPage && page <= maxPages);
-  return allRows;
-}
-
-async function loadRevenueBookings() {
-  isLoading.value = true;
-  loadError.value = "";
-  try {
-    rawBookings.value = await fetchPagedBookings("admin/bookings");
-  } catch (error) {
-    try {
-      rawBookings.value = await fetchPagedBookings("bookings");
-    } catch (innerError) {
-      rawBookings.value = [];
-      loadError.value = innerError?.message || error?.message || "Unable to load revenue data.";
-    }
-  } finally {
-    isLoading.value = false;
-  }
-}
-
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
-onMounted(loadRevenueBookings);
+onMounted(() => void adminStore.loadAll());
 </script>
 
 <template>
@@ -677,20 +646,32 @@ onMounted(loadRevenueBookings);
         </article>
 
         <article class="card side projection">
-          <h3>Quarterly Projection</h3>
-          <p>Based on current range trends.</p>
-          <h4>{{ projection.valueLabel }}</h4>
-          <div class="projection-grid">
+          <header class="projection-head">
             <div>
+              <p class="projection-eyebrow">Forecast</p>
+              <h3>Quarterly Projection</h3>
+              <p class="projection-sub">Based on current range trends.</p>
+            </div>
+            <span class="status-pill">{{ projection.status }}</span>
+          </header>
+          <div class="projection-value">
+            <span class="value-label">Expected revenue</span>
+            <h4>{{ projection.valueLabel }}</h4>
+            <div class="projection-bar" role="presentation">
+              <span class="projection-bar-fill" :style="{ width: `${projection.confidence}%` }"></span>
+            </div>
+            <p class="projection-note">{{ projection.confidence }}% confidence</p>
+          </div>
+          <div class="projection-grid">
+            <div class="projection-metric">
               <span>Confidence</span>
               <strong>{{ projection.confidence }}%</strong>
             </div>
-            <div>
-              <span>Risk</span>
+            <div class="projection-metric">
+              <span>Risk level</span>
               <strong>{{ projection.risk }}</strong>
             </div>
           </div>
-          <span class="status-pill">{{ projection.status }}</span>
         </article>
       </section>
     </main>
@@ -1479,24 +1460,120 @@ onMounted(loadRevenueBookings);
 }
 
 .projection {
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #ff7a1a 0%, #f15b2a 45%, #ff9a4d 100%);
   color: #fff;
+  border: none;
+  box-shadow: 0 26px 60px rgba(241, 91, 42, 0.32);
 }
 
-.projection h4 {
-  font-size: 26px;
-  margin: 12px 0;
+.projection::before {
+  content: "";
+  position: absolute;
+  inset: -30% -10% 35% 20%;
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.4), transparent 60%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.projection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+.projection > * {
+  position: relative;
+  z-index: 1;
+}
+
+.projection-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.projection-eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.projection-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.projection .status-pill {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.projection-value {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.projection-value h4 {
+  font-size: 28px;
+  margin: 6px 0 10px;
+  font-weight: 700;
+}
+
+.value-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.projection-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.projection-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #fff1df, #ffffff);
+  border-radius: inherit;
+}
+
+.projection-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
 }
 
 .projection-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  font-size: 12px;
-  margin-bottom: 12px;
 }
 
-.projection-grid strong {
+.projection-metric {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+}
+
+.projection-metric strong {
   display: block;
   margin-top: 6px;
   font-size: 14px;

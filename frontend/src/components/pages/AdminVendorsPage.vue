@@ -3,7 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
-import { apiDelete, apiGet, apiPatch } from "../../features/apiClient";
+import { apiDelete, apiPatch } from "../../features/apiClient";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const STORE_KEY = "achar_admin_vendor_sidebar_state_v1";
 
@@ -42,11 +43,12 @@ const activeKey = ref("vendors");
 const searchQuery = ref("");
 const visibilityFilter = ref("all");
 const categoryFilter = ref("all");
-const isLoading = ref(false);
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.events);
 const isSaving = ref(false);
 const notice = ref("");
 const noticeTone = ref("info");
-const vendorEvents = ref([]);
+const vendorEvents = computed(() => adminStore.state.events);
 const selectedVendorKey = ref("");
 const adminState = ref(loadState());
 
@@ -251,29 +253,16 @@ function navigateTo(key) {
 }
 
 function patchLocalEvent(updated) {
-  const index = vendorEvents.value.findIndex((item) => Number(item.id) === Number(updated.id));
-  if (index < 0) return;
-  const existing = vendorEvents.value[index] || {};
-  vendorEvents.value.splice(index, 1, {
-    ...existing,
-    ...updated,
-    vendor: updated?.vendor || existing?.vendor,
-    vendor_name: updated?.vendor_name || existing?.vendor_name,
-    bookings_count: updated?.bookings_count ?? existing?.bookings_count ?? 0,
-  });
+  adminStore.updateEvent(updated);
 }
 
 async function loadVendorDirectory() {
-  isLoading.value = true;
-  try {
-    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
-    vendorEvents.value = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    notice.value = vendorEvents.value.length ? "" : "No vendor services found yet.";
-  } catch (error) {
-    vendorEvents.value = [];
-    setNotice(error?.message || "Could not load vendor directory.", "error");
-  } finally {
-    isLoading.value = false;
+  notice.value = "";
+  await adminStore.loadEvents({ force: true });
+  if (adminStore.errors.events) {
+    setNotice(adminStore.errors.events, "error");
+  } else if (!vendorEvents.value.length) {
+    notice.value = "No vendor services found yet.";
   }
 }
 
@@ -322,7 +311,7 @@ async function removeService(service) {
   isSaving.value = true;
   try {
     await apiDelete(`vendor/services/${service.id}`, { vendor_user_id: selectedVendor.value.id });
-    vendorEvents.value = vendorEvents.value.filter((item) => Number(item.id) !== Number(service.id));
+    adminStore.removeEvent(service.id);
     setNotice(`${service.title} was removed.`, "success");
   } catch (error) {
     setNotice(error?.message || "Could not remove this service.", "error");

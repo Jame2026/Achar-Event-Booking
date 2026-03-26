@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet } from "../../features/apiClient";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -31,13 +31,14 @@ const navItems = [
 const router = useRouter();
 const route = useRoute();
 const activeKey = ref("dashboard");
-const isLoading = ref(false);
-const loadError = ref("");
-const adminSummary = ref({ users_total: 0, events_total: 0, bookings_total: 0 });
-const bookingRows = ref([]);
-const eventRows = ref([]);
-const userRows = ref([]);
-const healthStatus = ref(null);
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all);
+const loadError = computed(() => adminStore.error);
+const adminSummary = computed(() => adminStore.state.summary);
+const bookingRows = computed(() => adminStore.state.bookings);
+const eventRows = computed(() => adminStore.state.events);
+const userRows = computed(() => adminStore.state.users);
+const healthStatus = computed(() => adminStore.state.health);
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
     .split(" ")
@@ -243,69 +244,9 @@ const systemStatus = computed(() => {
   };
 });
 
-async function fetchPagedRows(endpoint, query = {}) {
-  const rows = [];
-  let page = 1;
-  let lastPage = 1;
-  const maxPages = 40;
-  do {
-    const result = await apiGet(endpoint, { ...query, page });
-    const data = Array.isArray(result?.data) ? result.data : [];
-    rows.push(...data);
-    lastPage = Number(result?.last_page || result?.lastPage || 1);
-    page += 1;
-  } while (page <= lastPage && page <= maxPages);
-  return rows;
-}
-
-async function loadDashboardData() {
-  isLoading.value = true;
-  loadError.value = "";
-  try {
-    try {
-      adminSummary.value = await apiGet("admin/dashboard");
-    } catch {
-      adminSummary.value = { users_total: 0, events_total: 0, bookings_total: 0 };
-    }
-
-    try {
-      bookingRows.value = await fetchPagedRows("admin/bookings");
-    } catch {
-      bookingRows.value = await fetchPagedRows("bookings");
-    }
-
-    try {
-      const eventsResult = await apiGet("events", { per_page: 200, include_inactive: 1, ts: Date.now() });
-      eventRows.value = Array.isArray(eventsResult?.data) ? eventsResult.data : [];
-    } catch {
-      eventRows.value = [];
-    }
-
-    try {
-      userRows.value = await fetchPagedRows("admin/users");
-    } catch {
-      userRows.value = [];
-    }
-
-    try {
-      healthStatus.value = await apiGet("health/redis");
-    } catch {
-      try {
-        healthStatus.value = await apiGet("health");
-      } catch {
-        healthStatus.value = null;
-      }
-    }
-  } catch (error) {
-    loadError.value = error?.message || "Unable to load dashboard data.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
-onMounted(loadDashboardData);
+onMounted(() => void adminStore.loadAll());
 </script>
 
 <template>
