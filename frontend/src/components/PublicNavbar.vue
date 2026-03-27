@@ -1190,4 +1190,59 @@ const bookingLink = computed(() => {
   }
 
 }
+
+@media (max-width: 640px) {
+  .nav-shell {
+    gap: 0.6rem;
+  }
+
+  .brand-logo-wrap {
+    width: 54px;
+    height: 54px;
+  }
+
+  .brand-logo {
+    width: 48px;
+    height: 48px;
+  }
+
+  .brand-name {
+    font-size: 1.55rem;
+  }
+
+  .nav-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 0.45rem;
+    width: 100%;
+  }
+
+  .nav-links a,
+  .nav-drop-trigger {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.94rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .nav-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: stretch;
+  }
+
+  .lang-select,
+  .nav-search {
+    width: 100%;
+  }
+
+  .nav-search {
+    min-width: 0;
+  }
+
+  .favorite-link {
+    justify-content: center;
+  }
+}
 </style>

@@ -1616,6 +1616,25 @@ button:disabled {
     justify-content: space-between;
   }
 }
+
+@media (max-width: 640px) {
+  .highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .nav-item {
+    min-width: 200px;
+  }
+}
 </style>
 
 

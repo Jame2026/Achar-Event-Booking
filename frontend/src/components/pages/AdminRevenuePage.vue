@@ -1863,5 +1863,23 @@ onMounted(() => void adminStore.loadAll());
     justify-content: space-between;
   }
 }
+
+@media (max-width: 640px) {
+  .revenue-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .nav-item {
+    min-width: 200px;
+  }
+}
 </style>
 

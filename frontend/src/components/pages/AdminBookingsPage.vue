@@ -1613,5 +1613,25 @@ onMounted(() => void loadAdminBookings());
     justify-content: flex-start;
   }
 }
+
+@media (max-width: 640px) {
+  .bookings-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-card,
+  .detail-card,
+  .summary-card {
+    padding: 16px;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .nav-item {
+    min-width: 200px;
+  }
+}
 </style>
 

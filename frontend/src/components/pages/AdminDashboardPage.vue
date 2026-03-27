@@ -3476,6 +3476,22 @@ onMounted(() =>
     white-space: nowrap;
   }
 }
+
+@media (max-width: 640px) {
+  .admin-stats,
+  .admin-grid,
+  .users-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .nav-item {
+    min-width: 200px;
+  }
+}
 </style>
 
 

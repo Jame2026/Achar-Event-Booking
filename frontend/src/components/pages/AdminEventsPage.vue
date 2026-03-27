@@ -1270,5 +1270,20 @@ onMounted(() => void loadAdminEvents());
     align-items: stretch;
   }
 }
+
+@media (max-width: 640px) {
+  .events-grid,
+  .event-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .nav-item {
+    min-width: 200px;
+  }
+}
 </style>
 
