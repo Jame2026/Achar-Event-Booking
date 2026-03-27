@@ -210,21 +210,25 @@ const revenueStats = computed(() => [
     label: "Total Revenue",
     value: formatCurrency(revenueTotals.value.confirmed),
     delta: formatDelta(revenueTotals.value.confirmed, previousRevenueTotals.value.confirmed),
+    icon: "revenue",
   },
   {
     label: "Pending Payouts",
     value: formatCurrency(revenueTotals.value.pending),
     delta: `${revenueTotals.value.pendingCount} active`,
+    icon: "payouts",
   },
   {
     label: "Platform Fees",
     value: formatCurrency(revenueTotals.value.fees),
     delta: `${(serviceFeeRate * 100).toFixed(1)}% fee`,
+    icon: "fees",
   },
   {
     label: "Net Profit",
     value: formatCurrency(revenueTotals.value.net),
     delta: formatDelta(revenueTotals.value.net, previousRevenueTotals.value.net),
+    icon: "profit",
   },
 ]);
 
@@ -600,7 +604,28 @@ onMounted(() => void adminStore.loadAll());
       <section class="revenue-stats">
         <article v-for="card in revenueStats" :key="card.label" class="stat-card">
           <div class="stat-icon">
-            <span></span>
+            <svg v-if="card.icon === 'revenue'" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 16.5c3.2-3.6 5.8-5.4 8.6-5.4 2.8 0 4.3 1.5 7.4 1.5v2c-3.5 0-5.2-1.8-7.6-1.8-2.4 0-4.4 1.4-7 4.2H4Z"
+              />
+              <path d="M5 18.5h14v2H5z" />
+              <path d="M9 6.5h6v2H9z" />
+            </svg>
+            <svg v-else-if="card.icon === 'payouts'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 8h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              <path d="M8 6h8a2 2 0 0 1 2 2v1H6V8a2 2 0 0 1 2-2z" />
+              <path d="M12 12.5v4m0-4-1.8 1.8m1.8-1.8 1.8 1.8" />
+            </svg>
+            <svg v-else-if="card.icon === 'fees'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6h12v12H6z" />
+              <path d="M9 9h6v2H9zm0 4h4v2H9z" />
+              <path d="M4 4h4v2H6v12h2v2H4z" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 14c2.4-2.8 4.6-4.2 6.8-4.2 2.2 0 3.6 1.1 6.2 1.1v2.1c-2.8 0-4.5-1.4-6.4-1.4-1.9 0-3.6 1.2-5.8 3.6H5Z" />
+              <path d="M5 18h14v2H5z" />
+              <path d="M9.5 6.5h5v2h-5z" />
+            </svg>
           </div>
           <div class="stat-body">
             <div class="stat-meta">
@@ -1245,14 +1270,40 @@ onMounted(() => void adminStore.loadAll());
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 122, 26, 0.2);
+  color: #f97316;
 }
 
-.stat-icon span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 6px 14px rgba(241, 91, 42, 0.4);
+.stat-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stat-card:nth-child(1) .stat-icon {
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.22), rgba(255, 122, 26, 0.05));
+  color: #f97316;
+}
+
+.stat-card:nth-child(2) .stat-icon {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(59, 130, 246, 0.06));
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+.stat-card:nth-child(3) .stat-icon {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.06));
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+.stat-card:nth-child(4) .stat-icon {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.22), rgba(249, 115, 22, 0.06));
+  color: #f97316;
+  border-color: rgba(249, 115, 22, 0.22);
 }
 
 .stat-body {

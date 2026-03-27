@@ -965,32 +965,87 @@ onMounted(() => void loadAdminBookings());
 }
 
 .stat-card {
-  background: var(--surface);
-  border-radius: 18px;
-  padding: 16px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
+  background:
+    radial-gradient(120% 140% at 10% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 245, 238, 0.9) 38%, rgba(243, 248, 255, 0.92) 70%, rgba(255, 236, 224, 0.9) 100%);
+  border-radius: 26px;
+  padding: 20px 22px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 22px 55px rgba(15, 23, 42, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   position: relative;
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 122, 26, 0.22), transparent 56%),
+    radial-gradient(circle at 8% 85%, rgba(59, 130, 246, 0.16), transparent 62%),
+    radial-gradient(circle at 70% 60%, rgba(16, 185, 129, 0.14), transparent 55%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.stat-card:nth-child(2)::before {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.stat-card:nth-child(3)::before {
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.stat-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 30px 70px rgba(15, 23, 42, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 122, 26, 0.26);
 }
 
 .stat-card h3 {
-  margin: 8px 0;
-  font-size: 24px;
+  margin: 6px 0 0;
+  font-size: 30px;
+  font-weight: 720;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-label {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-delta {
   font-size: 11px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: #fff3e6;
-  color: #f15b2a;
+  background: rgba(255, 255, 255, 0.88);
+  color: #c65300;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
 }
 
 .bookings-grid {

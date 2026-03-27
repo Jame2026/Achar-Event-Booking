@@ -133,7 +133,6 @@ class AdminController extends Controller
         return response()->json($user->only(['id', 'name', 'email', 'role']));
     }
 
-<<<<<<< HEAD
     public function exportReport(): StreamedResponse
     {
         $filename = 'admin-report-'.now()->format('Ymd-His').'.csv';
@@ -254,7 +253,6 @@ class AdminController extends Controller
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
-=======
     private function resolveAdminFromRequest(Request $request): User|JsonResponse
     {
         $validated = $request->validate([
@@ -270,6 +268,5 @@ class AdminController extends Controller
         }
 
         return $admin;
->>>>>>> 1d18c84c0f9ff77364fa7df97cf08a06b105ba10
     }
 }

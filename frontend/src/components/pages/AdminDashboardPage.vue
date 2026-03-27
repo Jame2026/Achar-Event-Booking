@@ -1611,6 +1611,14 @@ onMounted(() =>
   --stroke: rgba(17, 24, 39, 0.08);
   --shadow: 0 30px 72px rgba(15, 23, 42, 0.14);
   --shadow-soft: 0 16px 34px rgba(15, 23, 42, 0.1);
+  --card-radius: 26px;
+  --card-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 255, 0.94) 55%, rgba(255, 241, 230, 0.94) 100%);
+  --card-border: rgba(255, 255, 255, 0.7);
+  --card-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
+  --card-glow:
+    radial-gradient(circle at 85% 15%, rgba(255, 122, 26, 0.16), transparent 55%),
+    radial-gradient(circle at 12% 80%, rgba(59, 130, 246, 0.12), transparent 60%);
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
   min-height: calc(100vh - 90px);
@@ -1632,6 +1640,13 @@ onMounted(() =>
   --stroke: rgba(148, 163, 184, 0.18);
   --shadow: 0 30px 72px rgba(2, 6, 23, 0.42);
   --shadow-soft: 0 16px 34px rgba(2, 6, 23, 0.3);
+  --card-bg:
+    linear-gradient(145deg, rgba(15, 23, 42, 0.92) 0%, rgba(18, 28, 46, 0.88) 60%, rgba(20, 32, 52, 0.9) 100%);
+  --card-border: rgba(148, 163, 184, 0.16);
+  --card-shadow: 0 18px 46px rgba(2, 6, 23, 0.38);
+  --card-glow:
+    radial-gradient(circle at 85% 15%, rgba(255, 122, 26, 0.14), transparent 55%),
+    radial-gradient(circle at 12% 80%, rgba(59, 130, 246, 0.14), transparent 60%);
   background:
     radial-gradient(circle at 12% 12%, rgba(255, 122, 26, 0.14), transparent 45%),
     radial-gradient(circle at 78% 18%, rgba(59, 130, 246, 0.16), transparent 46%),
@@ -2066,14 +2081,18 @@ onMounted(() =>
 }
 
 .stat-card {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 255, 0.92));
-  padding: 22px 24px 20px;
-  border-radius: 22px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.92) 55%, rgba(255, 246, 238, 0.92) 100%);
+  padding: 22px 24px 22px;
+  border-radius: 24px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
   animation: stat-pop 0.6s ease both;
 }
 
@@ -2082,48 +2101,49 @@ onMounted(() =>
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(255, 122, 26, 0.16), transparent 50%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.6), transparent 55%);
-  opacity: 0.6;
+    radial-gradient(circle at 85% 15%, rgba(255, 122, 26, 0.18), transparent 52%),
+    radial-gradient(circle at 15% 90%, rgba(59, 130, 246, 0.12), transparent 55%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 55%);
+  opacity: 0.7;
   transition: opacity 0.2s ease;
 }
 
 .stat-card::before {
   content: "";
   position: absolute;
-  left: 20px;
-  top: 18px;
-  width: 54px;
-  height: 5px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 122, 26, 0.9), rgba(255, 154, 77, 0.5));
-  opacity: 0.7;
+  right: -50px;
+  top: -50px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 122, 26, 0.18), transparent 65%);
+  opacity: 0.8;
 }
 
 .stat-card:hover::after {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
-  border-color: rgba(255, 122, 26, 0.2);
+  box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+  border-color: rgba(255, 122, 26, 0.25);
 }
 
 .stat-card:nth-child(1)::before {
-  background: linear-gradient(90deg, #ff7a1a, #ffb26b);
+  background: radial-gradient(circle, rgba(255, 122, 26, 0.22), transparent 65%);
 }
 
 .stat-card:nth-child(2)::before {
-  background: linear-gradient(90deg, #3b82f6, #67e8f9);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.22), transparent 65%);
 }
 
 .stat-card:nth-child(3)::before {
-  background: linear-gradient(90deg, #10b981, #6ee7b7);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.2), transparent 65%);
 }
 
 .stat-card:nth-child(4)::before {
-  background: linear-gradient(90deg, #f15b2a, #ff9a4d);
+  background: radial-gradient(circle, rgba(241, 91, 42, 0.22), transparent 65%);
 }
 
 .stat-card:nth-child(1) {
@@ -2143,20 +2163,20 @@ onMounted(() =>
 }
 
 .stat-card.solid {
-  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 52%, #ff9a4d 100%);
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 55%, #ff9a4d 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 30px 70px rgba(241, 91, 42, 0.35);
+  box-shadow: 0 26px 60px rgba(241, 91, 42, 0.35);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 226, 206, 0.5));
-  margin-bottom: 14px;
-  border: 1px solid rgba(255, 122, 26, 0.22);
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 233, 216, 0.6));
+  margin-bottom: 6px;
+  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.75);
   display: grid;
   place-items: center;
   color: #ff7a1a;
@@ -2177,27 +2197,28 @@ onMounted(() =>
   margin: 0;
   font-size: 12px;
   color: inherit;
-  opacity: 0.65;
+  opacity: 0.7;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
 }
 
 .stat-value {
-  margin: 6px 0 0;
-  font-size: 28px;
-  font-weight: 720;
+  margin: 2px 0 0;
+  font-size: 30px;
+  font-weight: 730;
 }
 
 .stat-delta {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  bottom: 18px;
+  right: 18px;
   font-size: 12px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: #eaf8ef;
+  background: rgba(255, 255, 255, 0.9);
   color: #2f9e5f;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
 .stat-card.solid::after {
@@ -2222,6 +2243,22 @@ onMounted(() =>
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.stat-delta.up {
+  background: rgba(234, 248, 239, 0.9);
+  color: #1f7a4a;
+}
+
+.stat-delta.neutral {
+  background: rgba(226, 232, 240, 0.9);
+  color: #475569;
+}
+
+.stat-delta.solid {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .stat-delta.down {

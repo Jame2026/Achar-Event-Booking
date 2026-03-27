@@ -1154,25 +1154,80 @@ select {
 
 .highlight-card {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 10px;
+  padding: 20px 22px 22px;
+  border-radius: 26px;
+  background:
+    radial-gradient(120% 140% at 10% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 245, 238, 0.9) 38%, rgba(243, 248, 255, 0.92) 70%, rgba(255, 236, 224, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 22px 55px rgba(15, 23, 42, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   position: relative;
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .highlight-card::before {
   content: "";
   position: absolute;
-  inset: auto 16px 16px auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.14), rgba(255, 122, 26, 0.04));
+  inset: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.highlight-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 122, 26, 0.22), transparent 56%),
+    radial-gradient(circle at 8% 85%, rgba(59, 130, 246, 0.16), transparent 62%),
+    radial-gradient(circle at 70% 60%, rgba(16, 185, 129, 0.14), transparent 55%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.highlight-card:nth-child(2)::before {
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+.highlight-card:nth-child(3)::before {
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+.highlight-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 30px 70px rgba(15, 23, 42, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 122, 26, 0.26);
 }
 
 .highlight-card strong {
-  font-size: 28px;
+  font-size: 30px;
+  font-weight: 720;
   color: #17263d;
+  position: relative;
+  z-index: 1;
+}
+
+.highlight-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #7b8798;
+  position: relative;
+  z-index: 1;
+}
+
+.highlight-note {
+  font-size: 12px;
+  color: #5f6c7e;
+  position: relative;
+  z-index: 1;
 }
 
 .content-grid {
