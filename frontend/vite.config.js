@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
     : 'http://127.0.0.1:8000'
 
   return {
+    cacheDir: '.vite-cache',
     plugins: [
       vue(),
     ],
