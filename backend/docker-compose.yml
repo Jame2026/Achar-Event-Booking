@@ -1,0 +1,12 @@
+mysql:
+  image: mysql:8.0
+  container_name: achar_mysql
+  environment:
+    MYSQL_DATABASE: achar_event_booking
+    MYSQL_ROOT_PASSWORD: ""
+    MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  volumes:
+    - dbdata:/var/lib/mysql
+    - ./docker/mysql/achar_event_booking.sql:/docker-entrypoint-initdb.d/init.sql
+  networks:
+    - achar_net
