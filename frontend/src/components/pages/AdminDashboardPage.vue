@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet, apiPatch } from "../../features/apiClient";
+import { apiGet, apiPatch, apiPost } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: {
@@ -33,12 +33,14 @@ const route = useRoute();
 const activeKey = ref("dashboard");
 const isLoading = ref(false);
 const loadError = ref("");
+const settingsNotice = ref("");
 const adminSummary = ref({ users_total: 0, events_total: 0, bookings_total: 0 });
 const bookingRows = ref([]);
 const eventRows = ref([]);
 const userRows = ref([]);
 const healthStatus = ref(null);
 const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const DEFAULT_ADMIN_EMAIL = "ream.khorn@student.passerellesnumeriques.org";
 const currentAdmin = computed(() => {
   try {
     const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -47,6 +49,43 @@ const currentAdmin = computed(() => {
     return null;
   }
 });
+const adminEmail = computed(() => {
+  const fromUser = currentAdmin.value?.email;
+  return (fromUser && String(fromUser).trim()) || DEFAULT_ADMIN_EMAIL;
+});
+const settingsSections = [
+  { key: "profile", label: "Profile Settings" },
+  { key: "security", label: "Security" },
+  { key: "notifications", label: "Notifications" },
+  { key: "system", label: "System Preferences" },
+];
+const activeSettingsSection = ref("profile");
+
+const profileForm = ref({
+  name: "",
+  email: "",
+  role: "Super Admin",
+});
+const avatarUploadRef = ref(null);
+const avatarPreview = ref("");
+
+const securityForm = ref({
+  newPassword: "",
+  twoFactor: true,
+});
+
+const notificationForm = ref({
+  email: true,
+  sms: false,
+  push: true,
+});
+
+const systemForm = ref({
+  darkMode: false,
+  weeklyDigest: true,
+  language: "English (US)",
+  currency: "USD - US Dollar",
+});
 
 const notifications = ref([]);
 const notificationsUnreadCount = ref(0);
@@ -54,6 +93,7 @@ const notificationsError = ref("");
 const isLoadingNotifications = ref(false);
 const notificationDropdownOpen = ref(false);
 const notificationMenuRef = ref(null);
+const isSendingEmail = ref(false);
 const notificationPollTimer = ref(null);
 const initials = computed(() => {
   const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
@@ -64,6 +104,94 @@ const initials = computed(() => {
   return `${first}${second}`.toUpperCase();
 });
 const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
+
+const displayAvatar = computed(() => avatarPreview.value || avatarUrl.value || "");
+
+const profileCompletion = computed(() => {
+  let score = 0;
+  if (profileForm.value.name?.trim()) score += 40;
+  if (profileForm.value.email?.trim()) score += 40;
+  if (displayAvatar.value) score += 20;
+  return Math.min(100, score);
+});
+
+const hydrateSettings = () => {
+  profileForm.value = {
+    name: currentAdmin.value?.name || "Admin User",
+    email: currentAdmin.value?.email || "admin@eventhorizon.com",
+    role: "Super Admin",
+  };
+  avatarPreview.value = "";
+
+  securityForm.value = {
+    newPassword: "",
+    twoFactor: true,
+  };
+
+  notificationForm.value = {
+    email: true,
+    sms: false,
+    push: true,
+  };
+
+  systemForm.value = {
+    darkMode: false,
+    weeklyDigest: true,
+    language: "English (US)",
+    currency: "USD - US Dollar",
+  };
+
+  settingsNotice.value = "";
+};
+
+const resetSettings = () => {
+  hydrateSettings();
+  settingsNotice.value = "Settings reset to defaults.";
+};
+
+const saveSettings = async () => {
+  settingsNotice.value = "Saving...";
+  try {
+    // In a real app, send to API here.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    settingsNotice.value = "Settings saved.";
+  } catch (error) {
+    settingsNotice.value = error?.message || "Could not save settings.";
+  }
+};
+
+const triggerAvatarUpload = () => {
+  avatarUploadRef.value?.click();
+};
+
+const handleAvatarFile = (event) => {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    settingsNotice.value = "Please upload an image file.";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    avatarPreview.value = String(reader.result || "");
+    settingsNotice.value = "Preview updated. Remember to Save.";
+  };
+  reader.readAsDataURL(file);
+};
+
+const clearAvatar = () => {
+  avatarPreview.value = "";
+  if (avatarUploadRef.value) avatarUploadRef.value.value = "";
+  settingsNotice.value = "Profile picture removed. Remember to Save.";
+};
+
+const scrollToSection = (key) => {
+  activeSettingsSection.value = key;
+  const el = document.getElementById(`settings-${key}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -205,6 +333,30 @@ async function markAllNotificationsAsRead() {
     notificationsUnreadCount.value = 0;
   } catch {
     notificationsError.value = "Could not mark all notifications as read.";
+  }
+}
+
+async function emailNotification(notification) {
+  if (!notification) return;
+  if (isSendingEmail.value) return;
+  const to = adminEmail.value;
+  isSendingEmail.value = true;
+  notificationsError.value = "";
+  try {
+    await apiPost("notifications/bookings/email", {
+      notification_id: notification.id,
+      to,
+      subject: notification.title || "Booking notification",
+      body: notification.message || "",
+    });
+    notificationsError.value = `Email sent to ${to}`;
+  } catch (error) {
+    notificationsError.value = error?.message || "Could not send email; opening mail client.";
+    const subject = encodeURIComponent(notification.title || "Booking notification");
+    const body = encodeURIComponent(notification.message || "");
+    window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
+  } finally {
+    isSendingEmail.value = false;
   }
 }
 
@@ -459,6 +611,7 @@ watch(() => route.query.page, syncActiveKey);
 onMounted(() => {
   document.addEventListener("click", handleDocumentClick);
   startNotificationPolling();
+  hydrateSettings();
 });
 
 onBeforeUnmount(() => {
@@ -628,6 +781,14 @@ onMounted(loadDashboardData);
                       >
                         Mark read
                       </button>
+                      <button
+                        class="notification-inline-btn"
+                        type="button"
+                        :disabled="isSendingEmail"
+                        @click="emailNotification(item)"
+                      >
+                        Email me
+                      </button>
                     </div>
                   </article>
                 </li>
@@ -682,6 +843,11 @@ onMounted(loadDashboardData);
           <p class="stat-label">{{ card.label }}</p>
           <p class="stat-value">{{ card.value }}</p>
           <span class="stat-delta" :class="card.tone">{{ card.delta }}</span>
+          <div v-if="card.icon === 'events'" class="stat-action">
+            <button class="link-btn" type="button" @click="router.push('/legacy-app?page=events').catch(() => {})">
+              Manage Events →
+            </button>
+          </div>
         </article>
       </section>
 
@@ -761,77 +927,108 @@ onMounted(loadDashboardData);
               <p>Manage your account preferences and notifications.</p>
             </div>
           </div>
-          <div class="settings-quick">
-            <button class="ghost-btn" type="button">Reset to Default</button>
-            <button class="primary-btn" type="button">Save All Changes</button>
-          </div>
         </div>
+
+        <p v-if="settingsNotice" class="settings-notice">{{ settingsNotice }}</p>
 
         <div class="settings-layout">
           <aside class="settings-menu">
-            <button type="button" class="settings-link active">
+            <button
+              v-for="item in settingsSections"
+              :key="item.key"
+              type="button"
+              class="settings-link"
+              :class="{ active: activeSettingsSection === item.key }"
+              @click="scrollToSection(item.key)"
+            >
               <span class="dot"></span>
-              Profile Settings
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              Security
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              Notifications
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              System Preferences
+              {{ item.label }}
             </button>
           </aside>
 
           <div class="settings-content">
-            <article class="settings-card">
+            <article id="settings-profile" class="settings-card">
               <div class="card-header">
-                <div>
-                  <h3>Profile Settings</h3>
-                  <p>Update your photo and personal details.</p>
+                <div class="card-title">
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path
+                        d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.34-6 3v1h12v-1c0-1.66-2.67-3-6-3Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3>Profile Settings</h3>
+                    <p>Update your photo and personal details.</p>
+                    <div class="profile-meta">
+                      <span class="chip success">
+                        <svg viewBox="0 0 24 24">
+                          <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Completion: {{ profileCompletion }}%
+                      </span>
+                      <span class="chip muted">Last updated: Today</span>
+                    </div>
+                  </div>
                 </div>
-                <span class="pill">Admin Profile</span>
               </div>
               <div class="profile-row">
                 <div class="profile-avatar">
-                  <div class="avatar-circle">AD</div>
+                  <div class="avatar-circle" :class="{ 'has-image': displayAvatar }">
+                    <img v-if="displayAvatar" :src="displayAvatar" alt="Profile preview" />
+                    <span v-else>{{ initials }}</span>
+                  </div>
                   <div class="profile-details">
                     <p class="label">Profile Picture</p>
                     <p class="hint">JPG, GIF or PNG. Max size of 800K</p>
                     <div class="upload-actions">
-                      <button class="ghost-btn" type="button">Upload New</button>
-                      <button class="link-btn danger" type="button">Remove</button>
+                      <input
+                        ref="avatarUploadRef"
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        class="sr-only"
+                        @change="handleAvatarFile"
+                      />
+                      <button class="primary-btn" type="button" @click="triggerAvatarUpload">Upload</button>
+                      <button class="link-btn danger" type="button" @click="clearAvatar">Remove</button>
                     </div>
+                    <p class="hint subtle">Tip: square images look best for avatars.</p>
                   </div>
                 </div>
                 <div class="form-grid">
                   <label>
                     <span>Full Name</span>
-                    <input type="text" value="Admin User" />
+                    <input v-model="profileForm.name" type="text" />
                   </label>
                   <label>
                     <span>Role</span>
-                    <input type="text" value="Super Admin" disabled />
+                    <input v-model="profileForm.role" type="text" disabled />
                   </label>
                   <label class="full">
                     <span>Email Address</span>
-                    <input type="email" value="admin@eventhorizon.com" />
+                    <input v-model="profileForm.email" type="email" />
                   </label>
                 </div>
               </div>
             </article>
 
-            <article class="settings-card">
+            <article id="settings-security" class="settings-card">
               <div class="card-header">
-                <div>
-                  <h3>Security & Privacy</h3>
-                  <p>Manage your password and authentication.</p>
+                <div class="card-title">
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path
+                        d="M12 2 5 5v6c0 5 3.5 9.74 7 11 3.5-1.26 7-6 7-11V5Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3>Security & Privacy</h3>
+                    <p>Manage your password and authentication.</p>
+                  </div>
                 </div>
-                <span class="pill alt">Secure</span>
               </div>
               <div class="form-grid">
                 <label>
@@ -840,7 +1037,7 @@ onMounted(loadDashboardData);
                 </label>
                 <label>
                   <span>New Password</span>
-                  <input type="password" placeholder="Enter new password" />
+                  <input v-model="securityForm.newPassword" type="password" placeholder="Enter new password" />
                 </label>
               </div>
               <div class="toggle-row">
@@ -849,19 +1046,28 @@ onMounted(loadDashboardData);
                   <span>Add an extra layer of security to your account.</span>
                 </div>
                 <label class="switch">
-                  <input type="checkbox" checked />
+                  <input v-model="securityForm.twoFactor" type="checkbox" />
                   <span></span>
                 </label>
               </div>
             </article>
 
-            <article class="settings-card">
+            <article id="settings-notifications" class="settings-card">
               <div class="card-header">
-                <div>
-                  <h3>Notification Preferences</h3>
-                  <p>Choose how you want to be notified.</p>
+                <div class="card-title">
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path
+                        d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3>Notification Preferences</h3>
+                    <p>Choose how you want to be notified.</p>
+                  </div>
                 </div>
-                <span class="pill">Alerts</span>
               </div>
               <div class="toggle-list">
                 <div class="toggle-row">
@@ -870,7 +1076,7 @@ onMounted(loadDashboardData);
                     <span>Receive summaries of bookings and revenue.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" checked />
+                    <input v-model="notificationForm.email" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -880,7 +1086,7 @@ onMounted(loadDashboardData);
                     <span>Urgent event cancellations or security alerts.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" />
+                    <input v-model="notificationForm.sms" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -890,25 +1096,34 @@ onMounted(loadDashboardData);
                     <span>Browser and mobile app push alerts.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" checked />
+                    <input v-model="notificationForm.push" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
               </div>
             </article>
 
-            <article class="settings-card">
+            <article id="settings-system" class="settings-card">
               <div class="card-header">
-                <div>
-                  <h3>System Preferences</h3>
-                  <p>Set language, currency, and theme.</p>
+                <div class="card-title">
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path
+                        d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 2a8 8 0 0 1 7.75 6h-4.08a12.94 12.94 0 0 0-1.4-4.24A7.97 7.97 0 0 1 12 4Zm-2.27 0.76A12.94 12.94 0 0 0 8.33 8H4.25A8 8 0 0 1 9.73 4.76ZM4.25 10h3.5a14.76 14.76 0 0 0 0 4h-3.5a8.06 8.06 0 0 1 0-4Zm0 6h4.08a12.94 12.94 0 0 0 1.4 4.24A8 8 0 0 1 4.25 16Zm9.25 4a8 8 0 0 1-1.67-.18A10.94 10.94 0 0 1 10.83 16h6.92A8 8 0 0 1 13.5 20Zm1.67-8a12.94 12.94 0 0 0-1.4-4.24A8 8 0 0 1 19.75 8h-4.08A12.94 12.94 0 0 0 15.17 12Zm-2.34 2a10.94 10.94 0 0 1 .39 2h-3.44a10.94 10.94 0 0 1 .39-2Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3>System Preferences</h3>
+                    <p>Set language, currency, and theme.</p>
+                  </div>
                 </div>
-                <span class="pill alt">Global</span>
               </div>
               <div class="form-grid">
                 <label>
                   <span>Interface Language</span>
-                  <select>
+                  <select v-model="systemForm.language">
                     <option>English (US)</option>
                     <option>English (UK)</option>
                     <option>Khmer</option>
@@ -916,7 +1131,7 @@ onMounted(loadDashboardData);
                 </label>
                 <label>
                   <span>Default Currency</span>
-                  <select>
+                  <select v-model="systemForm.currency">
                     <option>USD - US Dollar</option>
                     <option>KHR - Khmer Riel</option>
                     <option>EUR - Euro</option>
@@ -929,9 +1144,31 @@ onMounted(loadDashboardData);
                   <span>Switch between light and dark display modes.</span>
                 </div>
                 <div class="theme-toggle">
-                  <button type="button" class="active">Light</button>
-                  <button type="button">Dark</button>
+                  <button
+                    type="button"
+                    :class="{ active: !systemForm.darkMode }"
+                    @click="systemForm.darkMode = false"
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: systemForm.darkMode }"
+                    @click="systemForm.darkMode = true"
+                  >
+                    Dark
+                  </button>
                 </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <p>Weekly PDF Digest</p>
+                  <span>Receive a summary of bookings and revenue every Monday.</span>
+                </div>
+                <label class="switch">
+                  <input v-model="systemForm.weeklyDigest" type="checkbox" />
+                  <span></span>
+                </label>
               </div>
             </article>
           </div>
@@ -1321,13 +1558,26 @@ onMounted(loadDashboardData);
 
 .admin-user-card {
   margin-top: auto;
-  background: var(--surface-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 252, 255, 0.94));
   border-radius: 18px;
   padding: 16px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
   display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
+  gap: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+
+
+
+.admin-user-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 90% 10%, rgba(255, 122, 26, 0.12), transparent 38%);
+  pointer-events: none;
 }
 
 .avatar {
@@ -1339,6 +1589,7 @@ onMounted(loadDashboardData);
   display: grid;
   place-items: center;
   font-weight: 700;
+  box-shadow: 0 10px 18px rgba(241, 91, 42, 0.2);
 }
 
 .user-name {
@@ -1353,13 +1604,22 @@ onMounted(loadDashboardData);
 }
 
 .logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 122, 26, 0.22);
+  background: linear-gradient(135deg, #ffede0, #ffe7d2);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c65300;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.logout-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(241, 91, 42, 0.16);
 }
 
 .admin-main {
@@ -2004,6 +2264,7 @@ onMounted(loadDashboardData);
 .settings-page {
   display: grid;
   gap: 24px;
+  position: relative;
 }
 
 .settings-header {
@@ -2049,16 +2310,20 @@ onMounted(loadDashboardData);
   fill: currentColor;
 }
 
-.settings-quick {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(220px, 260px) 1fr;
   gap: 24px;
+}
+
+.settings-notice {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff7f2;
+  color: #c65300;
+  border: 1px solid rgba(255, 122, 26, 0.25);
+  font-weight: 600;
 }
 
 .settings-menu {
@@ -2126,6 +2391,29 @@ onMounted(loadDashboardData);
   flex-wrap: wrap;
 }
 
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff2e6;
+  color: #c65300;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 8px 14px rgba(255, 122, 26, 0.15);
+}
+
+.card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 .card-header h3 {
   margin: 0;
   font-family: "Fraunces", serif;
@@ -2168,6 +2456,40 @@ onMounted(loadDashboardData);
   flex-wrap: wrap;
 }
 
+.profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chip.success {
+  background: #e7f6ec;
+  color: #0f9b4c;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.chip.muted {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
 .profile-details {
   flex: 1;
   min-width: 220px;
@@ -2184,6 +2506,20 @@ onMounted(loadDashboardData);
   font-weight: 700;
 }
 
+.avatar-circle.has-image {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.12);
+}
+
+.avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .label {
   margin: 0;
   font-weight: 600;
@@ -2195,11 +2531,28 @@ onMounted(loadDashboardData);
   font-size: 12px;
 }
 
+.hint.subtle {
+  color: #94a3b8;
+  margin: 6px 0 0;
+}
+
 .upload-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .upload-actions .ghost-btn,

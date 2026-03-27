@@ -447,9 +447,9 @@ onBeforeUnmount(() => {
                 <span class="attendee-email">{{ item.email }}</span>
               </div>
               <span>{{ item.event }}</span>
-              <span>{{ item.date }} ? {{ item.time }}</span>
+              <span>{{ item.date }} · {{ item.time }}</span>
               <span class="status" :class="item.status.toLowerCase()">{{ item.status }}</span>
-              <button class="primary-btn small" type="button">View</button>
+              <button class="primary-btn small ghost" type="button">View</button>
             </div>
           </div>
         </article>
@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
         <aside class="side-column">
           <article class="card insight-card">
             <h3>Vendor Performance Insights</h3>
-            <p>Your most ?International Tech Summit? has reached 85% capacity. Consider opening additional seating.</p>
+            <p>Your “International Tech Summit” has reached 85% capacity. Consider opening additional seating.</p>
          
           </article>
 
@@ -944,7 +944,7 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  background: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(255, 244, 234, 0.9));
   border: 1px solid rgba(15, 23, 42, 0.06);
   padding: 20px 24px;
   border-radius: 24px;
@@ -979,19 +979,26 @@ onBeforeUnmount(() => {
 }
 
 .pill {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 12px;
   color: var(--muted);
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill:hover {
+  background: #fff;
+  color: var(--accent-strong);
 }
 
 .pill.active {
-  background: #fff;
-  color: var(--accent-strong);
-  box-shadow: var(--shadow-soft);
+  background: linear-gradient(135deg, #ffede0, #ffe3cf);
+  color: #c2460d;
+  border-color: rgba(255, 122, 26, 0.35);
+  box-shadow: 0 8px 18px rgba(241, 91, 42, 0.18);
 }
 
 .bookings-stats {
@@ -1081,6 +1088,12 @@ onBeforeUnmount(() => {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.05);
   align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.table-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
 }
 
 .attendee {
@@ -1094,26 +1107,32 @@ onBeforeUnmount(() => {
 }
 
 .status {
-  padding: 4px 8px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: 10px;
   font-size: 11px;
   display: inline-flex;
   justify-content: center;
+  border: 1px solid transparent;
+  background: #fff7f1;
 }
 
+
 .status.pending {
-  background: #ffe9d5;
-  color: #ff7a1a;
+  background: #fff4ec;
+  color: #c2460d;
+  border-color: rgba(255, 122, 26, 0.35);
 }
 
 .status.confirmed {
-  background: #fff3e6;
-  color: #f15b2a;
+  background: #ecfdf3;
+  color: #0f9b4c;
+  border-color: rgba(16, 185, 129, 0.25);
 }
 
 .status.cancelled {
-  background: #ffe0d8;
-  color: #e2553f;
+  background: #fff1f0;
+  color: #d0302f;
+  border-color: rgba(224, 36, 36, 0.2);
 }
 
 .insight-card {
@@ -1151,12 +1170,30 @@ onBeforeUnmount(() => {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 12px 24px rgba(241, 91, 42, 0.22);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(241, 91, 42, 0.3);
 }
 
 .primary-btn.small {
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 12px;
+  min-width: 80px;
+}
+
+.primary-btn.ghost {
+  background: #fff;
+  color: #c2460d;
+  border: 1px solid rgba(255, 122, 26, 0.35);
+  box-shadow: none;
+}
+
+.primary-btn.ghost:hover {
+  background: #fff4ec;
+  box-shadow: 0 6px 18px rgba(241, 91, 42, 0.18);
 }
 
 .ghost-btn {
