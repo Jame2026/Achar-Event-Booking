@@ -273,10 +273,7 @@ onMounted(() => void loadAdminEvents());
                 <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
               </svg>
             </span>
-            <span class="nav-copy">
-              <strong>{{ item.label }}</strong>
-              <small>{{ item.key === "events" ? "All vendor listings" : "Open workspace" }}</small>
-            </span>
+            <span>{{ item.label }}</span>
           </button>
         </nav>
       </section>
@@ -652,22 +649,6 @@ onMounted(() => void loadAdminEvents());
   width: 18px;
   height: 18px;
   fill: currentColor;
-}
-
-.nav-copy {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.nav-copy strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.nav-copy small {
-  font-size: 12px;
-  color: #7f8ca3;
 }
 
 .nav-item:hover {

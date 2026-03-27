@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
 import { apiGet, apiPatch } from "../../features/apiClient";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: { type: String, default: "" },
@@ -28,6 +29,7 @@ const activeKey = ref("vendors");
 const searchQuery = ref("");
 const visibilityFilter = ref("all");
 const categoryFilter = ref("all");
+const adminStore = useAdminDataStore();
 const isLoading = ref(false);
 const isSaving = ref(false);
 const notice = ref("");
@@ -252,16 +254,18 @@ function navigateTo(key) {
 }
 
 function patchLocalEvent(updated) {
-  const index = vendorEvents.value.findIndex((item) => Number(item.id) === Number(updated.id));
-  if (index < 0) return;
-  const existing = vendorEvents.value[index] || {};
-  vendorEvents.value.splice(index, 1, {
-    ...existing,
-    ...updated,
-    vendor: updated?.vendor || existing?.vendor,
-    vendor_name: updated?.vendor_name || existing?.vendor_name,
-    bookings_count: updated?.bookings_count ?? existing?.bookings_count ?? 0,
-  });
+  const index = vendorEvents.value.findIndex((item) => Number(item?.id) === Number(updated?.id));
+  if (index >= 0) {
+    const existing = vendorEvents.value[index] || {};
+    vendorEvents.value.splice(index, 1, {
+      ...existing,
+      ...updated,
+      vendor: updated?.vendor || existing?.vendor,
+      vendor_name: updated?.vendor_name || existing?.vendor_name,
+      bookings_count: updated?.bookings_count ?? existing?.bookings_count ?? 0,
+    });
+  }
+  adminStore.updateEvent(updated);
 }
 
 async function loadVendorDirectory() {
@@ -347,7 +351,14 @@ onMounted(() => void loadVendorDirectory());
         </div>
 
         <nav class="admin-nav">
-          <button v-for="item in navItems" :key="item.key" type="button" class="nav-item" :class="{ active: activeKey === item.key }" @click="navigateTo(item.key)">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
             <span class="nav-icon" aria-hidden="true">
               <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
                 <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
@@ -371,10 +382,7 @@ onMounted(() => void loadVendorDirectory());
                 <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
               </svg>
             </span>
-            <span class="nav-copy">
-              <strong>{{ item.label }}</strong>
-              <small>{{ item.key === "vendors" ? "Vendor accounts and listings" : "Open workspace" }}</small>
-            </span>
+            <span>{{ item.label }}</span>
           </button>
         </nav>
       </section>
@@ -807,22 +815,6 @@ onMounted(() => void loadVendorDirectory());
   fill: currentColor;
 }
 
-.nav-copy {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.nav-copy strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.nav-copy small {
-  font-size: 12px;
-  color: #7f8ca3;
-}
-
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(255, 122, 26, 0.12);
@@ -923,22 +915,6 @@ onMounted(() => void loadVendorDirectory());
   width: 18px;
   height: 18px;
   fill: currentColor;
-}
-
-.nav-copy {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.nav-copy strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.nav-copy small {
-  font-size: 12px;
-  color: #7f8ca3;
 }
 
 .nav-item:hover {
@@ -1576,6 +1552,11 @@ button:disabled {
   .admin-nav {
     flex-direction: row;
     overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    min-width: 220px;
   }
 
   .vendors-hero,
@@ -1613,7 +1594,12 @@ button:disabled {
   }
 
   .admin-sidebar {
-    padding: 24px 18px;
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .stats-grid,

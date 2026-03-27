@@ -236,6 +236,14 @@ function onLoginSuccess(user) {
   })
 }
 
+function syncAuthenticatedUser(nextUser) {
+  if (!nextUser || typeof nextUser !== 'object') return
+  loggedInUser.value = {
+    ...(loggedInUser.value || {}),
+    ...nextUser,
+  }
+}
+
 function handlePostAuthRedirect() {
   const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
   const redirectAtRaw = sessionStorage.getItem(POST_AUTH_REDIRECT_AT_KEY)
@@ -322,6 +330,9 @@ function firstQueryValue(value) {
 function normalizePage(value) {
   const page = firstQueryValue(value)
   if (page === 'users') return 'customers'
+  if (page === 'settings') {
+    return isAdminAccount.value ? 'settings' : defaultLegacyPage.value
+  }
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
   if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
   return page
@@ -2146,9 +2157,11 @@ onBeforeUnmount(() => {
     <div v-else class="page">
       <PublicNavbar />
       <AdminDashboardPage
-        v-if="isAdminAccount && currentPage === 'dashboard'"
+        v-if="isAdminAccount && (currentPage === 'dashboard' || currentPage === 'settings')"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :admin-user="loggedInUser"
+        :update-admin-user="syncAuthenticatedUser"
         :logout-user="logout"
       />
       <AdminBookingsPage

@@ -65,6 +65,7 @@ Route::post('/password-reset/request', [PasswordResetPinController::class, 'requ
 Route::post('/password-reset/verify', [PasswordResetPinController::class, 'verifyPin']);
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::post('/user/profile', [UserController::class, 'updateProfile']);
+Route::patch('/user/password', [UserController::class, 'updatePassword']);
 
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
@@ -105,7 +106,6 @@ Route::prefix('user')->group(function () {
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
-    Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 
 Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(function () {

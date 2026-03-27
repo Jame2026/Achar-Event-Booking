@@ -12,17 +12,41 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    private const SERVICE_FEE_RATE = 0.035;
+
     public function dashboard(): JsonResponse
     {
+        $adminsTotal = User::where('role', 'admin')->count();
+        $vendorsTotal = User::where('role', 'vendor')->count();
+        $customersTotal = User::where('role', 'user')->count();
+
+        $confirmedBookingsQuery = Booking::query()
+            ->where(function ($query) {
+                $query
+                    ->where('status', 'confirmed')
+                    ->orWhere('payment_status', 'confirmed');
+            });
+
+        $confirmedBookingsTotal = (clone $confirmedBookingsQuery)->count();
+        $grossRevenueTotal = round((float) ((clone $confirmedBookingsQuery)->sum('total_amount') ?: 0), 2);
+        $serviceFeeTotal = round($grossRevenueTotal * self::SERVICE_FEE_RATE, 2);
+
         return response()->json([
             'users_total' => User::count(),
             'users_by_role' => [
-                'admin' => User::where('role', 'admin')->count(),
-                'vendor' => User::where('role', 'vendor')->count(),
-                'user' => User::where('role', 'user')->count(),
+                'admin' => $adminsTotal,
+                'vendor' => $vendorsTotal,
+                'user' => $customersTotal,
             ],
+            'admins_total' => $adminsTotal,
+            'vendors_total' => $vendorsTotal,
+            'customers_total' => $customersTotal,
+            'accounts_total' => $vendorsTotal + $customersTotal,
             'events_total' => Event::count(),
             'bookings_total' => Booking::count(),
+            'confirmed_bookings_total' => $confirmedBookingsTotal,
+            'gross_revenue_total' => $grossRevenueTotal,
+            'service_fee_total' => $serviceFeeTotal,
         ]);
     }
 
