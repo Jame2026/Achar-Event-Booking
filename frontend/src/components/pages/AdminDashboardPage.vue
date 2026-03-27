@@ -42,6 +42,9 @@ const userRows = computed(() => adminStore.state.users);
 const healthStatus = computed(() => adminStore.state.health);
 const isUsersLoading = computed(() => adminStore.loading.all || adminStore.loading.users);
 const usersLoadError = computed(() => adminStore.errors.users);
+const isExportingReport = ref(false);
+const isExportingUsers = ref(false);
+const isExportingPdf = ref(false);
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
     .split(" ")
@@ -410,6 +413,209 @@ const systemStatus = computed(() => {
   };
 });
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+
+const buildApiPath = (path, query = {}) => {
+  const normalizedPath = String(path || "").replace(/^\/+/, "");
+  const params = new URLSearchParams();
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const queryString = params.toString();
+  const apiRoot = API_BASE_URL.endsWith("/api") ? API_BASE_URL : `${API_BASE_URL}/api`;
+  return `${apiRoot}/${normalizedPath}${queryString ? `?${queryString}` : ""}`;
+};
+
+const triggerDownload = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const downloadCsv = async (path, filename) => {
+  const response = await fetch(buildApiPath(path), {
+    method: "GET",
+    headers: {
+      Accept: "text/csv",
+    },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const message = text?.trim() || `Export failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  triggerDownload(blob, filename);
+};
+
+const openPrintWindow = (title, html) => {
+  const popup = window.open("", "_blank", "width=980,height=720");
+  if (!popup) {
+    throw new Error("Popup blocked. Please allow popups to export the PDF.");
+  }
+
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; margin: 28px; }
+      h1 { font-size: 24px; margin: 0 0 6px; }
+      h2 { font-size: 16px; margin: 24px 0 10px; }
+      p { margin: 6px 0; color: #475569; }
+      .meta { font-size: 12px; color: #64748b; }
+      .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+      .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }
+      .card strong { display: block; font-size: 16px; margin-top: 6px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+      th, td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 8px 6px; }
+      th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: #64748b; }
+      @media print {
+        @page { size: A4; margin: 16mm; }
+        body { margin: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    ${html}
+    <script>
+      window.onload = () => {
+        window.focus();
+        window.print();
+      };
+      window.onafterprint = () => window.close();
+    <\/script>
+  </body>
+</html>`);
+  popup.document.close();
+};
+
+const handleExportReport = async () => {
+  if (isExportingReport.value) return;
+  isExportingReport.value = true;
+  try {
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    await downloadCsv("admin/reports/export", `admin-report-${stamp}.csv`);
+  } catch (error) {
+    console.error(error);
+    alert(error?.message || "Unable to export report.");
+  } finally {
+    isExportingReport.value = false;
+  }
+};
+
+const handleExportPdf = async () => {
+  if (isExportingPdf.value) return;
+  isExportingPdf.value = true;
+  try {
+    const now = new Date();
+    const meta = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    const stats = dashboardStats.value
+      .map(
+        (card) => `
+        <div class="card">
+          <div>${card.label}</div>
+          <strong>${card.value}</strong>
+          <p class="meta">${card.delta}</p>
+        </div>`,
+      )
+      .join("");
+    const events = eventRows.value
+      .slice(0, 15)
+      .map(
+        (row) => `
+        <tr>
+          <td>${row?.id ?? ""}</td>
+          <td>${row?.title ?? "Event"}</td>
+          <td>${row?.vendor?.name ?? row?.vendor_name ?? "Vendor"}</td>
+          <td>${formatDate(row?.starts_at)}</td>
+          <td>${row?.location ?? ""}</td>
+        </tr>`,
+      )
+      .join("");
+    const bookings = bookingRows.value
+      .slice(0, 15)
+      .map(
+        (row) => `
+        <tr>
+          <td>${row?.id ?? ""}</td>
+          <td>${row?.event?.title ?? row?.service_name ?? "Booking"}</td>
+          <td>${row?.customer_name ?? row?.user?.name ?? "Customer"}</td>
+          <td>${normalizeBookingStatus(row)}</td>
+          <td>${formatCurrency(row?.total_amount ?? 0)}</td>
+        </tr>`,
+      )
+      .join("");
+    const users = userRows.value
+      .slice(0, 15)
+      .map(
+        (row) => `
+        <tr>
+          <td>${row?.id ?? ""}</td>
+          <td>${row?.name ?? "User"}</td>
+          <td>${row?.email ?? ""}</td>
+          <td>${formatDate(row?.created_at)}</td>
+        </tr>`,
+      )
+      .join("");
+    const html = `
+      <h1>Admin Report</h1>
+      <p class="meta">Generated at ${meta}</p>
+      <div class="grid">${stats}</div>
+      <h2>Latest Events</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Vendor</th><th>Start</th><th>Location</th></tr></thead>
+        <tbody>${events || `<tr><td colspan="5">No events found.</td></tr>`}</tbody>
+      </table>
+      <h2>Latest Bookings</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Event</th><th>Customer</th><th>Status</th><th>Total</th></tr></thead>
+        <tbody>${bookings || `<tr><td colspan="5">No bookings found.</td></tr>`}</tbody>
+      </table>
+      <h2>Newest Users</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Joined</th></tr></thead>
+        <tbody>${users || `<tr><td colspan="4">No users found.</td></tr>`}</tbody>
+      </table>
+    `;
+    openPrintWindow("Admin Report", html);
+  } catch (error) {
+    console.error(error);
+    alert(error?.message || "Unable to export PDF.");
+  } finally {
+    isExportingPdf.value = false;
+  }
+};
+
+const handleExportUsers = async () => {
+  if (isExportingUsers.value) return;
+  isExportingUsers.value = true;
+  try {
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    await downloadCsv("admin/users/export", `admin-users-${stamp}.csv`);
+  } catch (error) {
+    console.error(error);
+    alert(error?.message || "Unable to export users.");
+  } finally {
+    isExportingUsers.value = false;
+  }
+};
+
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
 onMounted(() => void adminStore.loadAll());
@@ -538,7 +744,9 @@ onMounted(() => void adminStore.loadAll());
         <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
         <div class="hero-actions">
           <button class="ghost-btn" type="button">Create Event</button>
-          <button class="primary-btn" type="button">Export Report</button>
+          <button class="primary-btn" type="button" :disabled="isExportingPdf" @click="handleExportPdf">
+            {{ isExportingPdf ? "Exporting..." : "Export Report (PDF)" }}
+          </button>
         </div>
       </section>
 
@@ -609,7 +817,9 @@ onMounted(() => void adminStore.loadAll());
               <span class="report-pill">{{ monthlyReport.growthLabel }}</span>
             </div>
             <p>{{ monthlyReport.message }}</p>
-            <button class="primary-btn" type="button">Download PDF</button>
+            <button class="primary-btn" type="button" :disabled="isExportingPdf" @click="handleExportPdf">
+              {{ isExportingPdf ? "Exporting..." : "Download PDF" }}
+            </button>
           </article>
 
           <article class="status-card">
@@ -896,7 +1106,9 @@ onMounted(() => void adminStore.loadAll());
               </div>
               <div class="directory-actions">
                 <button class="ghost-btn" type="button">Filter</button>
-                <button class="ghost-btn" type="button">Export CSV</button>
+                <button class="ghost-btn" type="button" :disabled="isExportingUsers" @click="handleExportUsers">
+                  {{ isExportingUsers ? "Exporting..." : "Export CSV" }}
+                </button>
               </div>
             </header>
 

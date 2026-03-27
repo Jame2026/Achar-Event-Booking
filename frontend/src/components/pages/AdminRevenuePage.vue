@@ -38,6 +38,7 @@ const loadError = computed(() => adminStore.errors.bookings);
 const rawBookings = computed(() => adminStore.state.bookings);
 const rangeKey = ref("30d");
 const chartMetric = ref("gross");
+const isExportingReport = ref(false);
 const rangeOptions = [
   { key: "30d", label: "Last 30 Days", days: 30 },
   { key: "quarter", label: "Quarter", days: 90 },
@@ -371,6 +372,109 @@ const setChartMetric = (metric) => {
   chartMetric.value = metric;
 };
 
+const openPrintWindow = (title, html) => {
+  const popup = window.open("", "_blank", "width=980,height=720");
+  if (!popup) {
+    throw new Error("Popup blocked. Please allow popups to export the PDF.");
+  }
+
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; margin: 28px; }
+      h1 { font-size: 24px; margin: 0 0 6px; }
+      h2 { font-size: 16px; margin: 24px 0 10px; }
+      p { margin: 6px 0; color: #475569; }
+      .meta { font-size: 12px; color: #64748b; }
+      .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+      .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }
+      .card strong { display: block; font-size: 16px; margin-top: 6px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+      th, td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 8px 6px; }
+      th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: #64748b; }
+      @media print {
+        @page { size: A4; margin: 16mm; }
+        body { margin: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    ${html}
+    <script>
+      window.onload = () => {
+        window.focus();
+        window.print();
+      };
+      window.onafterprint = () => window.close();
+    <\/script>
+  </body>
+</html>`);
+  popup.document.close();
+};
+
+const handleExportReport = async () => {
+  if (isExportingReport.value) return;
+  isExportingReport.value = true;
+  try {
+    const now = new Date();
+    const meta = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    const summaryCards = revenueStats.value
+      .map(
+        (card) => `
+        <div class="card">
+          <div>${card.label}</div>
+          <strong>${card.value}</strong>
+          <p class="meta">${card.delta}</p>
+        </div>`,
+      )
+      .join("");
+    const rows = transactions.value
+      .map(
+        (row) => `
+        <tr>
+          <td>${row.id}</td>
+          <td>${row.vendorName}</td>
+          <td>${row.statusLabel}</td>
+          <td>${row.dateLabel}</td>
+          <td>${formatCurrency(row.amount)}</td>
+        </tr>`,
+      )
+      .join("");
+    const html = `
+      <h1>Revenue Report</h1>
+      <p class="meta">Generated at ${meta}</p>
+      <p>Range: ${selectedRange.value.label}</p>
+      <div class="grid">${summaryCards}</div>
+      <h2>Recent Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Transaction</th>
+            <th>Vendor</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="5">No transactions in this range.</td></tr>`}
+        </tbody>
+      </table>
+    `;
+    openPrintWindow("Revenue Report", html);
+  } catch (error) {
+    console.error(error);
+    alert(error?.message || "Unable to export report.");
+  } finally {
+    isExportingReport.value = false;
+  }
+};
+
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
 onMounted(() => void adminStore.loadAll());
@@ -495,7 +599,9 @@ onMounted(() => void adminStore.loadAll());
               {{ option.label }}
             </button>
           </div>
-          <button class="primary-btn" type="button">Export Report</button>
+          <button class="primary-btn" type="button" :disabled="isExportingReport" @click="handleExportReport">
+            {{ isExportingReport ? "Exporting..." : "Export Report" }}
+          </button>
         </div>
       </section>
 

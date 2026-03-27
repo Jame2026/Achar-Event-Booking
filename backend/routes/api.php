@@ -117,6 +117,8 @@ Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(functi
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard']);
+    Route::get('/reports/export', [AdminController::class, 'exportReport']);
+    Route::get('/users/export', [AdminController::class, 'exportUsers']);
     Route::get('/users', [AdminController::class, 'users']);
     Route::patch('/users/{user}/role', [AdminController::class, 'updateUserRole']);
     Route::get('/bookings', [BookingController::class, 'index']);
