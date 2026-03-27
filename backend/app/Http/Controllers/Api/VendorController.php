@@ -30,7 +30,7 @@ class VendorController extends Controller
         $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $vendors = User::query()
-            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at'])
+            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at'])
             ->where('role', 'vendor')
             ->withCount('events')
             ->latest()

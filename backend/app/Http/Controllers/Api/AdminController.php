@@ -60,7 +60,7 @@ class AdminController extends Controller
         $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $users = User::query()
-            ->select('id', 'name', 'email', 'role', 'phone', 'location', 'profile_image_url', 'created_at')
+            ->select('id', 'name', 'email', 'role', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at')
             ->withCount('events')
             ->when(
                 $validated['role'] ?? null,
@@ -86,7 +86,7 @@ class AdminController extends Controller
         $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $customers = User::query()
-            ->select('id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at')
+            ->select('id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at')
             ->where('role', 'user')
             ->withCount([
                 'bookings',

@@ -311,7 +311,8 @@ const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
 const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
-const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors', 'customers']
+const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'customers', 'revenue', 'settings']
+const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', ...adminLegacyPages]
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
@@ -330,9 +331,7 @@ function firstQueryValue(value) {
 function normalizePage(value) {
   const page = firstQueryValue(value)
   if (page === 'users') return 'customers'
-  if (page === 'settings') {
-    return isAdminAccount.value ? 'settings' : defaultLegacyPage.value
-  }
+  if (adminLegacyPages.includes(page) && !isAdminAccount.value) return defaultLegacyPage.value
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
   if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
   return page
@@ -2158,9 +2157,11 @@ onBeforeUnmount(() => {
       <PublicNavbar />
       <AdminDashboardPage
         v-if="isAdminAccount && (currentPage === 'dashboard' || currentPage === 'settings')"
+        :key="currentPage"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :admin-user="loggedInUser"
+        :active-page="currentPage"
         :update-admin-user="syncAuthenticatedUser"
         :logout-user="logout"
       />
