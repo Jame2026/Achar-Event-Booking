@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet, apiPatch, apiPost } from "../../features/apiClient";
+import { apiGet, apiPatch } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: {
@@ -338,26 +338,12 @@ async function markAllNotificationsAsRead() {
 
 async function emailNotification(notification) {
   if (!notification) return;
-  if (isSendingEmail.value) return;
   const to = adminEmail.value;
-  isSendingEmail.value = true;
-  notificationsError.value = "";
-  try {
-    await apiPost("notifications/bookings/email", {
-      notification_id: notification.id,
-      to,
-      subject: notification.title || "Booking notification",
-      body: notification.message || "",
-    });
-    notificationsError.value = `Email sent to ${to}`;
-  } catch (error) {
-    notificationsError.value = error?.message || "Could not send email; opening mail client.";
-    const subject = encodeURIComponent(notification.title || "Booking notification");
-    const body = encodeURIComponent(notification.message || "");
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
-  } finally {
-    isSendingEmail.value = false;
-  }
+  const subject = encodeURIComponent(notification.title || "Booking notification");
+  const body = encodeURIComponent(notification.message || "");
+  const mailto = `mailto:${to}?subject=${subject}&body=${body}`;
+  window.open(mailto, "_blank");
+  notificationsError.value = `Opening mail client for ${to}`;
 }
 
 async function toggleNotificationDropdown() {
