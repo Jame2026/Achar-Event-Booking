@@ -102,6 +102,18 @@ export function useProfileFeature(notice, loggedInUser) {
     return null
   }
 
+  function normalizeProfilePhone(value) {
+    const trimmed = String(value || '').trim()
+    if (!trimmed) return ''
+    if (/[^0-9\s()+.-]/.test(trimmed)) return trimmed
+    if ((trimmed.match(/\+/g) || []).length > 1) return trimmed
+    if (trimmed.includes('+') && !trimmed.startsWith('+')) return trimmed
+
+    const digits = trimmed.replace(/\D+/g, '')
+    if (!digits) return ''
+    return trimmed.startsWith('+') ? `+${digits}` : digits
+  }
+
   function syncLocalAuthUser(patch = {}) {
     const current = loggedInUser?.value || {}
     const next = { ...current, ...patch }
@@ -172,13 +184,17 @@ export function useProfileFeature(notice, loggedInUser) {
       return
     }
 
+    const normalizedPhone = normalizeProfilePhone(userProfileDraft.value.phone)
+    const normalizedSavedPhone = normalizeProfilePhone(userPhone.value)
     const payload = new FormData()
     payload.append('name', userProfileDraft.value.name.trim())
-    payload.append('phone', userProfileDraft.value.phone.trim())
     payload.append('location', userProfileDraft.value.location.trim())
     payload.append('user_id', String(query.user_id || ''))
     payload.append('email', String(query.email || ''))
     payload.append('remove_image', userProfileDraft.value.profile_image_url ? '0' : '1')
+    if (normalizedPhone !== normalizedSavedPhone) {
+      payload.append('phone', normalizedPhone)
+    }
     if (profileImageFile.value instanceof File) payload.append('profile_image', profileImageFile.value)
 
     isSavingProfile.value = true

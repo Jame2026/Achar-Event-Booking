@@ -19,6 +19,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  activePage: {
+    type: String,
+    default: "dashboard",
+  },
   updateAdminUser: {
     type: Function,
     default: null,
@@ -40,6 +44,7 @@ const navItems = [
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
+const adminPageKeys = navItems.map((item) => item.key);
 const router = useRouter();
 const route = useRoute();
 const activeKey = ref("dashboard");
@@ -186,8 +191,8 @@ const getRoutePage = () => {
 };
 
 const syncActiveKey = () => {
-  const page = getRoutePage();
-  activeKey.value = page || "dashboard";
+  const nextPage = String(props.activePage || getRoutePage() || "").trim();
+  activeKey.value = adminPageKeys.includes(nextPage) ? nextPage : "dashboard";
 };
 
 const navigateTo = (key) => {
@@ -326,8 +331,10 @@ const normalizedUsers = computed(() =>
       status: normalizeUserStatus(user),
       initials: getInitials(user?.name || user?.full_name),
       bookingsCount,
+      eventsCount: Number(user?.events_count || 0),
       spent,
       lastLogin,
+      lastSeenAt: lastLogin || createdAt,
       lastLoginLabel: timeAgo(lastLogin),
     };
   }),
@@ -701,50 +708,6 @@ const dashboardStats = computed(() => {
   ];
 });
 
-const recentActivity = computed(() => {
-  const bookingActivities = bookingRows.value.map((row) => {
-    const status = normalizeBookingStatus(row);
-    const eventTitle = row?.event?.title || row?.service_name || "a booking";
-    const customer = row?.customer_name || row?.user?.name || "A customer";
-    const verb = status === "confirmed" ? "completed" : status === "cancelled" ? "cancelled" : "requested";
-    return {
-      name: customer,
-      detail: `${verb} ${eventTitle}`,
-      time: timeAgo(getRowDate(row, row?.event?.starts_at)),
-      at: getRowDate(row, row?.event?.starts_at)?.getTime() || 0,
-    };
-  });
-
-  const userActivities = userRows.value.map((row) => ({
-    name: row?.name || "New user",
-    detail: "registered as a new user",
-    time: timeAgo(getRowDate(row)),
-    at: getRowDate(row)?.getTime() || 0,
-  }));
-
-  const eventActivities = eventRows.value.map((row) => {
-    const host = row?.vendor?.name || row?.vendor_name || "A vendor";
-    const title = row?.title || "a new event";
-    return {
-      name: host,
-      detail: `created the event "${title}"`,
-      time: timeAgo(getRowDate(row, row?.starts_at)),
-      at: getRowDate(row, row?.starts_at)?.getTime() || 0,
-    };
-  });
-
-  const merged = [...bookingActivities, ...userActivities, ...eventActivities]
-    .filter((item) => item.at > 0)
-    .sort((a, b) => b.at - a.at);
-
-  const q = searchQuery.value.trim().toLowerCase();
-  const filtered = q
-    ? merged.filter((item) => item.name.toLowerCase().includes(q) || item.detail.toLowerCase().includes(q))
-    : merged;
-
-  return filtered.slice(0, 6);
-});
-
 const monthlyReport = computed(() => {
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
@@ -976,7 +939,18 @@ const handleExportUsers = async () => {
 };
 
 syncActiveKey();
+watch(() => props.activePage, syncActiveKey);
 watch(() => route.query.page, syncActiveKey);
+watch(
+  () => props.adminUser?.id,
+  (adminUserId) => {
+    if (!adminUserId || userRows.value.length) return;
+    void adminStore.loadAll({
+      force: true,
+      adminUserId,
+    });
+  },
+);
 onMounted(() =>
   void adminStore.loadAll({
     adminUserId: props.adminUser?.id || null,
@@ -1134,7 +1108,7 @@ onMounted(() =>
       </section>
 
       <section v-if="activeKey === 'dashboard'" class="admin-grid">
-        <article class="activity-card">
+        <article v-if="false" class="activity-card">
           <header>
             <h3>Recent Activity</h3>
             <button class="link-btn" type="button">View All →</button>
@@ -1143,11 +1117,13 @@ onMounted(() =>
             <div v-if="isLoading" class="activity-empty">Loading latest activity...</div>
             <div v-else-if="loadError" class="activity-empty">{{ loadError }}</div>
             <div v-else-if="!recentActivity.length" class="activity-empty">
-              No activity yet. New bookings and users will appear here.
+              No recent customer or vendor activity yet.
             </div>
             <template v-else>
-              <div v-for="item in recentActivity" :key="item.name + item.time" class="activity-item">
-                <div class="activity-icon"></div>
+              <div v-for="item in recentActivity" :key="item.key" class="activity-item">
+                <div class="activity-icon" :class="`is-${item.type || 'activity'}`">
+                  {{ item.type === "vendor" ? "V" : item.type === "customer" ? "C" : "A" }}
+                </div>
                 <div>
                   <p class="activity-text">
                     <strong>{{ item.name }}</strong>
@@ -2278,7 +2254,7 @@ onMounted(() =>
 
 .admin-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 2fr) minmax(240px, 1fr);
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -2364,6 +2340,23 @@ onMounted(() =>
   height: 42px;
   border-radius: 14px;
   background: #ffe6d1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #c45a18;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.activity-icon.is-customer {
+  background: #e7f5ff;
+  color: #1d4ed8;
+}
+
+.activity-icon.is-vendor {
+  background: #ecfdf3;
+  color: #15803d;
 }
 
 .activity-text {

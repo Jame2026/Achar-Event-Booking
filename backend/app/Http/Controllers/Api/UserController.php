@@ -15,6 +15,8 @@ class UserController extends Controller
 {
     public function profile(Request $request): JsonResponse
     {
+        $this->normalizePhoneInput($request);
+
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer'],
             'email' => ['nullable', 'string', 'email'],
@@ -33,6 +35,8 @@ class UserController extends Controller
 
     public function updateProfile(Request $request): JsonResponse
     {
+        $this->normalizePhoneInput($request);
+
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer'],
             'email' => ['nullable', 'string', 'email'],
@@ -46,6 +50,19 @@ class UserController extends Controller
         $user = $this->resolveUser($validated);
         if (! $user) {
             return response()->json(['message' => 'User profile not found.'], 404);
+        }
+
+        if (array_key_exists('phone', $validated) && $validated['phone']) {
+            $phoneAlreadyUsed = User::query()
+                ->where('phone', $validated['phone'])
+                ->whereKeyNot($user->id)
+                ->exists();
+
+            if ($phoneAlreadyUsed) {
+                return response()->json([
+                    'message' => 'That phone number is already used by another account.',
+                ], 422);
+            }
         }
 
         if ($request->hasFile('profile_image')) {
@@ -62,7 +79,9 @@ class UserController extends Controller
         }
 
         $user->name = (string) $validated['name'];
-        $user->phone = $validated['phone'] ?? null;
+        if (array_key_exists('phone', $validated)) {
+            $user->phone = $validated['phone'] ?: null;
+        }
         $user->location = $validated['location'] ?? null;
         $user->save();
 
@@ -92,6 +111,8 @@ class UserController extends Controller
 
     public function updatePassword(Request $request): JsonResponse
     {
+        $this->normalizePhoneInput($request);
+
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer'],
             'email' => ['nullable', 'string', 'email'],
@@ -142,6 +163,40 @@ class UserController extends Controller
         }
 
         return null;
+    }
+
+    private function normalizePhoneInput(Request $request): void
+    {
+        if (! $request->exists('phone')) {
+            return;
+        }
+
+        $request->merge([
+            'phone' => $this->normalizePhone((string) $request->input('phone')),
+        ]);
+    }
+
+    private function normalizePhone(string $value): ?string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (preg_match('/[^0-9\s()+.-]/', $trimmed) === 1) {
+            return $trimmed;
+        }
+
+        if (substr_count($trimmed, '+') > 1 || (str_contains($trimmed, '+') && ! str_starts_with($trimmed, '+'))) {
+            return $trimmed;
+        }
+
+        $digits = preg_replace('/\D+/', '', $trimmed);
+        if (! is_string($digits) || $digits === '') {
+            return $trimmed;
+        }
+
+        return str_starts_with($trimmed, '+') ? '+'.$digits : $digits;
     }
 
     private function storeProfileImage(UploadedFile $image): string
