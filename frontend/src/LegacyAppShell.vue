@@ -8,6 +8,7 @@ import BookingsPage from './components/pages/BookingsPage.vue'
 import CustomizationPage from './components/pages/CustomizationPage.vue'
 import AdminDashboardPage from './components/pages/AdminDashboardPage.vue'
 import AdminBookingsPage from './components/pages/AdminBookingsPage.vue'
+import AdminCustomersPage from './components/pages/AdminCustomersPage.vue'
 import AdminEventsPage from './components/pages/AdminEventsPage.vue'
 import AdminRevenuePage from './components/pages/AdminRevenuePage.vue'
 import AdminVendorsPage from './components/pages/AdminVendorsPage.vue'
@@ -235,6 +236,14 @@ function onLoginSuccess(user) {
   })
 }
 
+function syncAuthenticatedUser(nextUser) {
+  if (!nextUser || typeof nextUser !== 'object') return
+  loggedInUser.value = {
+    ...(loggedInUser.value || {}),
+    ...nextUser,
+  }
+}
+
 function handlePostAuthRedirect() {
   const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
   const redirectAtRaw = sessionStorage.getItem(POST_AUTH_REDIRECT_AT_KEY)
@@ -302,7 +311,7 @@ const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
 const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
-const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors']
+const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors', 'customers']
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
@@ -320,6 +329,10 @@ function firstQueryValue(value) {
 
 function normalizePage(value) {
   const page = firstQueryValue(value)
+  if (page === 'users') return 'customers'
+  if (page === 'settings') {
+    return isAdminAccount.value ? 'settings' : defaultLegacyPage.value
+  }
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
   if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
   return page
@@ -2144,9 +2157,11 @@ onBeforeUnmount(() => {
     <div v-else class="page">
       <PublicNavbar />
       <AdminDashboardPage
-        v-if="isAdminAccount && currentPage === 'dashboard'"
+        v-if="isAdminAccount && (currentPage === 'dashboard' || currentPage === 'settings')"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :admin-user="loggedInUser"
+        :update-admin-user="syncAuthenticatedUser"
         :logout-user="logout"
       />
       <AdminBookingsPage
@@ -2171,6 +2186,13 @@ onBeforeUnmount(() => {
         v-else-if="isAdminAccount && currentPage === 'vendors'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminCustomersPage
+        v-else-if="isAdminAccount && currentPage === 'customers'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :admin-user-id="loggedInUser?.id"
         :logout-user="logout"
       />
       <VendorDashboardPage

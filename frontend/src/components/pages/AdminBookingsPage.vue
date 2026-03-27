@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useAdminDataStore } from "../../features/useAdminDataStore";
+import { formatDateTime, summarizeBookedServices } from "../../features/bookingMappers";
+import { apiGet } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: {
@@ -21,101 +22,72 @@ const props = defineProps({
 const router = useRouter();
 const route = useRoute();
 const searchQuery = ref("");
+const statusFilter = ref("all");
+const isLoading = ref(false);
+const loadError = ref("");
+const adminBookings = ref([]);
+const selectedBookingId = ref(null);
+const failedCustomerImages = ref(new Set());
 const navItems = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 const activeKey = ref("admin-bookings");
 
-const adminStore = useAdminDataStore();
-const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
-const loadError = computed(() => adminStore.errors.bookings);
+function countLabel(value) {
+  return Number(value || 0).toLocaleString();
+}
 
-const normalizeBookingStatus = (row) => {
-  const status = String(row?.status || "").toLowerCase();
-  const payment = String(row?.payment_status || "").toLowerCase();
-  if (status === "cancelled") return "Cancelled";
-  if (status === "confirmed" || payment === "confirmed") return "Confirmed";
-  return "Pending";
-};
+function formatTimeLabel(dateString) {
+  const raw = String(dateString || "").trim();
+  if (!raw) return "Time TBD";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "All day";
 
-const getBookingDate = (row) => {
-  const raw = row?.event?.starts_at || row?.requested_event_date || row?.created_at || row?.updated_at || null;
-  const date = raw ? new Date(raw) : null;
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
-  return date;
-};
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Time TBD";
 
-const formatDate = (value) =>
-  value
-    ? value.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
-    : "Date TBD";
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
-const formatTime = (value) =>
-  value ? value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "Time TBD";
+function getInitials(name, fallback = "BK") {
+  const pieces = String(name || "")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
 
-const normalizeBookings = computed(() =>
-  adminStore.state.bookings.map((row) => {
-    const date = getBookingDate(row);
-    return {
-      id: row?.id ? `#BK-${row.id}` : "#BK",
-      name: row?.customer_name || row?.user?.name || "Guest",
-      email: row?.customer_email || row?.user?.email || row?.email || "No email",
-      event: row?.event?.title || row?.service_name || row?.event_title || "Event booking",
-      date: formatDate(date),
-      time: formatTime(date),
-      status: normalizeBookingStatus(row),
-      stamp: date ? date.getTime() : 0,
-      raw: row,
-    };
-  }),
-);
+  if (!pieces.length) {
+    return fallback;
+  }
 
-const filteredBookings = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
-  const rows = query
-    ? normalizeBookings.value.filter((row) =>
-        [row.id, row.name, row.email, row.event, row.status].join(" ").toLowerCase().includes(query),
-      )
-    : normalizeBookings.value;
-  return [...rows].sort((a, b) => b.stamp - a.stamp);
-});
+  return pieces
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
-const avgResponseHours = computed(() => {
-  const rows = adminStore.state.bookings
-    .map((row) => {
-      const created = row?.created_at ? new Date(row.created_at) : null;
-      const updated = row?.updated_at ? new Date(row.updated_at) : null;
-      if (!created || !updated) return null;
-      const diff = (updated.getTime() - created.getTime()) / (1000 * 60 * 60);
-      return diff >= 0 ? diff : null;
-    })
-    .filter((value) => Number.isFinite(value));
-  if (!rows.length) return null;
-  const avg = rows.reduce((sum, value) => sum + value, 0) / rows.length;
-  return avg;
-});
+function formatBadgeLabel(value, fallback = "Unknown") {
+  const normalized = String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim();
 
-const stats = computed(() => {
-  const total = adminStore.state.bookings.length;
-  const pending = adminStore.state.bookings.filter((row) => normalizeBookingStatus(row) === "Pending").length;
-  const confirmed = adminStore.state.bookings.filter((row) => normalizeBookingStatus(row) === "Confirmed").length;
-  const avgHours = avgResponseHours.value;
-  return [
-    { label: "Total Bookings", value: total.toLocaleString(), delta: `${pending} pending` },
-    { label: "Pending Confirmation", value: pending.toLocaleString(), delta: `${confirmed} confirmed` },
-    {
-      label: "Avg. Response Time",
-      value: avgHours ? `${avgHours.toFixed(1)}h` : "N/A",
-      delta: avgHours ? "Based on history" : "Not enough data",
-    },
-  ];
-});
+  if (!normalized) {
+    return fallback;
+  }
+
+  return normalized
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
 
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -125,6 +97,162 @@ const initials = computed(() => {
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
+const normalizedBookings = computed(() =>
+  adminBookings.value.map((booking) => {
+    const event = booking?.event || {};
+    const vendor = event?.vendor || {};
+    const customer = booking?.user || {};
+    const bookedItems = Array.isArray(booking?.booked_items) ? booking.booked_items : [];
+    const status = ["confirmed", "cancelled"].includes(String(booking?.status || "").toLowerCase())
+      ? String(booking.status).toLowerCase()
+      : "pending";
+    const bookingDate =
+      booking?.requested_event_date ||
+      event?.starts_at ||
+      booking?.created_at ||
+      booking?.updated_at ||
+      "";
+    const customerName = String(booking?.customer_name || customer?.name || "Guest Customer").trim() || "Guest Customer";
+    const customerEmail = String(booking?.customer_email || customer?.email || "").trim();
+    const customerPhone = String(booking?.customer_phone || customer?.phone || "").trim();
+    const serviceLabel = summarizeBookedServices(
+      bookedItems,
+      String(booking?.service_name || event?.title || "Service Booking").trim() || "Service Booking",
+    );
+    const totalAmount = Number(booking?.total_amount || 0);
+    const paymentStatus = String(booking?.payment_status || "unpaid").trim() || "unpaid";
+
+    return {
+      id: Number(booking?.id || 0),
+      key: `booking:${booking?.id}`,
+      bookingCode: `#BK-${String(booking?.id || 0).padStart(4, "0")}`,
+      customerName,
+      customerInitials: getInitials(customerName),
+      customerImageKey: customer?.id ? `customer:${customer.id}` : `booking:${booking?.id}`,
+      customerProfileImageUrl: String(
+        customer?.profile_image_url || booking?.customer_profile_image_url || booking?.customer_avatar || "",
+      ).trim(),
+      customerEmail,
+      customerPhone,
+      customerLocation: String(booking?.customer_location || customer?.location || "").trim(),
+      customerContact: customerEmail || customerPhone || "No contact provided",
+      vendorName: String(vendor?.name || "Vendor").trim() || "Vendor",
+      vendorEmail: String(vendor?.email || "").trim(),
+      serviceLabel,
+      bookingKind: bookedItems.length > 1 ? "Package" : "Service",
+      eventTitle: String(event?.title || serviceLabel).trim() || serviceLabel,
+      dateLabel: formatDateTime(bookingDate),
+      timeLabel: formatTimeLabel(event?.starts_at || bookingDate),
+      status,
+      statusLabel: status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending",
+      statusClass: status,
+      quantity: Number(booking?.quantity || 1),
+      totalAmount,
+      totalLabel: `$${totalAmount.toLocaleString()}`,
+      paymentStatus,
+      paymentStatusLabel: formatBadgeLabel(paymentStatus, "Unpaid"),
+      bookedItems,
+    };
+  }),
+);
+
+const filteredBookings = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+
+  return normalizedBookings.value.filter((booking) => {
+    if (statusFilter.value !== "all" && booking.status !== statusFilter.value) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    return [
+      booking.bookingCode,
+      booking.customerName,
+      booking.customerEmail,
+      booking.customerPhone,
+      booking.vendorName,
+      booking.serviceLabel,
+      booking.eventTitle,
+      booking.statusLabel,
+      booking.totalLabel,
+      booking.dateLabel,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+});
+
+const selectedBooking = computed(
+  () => filteredBookings.value.find((booking) => booking.id === selectedBookingId.value) || filteredBookings.value[0] || null,
+);
+
+const totalBookingsCount = computed(() => normalizedBookings.value.length);
+const pendingBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "pending").length);
+const confirmedBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "confirmed").length);
+const cancelledBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "cancelled").length);
+const packageBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === "Package").length);
+const serviceBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === "Service").length);
+const confirmedRevenue = computed(() =>
+  normalizedBookings.value
+    .filter((booking) => booking.status === "confirmed")
+    .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0),
+);
+
+const stats = computed(() => [
+  {
+    label: "Total Bookings",
+    value: countLabel(totalBookingsCount.value),
+    delta: `${countLabel(confirmedBookingsCount.value)} confirmed`,
+  },
+  {
+    label: "Pending Confirmation",
+    value: countLabel(pendingBookingsCount.value),
+    delta: pendingBookingsCount.value ? "Needs attention" : "All caught up",
+  },
+  {
+    label: "Confirmed Revenue",
+    value: `$${countLabel(confirmedRevenue.value)}`,
+    delta: `${countLabel(cancelledBookingsCount.value)} cancelled`,
+  },
+]);
+
+const hasCustomerProfileImage = (booking) =>
+  Boolean(String(booking?.customerProfileImageUrl || "").trim())
+  && !failedCustomerImages.value.has(booking?.customerImageKey || booking?.key);
+
+function handleCustomerImageError(imageKey) {
+  if (!imageKey || failedCustomerImages.value.has(imageKey)) {
+    return;
+  }
+
+  const next = new Set(failedCustomerImages.value);
+  next.add(imageKey);
+  failedCustomerImages.value = next;
+}
+
+async function loadAdminBookings() {
+  isLoading.value = true;
+  loadError.value = "";
+
+  try {
+    const result = await apiGet("bookings", { per_page: 100 });
+    adminBookings.value = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+    failedCustomerImages.value = new Set();
+  } catch (error) {
+    adminBookings.value = [];
+    loadError.value = error?.message || "Could not load customer bookings.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function selectBooking(bookingId) {
+  selectedBookingId.value = Number(bookingId || 0) || null;
+}
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -143,77 +271,83 @@ const navigateTo = (key) => {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
-onMounted(() => void adminStore.loadAll());
+watch(
+  filteredBookings,
+  (rows) => {
+    if (!rows.length) {
+      selectedBookingId.value = null;
+      return;
+    }
+
+    if (!rows.some((booking) => booking.id === selectedBookingId.value)) {
+      selectedBookingId.value = rows[0].id;
+    }
+  },
+  { immediate: true },
+);
+onMounted(() => void loadAdminBookings());
 </script>
 
 <template>
   <section class="admin-shell bookings-shell">
     <aside class="admin-sidebar">
-      <div class="brand">
-        <div class="brand-logo">
-          <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
-          <div v-else class="brand-mark">A</div>
-        </div>
-        <div>
-          <p class="brand-title">EventMaster</p>
-          <p class="brand-subtitle">Vendor Admin</p>
+      <div class="brand-card">
+        <div class="brand">
+          <div class="brand-logo">
+            <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+            <div v-else class="brand-mark">A</div>
+          </div>
+          <div>
+            <p class="brand-kicker">Operations Console</p>
+            <p class="brand-title">Achar Admin</p>
+            <p class="brand-subtitle">Customer booking workspace</p>
+          </div>
         </div>
       </div>
 
-      <nav class="admin-nav">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-          type="button"
-          class="nav-item"
-          :class="{ active: activeKey === item.key }"
-          @click="navigateTo(item.key)"
-        >
-          <span class="nav-icon" aria-hidden="true">
-            <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
-            </svg>
-            <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
-            </svg>
-            <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-            </svg>
-            <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
-            </svg>
-            <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
-            </svg>
-            <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24">
-              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
-            </svg>
-          </span>
-          <span>{{ item.label }}</span>
-        </button>
-        <RouterLink class="nav-item home-link" to="/">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z" />
-            </svg>
-          </span>
-          <span>Back to Home</span>
-        </RouterLink>
-      </nav>
-
-      <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
-        <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
-          <p class="user-role">Super Admin</p>
+      <section class="sidebar-block">
+        <div class="sidebar-block-head">
+          <span class="sidebar-section-label">Navigation</span>
+          <span class="sidebar-section-caption">Admin modules</span>
         </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
+
+        <nav class="admin-nav">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
+                <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
+              </svg>
+              <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
+                <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
+              </svg>
+              <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
+                <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              </svg>
+              <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
+                <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
+              </svg>
+              <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
+              </svg>
+              <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
+                <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24">
+                <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </section>
+
     </aside>
 
     <main class="admin-main">
@@ -227,7 +361,7 @@ onMounted(() => void adminStore.loadAll());
           <input v-model="searchQuery" type="search" placeholder="Search bookings, attendees or events..." />
         </label>
         <div class="topbar-actions">
-          <button class="primary-btn" type="button">Create Event</button>
+          <button class="primary-btn" type="button" @click="loadAdminBookings">Refresh List</button>
           <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
@@ -240,14 +374,14 @@ onMounted(() => void adminStore.loadAll());
       <section class="bookings-hero">
         <div>
           <p class="eyebrow">Booking Management</p>
-          <h1 class="hero-title">Review and Manage Bookings</h1>
-          <p class="hero-subtitle">Monitor active registrations, confirmations, and cancellations.</p>
+          <h1 class="hero-title">Customer Bookings for Vendor Services</h1>
+          <p class="hero-subtitle">Review the real bookings customers placed for vendor services and packages.</p>
         </div>
         <div class="pill-group">
-          <button class="pill active" type="button">All</button>
-          <button class="pill" type="button">Pending</button>
-          <button class="pill" type="button">Confirmed</button>
-          <button class="pill" type="button">Cancelled</button>
+          <button class="pill" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">All</button>
+          <button class="pill" :class="{ active: statusFilter === 'pending' }" type="button" @click="statusFilter = 'pending'">Pending</button>
+          <button class="pill" :class="{ active: statusFilter === 'confirmed' }" type="button" @click="statusFilter = 'confirmed'">Confirmed</button>
+          <button class="pill" :class="{ active: statusFilter === 'cancelled' }" type="button" @click="statusFilter = 'cancelled'">Cancelled</button>
         </div>
       </section>
 
@@ -260,49 +394,189 @@ onMounted(() => void adminStore.loadAll());
       </section>
 
       <section class="bookings-grid">
-        <article class="card table-card">
+        <article class="queue-card">
           <header>
-            <h3>Recent Bookings</h3>
+            <div>
+              <h3>Customer Booking List</h3>
+              <p class="table-summary">{{ filteredBookings.length }} of {{ normalizedBookings.length }} booking(s) shown</p>
+            </div>
             <div class="table-actions">
-              <button class="ghost-btn" type="button">Sort by Date</button>
-              <button class="ghost-btn" type="button">Export CSV</button>
+              <span class="table-chip">{{ countLabel(packageBookingsCount) }} package</span>
+              <span class="table-chip">{{ countLabel(serviceBookingsCount) }} service</span>
             </div>
           </header>
-          <div class="table">
-            <div class="table-head">
-              <span>Attendee</span>
-              <span>Event Details</span>
-              <span>Date & Time</span>
-              <span>Status</span>
-              <span>Actions</span>
-            </div>
-            <div v-if="isLoading" class="table-empty">Loading latest bookings...</div>
-            <div v-else-if="loadError" class="table-empty">{{ loadError }}</div>
-            <div v-else-if="!filteredBookings.length" class="table-empty">No bookings found yet.</div>
-            <div v-else v-for="item in filteredBookings" :key="item.id" class="table-row">
-              <div>
-                <p class="attendee">{{ item.name }}</p>
-                <span class="attendee-email">{{ item.email }}</span>
+          <p v-if="loadError" class="table-feedback error">{{ loadError }}</p>
+          <p v-else-if="isLoading" class="table-feedback">Loading customer bookings...</p>
+          <p v-else-if="!filteredBookings.length" class="table-feedback">No bookings matched this filter.</p>
+          <div v-else class="booking-list">
+            <button
+              v-for="item in filteredBookings"
+              :key="item.key"
+              type="button"
+              class="booking-row"
+              :class="{ selected: selectedBooking?.id === item.id }"
+              @click="selectBooking(item.id)"
+            >
+              <div class="booking-row-main">
+                <div class="customer-cell">
+                  <div class="customer-avatar customer-avatar-small">
+                    <img
+                      v-if="hasCustomerProfileImage(item)"
+                      :src="item.customerProfileImageUrl"
+                      :alt="`${item.customerName} profile`"
+                      @error="handleCustomerImageError(item.customerImageKey)"
+                    />
+                    <span v-else>{{ item.customerInitials }}</span>
+                  </div>
+                  <div class="customer-copy">
+                    <p class="attendee">{{ item.customerName }}</p>
+                  </div>
+                </div>
+                <div class="booking-overview">
+                  <p class="service-name">{{ item.serviceLabel }}</p>
+                  <span class="service-meta">{{ item.vendorName }} | {{ item.bookingKind }} | {{ item.bookingCode }}</span>
+                  <div class="booking-chip-row">
+                    <span class="info-chip">{{ item.timeLabel }}</span>
+                    <span class="info-chip">{{ item.paymentStatusLabel }}</span>
+                    <span class="info-chip">Qty {{ item.quantity }}</span>
+                  </div>
+                </div>
               </div>
-              <span>{{ item.event }}</span>
-              <span>{{ item.date }} ? {{ item.time }}</span>
-              <span class="status" :class="item.status.toLowerCase()">{{ item.status }}</span>
-              <button class="primary-btn small" type="button">View</button>
-            </div>
+              <div class="booking-row-side">
+                <span class="booking-date">{{ item.dateLabel }}</span>
+                <span class="status" :class="item.statusClass">{{ item.statusLabel }}</span>
+                <span class="booking-stat">{{ item.totalLabel }}</span>
+              </div>
+            </button>
           </div>
         </article>
 
         <aside class="side-column">
-          <article class="card insight-card">
-            <h3>Vendor Performance Insights</h3>
-            <p>Your most ?International Tech Summit? has reached 85% capacity. Consider opening additional seating.</p>
-            <button class="ghost-btn" type="button">View Analytics</button>
+          <article v-if="selectedBooking" class="card detail-card">
+            <header class="detail-head">
+              <div>
+                <p class="detail-eyebrow">Booking Detail</p>
+                <h3>Selected Booking</h3>
+              </div>
+              <span class="detail-code">{{ selectedBooking.bookingCode }}</span>
+            </header>
+            <div class="customer-block">
+              <div class="customer-avatar">
+                <img
+                  v-if="hasCustomerProfileImage(selectedBooking)"
+                  :src="selectedBooking.customerProfileImageUrl"
+                  :alt="`${selectedBooking.customerName} profile`"
+                  @error="handleCustomerImageError(selectedBooking.customerImageKey)"
+                />
+                <span v-else>{{ selectedBooking.customerInitials }}</span>
+              </div>
+              <div class="customer-details">
+                <p class="customer-name">{{ selectedBooking.customerName }}</p>
+                <p class="customer-meta">{{ selectedBooking.serviceLabel }}</p>
+                <div class="detail-tags">
+                  <span class="status" :class="selectedBooking.statusClass">{{ selectedBooking.statusLabel }}</span>
+                  <span>{{ selectedBooking.bookingKind }}</span>
+                  <span>{{ selectedBooking.paymentStatusLabel }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="contact-grid">
+              <div>
+                <span>Email</span>
+                <strong>{{ selectedBooking.customerEmail || "Not provided" }}</strong>
+              </div>
+              <div>
+                <span>Phone</span>
+                <strong>{{ selectedBooking.customerPhone || "Not provided" }}</strong>
+              </div>
+              <div class="contact-grid-wide">
+                <span>Location</span>
+                <strong>{{ selectedBooking.customerLocation || "Not provided" }}</strong>
+              </div>
+            </div>
+            <div class="booking-stats">
+              <div>
+                <span>Total</span>
+                <strong>{{ selectedBooking.totalLabel }}</strong>
+              </div>
+              <div>
+                <span>Quantity</span>
+                <strong>{{ selectedBooking.quantity }}</strong>
+              </div>
+            </div>
+            <div class="booking-details-grid">
+              <div>
+                <span>Vendor</span>
+                <strong>{{ selectedBooking.vendorName }}</strong>
+              </div>
+              <div>
+                <span>Vendor Email</span>
+                <strong class="detail-email">{{ selectedBooking.vendorEmail || "Not provided" }}</strong>
+              </div>
+              <div>
+                <span>Event Date</span>
+                <strong>{{ selectedBooking.dateLabel }}</strong>
+              </div>
+              <div>
+                <span>Time</span>
+                <strong>{{ selectedBooking.timeLabel }}</strong>
+              </div>
+              <div>
+                <span>Booking Type</span>
+                <strong>{{ selectedBooking.bookingKind }}</strong>
+              </div>
+              <div>
+                <span>Payment</span>
+                <strong>{{ selectedBooking.paymentStatusLabel }}</strong>
+              </div>
+            </div>
+            <div v-if="selectedBooking.bookedItems.length" class="booked-items">
+              <span class="booked-items-label">Booked items</span>
+              <div class="booked-items-list">
+                <span v-for="(entry, index) in selectedBooking.bookedItems" :key="`${selectedBooking.key}:item:${index}`">
+                  {{ entry?.name || "Item" }}
+                </span>
+              </div>
+            </div>
+          </article>
+          <article v-else class="card detail-card empty-detail-card">
+            <header>
+              <h3>No Booking Selected</h3>
+            </header>
+            <p>Select a booking from the list to inspect its customer and vendor details here.</p>
           </article>
 
-          <article class="card support-card">
-            <h3>Need Assistance?</h3>
-            <p>Dedicated vendor support is available 24/7 to help you manage attendee inquiries.</p>
-            <button class="primary-btn" type="button">Chat with Support</button>
+          <article class="card summary-card">
+            <h3>Booking Summary</h3>
+            <p>Live totals across vendor services and package orders in the platform.</p>
+            <div class="summary-feature">
+              <div>
+                <span>Package Orders</span>
+                <strong>{{ countLabel(packageBookingsCount) }}</strong>
+              </div>
+              <div>
+                <span>Service Orders</span>
+                <strong>{{ countLabel(serviceBookingsCount) }}</strong>
+              </div>
+            </div>
+            <div class="summary-list">
+              <div class="summary-item">
+                <span>Confirmed</span>
+                <strong>{{ countLabel(confirmedBookingsCount) }}</strong>
+              </div>
+              <div class="summary-item">
+                <span>Pending</span>
+                <strong>{{ countLabel(pendingBookingsCount) }}</strong>
+              </div>
+              <div class="summary-item">
+                <span>Cancelled</span>
+                <strong>{{ countLabel(cancelledBookingsCount) }}</strong>
+              </div>
+              <div class="summary-item">
+                <span>Revenue</span>
+                <strong>${{ countLabel(confirmedRevenue) }}</strong>
+              </div>
+            </div>
           </article>
         </aside>
       </section>
@@ -351,23 +625,27 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .admin-sidebar {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, #f5f7fc 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.98) 100%);
   border-right: 1px solid var(--stroke);
-  padding: 36px 28px;
+  padding: 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  backdrop-filter: blur(12px);
+  gap: 20px;
+  backdrop-filter: blur(16px);
   position: relative;
 }
 
 .admin-sidebar::after {
   content: "";
   position: absolute;
-  inset: 24px;
-  border-radius: 24px;
-  background: linear-gradient(160deg, rgba(255, 122, 26, 0.08), transparent 45%);
+  inset: 20px 18px;
+  border-radius: 30px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.24)),
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.12), transparent 58%);
   pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.48);
 }
 
 .admin-sidebar > * {
@@ -375,26 +653,41 @@ onMounted(() => void adminStore.loadAll());
   z-index: 1;
 }
 
+.brand-card,
+.sidebar-block {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.brand-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff1e4 0%, #ffe2cb 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff5eb 0%, #ffd7b5 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.22);
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.2);
+  border: 1px solid rgba(255, 122, 26, 0.16);
 }
 
 .brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -403,53 +696,93 @@ onMounted(() => void adminStore.loadAll());
   color: var(--accent);
 }
 
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c86423;
+}
+
 .brand-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-family: "Fraunces", serif;
+  font-size: 22px;
+  color: #132238;
 }
 
 .brand-subtitle {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66758d;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a4b;
+}
+
+.sidebar-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
+}
+
+.sidebar-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sidebar-section-caption {
   font-size: 12px;
-  color: var(--muted);
+  color: #7b8ba2;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid transparent;
-  background: transparent;
-  padding: 14px 16px;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
   font-size: 15px;
   cursor: pointer;
-  color: #475569;
-  transition: all 0.2s ease;
+  color: #314258;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .nav-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
-  color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
 }
 
 .nav-icon svg {
@@ -459,69 +792,26 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
-  color: var(--accent);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
-}
-
-.home-link {
-  text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
 }
 
 .admin-main {
@@ -710,6 +1000,14 @@ onMounted(() => void adminStore.loadAll());
   align-items: start;
 }
 
+.queue-card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
 .card {
   background: var(--surface);
   border-radius: 18px;
@@ -718,52 +1016,88 @@ onMounted(() => void adminStore.loadAll());
   box-shadow: var(--shadow);
 }
 
-.table-card header {
+.queue-card header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
 }
 
+.table-summary {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .table-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.table {
-  display: grid;
-  gap: 8px;
-}
-
-.table-empty {
-  padding: 16px;
-  border-radius: 14px;
-  border: 1px dashed rgba(15, 23, 42, 0.12);
-  background: #fff;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.table-head,
-.table-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1.4fr 1.2fr 0.8fr 0.8fr;
-  gap: 12px;
+.table-chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 245, 236, 0.95);
+  border: 1px solid rgba(255, 122, 26, 0.12);
+  color: #d05f17;
   font-size: 12px;
+  font-weight: 700;
 }
 
-.table-head {
+.table-feedback {
+  margin: 0;
+  padding: 16px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(15, 23, 42, 0.06);
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
 }
 
-.table-row {
-  padding: 12px;
-  border-radius: 12px;
+.table-feedback.error {
+  color: #b45309;
+  background: #fff7ed;
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+.booking-list {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 22px;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.05);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.booking-row:hover {
+  transform: translateX(4px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
+}
+
+.booking-row.selected {
+  border-color: rgba(255, 122, 26, 0.2);
+  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
+  box-shadow: 0 18px 36px rgba(255, 122, 26, 0.12);
+}
+
+.booking-row-main {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.92fr) minmax(240px, 1.08fr);
+  gap: 18px;
   align-items: center;
+  min-width: 0;
 }
 
 .attendee {
@@ -771,9 +1105,70 @@ onMounted(() => void adminStore.loadAll());
   font-weight: 600;
 }
 
-.attendee-email {
+.customer-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.customer-copy,
+.booking-overview {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.service-name {
+  margin: 0;
+  font-weight: 600;
+  color: #17263d;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.service-meta {
   font-size: 12px;
   color: var(--muted);
+}
+
+.booking-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.info-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f7fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  color: #5d6d84;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.booking-row-side {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  align-content: center;
+  text-align: right;
+}
+
+.booking-date {
+  font-size: 13px;
+  color: #425168;
+  font-weight: 600;
+}
+
+.booking-stat {
+  font-size: 16px;
+  font-weight: 700;
+  color: #17263d;
 }
 
 .status {
@@ -799,30 +1194,278 @@ onMounted(() => void adminStore.loadAll());
   color: #e2553f;
 }
 
-.insight-card {
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
-  color: #fff;
-}
-
-.insight-card p {
-  margin: 10px 0 16px;
-  opacity: 0.9;
-}
-
-.support-card {
-  background: #fff;
-}
-
 .side-column {
   display: grid;
   gap: 16px;
 }
 
-.link-btn {
-  border: none;
-  background: transparent;
-  color: var(--accent-strong);
-  cursor: pointer;
+.detail-card,
+.empty-detail-card,
+.summary-card {
+  background: var(--surface-strong);
+}
+
+.detail-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.detail-head {
+  gap: 12px;
+}
+
+.detail-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #b66731;
+}
+
+.detail-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 244, 234, 0.98);
+  border: 1px solid rgba(255, 122, 26, 0.14);
+  color: #c95e18;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customer-block {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.customer-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 245, 236, 0.98), rgba(255, 223, 193, 0.92));
+  color: #f15b2a;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 122, 26, 0.14);
+  box-shadow: 0 14px 30px rgba(255, 122, 26, 0.14);
+}
+
+.customer-avatar-small {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.customer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.customer-avatar span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.customer-details {
+  min-width: 0;
+}
+
+.customer-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.customer-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-tags span:not(.status) {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f7fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  color: #5d6d84;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.contact-grid div {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.contact-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.contact-grid span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.contact-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #17263d;
+  word-break: break-word;
+}
+
+.booking-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.booking-stats div {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 246, 239, 0.98), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(255, 122, 26, 0.12);
+}
+
+.booking-stats span,
+.booking-details-grid span,
+.contact-grid span,
+.summary-item span,
+.summary-feature span,
+.booked-items-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.booking-stats strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.booking-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.booking-details-grid div {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.booking-details-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: #17263d;
+}
+
+.detail-email {
+  line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.booked-items {
+  margin-top: 16px;
+}
+
+.booked-items-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.booked-items-list span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #fff3e6;
+  color: #d05f17;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.summary-card p,
+.empty-detail-card p {
+  margin: 10px 0 16px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.summary-feature {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.summary-feature div {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 246, 239, 0.98), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(255, 122, 26, 0.12);
+}
+
+.summary-feature strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+  color: #17263d;
+}
+
+.summary-list {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.summary-item strong {
+  color: #17263d;
 }
 
 .primary-btn {
@@ -842,28 +1485,24 @@ onMounted(() => void adminStore.loadAll());
   font-size: 12px;
 }
 
-.ghost-btn {
-  border: 1px solid rgba(255, 122, 26, 0.3);
-  background: rgba(255, 255, 255, 0.85);
-  color: #c65300;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 @media (max-width: 1100px) {
   .bookings-grid {
     grid-template-columns: 1fr;
   }
 
-  .table-head {
-    display: none;
+  .booking-row-main {
+    grid-template-columns: 1fr;
   }
 
-  .table-row {
-    grid-template-columns: 1fr 1fr;
+  .booking-row {
+    grid-template-columns: 1fr;
     row-gap: 8px;
+  }
+
+  .booking-row-side {
+    justify-self: start;
+    text-align: left;
+    justify-items: start;
   }
 }
 
@@ -875,6 +1514,11 @@ onMounted(() => void adminStore.loadAll());
   .admin-nav {
     flex-direction: row;
     overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    min-width: 220px;
   }
 
   .bookings-hero {
@@ -888,9 +1532,31 @@ onMounted(() => void adminStore.loadAll());
     padding: 24px;
   }
 
+  .admin-sidebar {
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .contact-grid,
+  .summary-feature,
+  .booking-details-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-topbar {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .table-actions,
+  .detail-head {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 </style>
+

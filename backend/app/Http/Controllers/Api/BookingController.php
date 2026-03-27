@@ -27,7 +27,9 @@ class BookingController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'event_type' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', Rule::in(['pending', 'confirmed', 'cancelled'])],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $customerEmail = isset($validated['customer_email'])
             ? strtolower(trim((string) $validated['customer_email']))
@@ -37,9 +39,9 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
-                'event.vendor:id,name,email',
-                'user:id,name,email,phone',
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event.vendor:id,name,email,profile_image_url',
+                'user:id,name,email,phone,location,profile_image_url',
             ])
             ->when($userId || $customerEmail || $customerPhoneVariants, function ($query) use ($userId, $customerEmail, $customerPhoneVariants) {
                 $query->where(function ($identityQuery) use ($userId, $customerEmail, $customerPhoneVariants) {
@@ -76,21 +78,26 @@ class BookingController extends Controller
                 )
             )
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage);
 
         return response()->json($bookings);
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 15), 100));
+
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
-                'event.vendor:id,name,email',
-                'user:id,name,email',
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event.vendor:id,name,email,profile_image_url',
+                'user:id,name,email,phone,location,profile_image_url',
             ])
             ->latest()
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json($bookings);
     }

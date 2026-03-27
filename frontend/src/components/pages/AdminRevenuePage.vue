@@ -27,7 +27,7 @@ const navItems = [
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
@@ -483,71 +483,63 @@ onMounted(() => void adminStore.loadAll());
 <template>
   <section class="admin-shell revenue-shell">
     <aside class="admin-sidebar">
-      <div class="brand">
-        <div class="brand-logo">
-          <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
-          <div v-else class="brand-mark">A</div>
-        </div>
-        <div>
-          <p class="brand-title">Revenue Admin</p>
-          <p class="brand-subtitle">Management Suite</p>
+      <div class="brand-card">
+        <div class="brand">
+          <div class="brand-logo">
+            <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+            <div v-else class="brand-mark">A</div>
+          </div>
+          <div>
+            <p class="brand-kicker">Operations Console</p>
+            <p class="brand-title">Achar Admin</p>
+            <p class="brand-subtitle">Revenue performance workspace</p>
+          </div>
         </div>
       </div>
 
-      <nav class="admin-nav">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-          type="button"
-          class="nav-item"
-          :class="{ active: activeKey === item.key }"
-          @click="navigateTo(item.key)"
-        >
-          <span class="nav-icon" aria-hidden="true">
-            <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
-            </svg>
-            <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
-            </svg>
-            <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-            </svg>
-            <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
-            </svg>
-            <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
-            </svg>
-            <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24">
-              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
-            </svg>
-          </span>
-          <span>{{ item.label }}</span>
-        </button>
-        <RouterLink class="nav-item home-link" to="/">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z" />
-            </svg>
-          </span>
-          <span>Back to Home</span>
-        </RouterLink>
-      </nav>
-
-      <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
-        <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
-          <p class="user-role">Revenue Manager</p>
+      <section class="sidebar-block">
+        <div class="sidebar-block-head">
+          <span class="sidebar-section-label">Navigation</span>
+          <span class="sidebar-section-caption">Admin modules</span>
         </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
+
+        <nav class="admin-nav">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
+                <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
+              </svg>
+              <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
+                <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
+              </svg>
+              <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
+                <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              </svg>
+              <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
+                <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
+              </svg>
+              <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
+              </svg>
+              <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
+                <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24">
+                <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </section>
+
     </aside>
 
     <main class="admin-main">
@@ -861,26 +853,41 @@ onMounted(() => void adminStore.loadAll());
   z-index: 1;
 }
 
+.brand-card,
+.sidebar-block {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.brand-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff1e4 0%, #ffe2cb 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff5eb 0%, #ffd7b5 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.22);
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.2);
+  border: 1px solid rgba(255, 122, 26, 0.16);
 }
 
 .brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -889,53 +896,93 @@ onMounted(() => void adminStore.loadAll());
   color: var(--accent);
 }
 
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c86423;
+}
+
 .brand-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-family: "Fraunces", serif;
+  font-size: 22px;
+  color: #132238;
 }
 
 .brand-subtitle {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66758d;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a4b;
+}
+
+.sidebar-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
+}
+
+.sidebar-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sidebar-section-caption {
   font-size: 12px;
-  color: var(--muted);
+  color: #7b8ba2;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid transparent;
-  background: transparent;
-  padding: 14px 16px;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
   font-size: 15px;
   cursor: pointer;
-  color: #475569;
-  transition: all 0.2s ease;
+  color: #314258;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .nav-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
-  color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
 }
 
 .nav-icon svg {
@@ -945,69 +992,26 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
-  color: var(--accent);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
-}
-
-.home-link {
-  text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
 }
 
 .admin-main {
@@ -1743,6 +1747,11 @@ onMounted(() => void adminStore.loadAll());
   .admin-nav {
     flex-direction: row;
     overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    min-width: 220px;
   }
 
   .revenue-hero {
@@ -1765,6 +1774,15 @@ onMounted(() => void adminStore.loadAll());
 @media (max-width: 720px) {
   .admin-main {
     padding: 24px;
+  }
+
+  .admin-sidebar {
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .admin-topbar {
@@ -1795,3 +1813,4 @@ onMounted(() => void adminStore.loadAll());
   }
 }
 </style>
+

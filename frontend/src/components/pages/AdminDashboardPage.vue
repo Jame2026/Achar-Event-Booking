@@ -1,6 +1,9 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { apiPatch } from "../../features/apiClient";
+import { serviceFeeRate } from "../../features/appData";
+import { getStoredLanguage, setStoredLanguage } from "../../features/language";
 import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
@@ -11,6 +14,14 @@ const props = defineProps({
   adminDisplayName: {
     type: String,
     default: "Admin",
+  },
+  adminUser: {
+    type: Object,
+    default: null,
+  },
+  updateAdminUser: {
+    type: Function,
+    default: null,
   },
   logoutUser: {
     type: Function,
@@ -25,7 +36,7 @@ const navItems = [
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
@@ -53,6 +64,121 @@ const initials = computed(() => {
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
+const ADMIN_NOTIFICATION_SETTINGS_KEY = "achar_admin_notification_settings_v1";
+const ADMIN_SECURITY_SETTINGS_KEY = "achar_admin_security_settings_v1";
+const ADMIN_SYSTEM_SETTINGS_KEY = "achar_admin_system_settings_v1";
+const settingsSections = [
+  { key: "security", label: "Security" },
+  { key: "notifications", label: "Notifications" },
+  { key: "system", label: "System Preferences" },
+];
+const languageOptions = [
+  { value: "en", label: "English" },
+  { value: "km", label: "Khmer" },
+  { value: "zh", label: "Chinese" },
+];
+const currencyOptions = [
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "KHR", label: "KHR - Khmer Riel" },
+  { value: "EUR", label: "EUR - Euro" },
+];
+
+const readStoredObject = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { ...fallback };
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? { ...fallback, ...parsed } : { ...fallback };
+  } catch {
+    return { ...fallback };
+  }
+};
+
+const writeStoredObject = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage failures and continue with in-memory settings.
+  }
+};
+
+const getDefaultNotificationSettings = () => ({
+  email: true,
+  sms: false,
+  push: true,
+});
+
+const getDefaultSecuritySettings = () => ({
+  twoFactor: false,
+});
+
+const getDefaultSystemSettings = () => ({
+  language: getStoredLanguage(),
+  currency: "USD",
+  theme: "light",
+});
+
+const activeSettingsSection = ref("security");
+const settingsNotice = ref("");
+const settingsNoticeTone = ref("info");
+const isSavingSettings = ref(false);
+const passwordForm = reactive({
+  current: "",
+  next: "",
+  confirm: "",
+  saving: false,
+  notice: "",
+  error: "",
+});
+const notificationSettings = reactive(readStoredObject(ADMIN_NOTIFICATION_SETTINGS_KEY, getDefaultNotificationSettings()));
+const securitySettings = reactive(readStoredObject(ADMIN_SECURITY_SETTINGS_KEY, getDefaultSecuritySettings()));
+const systemSettings = reactive(readStoredObject(ADMIN_SYSTEM_SETTINGS_KEY, getDefaultSystemSettings()));
+const preferredCurrency = computed(() =>
+  currencyOptions.some((option) => option.value === systemSettings.currency) ? systemSettings.currency : "USD",
+);
+const setSettingsNotice = (message, tone = "info") => {
+  settingsNotice.value = String(message || "").trim();
+  settingsNoticeTone.value = tone;
+};
+
+const clearSettingsNotice = () => {
+  settingsNotice.value = "";
+  settingsNoticeTone.value = "info";
+};
+
+const persistNotificationSettings = () => {
+  writeStoredObject(ADMIN_NOTIFICATION_SETTINGS_KEY, {
+    email: Boolean(notificationSettings.email),
+    sms: Boolean(notificationSettings.sms),
+    push: Boolean(notificationSettings.push),
+  });
+};
+
+const persistSecuritySettings = () => {
+  writeStoredObject(ADMIN_SECURITY_SETTINGS_KEY, {
+    twoFactor: Boolean(securitySettings.twoFactor),
+  });
+};
+
+const persistSystemSettings = () => {
+  const nextLanguage = setStoredLanguage(systemSettings.language);
+  systemSettings.language = nextLanguage;
+  systemSettings.currency = preferredCurrency.value;
+  systemSettings.theme = systemSettings.theme === "dark" ? "dark" : "light";
+  writeStoredObject(ADMIN_SYSTEM_SETTINGS_KEY, {
+    language: nextLanguage,
+    currency: systemSettings.currency,
+    theme: systemSettings.theme,
+  });
+};
+
+const activateSettingsSection = (key) => {
+  if (!settingsSections.some((section) => section.key === key)) return;
+  activeSettingsSection.value = key;
+  clearSettingsNotice();
+  passwordForm.notice = "";
+  passwordForm.error = "";
+};
 
 const getRoutePage = () => {
   const raw = route.query.page;
@@ -87,7 +213,7 @@ const formatCurrency = (value) => {
   const amount = Number(value || 0);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: preferredCurrency.value,
     minimumFractionDigits: 2,
   }).format(Number.isFinite(amount) ? amount : 0);
 };
@@ -120,6 +246,26 @@ const formatDate = (value) => {
     day: "2-digit",
     year: "numeric",
   });
+};
+
+const formatRoleLabel = (value) => {
+  const normalized = String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (!normalized) return "Admin";
+  return normalized
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const normalizeUserRole = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (["admin", "vendor", "user"].includes(normalized)) return normalized;
+  return "user";
 };
 
 const getInitials = (value) =>
@@ -171,6 +317,7 @@ const normalizedUsers = computed(() =>
     return {
       id: user?.id ? `#${user.id}` : "N/A",
       rawId: Number(user?.id || 0),
+      role: normalizeUserRole(user?.role),
       name: user?.name || user?.full_name || "Guest User",
       email: user?.email || user?.customer_email || "No email",
       phone: user?.phone || user?.phone_number || "No phone",
@@ -185,6 +332,198 @@ const normalizedUsers = computed(() =>
     };
   }),
 );
+
+const matchedAdminUser = computed(() => {
+  const authId = Number(props.adminUser?.id || 0);
+  const authEmail = String(props.adminUser?.email || "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    userRows.value.find((user) => {
+      const userId = Number(user?.id || 0);
+      const userEmail = String(user?.email || user?.customer_email || "")
+        .trim()
+        .toLowerCase();
+
+      if (authId && userId === authId) return true;
+      return authEmail && userEmail === authEmail;
+    }) || null
+  );
+});
+
+const adminSettingsProfile = computed(() => {
+  const authUser = props.adminUser || {};
+  const matchedUser = matchedAdminUser.value || {};
+  const merged = { ...matchedUser, ...authUser };
+  const createdAt =
+    merged?.created_at ||
+    matchedUser?.created_at ||
+    matchedUser?.registered_at ||
+    authUser?.created_at ||
+    null;
+  const lastActiveAt =
+    merged?.last_login_at ||
+    matchedUser?.last_login_at ||
+    matchedUser?.last_active_at ||
+    authUser?.last_login_at ||
+    authUser?.updated_at ||
+    matchedUser?.updated_at ||
+    null;
+  const roleRaw = merged?.role || authUser?.role || "admin";
+  const email = String(merged?.email || matchedUser?.email || authUser?.email || "").trim();
+  const phone = String(merged?.phone || matchedUser?.phone || authUser?.phone || "").trim();
+  const location = String(merged?.location || matchedUser?.location || authUser?.location || "").trim();
+  const profileImageUrl = String(
+    merged?.profile_image_url || matchedUser?.profile_image_url || authUser?.profile_image_url || "",
+  ).trim();
+  const name =
+    String(merged?.name || matchedUser?.full_name || authUser?.name || props.adminDisplayName || "Admin").trim() ||
+    "Admin";
+  const status = normalizeUserStatus(merged);
+
+  return {
+    id: Number(merged?.id || authUser?.id || matchedUser?.id || 0),
+    name,
+    email,
+    phone,
+    location,
+    profileImageUrl,
+    initials: getInitials(name),
+    roleLabel: formatRoleLabel(roleRaw),
+    status,
+    joinedLabel: createdAt ? `Joined ${formatDate(createdAt)}` : "Join date unavailable",
+    joinedDate: createdAt ? formatDate(createdAt) : "Not available",
+    lastActiveLabel: lastActiveAt ? timeAgo(lastActiveAt) : "Recently active",
+  };
+});
+
+const resetPasswordForm = () => {
+  passwordForm.current = "";
+  passwordForm.next = "";
+  passwordForm.confirm = "";
+  passwordForm.notice = "";
+  passwordForm.error = "";
+};
+
+const saveSecuritySettings = async (showNotice = true) => {
+  persistSecuritySettings();
+  passwordForm.notice = "";
+  passwordForm.error = "";
+
+  const current = String(passwordForm.current || "").trim();
+  const next = String(passwordForm.next || "").trim();
+  const confirm = String(passwordForm.confirm || "").trim();
+  const hasPasswordInput = Boolean(current || next || confirm);
+
+  if (!hasPasswordInput) {
+    if (showNotice) {
+      setSettingsNotice("Security preferences saved.", "success");
+    }
+    return true;
+  }
+
+  if (!current || !next || !confirm) {
+    const message = "Fill in current, new, and confirm password to update security settings.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  }
+
+  if (next.length < 8) {
+    const message = "New password must be at least 8 characters.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  }
+
+  if (next !== confirm) {
+    const message = "Password confirmation does not match.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  }
+
+  passwordForm.saving = true;
+  try {
+    const result = await apiPatch("user/password", {
+      user_id: adminSettingsProfile.value.id || undefined,
+      email: adminSettingsProfile.value.email || undefined,
+      phone: adminSettingsProfile.value.phone || undefined,
+      current_password: current,
+      new_password: next,
+      new_password_confirmation: confirm,
+    });
+
+    const message = result?.message || "Password updated successfully.";
+    resetPasswordForm();
+    passwordForm.notice = message;
+    if (showNotice) {
+      setSettingsNotice(message, "success");
+    }
+    return true;
+  } catch (error) {
+    const message = error?.message || "Could not update password.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  } finally {
+    passwordForm.saving = false;
+  }
+};
+
+const resetSecuritySettings = () => {
+  Object.assign(securitySettings, getDefaultSecuritySettings());
+  persistSecuritySettings();
+  resetPasswordForm();
+  setSettingsNotice("Security preferences reset.", "success");
+};
+
+const saveNotificationPreferences = (showNotice = true) => {
+  persistNotificationSettings();
+  if (showNotice) {
+    setSettingsNotice("Notification preferences saved.", "success");
+  }
+  return true;
+};
+
+const resetNotificationPreferences = () => {
+  Object.assign(notificationSettings, getDefaultNotificationSettings());
+  persistNotificationSettings();
+  setSettingsNotice("Notification preferences reset to default.", "success");
+};
+
+const saveSystemPreferences = (showNotice = true) => {
+  persistSystemSettings();
+  if (showNotice) {
+    setSettingsNotice("System preferences saved.", "success");
+  }
+  return true;
+};
+
+const resetSystemPreferences = () => {
+  Object.assign(systemSettings, getDefaultSystemSettings());
+  persistSystemSettings();
+  setSettingsNotice("System preferences reset to default.", "success");
+};
+
+const saveCurrentSettingsSection = async () => {
+  clearSettingsNotice();
+
+  switch (activeSettingsSection.value) {
+    case "security":
+      await saveSecuritySettings(true);
+      return;
+    case "notifications":
+      saveNotificationPreferences(true);
+      return;
+    case "system":
+      saveSystemPreferences(true);
+      return;
+    default:
+      return;
+  }
+};
 
 const filteredUsers = computed(() => {
   const query = usersSearchQuery.value.trim().toLowerCase();
@@ -287,13 +626,15 @@ const getMonthRange = (offset = 0) => {
   return { start, end };
 };
 
-const sumRevenue = (rows, range) =>
+const calculateServiceFee = (amount) => Number((Math.max(0, Number(amount || 0)) * serviceFeeRate).toFixed(2));
+
+const sumServiceFees = (rows, range) =>
   rows.reduce((sum, row) => {
     const status = normalizeBookingStatus(row);
     if (status !== "confirmed") return sum;
     const date = getRowDate(row, row?.event?.starts_at);
     if (!date || (range && (date < range.start || date > range.end))) return sum;
-    return sum + Number(row?.total_amount || 0);
+    return sum + calculateServiceFee(row?.total_amount || 0);
   }, 0);
 
 const countByDate = (rows, range, dateField = "created_at") =>
@@ -303,11 +644,23 @@ const countByDate = (rows, range, dateField = "created_at") =>
     return sum + 1;
   }, 0);
 
+const customerAccountsTotal = computed(
+  () => normalizedUsers.value.filter((user) => user.role === "user").length,
+);
+
+const vendorAccountsTotal = computed(
+  () => normalizedUsers.value.filter((user) => user.role === "vendor").length,
+);
+
+const trackedAccountsTotal = computed(() => customerAccountsTotal.value + vendorAccountsTotal.value);
+
 const dashboardStats = computed(() => {
   const totalEvents = adminSummary.value?.events_total || eventRows.value.length;
   const totalBookings = adminSummary.value?.bookings_total || bookingRows.value.length;
-  const totalUsers = adminSummary.value?.users_total || userRows.value.length;
-  const totalRevenue = sumRevenue(bookingRows.value);
+  const totalCustomers = adminSummary.value?.customers_total || customerAccountsTotal.value;
+  const totalVendors = adminSummary.value?.vendors_total || vendorAccountsTotal.value;
+  const totalAccounts = adminSummary.value?.accounts_total || trackedAccountsTotal.value;
+  const totalServiceFees = adminSummary.value?.service_fee_total || sumServiceFees(bookingRows.value);
 
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
@@ -319,26 +672,32 @@ const dashboardStats = computed(() => {
     countByDate(bookingRows.value, currentMonth, "created_at"),
     countByDate(bookingRows.value, previousMonth, "created_at"),
   );
-  const usersDelta = formatPercentDelta(
-    countByDate(userRows.value, currentMonth, "created_at"),
-    countByDate(userRows.value, previousMonth, "created_at"),
-  );
-  const revenueDelta = formatPercentDelta(
-    sumRevenue(bookingRows.value, currentMonth),
-    sumRevenue(bookingRows.value, previousMonth),
+  const accountsDelta =
+    totalAccounts > 0
+      ? `${formatNumber(totalVendors)} vendors, ${formatNumber(totalCustomers)} customers`
+      : "No customer or vendor accounts";
+  const serviceFeeDelta = formatPercentDelta(
+    sumServiceFees(bookingRows.value, currentMonth),
+    sumServiceFees(bookingRows.value, previousMonth),
   );
 
   return [
     { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
     { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
     {
-      label: "Total Users",
-      value: totalUsers ? formatNumber(totalUsers) : "N/A",
-      delta: usersDelta,
-      tone: totalUsers ? "down" : "neutral",
+      label: "Total Accounts",
+      value: formatNumber(totalAccounts),
+      delta: accountsDelta,
+      tone: "neutral",
       icon: "users",
     },
-    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid", icon: "revenue" },
+    {
+      label: "Service Fee Total",
+      value: formatCurrency(totalServiceFees),
+      delta: serviceFeeDelta,
+      tone: "solid",
+      icon: "revenue",
+    },
   ];
 });
 
@@ -389,15 +748,15 @@ const recentActivity = computed(() => {
 const monthlyReport = computed(() => {
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
-  const currentRevenue = sumRevenue(bookingRows.value, currentMonth);
-  const previousRevenue = sumRevenue(bookingRows.value, previousMonth);
-  const growth = previousRevenue ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+  const currentServiceFees = sumServiceFees(bookingRows.value, currentMonth);
+  const previousServiceFees = sumServiceFees(bookingRows.value, previousMonth);
+  const growth = previousServiceFees ? ((currentServiceFees - previousServiceFees) / previousServiceFees) * 100 : 0;
   return {
     growthLabel: `${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`,
     message:
-      previousRevenue > 0
-        ? `Revenue is ${growth >= 0 ? "up" : "down"} ${Math.abs(growth).toFixed(1)}% compared to last month.`
-        : "Revenue insights will appear once bookings are confirmed.",
+      previousServiceFees > 0
+        ? `Service fee income is ${growth >= 0 ? "up" : "down"} ${Math.abs(growth).toFixed(1)}% compared to last month.`
+        : "Service fee insights will appear once bookings are confirmed.",
   };
 });
 
@@ -618,93 +977,87 @@ const handleExportUsers = async () => {
 
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
-onMounted(() => void adminStore.loadAll());
+onMounted(() =>
+  void adminStore.loadAll({
+    adminUserId: props.adminUser?.id || null,
+  }),
+);
 </script>
 
 <template>
-  <section class="admin-shell">
+  <section class="admin-shell" :class="{ 'theme-dark': systemSettings.theme === 'dark' }">
     <aside class="admin-sidebar">
-      <div class="brand">
-        <div class="brand-logo">
-          <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
-          <div v-else class="brand-mark">A</div>
-        </div>
-        <div>
-          <p class="brand-title">Architect Admin</p>
-          <p class="brand-subtitle">Management Suite</p>
+      <div class="brand-card">
+        <div class="brand">
+          <div class="brand-logo">
+            <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+            <div v-else class="brand-mark">A</div>
+          </div>
+          <div>
+            <p class="brand-kicker">Operations Console</p>
+            <p class="brand-title">Achar Admin</p>
+            <p class="brand-subtitle">Operations overview workspace</p>
+          </div>
         </div>
       </div>
 
-      <nav class="admin-nav">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-        type="button"
-        class="nav-item"
-        :class="{ active: activeKey === item.key }"
-        @click="navigateTo(item.key)"
-      >
-          <span class="nav-icon" aria-hidden="true">
-            <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path
-                d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path
-                d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path
-                d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path
-                d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path
-                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path
-                d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z"
-              />
-            </svg>
-            <svg v-else viewBox="0 0 24 24">
-              <path
-                d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z"
-              />
-            </svg>
-          </span>
-          <span>{{ item.label }}</span>
-        </button>
-        <RouterLink class="nav-item home-link" to="/">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z"
-              />
-            </svg>
-          </span>
-          <span>Back to Home</span>
-        </RouterLink>
-      </nav>
-
-      <div class="admin-user-card">
-        <div class="avatar">{{ initials }}</div>
-        <div>
-          <p class="user-name">{{ adminDisplayName }}</p>
-          <p class="user-role">Super Admin</p>
+      <section class="sidebar-block">
+        <div class="sidebar-block-head">
+          <span class="sidebar-section-label">Navigation</span>
+          <span class="sidebar-section-caption">Admin modules</span>
         </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
+
+        <nav class="admin-nav">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
+                <path
+                  d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
+                <path
+                  d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
+                <path
+                  d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
+                <path
+                  d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
+                <path
+                  d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
+                <path
+                  d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z"
+                />
+              </svg>
+              <svg v-else viewBox="0 0 24 24">
+                <path
+                  d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z"
+                />
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </section>
+
     </aside>
 
     <main class="admin-main">
@@ -743,10 +1096,7 @@ onMounted(() => void adminStore.loadAll());
         <h1 class="hero-title">Dashboard Overview</h1>
         <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
         <div class="hero-actions">
-          <button class="ghost-btn" type="button">Create Event</button>
-          <button class="primary-btn" type="button" :disabled="isExportingPdf" @click="handleExportPdf">
-            {{ isExportingPdf ? "Exporting..." : "Export Report (PDF)" }}
-          </button>
+          <button class="primary-btn" type="button">Export Report</button>
         </div>
       </section>
 
@@ -862,70 +1212,46 @@ onMounted(() => void adminStore.loadAll());
             </div>
           </div>
           <div class="settings-quick">
-            <button class="ghost-btn" type="button">Reset to Default</button>
-            <button class="primary-btn" type="button">Save All Changes</button>
+            <span class="pill alt">{{ adminSettingsProfile.joinedLabel }}</span>
+            <span class="pill alt">Last active {{ adminSettingsProfile.lastActiveLabel }}</span>
+            <button
+              class="primary-btn"
+              type="button"
+              :disabled="isSavingSettings || passwordForm.saving"
+              @click="saveCurrentSettingsSection"
+            >
+              Save
+            </button>
           </div>
         </div>
+        <p
+          v-if="settingsNotice"
+          class="settings-feedback"
+          :class="{
+            success: settingsNoticeTone === 'success',
+            error: settingsNoticeTone === 'error',
+          }"
+        >
+          {{ settingsNotice }}
+        </p>
 
         <div class="settings-layout">
           <aside class="settings-menu">
-            <button type="button" class="settings-link active">
+            <button
+              v-for="section in settingsSections"
+              :key="section.key"
+              type="button"
+              class="settings-link"
+              :class="{ active: activeSettingsSection === section.key }"
+              @click="activateSettingsSection(section.key)"
+            >
               <span class="dot"></span>
-              Profile Settings
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              Security
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              Notifications
-            </button>
-            <button type="button" class="settings-link">
-              <span class="dot"></span>
-              System Preferences
+              {{ section.label }}
             </button>
           </aside>
 
           <div class="settings-content">
-            <article class="settings-card">
-              <div class="card-header">
-                <div>
-                  <h3>Profile Settings</h3>
-                  <p>Update your photo and personal details.</p>
-                </div>
-                <span class="pill">Admin Profile</span>
-              </div>
-              <div class="profile-row">
-                <div class="profile-avatar">
-                  <div class="avatar-circle">AD</div>
-                  <div class="profile-details">
-                    <p class="label">Profile Picture</p>
-                    <p class="hint">JPG, GIF or PNG. Max size of 800K</p>
-                    <div class="upload-actions">
-                      <button class="ghost-btn" type="button">Upload New</button>
-                      <button class="link-btn danger" type="button">Remove</button>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-grid">
-                  <label>
-                    <span>Full Name</span>
-                    <input type="text" value="Admin User" />
-                  </label>
-                  <label>
-                    <span>Role</span>
-                    <input type="text" value="Super Admin" disabled />
-                  </label>
-                  <label class="full">
-                    <span>Email Address</span>
-                    <input type="email" value="admin@eventhorizon.com" />
-                  </label>
-                </div>
-              </div>
-            </article>
-
-            <article class="settings-card">
+            <article v-if="activeSettingsSection === 'security'" class="settings-card">
               <div class="card-header">
                 <div>
                   <h3>Security & Privacy</h3>
@@ -936,11 +1262,34 @@ onMounted(() => void adminStore.loadAll());
               <div class="form-grid">
                 <label>
                   <span>Current Password</span>
-                  <input type="password" value="password" />
+                  <input
+                    v-model="passwordForm.current"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter current password"
+                  />
                 </label>
                 <label>
                   <span>New Password</span>
-                  <input type="password" placeholder="Enter new password" />
+                  <input
+                    v-model="passwordForm.next"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Enter new password"
+                  />
+                </label>
+                <label>
+                  <span>Confirm Password</span>
+                  <input
+                    v-model="passwordForm.confirm"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Confirm new password"
+                  />
+                </label>
+                <label class="full">
+                  <span>Last Active</span>
+                  <input type="text" :value="adminSettingsProfile.lastActiveLabel" readonly />
                 </label>
               </div>
               <div class="toggle-row">
@@ -949,13 +1298,25 @@ onMounted(() => void adminStore.loadAll());
                   <span>Add an extra layer of security to your account.</span>
                 </div>
                 <label class="switch">
-                  <input type="checkbox" checked />
+                  <input v-model="securitySettings.twoFactor" type="checkbox" />
                   <span></span>
                 </label>
               </div>
+              <div class="settings-card-actions">
+                <button
+                  class="primary-btn"
+                  type="button"
+                  :disabled="passwordForm.saving"
+                  @click="saveSecuritySettings(true)"
+                >
+                  {{ passwordForm.saving ? "Updating..." : "Update Security" }}
+                </button>
+                <p v-if="passwordForm.notice" class="inline-feedback success">{{ passwordForm.notice }}</p>
+                <p v-else-if="passwordForm.error" class="inline-feedback error">{{ passwordForm.error }}</p>
+              </div>
             </article>
 
-            <article class="settings-card">
+            <article v-else-if="activeSettingsSection === 'notifications'" class="settings-card">
               <div class="card-header">
                 <div>
                   <h3>Notification Preferences</h3>
@@ -970,7 +1331,7 @@ onMounted(() => void adminStore.loadAll());
                     <span>Receive summaries of bookings and revenue.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" checked />
+                    <input v-model="notificationSettings.email" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -980,7 +1341,7 @@ onMounted(() => void adminStore.loadAll());
                     <span>Urgent event cancellations or security alerts.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" />
+                    <input v-model="notificationSettings.sms" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -990,14 +1351,14 @@ onMounted(() => void adminStore.loadAll());
                     <span>Browser and mobile app push alerts.</span>
                   </div>
                   <label class="switch">
-                    <input type="checkbox" checked />
+                    <input v-model="notificationSettings.push" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
               </div>
             </article>
 
-            <article class="settings-card">
+            <article v-else-if="activeSettingsSection === 'system'" class="settings-card">
               <div class="card-header">
                 <div>
                   <h3>System Preferences</h3>
@@ -1008,29 +1369,41 @@ onMounted(() => void adminStore.loadAll());
               <div class="form-grid">
                 <label>
                   <span>Interface Language</span>
-                  <select>
-                    <option>English (US)</option>
-                    <option>English (UK)</option>
-                    <option>Khmer</option>
+                  <select v-model="systemSettings.language">
+                    <option v-for="option in languageOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </label>
                 <label>
                   <span>Default Currency</span>
-                  <select>
-                    <option>USD - US Dollar</option>
-                    <option>KHR - Khmer Riel</option>
-                    <option>EUR - Euro</option>
+                  <select v-model="systemSettings.currency">
+                    <option v-for="option in currencyOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </label>
               </div>
               <div class="toggle-row theme-row">
                 <div>
-                  <p>Dark Mode Interface</p>
+                  <p>Interface Theme</p>
                   <span>Switch between light and dark display modes.</span>
                 </div>
                 <div class="theme-toggle">
-                  <button type="button" class="active">Light</button>
-                  <button type="button">Dark</button>
+                  <button
+                    type="button"
+                    :class="{ active: systemSettings.theme === 'light' }"
+                    @click="systemSettings.theme = 'light'"
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: systemSettings.theme === 'dark' }"
+                    @click="systemSettings.theme = 'dark'"
+                  >
+                    Dark
+                  </button>
                 </div>
               </div>
             </article>
@@ -1038,7 +1411,7 @@ onMounted(() => void adminStore.loadAll());
         </div>
       </section>
 
-      <section v-else-if="activeKey === 'users'" class="users-page">
+      <section v-else-if="activeKey === 'customers'" class="users-page">
         <div class="users-toolbar">
           <label class="search users-search">
             <span class="search-icon" aria-hidden="true">
@@ -1251,6 +1624,20 @@ onMounted(() => void adminStore.loadAll());
   overflow: hidden;
 }
 
+.admin-shell.theme-dark {
+  --ink: #e5eef9;
+  --muted: #b7c4d4;
+  --surface: rgba(15, 23, 42, 0.82);
+  --surface-strong: rgba(15, 23, 42, 0.92);
+  --stroke: rgba(148, 163, 184, 0.18);
+  --shadow: 0 30px 72px rgba(2, 6, 23, 0.42);
+  --shadow-soft: 0 16px 34px rgba(2, 6, 23, 0.3);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(255, 122, 26, 0.14), transparent 45%),
+    radial-gradient(circle at 78% 18%, rgba(59, 130, 246, 0.16), transparent 46%),
+    linear-gradient(135deg, #0f172a 0%, #162033 52%, #102033 100%);
+}
+
 .admin-shell::before {
   content: "";
   position: absolute;
@@ -1259,6 +1646,12 @@ onMounted(() => void adminStore.loadAll());
     radial-gradient(circle at 14% 70%, rgba(255, 122, 26, 0.14), transparent 45%),
     radial-gradient(circle at 78% 78%, rgba(99, 102, 241, 0.12), transparent 48%);
   pointer-events: none;
+}
+
+.admin-shell.theme-dark::before {
+  background:
+    radial-gradient(circle at 14% 70%, rgba(255, 122, 26, 0.12), transparent 45%),
+    radial-gradient(circle at 78% 78%, rgba(99, 102, 241, 0.1), transparent 48%);
 }
 
 .admin-shell > * {
@@ -1277,6 +1670,10 @@ onMounted(() => void adminStore.loadAll());
   position: relative;
 }
 
+.admin-shell.theme-dark .admin-sidebar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 100%);
+}
+
 .admin-sidebar::after {
   content: "";
   position: absolute;
@@ -1291,26 +1688,47 @@ onMounted(() => void adminStore.loadAll());
   z-index: 1;
 }
 
+.brand-card,
+.sidebar-block {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.admin-shell.theme-dark .brand-card,
+.admin-shell.theme-dark .sidebar-block {
+  background: rgba(15, 23, 42, 0.56);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.brand-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff1e4 0%, #ffe2cb 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff5eb 0%, #ffd7b5 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.22);
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.2);
+  border: 1px solid rgba(255, 122, 26, 0.16);
 }
 
 .brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -1319,54 +1737,121 @@ onMounted(() => void adminStore.loadAll());
   color: var(--accent);
 }
 
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c86423;
+}
+
+.admin-shell.theme-dark .brand-kicker,
+.admin-shell.theme-dark .sidebar-section-label {
+  color: #f4b17b;
+}
+
 .brand-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-family: "Fraunces", serif;
-  letter-spacing: 0.2px;
+  font-size: 22px;
+  color: #132238;
+}
+
+.admin-shell.theme-dark .brand-title {
+  color: #f8fafc;
 }
 
 .brand-subtitle {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66758d;
+}
+
+.admin-shell.theme-dark .brand-subtitle {
+  color: #c6d4e3;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a4b;
+}
+
+.sidebar-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
+}
+
+.sidebar-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sidebar-section-caption {
   font-size: 12px;
-  color: var(--muted);
+  color: #7b8ba2;
+}
+
+.admin-shell.theme-dark .sidebar-section-caption {
+  color: #9fb2c8;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(17, 24, 39, 0.06);
-  padding: 14px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid transparent;
-  background: transparent;
-  padding: 14px 16px;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
   font-size: 15px;
   cursor: pointer;
-  color: #4b5563;
-  transition: all 0.2s ease;
+  color: #314258;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.admin-shell.theme-dark .nav-item {
+  color: #d7e2ee;
+  background: rgba(15, 23, 42, 0.34);
 }
 
 .nav-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
-  color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
+}
+
+.admin-shell.theme-dark .nav-icon {
+  background: radial-gradient(circle at 30% 20%, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.88) 70%);
+  color: #9fb2c8;
+  border-color: rgba(148, 163, 184, 0.12);
 }
 
 .nav-icon svg {
@@ -1376,69 +1861,26 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
-  color: var(--accent);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
-}
-
-.home-link {
-  text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
 }
 
 .admin-main {
@@ -2062,6 +2504,27 @@ onMounted(() => void adminStore.loadAll());
   flex-wrap: wrap;
 }
 
+.settings-feedback {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  font-size: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-feedback.success {
+  border-color: rgba(47, 158, 95, 0.22);
+  color: #1f7a4a;
+}
+
+.settings-feedback.error {
+  border-color: rgba(226, 85, 63, 0.24);
+  color: #c53f28;
+}
+
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(220px, 260px) 1fr;
@@ -2164,54 +2627,11 @@ onMounted(() => void adminStore.loadAll());
   gap: 20px;
 }
 
-.profile-avatar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  flex-wrap: wrap;
-}
-
-.profile-details {
-  flex: 1;
-  min-width: 220px;
-}
-
-.avatar-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #ffb98b 0%, #ff8b3d 100%);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-weight: 700;
-}
-
-.label {
-  margin: 0;
-  font-weight: 600;
-}
-
-.hint {
-  margin: 4px 0 10px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.upload-actions {
+.profile-meta {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.upload-actions .ghost-btn,
-.upload-actions .link-btn {
-  white-space: nowrap;
 }
 
 .form-grid {
@@ -2249,6 +2669,11 @@ onMounted(() => void adminStore.loadAll());
   color: #94a3b8;
 }
 
+.form-grid input[readonly] {
+  background: #f8fafc;
+  color: #334155;
+}
+
 .form-grid .full {
   grid-column: 1 / -1;
 }
@@ -2281,6 +2706,28 @@ onMounted(() => void adminStore.loadAll());
 .toggle-list {
   display: grid;
   gap: 12px;
+}
+
+.settings-card-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inline-feedback {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inline-feedback.success {
+  color: #1f7a4a;
+}
+
+.inline-feedback.error {
+  color: #c53f28;
 }
 
 .switch {
@@ -2356,6 +2803,57 @@ onMounted(() => void adminStore.loadAll());
 
 .link-btn.danger {
   color: #e2553f;
+}
+
+.admin-shell.theme-dark .settings-menu,
+.admin-shell.theme-dark .settings-card,
+.admin-shell.theme-dark .toggle-row,
+.admin-shell.theme-dark .settings-feedback {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.admin-shell.theme-dark .settings-link {
+  color: #d7e2ee;
+}
+
+.admin-shell.theme-dark .settings-link .dot {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.admin-shell.theme-dark .pill {
+  background: rgba(255, 122, 26, 0.16);
+  color: #ffb98b;
+}
+
+.admin-shell.theme-dark .pill.alt {
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfd8ff;
+}
+
+.admin-shell.theme-dark .form-grid input,
+.admin-shell.theme-dark .form-grid select {
+  background: rgba(15, 23, 42, 0.88);
+  color: var(--ink);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.admin-shell.theme-dark .form-grid input::placeholder {
+  color: #7f8ea3;
+}
+
+.admin-shell.theme-dark .form-grid input[readonly] {
+  background: rgba(30, 41, 59, 0.78);
+  color: #d7e2ee;
+}
+
+.admin-shell.theme-dark .theme-toggle {
+  background: rgba(30, 41, 59, 0.88);
+}
+
+.admin-shell.theme-dark .theme-toggle button.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffb98b;
 }
 
 .users-page {
@@ -2883,18 +3381,13 @@ onMounted(() => void adminStore.loadAll());
   }
 
   .admin-nav {
-    display: flex;
     flex-direction: row;
-    gap: 10px;
     overflow-x: auto;
-    padding: 10px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid var(--stroke);
+    padding-bottom: 4px;
   }
 
-  .admin-user-card {
-    margin-top: 0;
+  .nav-item {
+    min-width: 220px;
   }
 
   .admin-grid {
@@ -2909,6 +3402,15 @@ onMounted(() => void adminStore.loadAll());
 @media (max-width: 720px) {
   .admin-main {
     padding: 24px;
+  }
+
+  .admin-sidebar {
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .admin-topbar {
@@ -2938,3 +3440,5 @@ onMounted(() => void adminStore.loadAll());
   }
 }
 </style>
+
+

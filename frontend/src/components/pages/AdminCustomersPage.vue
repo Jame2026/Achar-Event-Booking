@@ -1,14 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { eventTypeMap } from "../../features/appData";
-import { formatDateTime } from "../../features/bookingMappers";
-import { apiGet, apiPatch } from "../../features/apiClient";
-import { useAdminDataStore } from "../../features/useAdminDataStore";
+import { formatDateTime, summarizeBookedServices } from "../../features/bookingMappers";
+import { apiGet } from "../../features/apiClient";
 
 const props = defineProps({
   appLogoSrc: { type: String, default: "" },
   adminDisplayName: { type: String, default: "Admin" },
+  adminUserId: { type: [Number, String], default: null },
   logoutUser: { type: Function, default: null },
 });
 
@@ -25,30 +24,27 @@ const navItems = [
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 
-const activeKey = ref("vendors");
+const activeKey = ref("customers");
 const searchQuery = ref("");
-const visibilityFilter = ref("all");
-const categoryFilter = ref("all");
-const adminStore = useAdminDataStore();
+const activityFilter = ref("all");
+const bookingStateFilter = ref("all");
 const isLoading = ref(false);
-const isSaving = ref(false);
 const notice = ref("");
 const noticeTone = ref("info");
-const vendorUsers = ref([]);
-const vendorEvents = ref([]);
-const selectedVendorKey = ref("");
-const failedVendorImages = ref(new Set());
+const customers = ref([]);
+const selectedCustomerKey = ref("");
+const failedCustomerImages = ref(new Set());
 
-const initials = computed(() => {
-  const parts = String(props.adminDisplayName || "Admin").split(" ").filter(Boolean);
-  return `${parts[0]?.[0] || "A"}${parts[1]?.[0] || ""}`.toUpperCase();
-});
-function vendorKey(id, name) {
-  return id ? `vendor:${id}` : `vendor-name:${String(name || "vendor").trim().toLowerCase()}`;
+function count(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function money(value) {
+  return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
 function shortName(value) {
-  return String(value || "Vendor")
+  return String(value || "Customer")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -62,25 +58,31 @@ function stamp(value) {
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
-function money(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+function formatTimeLabel(dateString) {
+  const raw = String(dateString || "").trim();
+  if (!raw) return "Time TBD";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "All day";
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Time TBD";
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-function count(value) {
-  return Number(value || 0).toLocaleString();
-}
+function formatBadgeLabel(value, fallback = "Unknown") {
+  const normalized = String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim();
 
-function listingKind(value) {
-  const packages = Array.isArray(value?.packages) ? value.packages.filter(Boolean) : [];
-  const mode = String(value?.service_mode || "").trim().toLowerCase();
-  return mode === "package" || packages.length ? "Package" : "Service";
-}
+  if (!normalized) return fallback;
 
-function visibilityLabel(value) {
-  if (value === "paused") return "Paused";
-  if (value === "mixed") return "Mixed";
-  if (value === "empty") return "No Listings";
-  return "Live";
+  return normalized
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function setNotice(message, tone = "info") {
@@ -88,131 +90,111 @@ function setNotice(message, tone = "info") {
   noticeTone.value = tone;
 }
 
-const vendorRows = computed(() => {
-  const groups = new Map();
+const initials = computed(() => {
+  const parts = String(props.adminDisplayName || "Admin").split(" ").filter(Boolean);
+  return `${parts[0]?.[0] || "A"}${parts[1]?.[0] || ""}`.toUpperCase();
+});
 
-  vendorUsers.value.forEach((vendor) => {
-    const vendorId = Number(vendor?.id || 0) || null;
-    const vendorName = String(vendor?.name || "Vendor").trim() || "Vendor";
-    const key = vendorKey(vendorId, vendorName);
+const customerRows = computed(() =>
+  customers.value
+    .map((customer) => {
+      const customerName = String(customer?.name || "Customer").trim() || "Customer";
+      const bookingHistory = (Array.isArray(customer?.bookings) ? customer.bookings : [])
+        .map((booking) => {
+          const event = booking?.event || {};
+          const vendor = event?.vendor || {};
+          const bookedItems = Array.isArray(booking?.booked_items) ? booking.booked_items : [];
+          const bookingDate = booking?.requested_event_date || event?.starts_at || booking?.created_at || "";
+          const totalAmount = Number(booking?.total_amount || 0);
+          const status = ["confirmed", "cancelled"].includes(String(booking?.status || "").toLowerCase())
+            ? String(booking.status).toLowerCase()
+            : "pending";
 
-    groups.set(key, {
-      key,
-      id: vendorId,
-      name: vendorName,
-      initials: shortName(vendorName),
-      email: String(vendor?.email || "").trim(),
-      phone: String(vendor?.phone || "").trim(),
-      location: String(vendor?.location || "").trim(),
-      profileImageUrl: String(vendor?.profile_image_url || "").trim(),
-      vendorImageKey: vendorId ? `vendor:${vendorId}` : `vendor:${vendorName.toLowerCase()}`,
-      categories: new Set(),
-      serviceCount: 0,
-      activeCount: 0,
-      bookingsCount: 0,
-      packageCount: 0,
-      lastActivity: "",
-      joinedAt: vendor?.created_at || "",
-      listings: [],
-    });
-  });
+          return {
+            id: Number(booking?.id || 0),
+            bookingCode: `#BK-${String(booking?.id || 0).padStart(4, "0")}`,
+            vendorName: String(vendor?.name || "Vendor").trim() || "Vendor",
+            vendorEmail: String(vendor?.email || "").trim(),
+            serviceLabel: summarizeBookedServices(
+              bookedItems,
+              String(booking?.service_name || event?.title || "Service Booking").trim() || "Service Booking",
+            ),
+            bookingKind:
+              String(event?.service_mode || "").trim().toLowerCase() === "package" || bookedItems.length > 1
+                ? "Package"
+                : "Service",
+            eventTypeLabel: formatBadgeLabel(event?.event_type, "Other"),
+            quantity: Number(booking?.quantity || 1),
+            location: String(event?.location || "").trim() || "Location not added yet",
+            status,
+            statusLabel: status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending",
+            paymentStatusLabel: formatBadgeLabel(booking?.payment_status, "Unpaid"),
+            totalAmount,
+            totalLabel: money(totalAmount),
+            dateLabel: formatDateTime(bookingDate),
+            timeLabel: formatTimeLabel(event?.starts_at || bookingDate),
+            sortAt: bookingDate || booking?.created_at || "",
+          };
+        })
+        .sort((left, right) => stamp(right.sortAt) - stamp(left.sortAt));
 
-  vendorEvents.value.forEach((event) => {
-    const vendorId = Number(event?.vendor_id || 0) || null;
-    const vendorName = String(event?.vendor?.name || event?.vendor_name || "Vendor").trim() || "Vendor";
-    const key = vendorKey(vendorId, vendorName);
-    const current = groups.get(key) || {
-      key,
-      id: vendorId,
-      name: vendorName,
-      initials: shortName(vendorName),
-      email: "",
-      phone: "",
-      location: "",
-      profileImageUrl: String(event?.vendor?.profile_image_url || "").trim(),
-      vendorImageKey: vendorId ? `vendor:${vendorId}` : `vendor:${vendorName.toLowerCase()}`,
-      categories: new Set(),
-      serviceCount: 0,
-      activeCount: 0,
-      bookingsCount: 0,
-      packageCount: 0,
-      lastActivity: "",
-      joinedAt: "",
-      listings: [],
-    };
-
-    const typeLabel = eventTypeMap[event?.event_type] || "Other";
-    const kindLabel = listingKind(event);
-    const packagesCount = Array.isArray(event?.packages) ? event.packages.filter(Boolean).length : 0;
-
-    current.serviceCount += 1;
-    current.activeCount += event?.is_active ? 1 : 0;
-    current.bookingsCount += Number(event?.bookings_count || 0);
-    current.packageCount += kindLabel === "Package" ? 1 : 0;
-    current.categories.add(typeLabel);
-    if (!current.location && event?.location) current.location = String(event.location).trim();
-    if (!current.profileImageUrl && event?.vendor?.profile_image_url) current.profileImageUrl = String(event.vendor.profile_image_url).trim();
-
-    const candidate = String(event?.updated_at || event?.starts_at || event?.created_at || "");
-    if (stamp(candidate) > stamp(current.lastActivity)) current.lastActivity = candidate;
-
-    current.listings.push({
-      ...event,
-      typeLabel,
-      kindLabel,
-      packagesCount,
-      dateLabel: event?.starts_at ? formatDateTime(event.starts_at) : "Date TBD",
-      priceLabel: money(event?.price || 0),
-      lastUpdateLabel: formatDateTime(event?.updated_at || event?.created_at || event?.starts_at),
-    });
-
-    groups.set(key, current);
-  });
-
-  return Array.from(groups.values())
-    .map((vendor) => {
-      const inactiveCount = Math.max(0, vendor.serviceCount - vendor.activeCount);
+      const confirmedSpend = bookingHistory
+        .filter((booking) => booking.status === "confirmed")
+        .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+      const preferredTypes = Array.from(new Set(bookingHistory.map((booking) => booking.eventTypeLabel).filter(Boolean)));
+      const bookingsCount = Number(customer?.bookings_count || bookingHistory.length || 0);
+      const confirmedCount = Number(customer?.confirmed_bookings_count || 0);
+      const pendingCount = Number(customer?.pending_bookings_count || 0);
+      const cancelledCount = Number(customer?.cancelled_bookings_count || 0);
 
       return {
-        ...vendor,
-        categories: Array.from(vendor.categories).sort((left, right) => left.localeCompare(right)),
-        listings: [...vendor.listings].sort((left, right) => stamp(right.updated_at || right.starts_at) - stamp(left.updated_at || left.starts_at)),
-        inactiveCount,
-        serviceOnlyCount: Math.max(0, vendor.serviceCount - vendor.packageCount),
-        visibility: vendor.serviceCount === 0 ? "empty" : vendor.activeCount === 0 ? "paused" : inactiveCount > 0 ? "mixed" : "live",
-        location: vendor.location || "Location not added yet",
-        joinedLabel: vendor.joinedAt ? formatDateTime(vendor.joinedAt) : "Join date unavailable",
-        lastActivityLabel: vendor.lastActivity ? formatDateTime(vendor.lastActivity) : "No listing activity yet",
+        id: Number(customer?.id || 0),
+        key: customer?.id ? `customer:${customer.id}` : `customer:${customerName.toLowerCase()}`,
+        name: customerName,
+        initials: shortName(customerName),
+        email: String(customer?.email || "").trim(),
+        phone: String(customer?.phone || "").trim(),
+        location: String(customer?.location || "").trim() || "Location not added yet",
+        profileImageUrl: String(customer?.profile_image_url || "").trim(),
+        customerImageKey: customer?.id ? `customer:${customer.id}` : `customer:${customerName.toLowerCase()}`,
+        joinedLabel: customer?.created_at ? formatDateTime(customer.created_at) : "Join date unavailable",
+        bookingsCount,
+        confirmedCount,
+        pendingCount,
+        cancelledCount,
+        confirmedSpend,
+        confirmedSpendLabel: money(confirmedSpend),
+        preferredTypes,
+        bookingHistory,
+        memberState: bookingsCount === 0 ? "New" : bookingsCount > 1 ? "Repeat" : "Active",
+        lastBookingLabel: bookingHistory[0]?.dateLabel || "No bookings yet",
+        lastBookingService: bookingHistory[0]?.serviceLabel || "No bookings yet",
       };
     })
     .sort((left, right) => {
-      if (right.serviceCount !== left.serviceCount) return right.serviceCount - left.serviceCount;
+      if (right.bookingsCount !== left.bookingsCount) return right.bookingsCount - left.bookingsCount;
       return left.name.localeCompare(right.name);
-    });
-});
+    }),
+);
 
-const categoryOptions = computed(() => {
-  const values = new Set();
-  vendorRows.value.forEach((vendor) => vendor.categories.forEach((item) => values.add(item)));
-  return ["all", ...Array.from(values).sort((a, b) => a.localeCompare(b))];
-});
-
-const filteredVendors = computed(() => {
+const filteredCustomers = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
 
-  return vendorRows.value.filter((vendor) => {
-    if (visibilityFilter.value !== "all" && vendor.visibility !== visibilityFilter.value) return false;
-    if (categoryFilter.value !== "all" && !vendor.categories.includes(categoryFilter.value)) return false;
+  return customerRows.value.filter((customer) => {
+    if (activityFilter.value === "booked" && customer.bookingsCount === 0) return false;
+    if (activityFilter.value === "repeat" && customer.bookingsCount < 2) return false;
+    if (activityFilter.value === "new" && customer.bookingsCount !== 0) return false;
+    if (bookingStateFilter.value !== "all" && !customer.bookingHistory.some((booking) => booking.status === bookingStateFilter.value)) return false;
     if (!query) return true;
 
     return [
-      vendor.name,
-      vendor.email,
-      vendor.phone,
-      vendor.location,
-      vendor.categories.join(" "),
-      vendor.listings.map((item) => item.title).join(" "),
-      String(vendor.id || ""),
+      customer.name,
+      customer.email,
+      customer.phone,
+      customer.location,
+      customer.preferredTypes.join(" "),
+      customer.bookingHistory.map((booking) => `${booking.serviceLabel} ${booking.vendorName}`).join(" "),
+      String(customer.id || ""),
     ]
       .join(" ")
       .toLowerCase()
@@ -220,32 +202,34 @@ const filteredVendors = computed(() => {
   });
 });
 
-const selectedVendor = computed(
-  () => filteredVendors.value.find((item) => item.key === selectedVendorKey.value) || filteredVendors.value[0] || null,
+const selectedCustomer = computed(
+  () => filteredCustomers.value.find((item) => item.key === selectedCustomerKey.value) || filteredCustomers.value[0] || null,
 );
 
-const selectedServices = computed(() => selectedVendor.value?.listings || []);
+const selectedBookings = computed(() => selectedCustomer.value?.bookingHistory || []);
 
 const highlightCards = computed(() => [
-  { label: "Total Vendors", value: count(vendorRows.value.length), note: `${count(filteredVendors.value.length)} shown here` },
-  { label: "Live Vendors", value: count(vendorRows.value.filter((item) => ["live", "mixed"].includes(item.visibility)).length), note: "With visible listings" },
-  { label: "Listings In System", value: count(vendorRows.value.reduce((sum, item) => sum + item.serviceCount, 0)), note: `${count(vendorRows.value.reduce((sum, item) => sum + item.packageCount, 0))} package listings` },
-  { label: "Bookings", value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Across vendor listings" },
+  { label: "Total Customers", value: count(customerRows.value.length), note: `${count(filteredCustomers.value.length)} shown here` },
+  { label: "Active Bookers", value: count(customerRows.value.filter((item) => item.bookingsCount > 0).length), note: "Customers with bookings" },
+  { label: "Bookings In System", value: count(customerRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Across services and packages" },
+  { label: "Confirmed Revenue", value: money(customerRows.value.reduce((sum, item) => sum + item.confirmedSpend, 0)), note: "From confirmed bookings" },
 ]);
-const hasVendorProfileImage = (vendor) =>
-  Boolean(String(vendor?.profileImageUrl || "").trim())
-  && !failedVendorImages.value.has(vendor?.vendorImageKey || vendor?.key);
 
-function handleVendorImageError(imageKey) {
-  if (!imageKey || failedVendorImages.value.has(imageKey)) return;
-  const next = new Set(failedVendorImages.value);
+const totalBookingsCount = computed(() => customerRows.value.reduce((sum, item) => sum + item.bookingsCount, 0));
+const hasCustomerProfileImage = (customer) =>
+  Boolean(String(customer?.profileImageUrl || "").trim())
+  && !failedCustomerImages.value.has(customer?.customerImageKey || customer?.key);
+
+function handleCustomerImageError(imageKey) {
+  if (!imageKey || failedCustomerImages.value.has(imageKey)) return;
+  const next = new Set(failedCustomerImages.value);
   next.add(imageKey);
-  failedVendorImages.value = next;
+  failedCustomerImages.value = next;
 }
 
 function syncActiveKey() {
   const page = Array.isArray(route.query.page) ? route.query.page[0] : route.query.page;
-  activeKey.value = page || "vendors";
+  activeKey.value = page || "customers";
 }
 
 function navigateTo(key) {
@@ -253,82 +237,49 @@ function navigateTo(key) {
   router.replace({ path: "/legacy-app", query: { page: key } }).catch(() => {});
 }
 
-function patchLocalEvent(updated) {
-  const index = vendorEvents.value.findIndex((item) => Number(item?.id) === Number(updated?.id));
-  if (index >= 0) {
-    const existing = vendorEvents.value[index] || {};
-    vendorEvents.value.splice(index, 1, {
-      ...existing,
-      ...updated,
-      vendor: updated?.vendor || existing?.vendor,
-      vendor_name: updated?.vendor_name || existing?.vendor_name,
-      bookings_count: updated?.bookings_count ?? existing?.bookings_count ?? 0,
-    });
+async function loadCustomerDirectory() {
+  if (!props.adminUserId) {
+    customers.value = [];
+    return setNotice("Admin account is missing. Please sign in again.", "error");
   }
-  adminStore.updateEvent(updated);
-}
 
-async function loadVendorDirectory() {
   isLoading.value = true;
   notice.value = "";
 
   try {
-    const [vendorResult, eventResult] = await Promise.all([
-      apiGet("vendors", { per_page: 100, ts: Date.now() }),
-      apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() }),
-    ]);
+    const result = await apiGet("admin/customer-directory", {
+      admin_user_id: props.adminUserId,
+      per_page: 100,
+      ts: Date.now(),
+    });
 
-    vendorUsers.value = Array.isArray(vendorResult?.data) ? vendorResult.data : Array.isArray(vendorResult) ? vendorResult : [];
-    vendorEvents.value = Array.isArray(eventResult?.data) ? eventResult.data : Array.isArray(eventResult) ? eventResult : [];
-    failedVendorImages.value = new Set();
-    if (!vendorUsers.value.length) notice.value = "No vendor accounts found yet.";
+    customers.value = Array.isArray(result?.data) ? result.data : [];
+    failedCustomerImages.value = new Set();
+    if (!customers.value.length) notice.value = "No customer accounts found yet.";
   } catch (error) {
-    vendorUsers.value = [];
-    vendorEvents.value = [];
-    setNotice(error?.message || "Could not load vendor directory.", "error");
+    customers.value = [];
+    setNotice(error?.message || "Could not load customer directory.", "error");
   } finally {
     isLoading.value = false;
   }
 }
 
-async function setVendorVisibility(nextActive) {
-  if (!selectedVendor.value?.id) return setNotice("This vendor does not have a connected vendor account ID.", "error");
-  const services = selectedServices.value.filter((item) => Boolean(item.is_active) !== nextActive);
-  if (!services.length) return setNotice(nextActive ? "All listings are already live." : "All listings are already paused.");
-
-  isSaving.value = true;
-  try {
-    for (const service of services) {
-      const updated = await apiPatch(`vendor/services/${service.id}`, {
-        vendor_user_id: selectedVendor.value.id,
-        is_active: nextActive,
-      });
-      patchLocalEvent(updated);
-    }
-    setNotice(nextActive ? "Vendor listings are live again." : "Vendor listings were paused.", "success");
-  } catch (error) {
-    setNotice(error?.message || "Could not update vendor visibility.", "error");
-  } finally {
-    isSaving.value = false;
-  }
-}
-
 watch(() => route.query.page, syncActiveKey);
 watch(
-  filteredVendors,
+  filteredCustomers,
   (rows) => {
-    if (!rows.length) return (selectedVendorKey.value = "");
-    if (!rows.some((item) => item.key === selectedVendorKey.value)) selectedVendorKey.value = rows[0].key;
+    if (!rows.length) return (selectedCustomerKey.value = "");
+    if (!rows.some((item) => item.key === selectedCustomerKey.value)) selectedCustomerKey.value = rows[0].key;
   },
   { immediate: true },
 );
 
 syncActiveKey();
-onMounted(() => void loadVendorDirectory());
+onMounted(() => void loadCustomerDirectory());
 </script>
 
 <template>
-  <section class="vendors-shell">
+  <section class="customers-shell">
     <aside class="admin-sidebar">
       <div class="brand-card">
         <div class="brand">
@@ -339,7 +290,7 @@ onMounted(() => void loadVendorDirectory());
           <div>
             <p class="brand-kicker">Operations Console</p>
             <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Vendor directory workspace</p>
+            <p class="brand-subtitle">Customer relationship workspace</p>
           </div>
         </div>
       </div>
@@ -351,14 +302,7 @@ onMounted(() => void loadVendorDirectory());
         </div>
 
         <nav class="admin-nav">
-          <button
-            v-for="item in navItems"
-            :key="item.key"
-            type="button"
-            class="nav-item"
-            :class="{ active: activeKey === item.key }"
-            @click="navigateTo(item.key)"
-          >
+          <button v-for="item in navItems" :key="item.key" type="button" class="nav-item" :class="{ active: activeKey === item.key }" @click="navigateTo(item.key)">
             <span class="nav-icon" aria-hidden="true">
               <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
                 <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
@@ -397,7 +341,7 @@ onMounted(() => void loadVendorDirectory());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" class="search-input" type="search" placeholder="Search vendor names, listings, location, or contact..." />
+          <input v-model="searchQuery" class="search-input" type="search" placeholder="Search customer names, email, phone, or booked services..." />
         </label>
         <div class="topbar-actions">
           <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
@@ -409,25 +353,22 @@ onMounted(() => void loadVendorDirectory());
         </div>
       </header>
 
-      <section class="vendors-hero">
+      <section class="customers-hero">
         <div class="hero-copy">
-          <p class="eyebrow">Vendor Directory</p>
-          <h1>All Vendors and Their Listings</h1>
-          <p>Select a vendor to inspect profile information and every service or package they currently have in the system.</p>
+          <p class="eyebrow">Customer Directory</p>
+          <h1>All Customers and Their Bookings</h1>
+          <p>Review registered customer accounts and inspect the services or packages they have booked across your system.</p>
           <div class="hero-meta">
-            <span class="hero-pill">{{ count(vendorRows.length) }} total vendors</span>
-            <span class="hero-pill soft">{{ count(vendorRows.reduce((sum, item) => sum + item.serviceCount, 0)) }} total listings</span>
+            <span class="hero-pill">{{ count(customerRows.length) }} total customers</span>
+            <span class="hero-pill soft">{{ count(totalBookingsCount) }} total bookings</span>
           </div>
         </div>
         <div class="hero-aside">
-          <div v-if="selectedVendor" class="hero-selected">
-            <span class="hero-selected-label">Selected Vendor</span>
-            <strong>{{ selectedVendor.name }}</strong>
-            <small>{{ count(selectedVendor.serviceCount) }} listing(s) - {{ selectedVendor.joinedLabel }}</small>
+          <div v-if="selectedCustomer" class="hero-selected">
+            <span class="hero-selected-label">Selected Customer</span>
+            <strong>{{ selectedCustomer.name }}</strong>
+            <small>{{ count(selectedCustomer.bookingsCount) }} booking(s) - {{ selectedCustomer.joinedLabel }}</small>
           </div>
-          <button class="primary-btn" type="button" :disabled="!selectedVendor || !selectedServices.length || isSaving" @click="setVendorVisibility(selectedVendor?.visibility === 'paused')">
-            {{ selectedVendor?.visibility === "paused" ? "Go Live Again" : "Pause Vendor" }}
-          </button>
         </div>
       </section>
 
@@ -445,148 +386,159 @@ onMounted(() => void loadVendorDirectory());
         <article class="card directory-card">
           <header class="card-head">
             <div>
-              <p class="card-eyebrow">Vendor Directory</p>
-              <h3>All Vendors</h3>
+              <p class="card-eyebrow">Customer Directory</p>
+              <h3>All Customers</h3>
             </div>
-            <span class="card-meta">{{ count(filteredVendors.length) }} results</span>
+            <span class="card-meta">{{ count(filteredCustomers.length) }} results</span>
           </header>
           <div class="filters">
             <label class="filter-field">
-              <span>Visibility</span>
-              <select v-model="visibilityFilter">
-                <option value="all">All Visibility</option>
-                <option value="live">Live</option>
-                <option value="mixed">Mixed</option>
-                <option value="paused">Paused</option>
+              <span>Activity</span>
+              <select v-model="activityFilter">
+                <option value="all">All Customers</option>
+                <option value="booked">With Bookings</option>
+                <option value="repeat">Repeat Customers</option>
+                <option value="new">No Bookings Yet</option>
               </select>
             </label>
             <label class="filter-field">
-              <span>Category</span>
-              <select v-model="categoryFilter">
-                <option value="all">All Categories</option>
-                <option v-for="item in categoryOptions.filter((value) => value !== 'all')" :key="item" :value="item">{{ item }}</option>
+              <span>Booking Status</span>
+              <select v-model="bookingStateFilter">
+                <option value="all">Any Status</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </label>
           </div>
 
-          <div v-if="isLoading" class="empty">Loading vendor directory...</div>
-          <div v-else-if="!filteredVendors.length" class="empty">No vendors match your filters.</div>
-          <div v-else class="vendor-list">
-            <button v-for="vendor in filteredVendors" :key="vendor.key" type="button" class="vendor-row" :class="{ selected: selectedVendor?.key === vendor.key }" @click="selectedVendorKey = vendor.key">
-              <div class="vendor-main">
-                <div class="vendor-photo">
+          <div v-if="isLoading" class="empty">Loading customer directory...</div>
+          <div v-else-if="!filteredCustomers.length" class="empty">No customers match your filters.</div>
+          <div v-else class="customer-list">
+            <button v-for="customer in filteredCustomers" :key="customer.key" type="button" class="customer-row" :class="{ selected: selectedCustomer?.key === customer.key }" @click="selectedCustomerKey = customer.key">
+              <div class="customer-main">
+                <div class="customer-photo">
                   <img
-                    v-if="hasVendorProfileImage(vendor)"
-                    :src="vendor.profileImageUrl"
-                    :alt="`${vendor.name} profile`"
-                    @error="handleVendorImageError(vendor.vendorImageKey)"
+                    v-if="hasCustomerProfileImage(customer)"
+                    :src="customer.profileImageUrl"
+                    :alt="`${customer.name} profile`"
+                    @error="handleCustomerImageError(customer.customerImageKey)"
                   />
-                  <span v-else>{{ vendor.initials }}</span>
+                  <span v-else>{{ customer.initials }}</span>
                 </div>
-                <div class="vendor-copy">
-                  <div class="vendor-title-row">
-                    <strong>{{ vendor.name }}</strong>
+                <div class="customer-copy">
+                  <div class="customer-title-row">
+                    <strong>{{ customer.name }}</strong>
+                    <span class="chip muted">{{ customer.memberState }}</span>
                   </div>
-                  <p>{{ vendor.location }}</p>
+                  <p>{{ customer.email || "Email not provided" }}</p>
                   <div class="chips">
-                    <span class="chip">{{ visibilityLabel(vendor.visibility) }}</span>
-                    <span class="chip muted">{{ count(vendor.serviceCount) }} listing(s)</span>
-                    <span class="chip muted">{{ count(vendor.packageCount) }} package</span>
+                    <span class="chip">{{ count(customer.bookingsCount) }} booking(s)</span>
+                    <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
+                    <span class="chip muted">{{ customer.preferredTypes[0] || "No category yet" }}</span>
                   </div>
                 </div>
               </div>
-              <div class="vendor-side">
-                <span>{{ count(vendor.bookingsCount) }} bookings</span>
-                <small>{{ vendor.lastActivityLabel }}</small>
+              <div class="customer-side">
+                <span>{{ customer.lastBookingService }}</span>
+                <small>{{ customer.lastBookingLabel }}</small>
               </div>
             </button>
           </div>
         </article>
 
         <aside class="side-column">
-          <article v-if="selectedVendor" class="card spotlight-card">
+          <article v-if="selectedCustomer" class="card spotlight-card">
             <div class="sidebar-head">
               <div>
-                <p class="card-eyebrow">Vendor Profile</p>
-                <h3>{{ selectedVendor.name }}</h3>
-                <p>{{ selectedVendor.location }}</p>
+                <p class="card-eyebrow">Customer Profile</p>
+                <h3>{{ selectedCustomer.name }}</h3>
+                <p>{{ selectedCustomer.location }}</p>
               </div>
-              <span class="chip">{{ visibilityLabel(selectedVendor.visibility) }}</span>
+              <span class="chip">{{ selectedCustomer.memberState }}</span>
             </div>
-            <div class="vendor-identity">
-              <div class="vendor-photo large">
+            <div class="customer-identity">
+              <div class="customer-photo large">
                 <img
-                  v-if="hasVendorProfileImage(selectedVendor)"
-                  :src="selectedVendor.profileImageUrl"
-                  :alt="`${selectedVendor.name} profile`"
-                  @error="handleVendorImageError(selectedVendor.vendorImageKey)"
+                  v-if="hasCustomerProfileImage(selectedCustomer)"
+                  :src="selectedCustomer.profileImageUrl"
+                  :alt="`${selectedCustomer.name} profile`"
+                  @error="handleCustomerImageError(selectedCustomer.customerImageKey)"
                 />
-                <span v-else>{{ selectedVendor.initials }}</span>
+                <span v-else>{{ selectedCustomer.initials }}</span>
               </div>
               <div class="identity-copy">
-                <strong>{{ selectedVendor.name }}</strong>
-                <small>{{ selectedVendor.joinedLabel }}</small>
+                <strong>{{ selectedCustomer.name }}</strong>
+                <small>{{ selectedCustomer.joinedLabel }}</small>
                 <div class="chips">
-                  <span class="chip muted">{{ count(selectedVendor.serviceOnlyCount) }} services</span>
-                  <span class="chip muted">{{ count(selectedVendor.packageCount) }} packages</span>
+                  <span class="chip muted">{{ count(selectedCustomer.confirmedCount) }} confirmed</span>
+                  <span class="chip muted">{{ count(selectedCustomer.pendingCount) }} pending</span>
                 </div>
               </div>
             </div>
             <div class="stats-grid">
-              <div><span>Live</span><strong>{{ selectedVendor.activeCount }}</strong></div>
-              <div><span>Total</span><strong>{{ selectedVendor.serviceCount }}</strong></div>
-              <div><span>Bookings</span><strong>{{ count(selectedVendor.bookingsCount) }}</strong></div>
-              <div><span>Hidden</span><strong>{{ count(selectedVendor.inactiveCount) }}</strong></div>
+              <div><span>Bookings</span><strong>{{ count(selectedCustomer.bookingsCount) }}</strong></div>
+              <div><span>Confirmed</span><strong>{{ count(selectedCustomer.confirmedCount) }}</strong></div>
+              <div><span>Pending</span><strong>{{ count(selectedCustomer.pendingCount) }}</strong></div>
+              <div><span>Total Spend</span><strong>{{ selectedCustomer.confirmedSpendLabel }}</strong></div>
             </div>
             <div class="detail-grid">
               <div class="detail-block">
                 <span>Email</span>
-                <strong>{{ selectedVendor.email || "Not provided" }}</strong>
+                <strong>{{ selectedCustomer.email || "Not provided" }}</strong>
               </div>
               <div class="detail-block">
                 <span>Phone</span>
-                <strong>{{ selectedVendor.phone || "Not provided" }}</strong>
+                <strong>{{ selectedCustomer.phone || "Not provided" }}</strong>
+              </div>
+              <div class="detail-block">
+                <span>Location</span>
+                <strong>{{ selectedCustomer.location }}</strong>
+              </div>
+              <div class="detail-block">
+                <span>Joined</span>
+                <strong>{{ selectedCustomer.joinedLabel }}</strong>
               </div>
               <div class="detail-block detail-wide">
-                <span>Categories</span>
-                <strong>{{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : "No categories yet" }}</strong>
+                <span>Preferred Categories</span>
+                <strong>{{ selectedCustomer.preferredTypes.length ? selectedCustomer.preferredTypes.join(", ") : "No bookings yet" }}</strong>
               </div>
             </div>
           </article>
 
-          <article v-if="selectedVendor" class="card services-card">
+          <article v-if="selectedCustomer" class="card bookings-card">
             <header class="card-head">
               <div>
-                <p class="card-eyebrow">Listings In System</p>
-                <h3>Services and Packages</h3>
+                <p class="card-eyebrow">Booking History</p>
+                <h3>Customer Bookings</h3>
               </div>
-              <span class="card-meta">{{ count(selectedServices.length) }}</span>
+              <span class="card-meta">{{ count(selectedBookings.length) }}</span>
             </header>
-            <div v-if="!selectedServices.length" class="empty small">No services or packages for this vendor yet.</div>
-            <div v-else class="service-list">
-              <div v-for="service in selectedServices" :key="service.id" class="service-row">
-                <div class="service-copy">
-                  <div class="service-title-row">
-                    <strong>{{ service.title }}</strong>
-                    <span class="chip" :class="{ muted: !service.is_active }">{{ service.is_active ? "Live" : "Hidden" }}</span>
+            <div v-if="!selectedBookings.length" class="empty small">This customer has not booked any service or package yet.</div>
+            <div v-else class="booking-list">
+              <div v-for="booking in selectedBookings" :key="booking.id" class="booking-row">
+                <div class="booking-copy">
+                  <div class="booking-title-row">
+                    <strong>{{ booking.serviceLabel }}</strong>
+                    <span class="chip" :class="{ muted: booking.status !== 'confirmed' }">{{ booking.statusLabel }}</span>
                   </div>
-                  <p>{{ service.typeLabel }} - {{ service.kindLabel }} - {{ service.dateLabel }}</p>
-                  <small>{{ service.location || "Location not added yet" }}</small>
-                  <div class="service-chip-row">
-                    <span class="chip muted">{{ service.priceLabel }}</span>
-                    <span class="chip muted">{{ count(service.bookings_count || 0) }} bookings</span>
-                    <span v-if="service.packagesCount" class="chip muted">{{ count(service.packagesCount) }} package item(s)</span>
+                  <p>{{ booking.vendorName }} - {{ booking.bookingKind }} - {{ booking.bookingCode }}</p>
+                  <small>{{ booking.dateLabel }} - {{ booking.timeLabel }}</small>
+                  <div class="booking-chip-row">
+                    <span class="chip muted">{{ booking.totalLabel }}</span>
+                    <span class="chip muted">Qty {{ booking.quantity }}</span>
+                    <span class="chip muted">{{ booking.paymentStatusLabel }}</span>
+                    <span class="chip muted">{{ booking.eventTypeLabel }}</span>
                   </div>
-                  <p v-if="service.description" class="service-description">{{ service.description }}</p>
                 </div>
               </div>
             </div>
           </article>
 
           <article v-else class="card empty-selection">
-            <p class="card-eyebrow">Vendor Profile</p>
-            <h3>Select a Vendor</h3>
-            <p>Choose a vendor from the directory to inspect their account information and system listings here.</p>
+            <p class="card-eyebrow">Customer Profile</p>
+            <h3>Select a Customer</h3>
+            <p>Choose a customer from the directory to inspect their profile and booking history here.</p>
           </article>
         </aside>
       </section>
@@ -596,7 +548,7 @@ onMounted(() => void loadVendorDirectory());
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
-.vendors-shell {
+.customers-shell {
   --ink: #0f172a;
   --muted: #64748b;
   --accent: #ff7a1a;
@@ -616,7 +568,7 @@ onMounted(() => void loadVendorDirectory());
   overflow: hidden;
 }
 
-.vendors-shell::before {
+.customers-shell::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -627,7 +579,7 @@ onMounted(() => void loadVendorDirectory());
   pointer-events: none;
 }
 
-.vendors-shell > * {
+.customers-shell > * {
   position: relative;
   z-index: 1;
 }
@@ -740,13 +692,13 @@ onMounted(() => void loadVendorDirectory());
 .hero-selected small,
 .highlight-label,
 .highlight-note,
-.vendor-copy p,
-.vendor-side small,
+.customer-copy p,
+.customer-side small,
 .sidebar-head p,
 .identity-copy small,
 .detail-block span,
-.service-copy p,
-.service-copy small,
+.booking-copy p,
+.booking-copy small,
 .empty,
 .empty-selection,
 .card-meta {
@@ -842,13 +794,13 @@ onMounted(() => void loadVendorDirectory());
 .hero-selected small,
 .highlight-label,
 .highlight-note,
-.vendor-copy p,
-.vendor-side small,
+.customer-copy p,
+.customer-side small,
 .sidebar-head p,
 .identity-copy small,
 .detail-block span,
-.service-copy p,
-.service-copy small,
+.booking-copy p,
+.booking-copy small,
 .empty,
 .empty-selection,
 .card-meta {
@@ -1034,17 +986,17 @@ select {
   font-weight: 600;
 }
 
-.vendors-hero,
+.customers-hero,
 .hero-aside,
 .hero-meta,
 .filters,
 .chips,
-.service-chip-row {
+.booking-chip-row {
   display: flex;
   flex-wrap: wrap;
 }
 
-.vendors-hero {
+.customers-hero {
   align-items: end;
   justify-content: space-between;
   gap: 22px;
@@ -1057,7 +1009,7 @@ select {
   overflow: hidden;
 }
 
-.vendors-hero::after {
+.customers-hero::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1067,7 +1019,7 @@ select {
   pointer-events: none;
 }
 
-.vendors-hero > * {
+.customers-hero > * {
   position: relative;
   z-index: 1;
 }
@@ -1181,9 +1133,9 @@ select {
 .content-grid,
 .stats-grid,
 .detail-grid,
-.vendor-list,
+.customer-list,
 .side-column,
-.service-list {
+.booking-list {
   display: grid;
   gap: 14px;
 }
@@ -1287,7 +1239,7 @@ select {
   outline: none;
 }
 
-.vendor-row {
+.customer-row {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1301,44 +1253,44 @@ select {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.vendor-row:hover {
+.customer-row:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 122, 26, 0.18);
   box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
 }
 
-.vendor-row.selected {
+.customer-row.selected {
   border-color: rgba(255, 122, 26, 0.24);
   background: linear-gradient(135deg, rgba(255, 247, 240, 0.96), rgba(255, 255, 255, 0.98));
   box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
 }
 
-.vendor-main,
-.vendor-title-row,
-.service-title-row,
-.vendor-identity {
+.customer-main,
+.customer-title-row,
+.booking-title-row,
+.customer-identity {
   display: flex;
   align-items: flex-start;
 }
 
-.vendor-main {
+.customer-main {
   gap: 12px;
 }
 
-.vendor-title-row,
-.service-title-row,
+.customer-title-row,
+.booking-title-row,
 .chips,
-.service-chip-row {
+.booking-chip-row {
   gap: 8px;
 }
 
-.vendor-title-row,
-.service-title-row,
+.customer-title-row,
+.booking-title-row,
 .chips {
   flex-wrap: wrap;
 }
 
-.vendor-photo {
+.customer-photo {
   width: 50px;
   height: 50px;
   border-radius: 16px;
@@ -1352,48 +1304,48 @@ select {
   flex-shrink: 0;
 }
 
-.vendor-photo img {
+.customer-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.vendor-photo span {
+.customer-photo span {
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
 }
 
-.vendor-photo.large {
+.customer-photo.large {
   width: 62px;
   height: 62px;
   border-radius: 18px;
 }
 
-.vendor-copy,
-.service-copy,
+.customer-copy,
+.booking-copy,
 .identity-copy {
   display: grid;
   gap: 8px;
 }
 
-.vendor-copy strong,
-.service-copy strong,
+.customer-copy strong,
+.booking-copy strong,
 .identity-copy strong {
   display: block;
   color: #17263d;
 }
 
-.vendor-copy p,
-.service-copy p,
-.service-copy small {
+.customer-copy p,
+.booking-copy p,
+.booking-copy small {
   margin: 0;
   font-size: 13px;
 }
 
-.vendor-side {
+.customer-side {
   display: grid;
   justify-items: end;
   gap: 4px;
@@ -1427,7 +1379,7 @@ select {
   margin: 4px 0 0;
 }
 
-.vendor-identity {
+.customer-identity {
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -1442,7 +1394,7 @@ select {
 
 .stats-grid div,
 .detail-block,
-.service-row {
+.booking-row {
   padding: 14px;
   border-radius: 16px;
   background: linear-gradient(180deg, #fff, #f8fafc);
@@ -1497,14 +1449,14 @@ select {
   border-color: rgba(255, 122, 26, 0.24);
 }
 
-.service-row {
+.booking-row {
   display: grid;
   gap: 12px;
   padding: 16px;
   background: linear-gradient(180deg, #fff, #fcfdff);
 }
 
-.service-copy {
+.booking-copy {
   gap: 10px;
 }
 
@@ -1538,28 +1490,23 @@ button:disabled {
 }
 
 @media (max-width: 1180px) {
-  .vendors-shell,
+  .customers-shell,
   .content-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 1024px) {
-  .vendors-shell {
+  .customers-shell {
     grid-template-columns: 1fr;
   }
 
   .admin-nav {
     flex-direction: row;
     overflow-x: auto;
-    padding-bottom: 4px;
   }
 
-  .nav-item {
-    min-width: 220px;
-  }
-
-  .vendors-hero,
+  .customers-hero,
   .hero-aside {
     flex-direction: column;
     align-items: flex-start;
@@ -1573,17 +1520,17 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
-  .vendor-row,
+  .customer-row,
   .sidebar-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .vendor-row {
+  .customer-row {
     grid-template-columns: 1fr;
   }
 
-  .vendor-side {
+  .customer-side {
     justify-items: start;
   }
 }
@@ -1594,12 +1541,7 @@ button:disabled {
   }
 
   .admin-sidebar {
-    padding: 20px 16px;
-  }
-
-  .sidebar-block-head {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 24px 18px;
   }
 
   .stats-grid,
@@ -1620,6 +1562,5 @@ button:disabled {
   }
 }
 </style>
-
 
 

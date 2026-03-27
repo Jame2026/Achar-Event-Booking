@@ -65,12 +65,14 @@ Route::post('/password-reset/request', [PasswordResetPinController::class, 'requ
 Route::post('/password-reset/verify', [PasswordResetPinController::class, 'verifyPin']);
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::post('/user/profile', [UserController::class, 'updateProfile']);
+Route::patch('/user/password', [UserController::class, 'updatePassword']);
 
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 
 Route::get('events/{event}/bookings', [BookingController::class, 'indexByEvent']);
 Route::get('events/{event}/availability', [BookingController::class, 'availability']);
 Route::get('events/{event}/availability-calendar', [BookingController::class, 'availabilityCalendar']);
+Route::get('vendors', [VendorController::class, 'directory']);
 Route::get('bookings', [BookingController::class, 'publicIndex']);
 Route::apiResource('bookings', BookingController::class)->only(['store']);
 Route::post('bookings/{booking}/confirm-payment', [BookingController::class, 'confirmPayment']);
@@ -80,6 +82,7 @@ Route::patch('notifications/bookings/{notification}/read', [NotificationControll
 Route::get('vendor/settings', [VendorSettingController::class, 'show']);
 Route::put('vendor/settings', [VendorSettingController::class, 'update']);
 Route::patch('vendor/settings', [VendorSettingController::class, 'update']);
+Route::get('admin/customer-directory', [AdminController::class, 'customerDirectory']);
 Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
 Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
 Route::patch('vendor/services/{event}', [VendorController::class, 'updateServiceByVendorId']);
@@ -103,7 +106,6 @@ Route::prefix('user')->group(function () {
 Route::middleware(['auth', 'role:user,vendor,admin'])->prefix('user')->group(function () {
     Route::get('/me', [UserController::class, 'me']);
     Route::get('/bookings', [UserController::class, 'myBookings']);
-    Route::patch('/password', [UserController::class, 'updatePassword']);
 });
 
 Route::middleware(['auth', 'role:vendor,admin'])->prefix('vendor')->group(function () {

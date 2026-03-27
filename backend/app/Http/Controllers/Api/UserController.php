@@ -93,12 +93,22 @@ class UserController extends Controller
     public function updatePassword(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'user_id' => ['nullable', 'integer'],
+            'email' => ['nullable', 'string', 'email'],
+            'phone' => ['nullable', 'string', 'regex:/^\+?[0-9]{8,15}$/'],
             'current_password' => ['required', 'string'],
             'new_password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var \App\Models\User|null $user */
         $user = $request->user();
+        if (! $user) {
+            $user = $this->resolveUser($validated);
+        }
+
+        if (! $user) {
+            return response()->json(['message' => 'User profile not found.'], 404);
+        }
 
         if (! Hash::check($validated['current_password'], $user->password)) {
             return response()->json(['message' => 'Current password is incorrect.'], 422);

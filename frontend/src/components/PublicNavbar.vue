@@ -409,6 +409,7 @@ onMounted(() => {
   }
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('achar:auth-updated', refreshAuthState)
   window.addEventListener('storage', refreshFavoriteCount)
   window.addEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
@@ -418,6 +419,7 @@ onBeforeUnmount(() => {
   stopNotificationPolling()
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('achar:auth-updated', refreshAuthState)
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })

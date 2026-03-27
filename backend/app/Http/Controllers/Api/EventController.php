@@ -41,7 +41,7 @@ class EventController extends Controller
                     'created_at',
                     'updated_at',
                 ])
-                ->with('vendor:id,name')
+                ->with('vendor:id,name,profile_image_url')
                 ->withCount('bookings')
                 ->latest('starts_at')
                 ->paginate($perPage);
@@ -71,7 +71,7 @@ class EventController extends Controller
                     'updated_at',
                 ])
                 ->where('is_active', true)
-                ->with('vendor:id,name')
+                ->with('vendor:id,name,profile_image_url')
                 ->withCount('bookings')
                 ->latest('starts_at')
                 ->paginate($perPage);
@@ -134,7 +134,7 @@ class EventController extends Controller
 
     public function show(Event $event): JsonResponse
     {
-        $event->load(['vendor:id,name'])->loadCount('bookings');
+        $event->load(['vendor:id,name,profile_image_url'])->loadCount('bookings');
 
         return response()->json($event);
     }
