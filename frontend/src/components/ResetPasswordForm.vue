@@ -16,6 +16,7 @@ const form = reactive({
   password: '',
   password_confirmation: '',
 })
+const resetToken = ref('')
 
 const otpDigits = ref<string[]>(Array.from({ length: 6 }, () => ''))
 const otpRefs = ref<Array<HTMLInputElement | null>>(Array.from({ length: 6 }, () => null))
@@ -35,13 +36,16 @@ const copyByLanguage = {
     backToSignIn: 'Back to Sign in',
     title: 'Reset password',
     subtitle: 'Create a new password, then verify with the 6-digit code we send to your email or SMS.',
+    emailLinkSubtitle: 'Create a new password for the reset link we sent to your email.',
     emailOrPhone: 'Email or Phone',
     emailOrPhonePlaceholder: 'you@example.com or +85512345678',
+    email: 'Email',
     newPassword: 'New Password',
     passwordPlaceholder: 'At least 8 characters',
     confirmNewPassword: 'Confirm New Password',
     confirmPasswordPlaceholder: 'Repeat new password',
     continue: 'Continue',
+    resetPassword: 'Reset Password',
     verifyTitle: 'Verify code',
     verifySubtitle: 'Enter the 6-digit code we sent to you.',
     codeLabel: '6-digit code',
@@ -105,6 +109,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
 const canResend = computed(() => resendSeconds.value <= 0 && !submitting.value)
 const otpCode = computed(() => otpDigits.value.join(''))
+const isEmailResetLinkMode = computed(() => resetToken.value.trim() !== '')
+const setPasswordSubtitle = computed(() =>
+  isEmailResetLinkMode.value ? uiText.value.emailLinkSubtitle ?? uiText.value.subtitle : uiText.value.subtitle,
+)
+const loginFieldLabel = computed(() => (isEmailResetLinkMode.value ? uiText.value.email ?? 'Email' : uiText.value.emailOrPhone))
+const loginFieldPlaceholder = computed(() =>
+  isEmailResetLinkMode.value ? 'you@example.com' : uiText.value.emailOrPhonePlaceholder,
+)
+const setPasswordButtonLabel = computed(() =>
+  isEmailResetLinkMode.value ? uiText.value.resetPassword ?? 'Reset Password' : uiText.value.continue,
+)
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
@@ -214,6 +229,44 @@ async function requestCode(): Promise<boolean> {
   }
 }
 
+async function resetPasswordFromEmailLink() {
+  if (submitting.value) return
+
+  submitting.value = true
+  successMessage.value = ''
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        token: resetToken.value,
+        email: form.login,
+        password: form.password,
+        password_confirmation: form.password_confirmation,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      errorMessage.value = data?.message ?? 'Unable to reset password.'
+      return
+    }
+
+    successMessage.value = data?.message ?? uiText.value.passwordChanged
+    step.value = 'done'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
+  } finally {
+    submitting.value = false
+  }
+}
+
 async function continueToVerify() {
   errorMessage.value = ''
   successMessage.value = ''
@@ -228,6 +281,11 @@ async function continueToVerify() {
   }
   if (form.password !== form.password_confirmation) {
     errorMessage.value = 'Passwords do not match.'
+    return
+  }
+
+  if (isEmailResetLinkMode.value) {
+    await resetPasswordFromEmailLink()
     return
   }
 
@@ -289,7 +347,9 @@ function goToSignIn() {
 }
 
 onMounted(() => {
+  const token = route.query.token
   const login = route.query.login ?? route.query.email
+  resetToken.value = typeof token === 'string' ? token : ''
   form.login = typeof login === 'string' ? login : ''
 })
 
@@ -308,7 +368,7 @@ onBeforeUnmount(() => {
           <img class="auth-brand-logo auth-brand-logo-lg" :src="authLogoSrc" alt="Achar logo" @error="onAuthLogoError" />
         </div>
 
-        <div class="auth-stepper" :class="`auth-stepper--${step}`" aria-hidden="true">
+        <div v-if="!isEmailResetLinkMode" class="auth-stepper" :class="`auth-stepper--${step}`" aria-hidden="true">
           <span class="auth-step" :class="{ active: step === 'set_password', done: step !== 'set_password' }">
             <span class="auth-step-dot">1</span>
             <span class="auth-step-label">{{ uiText.newPassword }}</span>
@@ -327,7 +387,7 @@ onBeforeUnmount(() => {
 
         <div class="form-head form-head-center" v-if="step === 'set_password'">
           <h2>{{ uiText.title }}</h2>
-          <p>{{ uiText.subtitle }}</p>
+          <p>{{ setPasswordSubtitle }}</p>
         </div>
 
         <div class="form-head form-head-center" v-else-if="step === 'verify_code'">
@@ -342,8 +402,14 @@ onBeforeUnmount(() => {
 
         <form v-if="step === 'set_password'" class="auth-form" @submit.prevent="continueToVerify">
           <label class="field">
-            <span>{{ uiText.emailOrPhone }}</span>
-            <input v-model.trim="form.login" type="text" :placeholder="uiText.emailOrPhonePlaceholder" required />
+            <span>{{ loginFieldLabel }}</span>
+            <input
+              v-model.trim="form.login"
+              type="text"
+              :placeholder="loginFieldPlaceholder"
+              :readonly="isEmailResetLinkMode"
+              required
+            />
           </label>
 
           <label class="field">
@@ -399,7 +465,7 @@ onBeforeUnmount(() => {
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
 
           <button class="submit-btn" type="submit" :disabled="submitting">
-            {{ submitting ? uiText.verifying : uiText.continue }}
+            {{ submitting ? uiText.verifying : setPasswordButtonLabel }}
           </button>
         </form>
 
