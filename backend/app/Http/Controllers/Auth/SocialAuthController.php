@@ -242,10 +242,11 @@ class SocialAuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'phone' => $user->phone,
             'role' => $user->role,
         ]);
 
-        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/legacy-app?'.$query);
+        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/auth/google/callback?'.$query);
     }
 
     private function redirectToFrontendError(string $message, ?string $preferredFrontend = null): RedirectResponse
@@ -255,7 +256,7 @@ class SocialAuthController extends Controller
             'message' => $message,
         ]);
 
-        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/legacy-app?'.$query);
+        return redirect()->away($this->frontendBaseUrl($preferredFrontend).'/auth/google/callback?'.$query);
     }
 
     private function sanitizeFrontendUrl(mixed $value): ?string

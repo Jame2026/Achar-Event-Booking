@@ -10,6 +10,7 @@ import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
 import Home from "@/components/Home.vue";
 import ForgotPasswordForm from "../components/ForgotPasswordForm.vue";
 import ResetPasswordForm from "../components/ResetPasswordForm.vue";
+import GoogleCallback from "../views/GoogleCallback.vue";
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 
@@ -122,6 +123,12 @@ const routes = [
     path: "/reset-password",
     name: "ResetPassword",
     component: ResetPasswordForm,
+  },
+  {
+    path: "/auth/google/callback",
+    alias: "/auth/callback",
+    name: "GoogleCallback",
+    component: GoogleCallback,
   },
   {
     path: "/vendor",

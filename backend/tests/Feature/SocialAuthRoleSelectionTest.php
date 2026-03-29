@@ -18,9 +18,11 @@ class SocialAuthRoleSelectionTest extends TestCase
         config([
             'services.google.client_id' => 'test-google-client',
             'services.google.client_secret' => 'test-google-secret',
-            'services.google.redirect' => 'http://127.0.0.1:8000/auth/google/callback',
-            'app.frontend_url' => 'http://localhost:5173',
+            'services.google.redirect' => 'https://achar-event-booking-232f.vercel.app/auth/google/callback',
+            'app.frontend_url' => 'https://achar-event-booking-232f.vercel.app',
         ]);
+
+        Http::preventStrayRequests();
     }
 
     public function test_google_callback_creates_vendor_when_vendor_role_was_selected(): void
@@ -37,15 +39,17 @@ class SocialAuthRoleSelectionTest extends TestCase
         ]);
 
         $state = $this->makeSocialState([
-            'frontend_url' => 'http://localhost:5173',
+            'frontend_url' => 'https://achar-event-booking-232f.vercel.app',
             'role' => 'vendor',
         ]);
 
         $response = $this->get("/auth/google/callback?state={$state}&code=test-code");
+        $location = (string) $response->headers->get('Location');
 
         $response->assertRedirect();
-        $this->assertStringContainsString('social=success', (string) $response->headers->get('Location'));
-        $this->assertStringContainsString('role=vendor', (string) $response->headers->get('Location'));
+        $this->assertStringStartsWith('https://achar-event-booking-232f.vercel.app/auth/google/callback', $location);
+        $this->assertStringContainsString('social=success', $location);
+        $this->assertStringContainsString('role=vendor', $location);
 
         $this->assertDatabaseHas('users', [
             'email' => 'vendor-google@example.com',
@@ -73,14 +77,16 @@ class SocialAuthRoleSelectionTest extends TestCase
         ]);
 
         $state = $this->makeSocialState([
-            'frontend_url' => 'http://localhost:5173',
+            'frontend_url' => 'https://achar-event-booking-232f.vercel.app',
             'role' => 'vendor',
         ]);
 
         $response = $this->get("/auth/google/callback?state={$state}&code=test-code");
+        $location = (string) $response->headers->get('Location');
 
         $response->assertRedirect();
-        $this->assertStringContainsString('role=vendor', (string) $response->headers->get('Location'));
+        $this->assertStringStartsWith('https://achar-event-booking-232f.vercel.app/auth/google/callback', $location);
+        $this->assertStringContainsString('role=vendor', $location);
 
         $this->assertDatabaseHas('users', [
             'email' => 'existing-google@example.com',
