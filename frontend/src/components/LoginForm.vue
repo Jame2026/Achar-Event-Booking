@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
-import { API_BASE_URL, AUTH_PROXY_BASE } from '../features/apiUrl'
+import { AUTH_PROXY_BASE } from '../features/apiUrl'
 
 const emit = defineEmits<{
   switch: []
@@ -10,7 +10,6 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = API_BASE_URL
 const authBaseUrl = AUTH_PROXY_BASE
 const form = reactive({
   login: '',
@@ -96,7 +95,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${apiBaseUrl}/login`,
+      '/api/login',
       {
         method: 'POST',
         headers: {
