@@ -3,6 +3,8 @@ import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
 import { API_BASE_URL, AUTH_PROXY_BASE } from '../features/apiUrl'
 
+type ValidationErrors = Record<string, string[]>
+
 const emit = defineEmits<{
   switch: []
   success: [user: { id: number; name: string; email?: string | null; phone?: string | null; role: string }]
@@ -23,6 +25,7 @@ const showConfirmPassword = ref(false)
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const validationErrors = ref<ValidationErrors>({})
 const copyByLanguage = {
   en: {
     backHome: 'Back to Home',
@@ -108,6 +111,27 @@ const authBaseUrl = AUTH_PROXY_BASE
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
 }
+
+function clearValidationErrors() {
+  validationErrors.value = {}
+}
+
+function firstFieldError(field: string) {
+  const messages = validationErrors.value[field]
+  return Array.isArray(messages) && messages.length ? String(messages[0]) : ''
+}
+
+function normalizeValidationErrors(errors: unknown): ValidationErrors {
+  if (!errors || typeof errors !== 'object') return {}
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.map((entry) => String(entry)) : [String(value)],
+    ]),
+  )
+}
+
 function autoFormatPhone(event) {
   let value = event.target.value.replace(/\D/g, '') // strip all non-digits
 
@@ -135,6 +159,7 @@ const submitRegister = async () => {
   submitting.value = true
   successMessage.value = ''
   errorMessage.value = ''
+  clearValidationErrors()
 
   try {
     const payload = {
@@ -155,15 +180,17 @@ const submitRegister = async () => {
       body: JSON.stringify(payload),
     })
 
-    const data = await response.json()
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
-      if (data?.errors && typeof data.errors === 'object') {
-        const firstError = Object.values(data.errors)[0]
-        errorMessage.value = Array.isArray(firstError) ? String(firstError[0]) : 'Validation failed.'
-      } else {
-        errorMessage.value = data?.message ?? 'Registration failed.'
+      if (response.status === 422) {
+        validationErrors.value = normalizeValidationErrors(data?.errors)
+        const firstError = Object.values(validationErrors.value).flat().find(Boolean)
+        errorMessage.value = firstError ? String(firstError) : data?.message ?? 'Validation failed.'
+        return
       }
+
+      errorMessage.value = data?.message ?? 'Registration failed.'
       return
     }
 
@@ -190,8 +217,8 @@ const submitRegister = async () => {
     setTimeout(() => {
       emit('switch')
     }, 700)
-  } catch {
-    errorMessage.value = 'Unable to connect to server.'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
   } finally {
     submitting.value = false
   }
@@ -236,17 +263,20 @@ const submitRegister = async () => {
           <label class="field">
             <span>{{ uiText.fullName }}</span>
             <input v-model="form.name" type="text" :placeholder="uiText.fullNamePlaceholder" required />
+            <small v-if="firstFieldError('name')" class="field-error">{{ firstFieldError('name') }}</small>
           </label>
 
           <label v-if="registerMethod === 'email'" class="field">
             <span>{{ uiText.emailLabel }}</span>
             <input v-model="form.email" type="email" :placeholder="uiText.emailPlaceholder" required />
+            <small v-if="firstFieldError('email')" class="field-error">{{ firstFieldError('email') }}</small>
           </label>
 
           <label v-else class="field">
             <span>{{ uiText.phoneNumber }}</span>
             <input v-model="form.phone" type="tel" inputmode="tel" placeholder="+85512345678" pattern="^\+?[0-9]{8,15}$"
               title="Please include country code e.g. +85512345678" required @input="autoFormatPhone" />
+            <small v-if="firstFieldError('phone')" class="field-error">{{ firstFieldError('phone') }}</small>
           </label>
 
           <label class="field field-choice">
@@ -264,6 +294,7 @@ const submitRegister = async () => {
                 <span class="role-name">{{ uiText.vendor }}</span>
               </label>
             </div>
+            <small v-if="firstFieldError('role')" class="field-error">{{ firstFieldError('role') }}</small>
           </label>
 
           <label class="field">
@@ -291,6 +322,7 @@ const submitRegister = async () => {
                 </svg>
               </button>
             </div>
+            <small v-if="firstFieldError('password')" class="field-error">{{ firstFieldError('password') }}</small>
           </label>
 
           <label class="field">
@@ -318,6 +350,9 @@ const submitRegister = async () => {
                 </svg>
               </button>
             </div>
+            <small v-if="firstFieldError('password_confirmation')" class="field-error">
+              {{ firstFieldError('password_confirmation') }}
+            </small>
           </label>
 
           <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>

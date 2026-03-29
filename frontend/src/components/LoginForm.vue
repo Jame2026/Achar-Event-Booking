@@ -110,7 +110,7 @@ const submitLogin = async () => {
       },
     )
 
-    const data = await response.json()
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
       errorMessage.value = data?.message ?? 'Login failed.'
@@ -118,8 +118,8 @@ const submitLogin = async () => {
     }
 
     emit('success', data.user)
-  } catch {
-    errorMessage.value = 'Unable to connect to server.'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
   } finally {
     submitting.value = false
   }
