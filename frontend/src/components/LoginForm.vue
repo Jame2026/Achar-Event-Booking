@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
+import { API_BASE_URL, API_ORIGIN } from '../features/apiUrl'
 
 const emit = defineEmits<{
   switch: []
@@ -9,9 +10,8 @@ const emit = defineEmits<{
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
-const apiBaseUrl = `${apiOrigin}/api`
-const authBaseUrl = apiOrigin
+const apiBaseUrl = API_BASE_URL
+const authBaseUrl = API_ORIGIN
 const form = reactive({
   login: '',
   password: '',

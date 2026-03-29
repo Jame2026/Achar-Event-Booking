@@ -1,5 +1,6 @@
+import { API_BASE_URL } from './apiUrl'
+
 const DEFAULT_API_TIMEOUT_MS = 15000
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
 
 function buildApiPath(path, query = {}) {
   if (typeof path !== 'string' || !path.trim()) {
@@ -16,8 +17,7 @@ function buildApiPath(path, query = {}) {
   })
 
   const queryString = params.toString()
-  const apiRoot = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`
-  return `${apiRoot}/${normalizedPath}${queryString ? `?${queryString}` : ''}`
+  return `${API_BASE_URL}/${normalizedPath}${queryString ? `?${queryString}` : ''}`
 }
 
 async function readErrorMessage(response) {

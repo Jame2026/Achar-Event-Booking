@@ -6,9 +6,9 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiBaseUrl = env.VITE_API_BASE_URL || '/api'
-  const apiOrigin = /^https?:\/\//.test(apiBaseUrl)
-    ? apiBaseUrl.replace(/\/api\/?$/, '')
+  const apiUrl = env.VITE_API_URL || env.VITE_API_BASE_URL || '/api'
+  const apiOrigin = /^https?:\/\//.test(apiUrl)
+    ? apiUrl.replace(/\/api\/?$/, '')
     : 'http://127.0.0.1:8000'
 
   return {

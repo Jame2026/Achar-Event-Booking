@@ -2,11 +2,11 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
+import { API_BASE_URL } from '../features/apiUrl'
 
 const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
-const apiBaseUrl = `${apiOrigin}/api`
+const apiBaseUrl = API_BASE_URL
 const form = reactive({
   email: '',
 })

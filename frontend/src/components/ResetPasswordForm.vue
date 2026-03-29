@@ -3,12 +3,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
+import { API_BASE_URL } from '../features/apiUrl'
 
 const route = useRoute()
 const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
-const apiBaseUrl = `${apiOrigin}/api`
+const apiBaseUrl = API_BASE_URL
 
 type Step = 'set_password' | 'verify_code' | 'done'
 const step = ref<Step>('set_password')
