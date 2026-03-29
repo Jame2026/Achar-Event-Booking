@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
-import { API_BASE_URL, AUTH_PROXY_BASE } from '../features/apiUrl'
+import { AUTH_PROXY_BASE } from '../features/apiUrl'
 
 type ValidationErrors = Record<string, string[]>
 
@@ -105,7 +105,6 @@ const copyByLanguage = {
 }
 const { uiText } = useLanguageCopy(copyByLanguage)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = API_BASE_URL
 const authBaseUrl = AUTH_PROXY_BASE
 
 function onAuthLogoError() {
@@ -171,7 +170,7 @@ const submitRegister = async () => {
       phone: registerMethod.value === 'phone' ? form.phone : '',
     }
 
-    const response = await fetch(`${apiBaseUrl}/register`, {
+    const response = await fetch('/api/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
