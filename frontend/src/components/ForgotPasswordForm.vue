@@ -2,11 +2,9 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
-import { API_BASE_URL } from '../features/apiUrl'
 
 const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiBaseUrl = API_BASE_URL
 const form = reactive({
   email: '',
 })
@@ -56,7 +54,7 @@ async function submitForgotPassword() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`${apiBaseUrl}/password-reset/request`, {
+    const response = await fetch('/api/password-reset/request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,8 +72,8 @@ async function submitForgotPassword() {
 
     successMessage.value = data?.message ?? 'Verification code sent.'
     router.push({ path: '/reset-password', query: { login: form.email } }).catch(() => {})
-  } catch {
-    errorMessage.value = 'Unable to connect to server.'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
   } finally {
     submitting.value = false
   }
