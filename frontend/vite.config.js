@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
           target: apiOrigin,
           changeOrigin: true,
         },
+        '/backend-auth': {
+          target: apiOrigin,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/backend-auth/, '/auth'),
+        },
       },
     },
     resolve: {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
-import { API_BASE_URL, API_ORIGIN } from '../features/apiUrl'
+import { API_BASE_URL, AUTH_PROXY_BASE } from '../features/apiUrl'
 
 const emit = defineEmits<{
   switch: []
@@ -11,7 +11,7 @@ const emit = defineEmits<{
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const apiBaseUrl = API_BASE_URL
-const authBaseUrl = API_ORIGIN
+const authBaseUrl = AUTH_PROXY_BASE
 const form = reactive({
   login: '',
   password: '',
@@ -78,7 +78,7 @@ function onAuthLogoError() {
 
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
-  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+  window.location.href = `${authBaseUrl}/${provider}/redirect?frontend_url=${frontendUrl}`
 }
 
 onMounted(() => {

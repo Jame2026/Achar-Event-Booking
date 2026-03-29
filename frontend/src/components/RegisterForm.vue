@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
-import { API_BASE_URL, API_ORIGIN } from '../features/apiUrl'
+import { API_BASE_URL, AUTH_PROXY_BASE } from '../features/apiUrl'
 
 const emit = defineEmits<{
   switch: []
@@ -103,7 +103,7 @@ const copyByLanguage = {
 const { uiText } = useLanguageCopy(copyByLanguage)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const apiBaseUrl = API_BASE_URL
-const authBaseUrl = API_ORIGIN
+const authBaseUrl = AUTH_PROXY_BASE
 
 function onAuthLogoError() {
   authLogoSrc.value = '/favicon.ico'
@@ -119,7 +119,7 @@ function autoFormatPhone(event) {
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
   const selectedRole = encodeURIComponent(String(form.role || 'user'))
-  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}&role=${selectedRole}`
+  window.location.href = `${authBaseUrl}/${provider}/redirect?frontend_url=${frontendUrl}&role=${selectedRole}`
 }
 
 onMounted(() => {
