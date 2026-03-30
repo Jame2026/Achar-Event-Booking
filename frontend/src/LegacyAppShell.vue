@@ -1548,7 +1548,9 @@ async function submitVendorService() {
               formData.append(key, value)
             }
           })
-          formData.append('image', imageFile)
+          if (imageFile) {
+            formData.append('image', imageFile)
+          }
           if (qrCodeFile) {
             formData.append('qr_code', qrCodeFile)
           }
@@ -1559,23 +1561,9 @@ async function submitVendorService() {
     if (Number.isFinite(serviceId) && serviceId > 0) {
       const result = await apiPatch(`vendor/services/${serviceId}`, payload)
       upsertVendorEvent(result?.data || result)
-      vendorServiceNotice.value = uiText.value.serviceUpdated
     } else {
       const result = await apiPost('vendor/services', payload)
       upsertVendorEvent(result?.data || result)
-      vendorServiceNotice.value = uiText.value.serviceCreated
-    }
-    loadEvents({ silent: true })
-    await apiPost('vendor/services', payload)
-    if (isEditingService) {
-      if (payload instanceof FormData) {
-        payload.append('_method', 'PATCH')
-        await apiPost(`vendor/services/${serviceId}`, payload)
-      } else {
-        await apiPatch(`vendor/services/${serviceId}`, payload)
-      }
-    } else {
-      await apiPost('vendor/services', payload)
     }
     await loadEvents()
     clearGuestEventsCache()
