@@ -936,7 +936,7 @@ onMounted(() => void adminStore.loadAll());
   grid-template-columns: minmax(300px, 360px) 1fr;
   min-height: calc(100vh - 90px);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 10% 0%, #fff0e5 0%, #f5f2ef 32%, #eef6fb 100%);
+  background: radial-gradient(circle at 8% 0%, #fff1e6 0%, #f7f2ee 35%, #eef6f9 100%);
   color: var(--ink);
   position: relative;
   overflow: hidden;
@@ -947,21 +947,14 @@ onMounted(() => void adminStore.loadAll());
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 10%, rgba(255, 122, 26, 0.2), transparent 45%),
-    radial-gradient(circle at 80% 12%, rgba(255, 154, 77, 0.2), transparent 55%),
-    radial-gradient(circle at 60% 85%, rgba(255, 122, 26, 0.16), transparent 45%);
+    radial-gradient(circle at 18% 10%, rgba(255, 122, 26, 0.16), transparent 45%),
+    radial-gradient(circle at 80% 12%, rgba(255, 154, 77, 0.16), transparent 55%),
+    radial-gradient(circle at 60% 85%, rgba(255, 122, 26, 0.12), transparent 45%);
   pointer-events: none;
 }
 
 .revenue-shell::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-  background-size: 120px 120px;
-  opacity: 0.4;
-  pointer-events: none;
+  content: none;
 }
 
 .revenue-shell > * {
@@ -970,23 +963,27 @@ onMounted(() => void adminStore.loadAll());
 }
 
 .admin-sidebar {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, #f5f7fc 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.98) 100%);
   border-right: 1px solid var(--stroke);
-  padding: 36px 28px;
+  padding: 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  backdrop-filter: blur(12px);
+  gap: 20px;
+  backdrop-filter: blur(16px);
   position: relative;
 }
 
 .admin-sidebar::after {
   content: "";
   position: absolute;
-  inset: 24px;
-  border-radius: 24px;
-  background: linear-gradient(160deg, rgba(255, 122, 26, 0.08), transparent 45%);
+  inset: 20px 18px;
+  border-radius: 30px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.24)),
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.12), transparent 58%);
   pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.48);
 }
 
 .admin-sidebar > * {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiPatch } from "../../features/apiClient";
 import { serviceFeeRate } from "../../features/appData";
@@ -560,6 +560,51 @@ const localeByLanguage = {
   km: "km-KH",
   zh: "zh-CN",
 };
+const reportText = computed(() => {
+  if (language.value === "km") {
+    return {
+      yearlyReport: "របាយការណ៍ប្រចាំឆ្នាំ",
+      serviceFeeReport: "របាយការណ៍ថ្លៃសេវា",
+      reportPeriod: "រយៈពេលរបាយការណ៍",
+      generatedOn: "បានបង្កើតនៅ",
+      serviceFeeRateLabel: "អត្រាថ្លៃសេវា",
+      confirmedBookings: "ការកក់ដែលបានបញ្ជាក់",
+      grossRevenue: "ចំណូលសរុប",
+      averageServiceFee: "ថ្លៃសេវាមធ្យម",
+      periodChange: "ការប្រែប្រួលរយៈពេល",
+      exportingReport: "កំពុងនាំចេញ...",
+      reportNoData: "មិនទាន់មានការកក់ដែលបានបញ្ជាក់ក្នុងរយៈពេលនេះទេ។",
+    };
+  }
+  if (language.value === "zh") {
+    return {
+      yearlyReport: "年度报告",
+      serviceFeeReport: "服务费报告",
+      reportPeriod: "报告周期",
+      generatedOn: "生成时间",
+      serviceFeeRateLabel: "服务费率",
+      confirmedBookings: "已确认预订",
+      grossRevenue: "总收入",
+      averageServiceFee: "平均服务费",
+      periodChange: "周期变化",
+      exportingReport: "导出中...",
+      reportNoData: "该周期内暂无已确认预订。",
+    };
+  }
+  return {
+    yearlyReport: "Yearly Report",
+    serviceFeeReport: "Service Fee Report",
+    reportPeriod: "Report Period",
+    generatedOn: "Generated On",
+    serviceFeeRateLabel: "Service Fee Rate",
+    confirmedBookings: "Confirmed Bookings",
+    grossRevenue: "Gross Revenue",
+    averageServiceFee: "Average Service Fee",
+    periodChange: "Period Change",
+    exportingReport: "Exporting...",
+    reportNoData: "No confirmed bookings in this period yet.",
+  };
+});
 
 const searchQuery = ref("");
 const usersSearchQuery = ref("");
@@ -567,6 +612,7 @@ const adminPageKeys = ["dashboard", "events", "admin-bookings", "vendors", "cust
 const router = useRouter();
 const route = useRoute();
 const activeKey = ref("dashboard");
+const surfaceKey = computed(() => (activeKey.value === "settings" ? "settings" : "dashboard"));
 const adminStore = useAdminDataStore();
 const isLoading = computed(() => adminStore.loading.all);
 const loadError = computed(() => adminStore.error);
@@ -781,6 +827,18 @@ const formatDate = (value) => {
     month: "short",
     day: "2-digit",
     year: "numeric",
+  });
+};
+
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return uiText.value.dateTbd;
+  return date.toLocaleString(activeLocale.value, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 };
 
@@ -1181,6 +1239,14 @@ const getMonthRange = (offset = 0) => {
   return { start, end };
 };
 
+const getYearRange = (offset = 0) => {
+  const now = new Date();
+  const year = now.getFullYear() + offset;
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31, 23, 59, 59, 999);
+  return { start, end };
+};
+
 const calculateServiceFee = (amount) => Number((Math.max(0, Number(amount || 0)) * serviceFeeRate).toFixed(2));
 
 const sumServiceFees = (rows, range) =>
@@ -1191,6 +1257,19 @@ const sumServiceFees = (rows, range) =>
     if (!date || (range && (date < range.start || date > range.end))) return sum;
     return sum + calculateServiceFee(row?.total_amount || 0);
   }, 0);
+
+const getConfirmedBookingsInRange = (rows, range) =>
+  rows
+    .filter((row) => {
+      if (normalizeBookingStatus(row) !== "confirmed") return false;
+      const date = getRowDate(row, row?.event?.starts_at);
+      return Boolean(date && (!range || (date >= range.start && date <= range.end)));
+    })
+    .sort((left, right) => {
+      const leftTime = getRowDate(left, left?.event?.starts_at)?.getTime() || 0;
+      const rightTime = getRowDate(right, right?.event?.starts_at)?.getTime() || 0;
+      return rightTime - leftTime;
+    });
 
 const countByDate = (rows, range, dateField = "created_at") =>
   rows.reduce((sum, row) => {
@@ -1276,6 +1355,125 @@ const monthlyReport = computed(() => {
         : uiText.value.reportPending,
   };
 });
+
+const reportSheetRef = ref(null);
+const reportExportMode = ref("combined");
+const isExportingReport = ref(false);
+const reportGeneratedAt = ref(new Date());
+
+const formatMonthPeriod = (range) =>
+  new Intl.DateTimeFormat(activeLocale.value, {
+    month: "long",
+    year: "numeric",
+  }).format(range.start);
+
+const formatYearPeriod = (range) =>
+  new Intl.DateTimeFormat(activeLocale.value, {
+    year: "numeric",
+  }).format(range.start);
+
+const buildServiceFeeSummary = ({ key, title, range, previousRange, periodLabel }) => {
+  const rows = getConfirmedBookingsInRange(bookingRows.value, range);
+  const grossRevenue = Number(
+    rows.reduce((sum, row) => sum + Number(row?.total_amount || 0), 0).toFixed(2),
+  );
+  const serviceFees = Number(
+    rows.reduce((sum, row) => sum + calculateServiceFee(row?.total_amount || 0), 0).toFixed(2),
+  );
+  const previousFees = Number(sumServiceFees(bookingRows.value, previousRange).toFixed(2));
+  const averageFee = rows.length ? Number((serviceFees / rows.length).toFixed(2)) : 0;
+
+  return {
+    key,
+    title,
+    periodLabel,
+    bookingCount: rows.length,
+    bookingCountLabel: formatNumber(rows.length),
+    grossRevenueLabel: formatCurrency(grossRevenue),
+    serviceFeesLabel: formatCurrency(serviceFees),
+    averageFeeLabel: formatCurrency(averageFee),
+    growthLabel: formatPercentDelta(serviceFees, previousFees),
+  };
+};
+
+const monthlyServiceFeeSummary = computed(() => {
+  const range = getMonthRange(0);
+  return buildServiceFeeSummary({
+    key: "monthly",
+    title: uiText.value.monthlyReport,
+    range,
+    previousRange: getMonthRange(-1),
+    periodLabel: formatMonthPeriod(range),
+  });
+});
+
+const yearlyServiceFeeSummary = computed(() => {
+  const range = getYearRange(0);
+  return buildServiceFeeSummary({
+    key: "yearly",
+    title: reportText.value.yearlyReport,
+    range,
+    previousRange: getYearRange(-1),
+    periodLabel: formatYearPeriod(range),
+  });
+});
+
+const exportReportSections = computed(() => {
+  if (reportExportMode.value === "monthly") return [monthlyServiceFeeSummary.value];
+  if (reportExportMode.value === "yearly") return [yearlyServiceFeeSummary.value];
+  return [monthlyServiceFeeSummary.value, yearlyServiceFeeSummary.value];
+});
+
+const reportDocumentTitle = computed(() => {
+  if (reportExportMode.value === "monthly") {
+    return `${uiText.value.monthlyReport} - ${reportText.value.serviceFeeReport}`;
+  }
+  if (reportExportMode.value === "yearly") {
+    return `${reportText.value.yearlyReport} - ${reportText.value.serviceFeeReport}`;
+  }
+  return reportText.value.serviceFeeReport;
+});
+
+const reportGeneratedAtLabel = computed(() => formatDateTime(reportGeneratedAt.value));
+const reportFeeRateLabel = computed(() => `${(serviceFeeRate * 100).toFixed(1)}%`);
+
+const buildReportFilename = (mode) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  if (mode === "monthly") return `service-fee-report-monthly-${year}-${month}.pdf`;
+  if (mode === "yearly") return `service-fee-report-yearly-${year}.pdf`;
+  return `service-fee-report-${year}-${month}-${day}.pdf`;
+};
+
+const downloadServiceFeeReport = async (mode = "combined") => {
+  if (isExportingReport.value) return;
+  reportExportMode.value = mode;
+  reportGeneratedAt.value = new Date();
+  await nextTick();
+  if (!reportSheetRef.value) return;
+
+  isExportingReport.value = true;
+  try {
+    const { default: html2pdf } = await import("html2pdf.js");
+    await html2pdf()
+      .set({
+        margin: [8, 8, 8, 8],
+        filename: buildReportFilename(mode),
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      })
+      .from(reportSheetRef.value)
+      .save();
+  } catch (error) {
+    console.error("Unable to export service fee report.", error);
+  } finally {
+    isExportingReport.value = false;
+  }
+};
 
 const systemStatus = computed(() => {
   const status = healthStatus.value?.status || "unknown";
@@ -1426,16 +1624,18 @@ onMounted(() =>
         </div>
       </header>
 
-      <section v-if="activeKey === 'dashboard'" class="admin-hero">
+      <section v-if="surfaceKey === 'dashboard'" class="admin-hero">
         <p class="eyebrow">{{ uiText.dashboardEyebrow }}</p>
         <h1 class="hero-title">{{ uiText.dashboardTitle }}</h1>
         <p class="hero-subtitle">{{ uiText.dashboardSubtitle }}</p>
         <div class="hero-actions">
-          <button class="primary-btn" type="button">{{ uiText.exportReport }}</button>
+          <button class="primary-btn" type="button" :disabled="isExportingReport" @click="downloadServiceFeeReport('combined')">
+            {{ isExportingReport ? reportText.exportingReport : uiText.exportReport }}
+          </button>
         </div>
       </section>
 
-      <section v-if="activeKey === 'dashboard'" class="admin-stats">
+      <section v-if="surfaceKey === 'dashboard'" class="admin-stats">
         <article
           v-for="card in dashboardStats"
           :key="card.label"
@@ -1468,7 +1668,7 @@ onMounted(() =>
         </article>
       </section>
 
-      <section v-if="activeKey === 'dashboard'" class="admin-grid">
+      <section v-if="surfaceKey === 'dashboard'" class="admin-grid">
         <article v-if="false" class="activity-card">
           <header>
             <h3>{{ uiText.recentActivity }}</h3>
@@ -1504,7 +1704,24 @@ onMounted(() =>
               <span class="report-pill">{{ monthlyReport.growthLabel }}</span>
             </div>
             <p>{{ monthlyReport.message }}</p>
-            <button class="primary-btn" type="button">{{ uiText.downloadPdf }}</button>
+            <div class="report-metrics">
+              <div class="report-metric">
+                <span>{{ uiText.monthlyReport }}</span>
+                <strong>{{ monthlyServiceFeeSummary.serviceFeesLabel }}</strong>
+              </div>
+              <div class="report-metric">
+                <span>{{ reportText.yearlyReport }}</span>
+                <strong>{{ yearlyServiceFeeSummary.serviceFeesLabel }}</strong>
+              </div>
+            </div>
+            <div class="report-actions">
+              <button class="primary-btn" type="button" :disabled="isExportingReport" @click="downloadServiceFeeReport('monthly')">
+                {{ isExportingReport ? reportText.exportingReport : uiText.downloadPdf }}
+              </button>
+              <button class="secondary-btn" type="button" :disabled="isExportingReport" @click="downloadServiceFeeReport('yearly')">
+                {{ isExportingReport ? reportText.exportingReport : reportText.yearlyReport }}
+              </button>
+            </div>
           </article>
 
           <article class="status-card">
@@ -1531,7 +1748,7 @@ onMounted(() =>
         </div>
       </section>
 
-      <section v-else-if="activeKey === 'settings'" class="settings-page">
+      <section v-else-if="surfaceKey === 'settings'" class="settings-page">
         <div class="settings-header">
           <div class="settings-title">
             <div class="settings-icon">
@@ -1925,6 +2142,73 @@ onMounted(() =>
           </aside>
         </div>
       </section>
+
+      <div class="report-export-surface" aria-hidden="true">
+        <section ref="reportSheetRef" class="report-sheet">
+          <header class="report-sheet__header">
+            <div class="report-sheet__brand">
+              <div class="report-sheet__logo">
+                <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+                <span v-else>A</span>
+              </div>
+              <div>
+                <p class="report-sheet__brand-kicker">{{ uiText.brandTitle }}</p>
+                <h2>{{ reportDocumentTitle }}</h2>
+              </div>
+            </div>
+            <div class="report-sheet__meta">
+              <div>
+                <span>{{ reportText.generatedOn }}</span>
+                <strong>{{ reportGeneratedAtLabel }}</strong>
+              </div>
+              <div>
+                <span>{{ reportText.serviceFeeRateLabel }}</span>
+                <strong>{{ reportFeeRateLabel }}</strong>
+              </div>
+            </div>
+          </header>
+
+          <section
+            v-for="summary in exportReportSections"
+            :key="summary.key"
+            class="report-sheet__section"
+          >
+            <div class="report-sheet__section-head">
+              <div>
+                <p class="report-sheet__section-kicker">{{ reportText.reportPeriod }}</p>
+                <h3>{{ summary.title }}</h3>
+                <p class="report-sheet__section-period">{{ summary.periodLabel }}</p>
+              </div>
+              <span class="report-sheet__pill">{{ summary.growthLabel }}</span>
+            </div>
+
+            <div class="report-sheet__stats">
+              <article>
+                <span>{{ reportText.confirmedBookings }}</span>
+                <strong>{{ summary.bookingCountLabel }}</strong>
+              </article>
+              <article>
+                <span>{{ reportText.grossRevenue }}</span>
+                <strong>{{ summary.grossRevenueLabel }}</strong>
+              </article>
+              <article>
+                <span>{{ uiText.serviceFeeTotal }}</span>
+                <strong>{{ summary.serviceFeesLabel }}</strong>
+              </article>
+              <article>
+                <span>{{ reportText.averageServiceFee }}</span>
+                <strong>{{ summary.averageFeeLabel }}</strong>
+              </article>
+              <article>
+                <span>{{ reportText.periodChange }}</span>
+                <strong>{{ summary.growthLabel }}</strong>
+              </article>
+            </div>
+
+            <p v-if="!summary.bookingCount" class="report-sheet__empty">{{ reportText.reportNoData }}</p>
+          </section>
+        </section>
+      </div>
     </main>
   </section>
 </template>
@@ -1948,10 +2232,7 @@ onMounted(() =>
   grid-template-columns: minmax(300px, 360px) 1fr;
   min-height: calc(100vh - 90px);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background:
-    radial-gradient(circle at 12% 12%, rgba(255, 122, 26, 0.18), transparent 45%),
-    radial-gradient(circle at 78% 18%, rgba(59, 130, 246, 0.18), transparent 46%),
-    linear-gradient(135deg, #fff2e6 0%, #f5f6ff 52%, #eef6f9 100%);
+  background: radial-gradient(circle at 8% 0%, #fff1e6 0%, #f7f2ee 35%, #eef6f9 100%);
   color: var(--ink);
   position: relative;
   overflow: hidden;
@@ -1976,8 +2257,9 @@ onMounted(() =>
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 14% 70%, rgba(255, 122, 26, 0.14), transparent 45%),
-    radial-gradient(circle at 78% 78%, rgba(99, 102, 241, 0.12), transparent 48%);
+    radial-gradient(circle at 18% 10%, rgba(255, 122, 26, 0.16), transparent 45%),
+    radial-gradient(circle at 80% 12%, rgba(255, 154, 77, 0.16), transparent 55%),
+    radial-gradient(circle at 60% 85%, rgba(255, 122, 26, 0.12), transparent 45%);
   pointer-events: none;
 }
 
@@ -1993,12 +2275,13 @@ onMounted(() =>
 }
 
 .admin-sidebar {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 247, 252, 0.92) 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.98) 100%);
   border-right: 1px solid var(--stroke);
-  padding: 36px 28px;
+  padding: 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   backdrop-filter: blur(16px);
   position: relative;
 }
@@ -2010,10 +2293,13 @@ onMounted(() =>
 .admin-sidebar::after {
   content: "";
   position: absolute;
-  inset: 24px;
-  border-radius: 24px;
-  background: linear-gradient(160deg, rgba(255, 122, 26, 0.06), transparent 45%);
+  inset: 20px 18px;
+  border-radius: 30px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.24)),
+    radial-gradient(circle at top left, rgba(255, 122, 26, 0.12), transparent 58%);
   pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.48);
 }
 
 .admin-sidebar > * {
@@ -2249,27 +2535,27 @@ onMounted(() =>
 
 .search {
   flex: 1;
-  max-width: 420px;
+  max-width: 360px;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 18px;
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 10px 14px;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-soft);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search:focus-within {
   transform: translateY(-1px);
-  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
 }
 
 .search-icon svg {
   width: 16px;
   height: 16px;
-  fill: #9aa5b1;
+  fill: #94a3b8;
 }
 
 .search input {
@@ -2729,6 +3015,40 @@ onMounted(() =>
   opacity: 0.9;
 }
 
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.report-metric {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+}
+
+.report-metric span {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.report-metric strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.report-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .primary-btn {
   border: none;
   background: linear-gradient(135deg, #ff8a3c 0%, #f15b2a 100%);
@@ -2744,6 +3064,14 @@ onMounted(() =>
 .primary-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 30px rgba(241, 91, 42, 0.3);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  cursor: wait;
+  opacity: 0.78;
+  transform: none;
+  box-shadow: none;
 }
 
 .ghost-btn {
@@ -2766,6 +3094,160 @@ onMounted(() =>
   background: #fff;
   color: #f15b2a;
   box-shadow: none;
+}
+
+.secondary-btn {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.secondary-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.report-export-surface {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 210mm;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.report-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 16mm;
+  background: #ffffff;
+  color: #0f172a;
+  display: grid;
+  gap: 18px;
+}
+
+.report-sheet__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.report-sheet__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.report-sheet__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: #fff1e4;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.report-sheet__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.report-sheet__logo span {
+  font-family: "Fraunces", serif;
+  font-size: 24px;
+  color: #f15b2a;
+}
+
+.report-sheet__brand-kicker,
+.report-sheet__section-kicker {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  color: #b66f34;
+}
+
+.report-sheet__header h2,
+.report-sheet__section-head h3 {
+  margin: 0;
+  font-family: "Fraunces", serif;
+}
+
+.report-sheet__meta {
+  display: grid;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.report-sheet__meta div,
+.report-sheet__stats article {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff8f2;
+  border: 1px solid #f4dfcf;
+}
+
+.report-sheet__meta span,
+.report-sheet__stats span {
+  display: block;
+  font-size: 12px;
+  color: #7a8799;
+  margin-bottom: 6px;
+}
+
+.report-sheet__meta strong,
+.report-sheet__stats strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.report-sheet__section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid #f1dfd0;
+  background: linear-gradient(135deg, #ffffff 0%, #fff7f0 100%);
+}
+
+.report-sheet__section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.report-sheet__section-period {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.report-sheet__pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff1e4;
+  color: #f15b2a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.report-sheet__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-sheet__empty {
+  margin: 0;
+  color: #64748b;
 }
 
 .status-row {
@@ -3782,6 +4264,20 @@ onMounted(() =>
   .hero-actions .primary-btn {
     width: 100%;
     text-align: center;
+  }
+
+  .report-metrics,
+  .report-sheet__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .report-actions {
+    flex-direction: column;
+  }
+
+  .report-actions .primary-btn,
+  .report-actions .secondary-btn {
+    width: 100%;
   }
 
   .nav-item {
