@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { formatDateTime, summarizeBookedServices } from "../../features/bookingMappers";
 import { apiGet } from "../../features/apiClient";
+import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: {
@@ -19,6 +20,246 @@ const props = defineProps({
   },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Customer booking workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchPlaceholder: "Search bookings, attendees or events...",
+    refreshList: "Refresh List",
+    notifications: "Notifications",
+    heroEyebrow: "Booking Management",
+    heroTitle: "Customer Bookings for Vendor Services",
+    heroSubtitle: "Review the real bookings customers placed for vendor services and packages.",
+    all: "All",
+    pending: "Pending",
+    confirmed: "Confirmed",
+    cancelled: "Cancelled",
+    totalBookings: "Total Bookings",
+    pendingConfirmation: "Pending Confirmation",
+    confirmedRevenue: "Confirmed Revenue",
+    confirmedCount: "{count} confirmed",
+    needsAttention: "Needs attention",
+    allCaughtUp: "All caught up",
+    cancelledCount: "{count} cancelled",
+    customerBookingList: "Customer Booking List",
+    bookingSummary: "{shown} of {total} booking(s) shown",
+    packageCount: "{count} package",
+    serviceCount: "{count} service",
+    loadingBookings: "Loading customer bookings...",
+    noBookingsMatch: "No bookings matched this filter.",
+    qty: "Qty {count}",
+    bookingDetail: "Booking Detail",
+    selectedBooking: "Selected Booking",
+    email: "Email",
+    phone: "Phone",
+    location: "Location",
+    notProvided: "Not provided",
+    total: "Total",
+    quantity: "Quantity",
+    vendor: "Vendor",
+    vendorEmail: "Vendor Email",
+    eventDate: "Event Date",
+    time: "Time",
+    bookingType: "Booking Type",
+    payment: "Payment",
+    bookedItems: "Booked items",
+    item: "Item",
+    noBookingSelected: "No Booking Selected",
+    noBookingSelectedSubtitle: "Select a booking from the list to inspect its customer and vendor details here.",
+    summaryTitle: "Booking Summary",
+    summarySubtitle: "Live totals across vendor services and package orders in the platform.",
+    packageOrders: "Package Orders",
+    serviceOrders: "Service Orders",
+    revenue: "Revenue",
+    noContactProvided: "No contact provided",
+    vendorFallback: "Vendor",
+    guestCustomer: "Guest Customer",
+    serviceBooking: "Service Booking",
+    package: "Package",
+    service: "Service",
+    unpaid: "Unpaid",
+    paid: "Paid",
+    refunded: "Refunded",
+    failed: "Failed",
+    unknown: "Unknown",
+    timeTbd: "Time TBD",
+    allDay: "All day",
+    couldNotLoad: "Could not load customer bookings.",
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "客户预订工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchPlaceholder: "搜索预订、客户或活动...",
+    refreshList: "刷新列表",
+    notifications: "通知",
+    heroEyebrow: "预订管理",
+    heroTitle: "商家服务客户预订",
+    heroSubtitle: "查看客户为商家服务和套餐提交的真实预订。",
+    all: "全部",
+    pending: "待确认",
+    confirmed: "已确认",
+    cancelled: "已取消",
+    totalBookings: "预订总数",
+    pendingConfirmation: "待确认预订",
+    confirmedRevenue: "已确认收入",
+    confirmedCount: "{count} 已确认",
+    needsAttention: "需要处理",
+    allCaughtUp: "已全部处理",
+    cancelledCount: "{count} 已取消",
+    customerBookingList: "客户预订列表",
+    bookingSummary: "显示 {shown} / 共 {total} 条预订",
+    packageCount: "{count} 套餐",
+    serviceCount: "{count} 服务",
+    loadingBookings: "正在加载客户预订...",
+    noBookingsMatch: "没有符合当前筛选条件的预订。",
+    qty: "数量 {count}",
+    bookingDetail: "预订详情",
+    selectedBooking: "已选预订",
+    email: "邮箱",
+    phone: "电话",
+    location: "位置",
+    notProvided: "未提供",
+    total: "总额",
+    quantity: "数量",
+    vendor: "商家",
+    vendorEmail: "商家邮箱",
+    eventDate: "活动日期",
+    time: "时间",
+    bookingType: "预订类型",
+    payment: "支付",
+    bookedItems: "已预订项目",
+    item: "项目",
+    noBookingSelected: "未选择预订",
+    noBookingSelectedSubtitle: "从列表中选择一条预订，以在此查看客户和商家详情。",
+    summaryTitle: "预订摘要",
+    summarySubtitle: "平台内商家服务与套餐订单的实时统计。",
+    packageOrders: "套餐订单",
+    serviceOrders: "服务订单",
+    revenue: "收入",
+    noContactProvided: "未提供联系方式",
+    vendorFallback: "商家",
+    guestCustomer: "游客客户",
+    serviceBooking: "服务预订",
+    package: "套餐",
+    service: "服务",
+    unpaid: "未支付",
+    paid: "已支付",
+    refunded: "已退款",
+    failed: "失败",
+    unknown: "未知",
+    timeTbd: "时间待定",
+    allDay: "全天",
+    couldNotLoad: "无法加载客户预订。",
+  },
+};
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  nav: {
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    events: "ព្រឹត្តិការណ៍",
+    bookings: "ការកក់",
+    vendors: "អ្នកផ្គត់ផ្គង់",
+    customers: "អតិថិជន",
+    revenue: "ចំណូល",
+    settings: "ការកំណត់",
+  },
+  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandTitle: "Achar Admin",
+  brandSubtitle: "កន្លែងធ្វើការគ្រប់គ្រងការកក់អតិថិជន",
+  navigation: "ការរុករក",
+  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+  searchPlaceholder: "ស្វែងរកការកក់ អ្នកចូលរួម ឬព្រឹត្តិការណ៍...",
+  refreshList: "ផ្ទុកបញ្ជីឡើងវិញ",
+  notifications: "ការជូនដំណឹង",
+  heroEyebrow: "ការគ្រប់គ្រងការកក់",
+  heroTitle: "ការកក់របស់អតិថិជនសម្រាប់សេវារបស់អ្នកផ្គត់ផ្គង់",
+  heroSubtitle: "ពិនិត្យមើលការកក់ពិតប្រាកដដែលអតិថិជនបានធ្វើសម្រាប់សេវា និងកញ្ចប់របស់អ្នកផ្គត់ផ្គង់។",
+  all: "ទាំងអស់",
+  pending: "រង់ចាំ",
+  confirmed: "បានបញ្ជាក់",
+  cancelled: "បានបោះបង់",
+  totalBookings: "ការកក់សរុប",
+  pendingConfirmation: "ការកក់រង់ចាំការបញ្ជាក់",
+  confirmedRevenue: "ចំណូលដែលបានបញ្ជាក់",
+  confirmedCount: "{count} បានបញ្ជាក់",
+  needsAttention: "ត្រូវការការយកចិត្តទុកដាក់",
+  allCaughtUp: "បានដោះស្រាយរួចរាល់",
+  cancelledCount: "{count} បានបោះបង់",
+  customerBookingList: "បញ្ជីការកក់អតិថិជន",
+  bookingSummary: "បង្ហាញ {shown} នៃ {total} ការកក់",
+  packageCount: "កញ្ចប់ {count}",
+  serviceCount: "សេវា {count}",
+  loadingBookings: "កំពុងផ្ទុកការកក់អតិថិជន...",
+  noBookingsMatch: "មិនមានការកក់ត្រូវនឹងតម្រងនេះទេ។",
+  qty: "ចំនួន {count}",
+  bookingDetail: "ព័ត៌មានការកក់",
+  selectedBooking: "ការកក់ដែលបានជ្រើស",
+  email: "អ៊ីមែល",
+  phone: "ទូរស័ព្ទ",
+  location: "ទីតាំង",
+  notProvided: "មិនបានផ្តល់",
+  total: "សរុប",
+  quantity: "បរិមាណ",
+  vendor: "អ្នកផ្គត់ផ្គង់",
+  vendorEmail: "អ៊ីមែលអ្នកផ្គត់ផ្គង់",
+  eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+  time: "ម៉ោង",
+  bookingType: "ប្រភេទការកក់",
+  payment: "ការទូទាត់",
+  bookedItems: "មុខទំនិញដែលបានកក់",
+  item: "មុខទំនិញ",
+  noBookingSelected: "មិនទាន់ជ្រើសការកក់",
+  noBookingSelectedSubtitle: "ជ្រើសការកក់មួយពីបញ្ជី ដើម្បីមើលព័ត៌មានអតិថិជន និងអ្នកផ្គត់ផ្គង់នៅទីនេះ។",
+  summaryTitle: "សេចក្តីសង្ខេបការកក់",
+  summarySubtitle: "សរុបបច្ចុប្បន្ននៃសេវា និងការបញ្ជាទិញកញ្ចប់របស់អ្នកផ្គត់ផ្គង់ក្នុងប្រព័ន្ធ។",
+  packageOrders: "ការបញ្ជាទិញកញ្ចប់",
+  serviceOrders: "ការបញ្ជាទិញសេវា",
+  revenue: "ចំណូល",
+  noContactProvided: "មិនបានផ្តល់ព័ត៌មានទំនាក់ទំនង",
+  vendorFallback: "អ្នកផ្គត់ផ្គង់",
+  guestCustomer: "អតិថិជនភ្ញៀវ",
+  serviceBooking: "ការកក់សេវា",
+  package: "កញ្ចប់",
+  service: "សេវា",
+  unpaid: "មិនទាន់បង់",
+  paid: "បានបង់",
+  refunded: "បានសងប្រាក់វិញ",
+  failed: "បរាជ័យ",
+  unknown: "មិនស្គាល់",
+  timeTbd: "ម៉ោងមិនទាន់កំណត់",
+  allDay: "ពេញមួយថ្ងៃ",
+  couldNotLoad: "មិនអាចផ្ទុកការកក់អតិថិជនបានទេ។",
+};
+
+const { language, uiText } = useLanguageCopy(copyByLanguage);
+const activeLocale = computed(() => (language.value === "zh" ? "zh-CN" : language.value === "km" ? "km-KH" : "en-US"));
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
 const router = useRouter();
 const route = useRoute();
 const searchQuery = ref("");
@@ -28,30 +269,39 @@ const loadError = ref("");
 const adminBookings = ref([]);
 const selectedBookingId = ref(null);
 const failedCustomerImages = ref(new Set());
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
 const activeKey = ref("admin-bookings");
 
 function countLabel(value) {
-  return Number(value || 0).toLocaleString();
+  return Number(value || 0).toLocaleString(activeLocale.value);
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat(activeLocale.value, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
 }
 
 function formatTimeLabel(dateString) {
   const raw = String(dateString || "").trim();
-  if (!raw) return "Time TBD";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "All day";
+  if (!raw) return uiText.value.timeTbd;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return uiText.value.allDay;
 
   const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "Time TBD";
+  if (Number.isNaN(date.getTime())) return uiText.value.timeTbd;
 
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString(activeLocale.value, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -74,7 +324,7 @@ function getInitials(name, fallback = "BK") {
     .toUpperCase();
 }
 
-function formatBadgeLabel(value, fallback = "Unknown") {
+function formatBadgeLabel(value, fallback = uiText.value.unknown) {
   const normalized = String(value || "")
     .replace(/[_-]+/g, " ")
     .trim();
@@ -87,6 +337,29 @@ function formatBadgeLabel(value, fallback = "Unknown") {
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+}
+
+function bookingStatusLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "confirmed") return uiText.value.confirmed;
+  if (normalized === "cancelled" || normalized === "canceled") return uiText.value.cancelled;
+  return uiText.value.pending;
+}
+
+function paymentStatusLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const known = {
+    unpaid: uiText.value.unpaid,
+    paid: uiText.value.paid,
+    pending: uiText.value.pending,
+    refunded: uiText.value.refunded,
+    failed: uiText.value.failed,
+    cancelled: uiText.value.cancelled,
+    canceled: uiText.value.cancelled,
+    confirmed: uiText.value.confirmed,
+  };
+
+  return known[normalized] || formatBadgeLabel(value, uiText.value.unknown);
 }
 
 const initials = computed(() => {
@@ -112,12 +385,13 @@ const normalizedBookings = computed(() =>
       booking?.created_at ||
       booking?.updated_at ||
       "";
-    const customerName = String(booking?.customer_name || customer?.name || "Guest Customer").trim() || "Guest Customer";
+    const customerName =
+      String(booking?.customer_name || customer?.name || uiText.value.guestCustomer).trim() || uiText.value.guestCustomer;
     const customerEmail = String(booking?.customer_email || customer?.email || "").trim();
     const customerPhone = String(booking?.customer_phone || customer?.phone || "").trim();
     const serviceLabel = summarizeBookedServices(
       bookedItems,
-      String(booking?.service_name || event?.title || "Service Booking").trim() || "Service Booking",
+      String(booking?.service_name || event?.title || uiText.value.serviceBooking).trim() || uiText.value.serviceBooking,
     );
     const totalAmount = Number(booking?.total_amount || 0);
     const paymentStatus = String(booking?.payment_status || "unpaid").trim() || "unpaid";
@@ -135,22 +409,22 @@ const normalizedBookings = computed(() =>
       customerEmail,
       customerPhone,
       customerLocation: String(booking?.customer_location || customer?.location || "").trim(),
-      customerContact: customerEmail || customerPhone || "No contact provided",
-      vendorName: String(vendor?.name || "Vendor").trim() || "Vendor",
+      customerContact: customerEmail || customerPhone || uiText.value.noContactProvided,
+      vendorName: String(vendor?.name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback,
       vendorEmail: String(vendor?.email || "").trim(),
       serviceLabel,
-      bookingKind: bookedItems.length > 1 ? "Package" : "Service",
+      bookingKind: bookedItems.length > 1 ? uiText.value.package : uiText.value.service,
       eventTitle: String(event?.title || serviceLabel).trim() || serviceLabel,
       dateLabel: formatDateTime(bookingDate),
       timeLabel: formatTimeLabel(event?.starts_at || bookingDate),
       status,
-      statusLabel: status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending",
+      statusLabel: bookingStatusLabel(status),
       statusClass: status,
       quantity: Number(booking?.quantity || 1),
       totalAmount,
-      totalLabel: `$${totalAmount.toLocaleString()}`,
+      totalLabel: formatCurrency(totalAmount),
       paymentStatus,
-      paymentStatusLabel: formatBadgeLabel(paymentStatus, "Unpaid"),
+      paymentStatusLabel: paymentStatusLabel(paymentStatus),
       bookedItems,
     };
   }),
@@ -194,29 +468,30 @@ const totalBookingsCount = computed(() => normalizedBookings.value.length);
 const pendingBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "pending").length);
 const confirmedBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "confirmed").length);
 const cancelledBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.status === "cancelled").length);
-const packageBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === "Package").length);
-const serviceBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === "Service").length);
+const packageBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === uiText.value.package).length);
+const serviceBookingsCount = computed(() => normalizedBookings.value.filter((booking) => booking.bookingKind === uiText.value.service).length);
 const confirmedRevenue = computed(() =>
   normalizedBookings.value
     .filter((booking) => booking.status === "confirmed")
     .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0),
 );
+const confirmedRevenueLabel = computed(() => formatCurrency(confirmedRevenue.value));
 
 const stats = computed(() => [
   {
-    label: "Total Bookings",
+    label: uiText.value.totalBookings,
     value: countLabel(totalBookingsCount.value),
-    delta: `${countLabel(confirmedBookingsCount.value)} confirmed`,
+    delta: interpolate(uiText.value.confirmedCount, { count: countLabel(confirmedBookingsCount.value) }),
   },
   {
-    label: "Pending Confirmation",
+    label: uiText.value.pendingConfirmation,
     value: countLabel(pendingBookingsCount.value),
-    delta: pendingBookingsCount.value ? "Needs attention" : "All caught up",
+    delta: pendingBookingsCount.value ? uiText.value.needsAttention : uiText.value.allCaughtUp,
   },
   {
-    label: "Confirmed Revenue",
-    value: `$${countLabel(confirmedRevenue.value)}`,
-    delta: `${countLabel(cancelledBookingsCount.value)} cancelled`,
+    label: uiText.value.confirmedRevenue,
+    value: confirmedRevenueLabel.value,
+    delta: interpolate(uiText.value.cancelledCount, { count: countLabel(cancelledBookingsCount.value) }),
   },
 ]);
 
@@ -244,7 +519,7 @@ async function loadAdminBookings() {
     failedCustomerImages.value = new Set();
   } catch (error) {
     adminBookings.value = [];
-    loadError.value = error?.message || "Could not load customer bookings.";
+    loadError.value = error?.message || uiText.value.couldNotLoad;
   } finally {
     isLoading.value = false;
   }
@@ -298,17 +573,17 @@ onMounted(() => void loadAdminBookings());
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Customer booking workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -358,11 +633,11 @@ onMounted(() => void loadAdminBookings());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" type="search" placeholder="Search bookings, attendees or events..." />
+          <input v-model="searchQuery" type="search" :placeholder="uiText.searchPlaceholder" />
         </label>
         <div class="topbar-actions">
-          <button class="primary-btn" type="button" @click="loadAdminBookings">Refresh List</button>
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button class="primary-btn" type="button" @click="loadAdminBookings">{{ uiText.refreshList }}</button>
+          <button class="icon-btn" type="button" :title="uiText.notifications" :aria-label="uiText.notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
@@ -373,15 +648,15 @@ onMounted(() => void loadAdminBookings());
 
       <section class="bookings-hero">
         <div>
-          <p class="eyebrow">Booking Management</p>
-          <h1 class="hero-title">Customer Bookings for Vendor Services</h1>
-          <p class="hero-subtitle">Review the real bookings customers placed for vendor services and packages.</p>
+          <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
+          <h1 class="hero-title">{{ uiText.heroTitle }}</h1>
+          <p class="hero-subtitle">{{ uiText.heroSubtitle }}</p>
         </div>
         <div class="pill-group">
-          <button class="pill" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">All</button>
-          <button class="pill" :class="{ active: statusFilter === 'pending' }" type="button" @click="statusFilter = 'pending'">Pending</button>
-          <button class="pill" :class="{ active: statusFilter === 'confirmed' }" type="button" @click="statusFilter = 'confirmed'">Confirmed</button>
-          <button class="pill" :class="{ active: statusFilter === 'cancelled' }" type="button" @click="statusFilter = 'cancelled'">Cancelled</button>
+          <button class="pill" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">{{ uiText.all }}</button>
+          <button class="pill" :class="{ active: statusFilter === 'pending' }" type="button" @click="statusFilter = 'pending'">{{ uiText.pending }}</button>
+          <button class="pill" :class="{ active: statusFilter === 'confirmed' }" type="button" @click="statusFilter = 'confirmed'">{{ uiText.confirmed }}</button>
+          <button class="pill" :class="{ active: statusFilter === 'cancelled' }" type="button" @click="statusFilter = 'cancelled'">{{ uiText.cancelled }}</button>
         </div>
       </section>
 
@@ -397,17 +672,19 @@ onMounted(() => void loadAdminBookings());
         <article class="queue-card">
           <header>
             <div>
-              <h3>Customer Booking List</h3>
-              <p class="table-summary">{{ filteredBookings.length }} of {{ normalizedBookings.length }} booking(s) shown</p>
+              <h3>{{ uiText.customerBookingList }}</h3>
+              <p class="table-summary">
+                {{ interpolate(uiText.bookingSummary, { shown: filteredBookings.length, total: normalizedBookings.length }) }}
+              </p>
             </div>
             <div class="table-actions">
-              <span class="table-chip">{{ countLabel(packageBookingsCount) }} package</span>
-              <span class="table-chip">{{ countLabel(serviceBookingsCount) }} service</span>
+              <span class="table-chip">{{ interpolate(uiText.packageCount, { count: countLabel(packageBookingsCount) }) }}</span>
+              <span class="table-chip">{{ interpolate(uiText.serviceCount, { count: countLabel(serviceBookingsCount) }) }}</span>
             </div>
           </header>
           <p v-if="loadError" class="table-feedback error">{{ loadError }}</p>
-          <p v-else-if="isLoading" class="table-feedback">Loading customer bookings...</p>
-          <p v-else-if="!filteredBookings.length" class="table-feedback">No bookings matched this filter.</p>
+          <p v-else-if="isLoading" class="table-feedback">{{ uiText.loadingBookings }}</p>
+          <p v-else-if="!filteredBookings.length" class="table-feedback">{{ uiText.noBookingsMatch }}</p>
           <div v-else class="booking-list">
             <button
               v-for="item in filteredBookings"
@@ -438,7 +715,7 @@ onMounted(() => void loadAdminBookings());
                   <div class="booking-chip-row">
                     <span class="info-chip">{{ item.timeLabel }}</span>
                     <span class="info-chip">{{ item.paymentStatusLabel }}</span>
-                    <span class="info-chip">Qty {{ item.quantity }}</span>
+                    <span class="info-chip">{{ interpolate(uiText.qty, { count: item.quantity }) }}</span>
                   </div>
                 </div>
               </div>
@@ -455,8 +732,8 @@ onMounted(() => void loadAdminBookings());
           <article v-if="selectedBooking" class="card detail-card">
             <header class="detail-head">
               <div>
-                <p class="detail-eyebrow">Booking Detail</p>
-                <h3>Selected Booking</h3>
+                <p class="detail-eyebrow">{{ uiText.bookingDetail }}</p>
+                <h3>{{ uiText.selectedBooking }}</h3>
               </div>
               <span class="detail-code">{{ selectedBooking.bookingCode }}</span>
             </header>
@@ -482,99 +759,99 @@ onMounted(() => void loadAdminBookings());
             </div>
             <div class="contact-grid">
               <div>
-                <span>Email</span>
-                <strong>{{ selectedBooking.customerEmail || "Not provided" }}</strong>
+                <span>{{ uiText.email }}</span>
+                <strong>{{ selectedBooking.customerEmail || uiText.notProvided }}</strong>
               </div>
               <div>
-                <span>Phone</span>
-                <strong>{{ selectedBooking.customerPhone || "Not provided" }}</strong>
+                <span>{{ uiText.phone }}</span>
+                <strong>{{ selectedBooking.customerPhone || uiText.notProvided }}</strong>
               </div>
               <div class="contact-grid-wide">
-                <span>Location</span>
-                <strong>{{ selectedBooking.customerLocation || "Not provided" }}</strong>
+                <span>{{ uiText.location }}</span>
+                <strong>{{ selectedBooking.customerLocation || uiText.notProvided }}</strong>
               </div>
             </div>
             <div class="booking-stats">
               <div>
-                <span>Total</span>
+                <span>{{ uiText.total }}</span>
                 <strong>{{ selectedBooking.totalLabel }}</strong>
               </div>
               <div>
-                <span>Quantity</span>
+                <span>{{ uiText.quantity }}</span>
                 <strong>{{ selectedBooking.quantity }}</strong>
               </div>
             </div>
             <div class="booking-details-grid">
               <div>
-                <span>Vendor</span>
+                <span>{{ uiText.vendor }}</span>
                 <strong>{{ selectedBooking.vendorName }}</strong>
               </div>
               <div>
-                <span>Vendor Email</span>
-                <strong class="detail-email">{{ selectedBooking.vendorEmail || "Not provided" }}</strong>
+                <span>{{ uiText.vendorEmail }}</span>
+                <strong class="detail-email">{{ selectedBooking.vendorEmail || uiText.notProvided }}</strong>
               </div>
               <div>
-                <span>Event Date</span>
+                <span>{{ uiText.eventDate }}</span>
                 <strong>{{ selectedBooking.dateLabel }}</strong>
               </div>
               <div>
-                <span>Time</span>
+                <span>{{ uiText.time }}</span>
                 <strong>{{ selectedBooking.timeLabel }}</strong>
               </div>
               <div>
-                <span>Booking Type</span>
+                <span>{{ uiText.bookingType }}</span>
                 <strong>{{ selectedBooking.bookingKind }}</strong>
               </div>
               <div>
-                <span>Payment</span>
+                <span>{{ uiText.payment }}</span>
                 <strong>{{ selectedBooking.paymentStatusLabel }}</strong>
               </div>
             </div>
             <div v-if="selectedBooking.bookedItems.length" class="booked-items">
-              <span class="booked-items-label">Booked items</span>
+              <span class="booked-items-label">{{ uiText.bookedItems }}</span>
               <div class="booked-items-list">
                 <span v-for="(entry, index) in selectedBooking.bookedItems" :key="`${selectedBooking.key}:item:${index}`">
-                  {{ entry?.name || "Item" }}
+                  {{ entry?.name || uiText.item }}
                 </span>
               </div>
             </div>
           </article>
           <article v-else class="card detail-card empty-detail-card">
             <header>
-              <h3>No Booking Selected</h3>
+              <h3>{{ uiText.noBookingSelected }}</h3>
             </header>
-            <p>Select a booking from the list to inspect its customer and vendor details here.</p>
+            <p>{{ uiText.noBookingSelectedSubtitle }}</p>
           </article>
 
           <article class="card summary-card">
-            <h3>Booking Summary</h3>
-            <p>Live totals across vendor services and package orders in the platform.</p>
+            <h3>{{ uiText.summaryTitle }}</h3>
+            <p>{{ uiText.summarySubtitle }}</p>
             <div class="summary-feature">
               <div>
-                <span>Package Orders</span>
+                <span>{{ uiText.packageOrders }}</span>
                 <strong>{{ countLabel(packageBookingsCount) }}</strong>
               </div>
               <div>
-                <span>Service Orders</span>
+                <span>{{ uiText.serviceOrders }}</span>
                 <strong>{{ countLabel(serviceBookingsCount) }}</strong>
               </div>
             </div>
             <div class="summary-list">
               <div class="summary-item">
-                <span>Confirmed</span>
+                <span>{{ uiText.confirmed }}</span>
                 <strong>{{ countLabel(confirmedBookingsCount) }}</strong>
               </div>
               <div class="summary-item">
-                <span>Pending</span>
+                <span>{{ uiText.pending }}</span>
                 <strong>{{ countLabel(pendingBookingsCount) }}</strong>
               </div>
               <div class="summary-item">
-                <span>Cancelled</span>
+                <span>{{ uiText.cancelled }}</span>
                 <strong>{{ countLabel(cancelledBookingsCount) }}</strong>
               </div>
               <div class="summary-item">
-                <span>Revenue</span>
-                <strong>${{ countLabel(confirmedRevenue) }}</strong>
+                <span>{{ uiText.revenue }}</span>
+                <strong>{{ confirmedRevenueLabel }}</strong>
               </div>
             </div>
           </article>

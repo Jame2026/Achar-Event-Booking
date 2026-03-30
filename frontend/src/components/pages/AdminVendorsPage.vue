@@ -5,6 +5,7 @@ import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
 import { apiGet, apiPatch } from "../../features/apiClient";
 import { useAdminDataStore } from "../../features/useAdminDataStore";
+import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: { type: String, default: "" },
@@ -12,18 +13,317 @@ const props = defineProps({
   logoutUser: { type: Function, default: null },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Vendor directory workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchPlaceholder: "Search vendor names, listings, location, or contact...",
+    notifications: "Notifications",
+    heroEyebrow: "Vendor Directory",
+    heroTitle: "All Vendors and Their Listings",
+    heroSubtitle: "Select a vendor to inspect profile information and every service or package they currently have in the system.",
+    totalVendorsText: "{count} total vendors",
+    totalListingsText: "{count} total listings",
+    selectedVendor: "Selected Vendor",
+    listingSelectedSummary: "{count} listing(s) - {date}",
+    goLiveAgain: "Go Live Again",
+    pauseVendor: "Pause Vendor",
+    totalVendors: "Total Vendors",
+    shownHere: "{count} shown here",
+    liveVendors: "Live Vendors",
+    withVisibleListings: "With visible listings",
+    listingsInSystem: "Listings In System",
+    packageListings: "{count} package listings",
+    bookings: "Bookings",
+    acrossVendorListings: "Across vendor listings",
+    directoryEyebrow: "Vendor Directory",
+    allVendors: "All Vendors",
+    results: "{count} results",
+    visibility: "Visibility",
+    allVisibility: "All Visibility",
+    live: "Live",
+    mixed: "Mixed",
+    paused: "Paused",
+    category: "Category",
+    allCategories: "All Categories",
+    loadingVendorDirectory: "Loading vendor directory...",
+    noVendorsMatch: "No vendors match your filters.",
+    listingCount: "{count} listing(s)",
+    packageCount: "{count} package",
+    bookingsCount: "{count} bookings",
+    vendorProfile: "Vendor Profile",
+    servicesCount: "{count} services",
+    packagesCount: "{count} packages",
+    total: "Total",
+    hidden: "Hidden",
+    email: "Email",
+    phone: "Phone",
+    categories: "Categories",
+    noCategoriesYet: "No categories yet",
+    notProvided: "Not provided",
+    servicesAndPackages: "Services and Packages",
+    noServicesYet: "No services or packages for this vendor yet.",
+    serviceHidden: "Hidden",
+    packageItems: "{count} package item(s)",
+    selectVendor: "Select a Vendor",
+    selectVendorSubtitle: "Choose a vendor from the directory to inspect their account information and system listings here.",
+    vendorFallback: "Vendor",
+    other: "Other",
+    package: "Package",
+    service: "Service",
+    noListings: "No Listings",
+    dateTbd: "Date TBD",
+    locationMissing: "Location not added yet",
+    joinDateUnavailable: "Join date unavailable",
+    noListingActivityYet: "No listing activity yet",
+    noVendorAccounts: "No vendor accounts found yet.",
+    couldNotLoadVendorDirectory: "Could not load vendor directory.",
+    missingVendorAccountId: "This vendor does not have a connected vendor account ID.",
+    allListingsAlreadyLive: "All listings are already live.",
+    allListingsAlreadyPaused: "All listings are already paused.",
+    listingsLiveAgain: "Vendor listings are live again.",
+    listingsWerePaused: "Vendor listings were paused.",
+    couldNotUpdateVendorVisibility: "Could not update vendor visibility.",
+    eventTypes: {
+      wedding: "Wedding",
+      monk_ceremony: "Monk Ceremony",
+      house_blessing: "House Blessing",
+      company_party: "Company Party",
+      birthday: "Birthday",
+      school_event: "School Event",
+      engagement: "Engagement",
+      anniversary: "Anniversary",
+      baby_shower: "Baby Shower",
+      graduation: "Graduation",
+      festival: "Festival",
+      other: "Other",
+    },
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "商家目录工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchPlaceholder: "搜索商家名称、列表、位置或联系方式...",
+    notifications: "通知",
+    heroEyebrow: "商家目录",
+    heroTitle: "所有商家及其列表",
+    heroSubtitle: "选择一位商家，查看其资料以及系统中当前的所有服务或套餐。",
+    totalVendorsText: "{count} 位商家",
+    totalListingsText: "{count} 个列表",
+    selectedVendor: "已选商家",
+    listingSelectedSummary: "{count} 个列表 - {date}",
+    goLiveAgain: "重新上线",
+    pauseVendor: "暂停商家",
+    totalVendors: "商家总数",
+    shownHere: "当前显示 {count} 位",
+    liveVendors: "上线商家",
+    withVisibleListings: "具有可见列表",
+    listingsInSystem: "系统中的列表",
+    packageListings: "{count} 个套餐列表",
+    bookings: "预订",
+    acrossVendorListings: "跨商家列表",
+    directoryEyebrow: "商家目录",
+    allVendors: "所有商家",
+    results: "{count} 条结果",
+    visibility: "可见状态",
+    allVisibility: "全部状态",
+    live: "上线",
+    mixed: "混合",
+    paused: "已暂停",
+    category: "分类",
+    allCategories: "全部分类",
+    loadingVendorDirectory: "正在加载商家目录...",
+    noVendorsMatch: "没有符合筛选条件的商家。",
+    listingCount: "{count} 个列表",
+    packageCount: "{count} 个套餐",
+    bookingsCount: "{count} 个预订",
+    vendorProfile: "商家资料",
+    servicesCount: "{count} 项服务",
+    packagesCount: "{count} 个套餐",
+    total: "总数",
+    hidden: "隐藏",
+    email: "邮箱",
+    phone: "电话",
+    categories: "分类",
+    noCategoriesYet: "暂无分类",
+    notProvided: "未提供",
+    servicesAndPackages: "服务与套餐",
+    noServicesYet: "该商家还没有任何服务或套餐。",
+    serviceHidden: "隐藏",
+    packageItems: "{count} 个套餐项目",
+    selectVendor: "选择商家",
+    selectVendorSubtitle: "从目录中选择一位商家，以在此查看其账户信息和系统列表。",
+    vendorFallback: "商家",
+    other: "其他",
+    package: "套餐",
+    service: "服务",
+    noListings: "无列表",
+    dateTbd: "日期待定",
+    locationMissing: "位置尚未添加",
+    joinDateUnavailable: "加入日期不可用",
+    noListingActivityYet: "暂无列表活动",
+    noVendorAccounts: "暂无商家账户。",
+    couldNotLoadVendorDirectory: "无法加载商家目录。",
+    missingVendorAccountId: "该商家没有关联的商家账户 ID。",
+    allListingsAlreadyLive: "所有列表都已上线。",
+    allListingsAlreadyPaused: "所有列表都已暂停。",
+    listingsLiveAgain: "商家列表已重新上线。",
+    listingsWerePaused: "商家列表已暂停。",
+    couldNotUpdateVendorVisibility: "无法更新商家可见状态。",
+    eventTypes: {
+      wedding: "婚礼",
+      monk_ceremony: "僧侣仪式",
+      house_blessing: "住宅祈福",
+      company_party: "公司派对",
+      birthday: "生日",
+      school_event: "学校活动",
+      engagement: "订婚",
+      anniversary: "周年纪念",
+      baby_shower: "迎婴派对",
+      graduation: "毕业典礼",
+      festival: "节庆",
+      other: "其他",
+    },
+  },
+};
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  nav: {
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    events: "ព្រឹត្តិការណ៍",
+    bookings: "ការកក់",
+    vendors: "អ្នកផ្គត់ផ្គង់",
+    customers: "អតិថិជន",
+    revenue: "ចំណូល",
+    settings: "ការកំណត់",
+  },
+  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandTitle: "Achar Admin",
+  brandSubtitle: "កន្លែងធ្វើការបញ្ជីអ្នកផ្គត់ផ្គង់",
+  navigation: "ការរុករក",
+  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+  searchPlaceholder: "ស្វែងរកឈ្មោះអ្នកផ្គត់ផ្គង់ បញ្ជី ទីតាំង ឬព័ត៌មានទំនាក់ទំនង...",
+  notifications: "ការជូនដំណឹង",
+  heroEyebrow: "បញ្ជីអ្នកផ្គត់ផ្គង់",
+  heroTitle: "អ្នកផ្គត់ផ្គង់ទាំងអស់ និងបញ្ជីរបស់ពួកគេ",
+  heroSubtitle: "ជ្រើសអ្នកផ្គត់ផ្គង់ម្នាក់ ដើម្បីពិនិត្យប្រវត្តិរូប និងសេវា ឬកញ្ចប់ទាំងអស់ដែលមានក្នុងប្រព័ន្ធ។",
+  totalVendorsText: "អ្នកផ្គត់ផ្គង់សរុប {count}",
+  totalListingsText: "បញ្ជីសរុប {count}",
+  selectedVendor: "អ្នកផ្គត់ផ្គង់ដែលបានជ្រើស",
+  listingSelectedSummary: "បញ្ជី {count} - {date}",
+  goLiveAgain: "បើកដំណើរការឡើងវិញ",
+  pauseVendor: "ផ្អាកអ្នកផ្គត់ផ្គង់",
+  totalVendors: "អ្នកផ្គត់ផ្គង់សរុប",
+  shownHere: "បង្ហាញនៅទីនេះ {count}",
+  liveVendors: "អ្នកផ្គត់ផ្គង់សកម្ម",
+  withVisibleListings: "មានបញ្ជីដែលអាចមើលឃើញ",
+  listingsInSystem: "បញ្ជីនៅក្នុងប្រព័ន្ធ",
+  packageListings: "បញ្ជីកញ្ចប់ {count}",
+  bookings: "ការកក់",
+  acrossVendorListings: "នៅទូទាំងបញ្ជីរបស់អ្នកផ្គត់ផ្គង់",
+  directoryEyebrow: "បញ្ជីអ្នកផ្គត់ផ្គង់",
+  allVendors: "អ្នកផ្គត់ផ្គង់ទាំងអស់",
+  results: "លទ្ធផល {count}",
+  visibility: "ភាពអាចមើលឃើញ",
+  allVisibility: "ភាពអាចមើលឃើញទាំងអស់",
+  live: "ដំណើរការ",
+  mixed: "ចម្រុះ",
+  paused: "ផ្អាក",
+  category: "ប្រភេទ",
+  allCategories: "ប្រភេទទាំងអស់",
+  loadingVendorDirectory: "កំពុងផ្ទុកបញ្ជីអ្នកផ្គត់ផ្គង់...",
+  noVendorsMatch: "មិនមានអ្នកផ្គត់ផ្គង់ត្រូវនឹងតម្រងរបស់អ្នកទេ។",
+  listingCount: "បញ្ជី {count}",
+  packageCount: "កញ្ចប់ {count}",
+  bookingsCount: "ការកក់ {count}",
+  vendorProfile: "ប្រវត្តិរូបអ្នកផ្គត់ផ្គង់",
+  servicesCount: "សេវា {count}",
+  packagesCount: "កញ្ចប់ {count}",
+  total: "សរុប",
+  hidden: "លាក់",
+  email: "អ៊ីមែល",
+  phone: "ទូរស័ព្ទ",
+  categories: "ប្រភេទ",
+  noCategoriesYet: "មិនទាន់មានប្រភេទ",
+  notProvided: "មិនបានផ្តល់",
+  servicesAndPackages: "សេវា និងកញ្ចប់",
+  noServicesYet: "មិនទាន់មានសេវា ឬកញ្ចប់សម្រាប់អ្នកផ្គត់ផ្គង់នេះទេ។",
+  serviceHidden: "លាក់",
+  packageItems: "ធាតុកញ្ចប់ {count}",
+  selectVendor: "ជ្រើសអ្នកផ្គត់ផ្គង់",
+  selectVendorSubtitle: "ជ្រើសអ្នកផ្គត់ផ្គង់ម្នាក់ពីបញ្ជី ដើម្បីពិនិត្យព័ត៌មានគណនី និងបញ្ជីក្នុងប្រព័ន្ធ។",
+  vendorFallback: "អ្នកផ្គត់ផ្គង់",
+  other: "ផ្សេងៗ",
+  package: "កញ្ចប់",
+  service: "សេវា",
+  noListings: "មិនមានបញ្ជី",
+  dateTbd: "កាលបរិច្ឆេទមិនទាន់កំណត់",
+  locationMissing: "មិនទាន់បន្ថែមទីតាំង",
+  joinDateUnavailable: "មិនមានកាលបរិច្ឆេទចូល",
+  noListingActivityYet: "មិនទាន់មានសកម្មភាពបញ្ជី",
+  noVendorAccounts: "មិនទាន់មានគណនីអ្នកផ្គត់ផ្គង់។",
+  couldNotLoadVendorDirectory: "មិនអាចផ្ទុកបញ្ជីអ្នកផ្គត់ផ្គង់បានទេ។",
+  missingVendorAccountId: "អ្នកផ្គត់ផ្គង់នេះមិនមានលេខសម្គាល់គណនីអ្នកផ្គត់ផ្គង់ដែលភ្ជាប់ទេ។",
+  allListingsAlreadyLive: "បញ្ជីទាំងអស់កំពុងដំណើរការរួចហើយ។",
+  allListingsAlreadyPaused: "បញ្ជីទាំងអស់ត្រូវបានផ្អាករួចហើយ។",
+  listingsLiveAgain: "បញ្ជីអ្នកផ្គត់ផ្គង់ត្រូវបានបើកដំណើរការឡើងវិញ។",
+  listingsWerePaused: "បញ្ជីអ្នកផ្គត់ផ្គង់ត្រូវបានផ្អាក។",
+  couldNotUpdateVendorVisibility: "មិនអាចធ្វើបច្ចុប្បន្នភាពភាពអាចមើលឃើញរបស់អ្នកផ្គត់ផ្គង់បានទេ។",
+  eventTypes: {
+    wedding: "អាពាហ៍ពិពាហ៍",
+    monk_ceremony: "ពិធីព្រះសង្ឃ",
+    house_blessing: "ពិធីឡើងផ្ទះ",
+    company_party: "ពិធីជប់លៀងក្រុមហ៊ុន",
+    birthday: "ខួបកំណើត",
+    school_event: "ព្រឹត្តិការណ៍សាលា",
+    engagement: "ពិធីភ្ជាប់ពាក្យ",
+    anniversary: "ខួបអនុស្សាវរីយ៍",
+    baby_shower: "ពិធីស្វាគមន៍ទារក",
+    graduation: "ពិធីបញ្ចប់ការសិក្សា",
+    festival: "ពិធីបុណ្យ",
+    other: "ផ្សេងៗ",
+  },
+};
+
+const { uiText } = useLanguageCopy(copyByLanguage);
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
 const router = useRouter();
 const route = useRoute();
 
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
 
 const activeKey = ref("vendors");
 const searchQuery = ref("");
@@ -48,7 +348,7 @@ function vendorKey(id, name) {
 }
 
 function shortName(value) {
-  return String(value || "Vendor")
+  return String(value || uiText.value.vendorFallback)
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -73,14 +373,14 @@ function count(value) {
 function listingKind(value) {
   const packages = Array.isArray(value?.packages) ? value.packages.filter(Boolean) : [];
   const mode = String(value?.service_mode || "").trim().toLowerCase();
-  return mode === "package" || packages.length ? "Package" : "Service";
+  return mode === "package" || packages.length ? uiText.value.package : uiText.value.service;
 }
 
 function visibilityLabel(value) {
-  if (value === "paused") return "Paused";
-  if (value === "mixed") return "Mixed";
-  if (value === "empty") return "No Listings";
-  return "Live";
+  if (value === "paused") return uiText.value.paused;
+  if (value === "mixed") return uiText.value.mixed;
+  if (value === "empty") return uiText.value.noListings;
+  return uiText.value.live;
 }
 
 function setNotice(message, tone = "info") {
@@ -88,12 +388,17 @@ function setNotice(message, tone = "info") {
   noticeTone.value = tone;
 }
 
+function eventTypeLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return uiText.value.eventTypes?.[normalized] || eventTypeMap[normalized] || uiText.value.other;
+}
+
 const vendorRows = computed(() => {
   const groups = new Map();
 
   vendorUsers.value.forEach((vendor) => {
     const vendorId = Number(vendor?.id || 0) || null;
-    const vendorName = String(vendor?.name || "Vendor").trim() || "Vendor";
+    const vendorName = String(vendor?.name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback;
     const key = vendorKey(vendorId, vendorName);
 
     groups.set(key, {
@@ -119,7 +424,8 @@ const vendorRows = computed(() => {
 
   vendorEvents.value.forEach((event) => {
     const vendorId = Number(event?.vendor_id || 0) || null;
-    const vendorName = String(event?.vendor?.name || event?.vendor_name || "Vendor").trim() || "Vendor";
+    const vendorName =
+      String(event?.vendor?.name || event?.vendor_name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback;
     const key = vendorKey(vendorId, vendorName);
     const current = groups.get(key) || {
       key,
@@ -141,7 +447,7 @@ const vendorRows = computed(() => {
       listings: [],
     };
 
-    const typeLabel = eventTypeMap[event?.event_type] || "Other";
+    const typeLabel = eventTypeLabel(event?.event_type);
     const kindLabel = listingKind(event);
     const packagesCount = Array.isArray(event?.packages) ? event.packages.filter(Boolean).length : 0;
 
@@ -161,7 +467,7 @@ const vendorRows = computed(() => {
       typeLabel,
       kindLabel,
       packagesCount,
-      dateLabel: event?.starts_at ? formatDateTime(event.starts_at) : "Date TBD",
+      dateLabel: event?.starts_at ? formatDateTime(event.starts_at) : uiText.value.dateTbd,
       priceLabel: money(event?.price || 0),
       lastUpdateLabel: formatDateTime(event?.updated_at || event?.created_at || event?.starts_at),
     });
@@ -180,9 +486,9 @@ const vendorRows = computed(() => {
         inactiveCount,
         serviceOnlyCount: Math.max(0, vendor.serviceCount - vendor.packageCount),
         visibility: vendor.serviceCount === 0 ? "empty" : vendor.activeCount === 0 ? "paused" : inactiveCount > 0 ? "mixed" : "live",
-        location: vendor.location || "Location not added yet",
-        joinedLabel: vendor.joinedAt ? formatDateTime(vendor.joinedAt) : "Join date unavailable",
-        lastActivityLabel: vendor.lastActivity ? formatDateTime(vendor.lastActivity) : "No listing activity yet",
+        location: vendor.location || uiText.value.locationMissing,
+        joinedLabel: vendor.joinedAt ? formatDateTime(vendor.joinedAt) : uiText.value.joinDateUnavailable,
+        lastActivityLabel: vendor.lastActivity ? formatDateTime(vendor.lastActivity) : uiText.value.noListingActivityYet,
       };
     })
     .sort((left, right) => {
@@ -227,10 +533,26 @@ const selectedVendor = computed(
 const selectedServices = computed(() => selectedVendor.value?.listings || []);
 
 const highlightCards = computed(() => [
-  { label: "Total Vendors", value: count(vendorRows.value.length), note: `${count(filteredVendors.value.length)} shown here` },
-  { label: "Live Vendors", value: count(vendorRows.value.filter((item) => ["live", "mixed"].includes(item.visibility)).length), note: "With visible listings" },
-  { label: "Listings In System", value: count(vendorRows.value.reduce((sum, item) => sum + item.serviceCount, 0)), note: `${count(vendorRows.value.reduce((sum, item) => sum + item.packageCount, 0))} package listings` },
-  { label: "Bookings", value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Across vendor listings" },
+  {
+    label: uiText.value.totalVendors,
+    value: count(vendorRows.value.length),
+    note: interpolate(uiText.value.shownHere, { count: count(filteredVendors.value.length) }),
+  },
+  {
+    label: uiText.value.liveVendors,
+    value: count(vendorRows.value.filter((item) => ["live", "mixed"].includes(item.visibility)).length),
+    note: uiText.value.withVisibleListings,
+  },
+  {
+    label: uiText.value.listingsInSystem,
+    value: count(vendorRows.value.reduce((sum, item) => sum + item.serviceCount, 0)),
+    note: interpolate(uiText.value.packageListings, { count: count(vendorRows.value.reduce((sum, item) => sum + item.packageCount, 0)) }),
+  },
+  {
+    label: uiText.value.bookings,
+    value: count(vendorRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)),
+    note: uiText.value.acrossVendorListings,
+  },
 ]);
 const hasVendorProfileImage = (vendor) =>
   Boolean(String(vendor?.profileImageUrl || "").trim())
@@ -281,20 +603,20 @@ async function loadVendorDirectory() {
     vendorUsers.value = Array.isArray(vendorResult?.data) ? vendorResult.data : Array.isArray(vendorResult) ? vendorResult : [];
     vendorEvents.value = Array.isArray(eventResult?.data) ? eventResult.data : Array.isArray(eventResult) ? eventResult : [];
     failedVendorImages.value = new Set();
-    if (!vendorUsers.value.length) notice.value = "No vendor accounts found yet.";
+    if (!vendorUsers.value.length) notice.value = uiText.value.noVendorAccounts;
   } catch (error) {
     vendorUsers.value = [];
     vendorEvents.value = [];
-    setNotice(error?.message || "Could not load vendor directory.", "error");
+    setNotice(error?.message || uiText.value.couldNotLoadVendorDirectory, "error");
   } finally {
     isLoading.value = false;
   }
 }
 
 async function setVendorVisibility(nextActive) {
-  if (!selectedVendor.value?.id) return setNotice("This vendor does not have a connected vendor account ID.", "error");
+  if (!selectedVendor.value?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
   const services = selectedServices.value.filter((item) => Boolean(item.is_active) !== nextActive);
-  if (!services.length) return setNotice(nextActive ? "All listings are already live." : "All listings are already paused.");
+  if (!services.length) return setNotice(nextActive ? uiText.value.allListingsAlreadyLive : uiText.value.allListingsAlreadyPaused);
 
   isSaving.value = true;
   try {
@@ -305,9 +627,9 @@ async function setVendorVisibility(nextActive) {
       });
       patchLocalEvent(updated);
     }
-    setNotice(nextActive ? "Vendor listings are live again." : "Vendor listings were paused.", "success");
+    setNotice(nextActive ? uiText.value.listingsLiveAgain : uiText.value.listingsWerePaused, "success");
   } catch (error) {
-    setNotice(error?.message || "Could not update vendor visibility.", "error");
+    setNotice(error?.message || uiText.value.couldNotUpdateVendorVisibility, "error");
   } finally {
     isSaving.value = false;
   }
@@ -337,17 +659,17 @@ onMounted(() => void loadVendorDirectory());
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Vendor directory workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -397,10 +719,10 @@ onMounted(() => void loadVendorDirectory());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" class="search-input" type="search" placeholder="Search vendor names, listings, location, or contact..." />
+          <input v-model="searchQuery" class="search-input" type="search" :placeholder="uiText.searchPlaceholder" />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button class="icon-btn" type="button" :title="uiText.notifications" :aria-label="uiText.notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
@@ -411,22 +733,22 @@ onMounted(() => void loadVendorDirectory());
 
       <section class="vendors-hero">
         <div class="hero-copy">
-          <p class="eyebrow">Vendor Directory</p>
-          <h1>All Vendors and Their Listings</h1>
-          <p>Select a vendor to inspect profile information and every service or package they currently have in the system.</p>
+          <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
+          <h1>{{ uiText.heroTitle }}</h1>
+          <p>{{ uiText.heroSubtitle }}</p>
           <div class="hero-meta">
-            <span class="hero-pill">{{ count(vendorRows.length) }} total vendors</span>
-            <span class="hero-pill soft">{{ count(vendorRows.reduce((sum, item) => sum + item.serviceCount, 0)) }} total listings</span>
+            <span class="hero-pill">{{ interpolate(uiText.totalVendorsText, { count: count(vendorRows.length) }) }}</span>
+            <span class="hero-pill soft">{{ interpolate(uiText.totalListingsText, { count: count(vendorRows.reduce((sum, item) => sum + item.serviceCount, 0)) }) }}</span>
           </div>
         </div>
         <div class="hero-aside">
           <div v-if="selectedVendor" class="hero-selected">
-            <span class="hero-selected-label">Selected Vendor</span>
+            <span class="hero-selected-label">{{ uiText.selectedVendor }}</span>
             <strong>{{ selectedVendor.name }}</strong>
-            <small>{{ count(selectedVendor.serviceCount) }} listing(s) - {{ selectedVendor.joinedLabel }}</small>
+            <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
           </div>
           <button class="primary-btn" type="button" :disabled="!selectedVendor || !selectedServices.length || isSaving" @click="setVendorVisibility(selectedVendor?.visibility === 'paused')">
-            {{ selectedVendor?.visibility === "paused" ? "Go Live Again" : "Pause Vendor" }}
+            {{ selectedVendor?.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
           </button>
         </div>
       </section>
@@ -445,32 +767,32 @@ onMounted(() => void loadVendorDirectory());
         <article class="card directory-card">
           <header class="card-head">
             <div>
-              <p class="card-eyebrow">Vendor Directory</p>
-              <h3>All Vendors</h3>
+              <p class="card-eyebrow">{{ uiText.directoryEyebrow }}</p>
+              <h3>{{ uiText.allVendors }}</h3>
             </div>
-            <span class="card-meta">{{ count(filteredVendors.length) }} results</span>
+            <span class="card-meta">{{ interpolate(uiText.results, { count: count(filteredVendors.length) }) }}</span>
           </header>
           <div class="filters">
             <label class="filter-field">
-              <span>Visibility</span>
+              <span>{{ uiText.visibility }}</span>
               <select v-model="visibilityFilter">
-                <option value="all">All Visibility</option>
-                <option value="live">Live</option>
-                <option value="mixed">Mixed</option>
-                <option value="paused">Paused</option>
+                <option value="all">{{ uiText.allVisibility }}</option>
+                <option value="live">{{ uiText.live }}</option>
+                <option value="mixed">{{ uiText.mixed }}</option>
+                <option value="paused">{{ uiText.paused }}</option>
               </select>
             </label>
             <label class="filter-field">
-              <span>Category</span>
+              <span>{{ uiText.category }}</span>
               <select v-model="categoryFilter">
-                <option value="all">All Categories</option>
+                <option value="all">{{ uiText.allCategories }}</option>
                 <option v-for="item in categoryOptions.filter((value) => value !== 'all')" :key="item" :value="item">{{ item }}</option>
               </select>
             </label>
           </div>
 
-          <div v-if="isLoading" class="empty">Loading vendor directory...</div>
-          <div v-else-if="!filteredVendors.length" class="empty">No vendors match your filters.</div>
+          <div v-if="isLoading" class="empty">{{ uiText.loadingVendorDirectory }}</div>
+          <div v-else-if="!filteredVendors.length" class="empty">{{ uiText.noVendorsMatch }}</div>
           <div v-else class="vendor-list">
             <button v-for="vendor in filteredVendors" :key="vendor.key" type="button" class="vendor-row" :class="{ selected: selectedVendor?.key === vendor.key }" @click="selectedVendorKey = vendor.key">
               <div class="vendor-main">
@@ -490,13 +812,13 @@ onMounted(() => void loadVendorDirectory());
                   <p>{{ vendor.location }}</p>
                   <div class="chips">
                     <span class="chip">{{ visibilityLabel(vendor.visibility) }}</span>
-                    <span class="chip muted">{{ count(vendor.serviceCount) }} listing(s)</span>
-                    <span class="chip muted">{{ count(vendor.packageCount) }} package</span>
+                    <span class="chip muted">{{ interpolate(uiText.listingCount, { count: count(vendor.serviceCount) }) }}</span>
+                    <span class="chip muted">{{ interpolate(uiText.packageCount, { count: count(vendor.packageCount) }) }}</span>
                   </div>
                 </div>
               </div>
               <div class="vendor-side">
-                <span>{{ count(vendor.bookingsCount) }} bookings</span>
+                <span>{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
                 <small>{{ vendor.lastActivityLabel }}</small>
               </div>
             </button>
@@ -507,7 +829,7 @@ onMounted(() => void loadVendorDirectory());
           <article v-if="selectedVendor" class="card spotlight-card">
             <div class="sidebar-head">
               <div>
-                <p class="card-eyebrow">Vendor Profile</p>
+                <p class="card-eyebrow">{{ uiText.vendorProfile }}</p>
                 <h3>{{ selectedVendor.name }}</h3>
                 <p>{{ selectedVendor.location }}</p>
               </div>
@@ -527,29 +849,29 @@ onMounted(() => void loadVendorDirectory());
                 <strong>{{ selectedVendor.name }}</strong>
                 <small>{{ selectedVendor.joinedLabel }}</small>
                 <div class="chips">
-                  <span class="chip muted">{{ count(selectedVendor.serviceOnlyCount) }} services</span>
-                  <span class="chip muted">{{ count(selectedVendor.packageCount) }} packages</span>
+                  <span class="chip muted">{{ interpolate(uiText.servicesCount, { count: count(selectedVendor.serviceOnlyCount) }) }}</span>
+                  <span class="chip muted">{{ interpolate(uiText.packagesCount, { count: count(selectedVendor.packageCount) }) }}</span>
                 </div>
               </div>
             </div>
             <div class="stats-grid">
-              <div><span>Live</span><strong>{{ selectedVendor.activeCount }}</strong></div>
-              <div><span>Total</span><strong>{{ selectedVendor.serviceCount }}</strong></div>
-              <div><span>Bookings</span><strong>{{ count(selectedVendor.bookingsCount) }}</strong></div>
-              <div><span>Hidden</span><strong>{{ count(selectedVendor.inactiveCount) }}</strong></div>
+              <div><span>{{ uiText.live }}</span><strong>{{ selectedVendor.activeCount }}</strong></div>
+              <div><span>{{ uiText.total }}</span><strong>{{ selectedVendor.serviceCount }}</strong></div>
+              <div><span>{{ uiText.bookings }}</span><strong>{{ count(selectedVendor.bookingsCount) }}</strong></div>
+              <div><span>{{ uiText.hidden }}</span><strong>{{ count(selectedVendor.inactiveCount) }}</strong></div>
             </div>
             <div class="detail-grid">
               <div class="detail-block">
-                <span>Email</span>
-                <strong>{{ selectedVendor.email || "Not provided" }}</strong>
+                <span>{{ uiText.email }}</span>
+                <strong>{{ selectedVendor.email || uiText.notProvided }}</strong>
               </div>
               <div class="detail-block">
-                <span>Phone</span>
-                <strong>{{ selectedVendor.phone || "Not provided" }}</strong>
+                <span>{{ uiText.phone }}</span>
+                <strong>{{ selectedVendor.phone || uiText.notProvided }}</strong>
               </div>
               <div class="detail-block detail-wide">
-                <span>Categories</span>
-                <strong>{{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : "No categories yet" }}</strong>
+                <span>{{ uiText.categories }}</span>
+                <strong>{{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : uiText.noCategoriesYet }}</strong>
               </div>
             </div>
           </article>
@@ -557,25 +879,25 @@ onMounted(() => void loadVendorDirectory());
           <article v-if="selectedVendor" class="card services-card">
             <header class="card-head">
               <div>
-                <p class="card-eyebrow">Listings In System</p>
-                <h3>Services and Packages</h3>
+                <p class="card-eyebrow">{{ uiText.listingsInSystem }}</p>
+                <h3>{{ uiText.servicesAndPackages }}</h3>
               </div>
               <span class="card-meta">{{ count(selectedServices.length) }}</span>
             </header>
-            <div v-if="!selectedServices.length" class="empty small">No services or packages for this vendor yet.</div>
+            <div v-if="!selectedServices.length" class="empty small">{{ uiText.noServicesYet }}</div>
             <div v-else class="service-list">
               <div v-for="service in selectedServices" :key="service.id" class="service-row">
                 <div class="service-copy">
                   <div class="service-title-row">
                     <strong>{{ service.title }}</strong>
-                    <span class="chip" :class="{ muted: !service.is_active }">{{ service.is_active ? "Live" : "Hidden" }}</span>
+                    <span class="chip" :class="{ muted: !service.is_active }">{{ service.is_active ? uiText.live : uiText.serviceHidden }}</span>
                   </div>
                   <p>{{ service.typeLabel }} - {{ service.kindLabel }} - {{ service.dateLabel }}</p>
-                  <small>{{ service.location || "Location not added yet" }}</small>
+                  <small>{{ service.location || uiText.locationMissing }}</small>
                   <div class="service-chip-row">
                     <span class="chip muted">{{ service.priceLabel }}</span>
-                    <span class="chip muted">{{ count(service.bookings_count || 0) }} bookings</span>
-                    <span v-if="service.packagesCount" class="chip muted">{{ count(service.packagesCount) }} package item(s)</span>
+                    <span class="chip muted">{{ interpolate(uiText.bookingsCount, { count: count(service.bookings_count || 0) }) }}</span>
+                    <span v-if="service.packagesCount" class="chip muted">{{ interpolate(uiText.packageItems, { count: count(service.packagesCount) }) }}</span>
                   </div>
                   <p v-if="service.description" class="service-description">{{ service.description }}</p>
                 </div>
@@ -584,9 +906,9 @@ onMounted(() => void loadVendorDirectory());
           </article>
 
           <article v-else class="card empty-selection">
-            <p class="card-eyebrow">Vendor Profile</p>
-            <h3>Select a Vendor</h3>
-            <p>Choose a vendor from the directory to inspect their account information and system listings here.</p>
+            <p class="card-eyebrow">{{ uiText.vendorProfile }}</p>
+            <h3>{{ uiText.selectVendor }}</h3>
+            <p>{{ uiText.selectVendorSubtitle }}</p>
           </article>
         </aside>
       </section>

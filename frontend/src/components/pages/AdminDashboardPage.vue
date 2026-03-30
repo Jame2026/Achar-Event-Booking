@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiPatch } from "../../features/apiClient";
 import { serviceFeeRate } from "../../features/appData";
-import { getStoredLanguage, setStoredLanguage } from "../../features/language";
+import { getStoredLanguage, setStoredLanguage, useLanguageCopy } from "../../features/language";
 import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
@@ -33,18 +33,537 @@ const props = defineProps({
   },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    settingsSections: {
+      security: "Security",
+      notifications: "Notifications",
+      system: "System Preferences",
+    },
+    languageNames: {
+      en: "English",
+      km: "Khmer",
+      zh: "Chinese",
+    },
+    currencyNames: {
+      USD: "USD - US Dollar",
+      KHR: "KHR - Khmer Riel",
+      EUR: "EUR - Euro",
+    },
+    roleNames: {
+      admin: "Admin",
+      vendor: "Vendor",
+      user: "User",
+    },
+    statusNames: {
+      active: "Active",
+      inactive: "Inactive",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Operations workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchInsights: "Search insights...",
+    notificationsButton: "Notifications",
+    helpButton: "Help",
+    dashboardEyebrow: "Achar Event Admin",
+    dashboardTitle: "Admin Dashboard",
+    dashboardSubtitle: "Track bookings, vendors, and revenue at a glance.",
+    exportReport: "Export Report",
+    totalEvents: "Total Events",
+    totalBookings: "Total Bookings",
+    totalAccounts: "Total Accounts",
+    serviceFeeTotal: "Service Fee Total",
+    newBadge: "New",
+    accountsBreakdown: "{vendors} vendors, {customers} customers",
+    noAccounts: "No customer or vendor accounts",
+    monthlyReport: "Monthly Report",
+    downloadPdf: "Download PDF",
+    reportDirectionUp: "up",
+    reportDirectionDown: "down",
+    reportMessage:
+      "Service fee income is {direction} {amount}% compared to last month.",
+    reportPending: "Service fee insights will appear once bookings are confirmed.",
+    systemStatus: "System Status",
+    apiHealth: "API Health",
+    cacheSync: "Cache Sync",
+    healthy: "Healthy",
+    degraded: "Degraded",
+    unknown: "Unknown",
+    cacheOk: "Cache OK",
+    cacheIssue: "Cache Issue",
+    cacheUnknown: "Cache Unknown",
+    settingsTitle: "Settings",
+    settingsSubtitle: "Manage your account preferences and notifications.",
+    joinedPrefix: "Joined {date}",
+    joinDateUnavailable: "Join date unavailable",
+    lastActivePrefix: "Last active {time}",
+    recentlyActive: "Recently active",
+    save: "Save",
+    securityTitle: "Security & Privacy",
+    securitySubtitle: "Manage your password and authentication.",
+    secure: "Secure",
+    currentPassword: "Current Password",
+    currentPasswordPlaceholder: "Enter current password",
+    newPassword: "New Password",
+    newPasswordPlaceholder: "Enter new password",
+    confirmPassword: "Confirm Password",
+    confirmPasswordPlaceholder: "Confirm new password",
+    lastActive: "Last Active",
+    twoFactorTitle: "Two-Factor Authentication",
+    twoFactorSubtitle: "Add an extra layer of security to your account.",
+    updateSecurity: "Update Security",
+    updating: "Updating...",
+    notificationsTitle: "Notification Preferences",
+    notificationsSubtitle: "Choose how you want to be notified.",
+    alerts: "Alerts",
+    emailNotifications: "Email Notifications",
+    emailNotificationsSubtitle: "Receive summaries of bookings and revenue.",
+    smsAlerts: "SMS Alerts",
+    smsAlertsSubtitle: "Urgent event cancellations or security alerts.",
+    pushNotifications: "Push Notifications",
+    pushNotificationsSubtitle: "Browser and mobile app push alerts.",
+    systemPreferencesTitle: "System Preferences",
+    systemPreferencesSubtitle: "Set language, currency, and theme.",
+    global: "Global",
+    interfaceLanguage: "Interface Language",
+    defaultCurrency: "Default Currency",
+    interfaceTheme: "Interface Theme",
+    interfaceThemeSubtitle: "Switch between light and dark display modes.",
+    light: "Light",
+    dark: "Dark",
+    searchUsers: "Search users by name, email...",
+    totalUsers: "Total Users",
+    newUsersMonth: "New Users (Month)",
+    activeUsers: "Active Users",
+    churnRate: "Churn Rate",
+    userDirectory: "User Directory",
+    userDirectorySubtitle: "Managing all registered accounts across the platform.",
+    filter: "Filter",
+    exportCsv: "Export CSV",
+    user: "User",
+    contactInfo: "Contact Info",
+    joinedDate: "Joined Date",
+    bookings: "Bookings",
+    status: "Status",
+    action: "Action",
+    loadingUsers: "Loading users...",
+    noUsersFound: "No users found.",
+    totalSuffix: "Total",
+    showingUsers: "Showing {start}-{shown} of {total} users",
+    showingZeroUsers: "Showing 0 of 0 users",
+    selectUser: "Select a user",
+    noEmailAvailable: "No email available",
+    spent: "Spent",
+    lastLogin: "Last Login",
+    recentActivity: "Recent Activity",
+    viewAll: "View All",
+    loadingLatestActivity: "Loading latest activity...",
+    noRecentPlatformActivity: "No recent customer or vendor activity yet.",
+    noRecentActivity: "No recent activity",
+    noRecentActivitySubtitle:
+      "Activity will appear when the user books or updates their account.",
+    edit: "Edit",
+    reset: "Reset",
+    suspendUserAccount: "Suspend User Account",
+    eliteMember: "Elite Member",
+    eliteMemberMessage:
+      "{name} is in the top 2% of contributors in the Siem Reap region.",
+    thisUser: "This user",
+    viewFullEngagementReport: "View full engagement report",
+    fillPasswords:
+      "Fill in current, new, and confirm password to update security settings.",
+    passwordTooShort: "New password must be at least 8 characters.",
+    passwordMismatch: "Password confirmation does not match.",
+    passwordUpdated: "Password updated successfully.",
+    passwordUpdateFailed: "Could not update password.",
+    securitySaved: "Security preferences saved.",
+    securityReset: "Security preferences reset.",
+    notificationsSaved: "Notification preferences saved.",
+    notificationsReset: "Notification preferences reset to default.",
+    systemSaved: "System preferences saved.",
+    systemReset: "System preferences reset to default.",
+    guestUser: "Guest User",
+    noEmail: "No email",
+    noPhone: "No phone",
+    notAvailable: "Not available",
+    justNow: "Just now",
+    dateTbd: "Date TBD",
+    noData: "No data",
+    na: "N/A",
+    newThisMonth: "{count} new this month",
+    ofTotal: "{percent}% of total",
+    retention: "{percent}% retention",
+    inactiveCount: "{count} inactive",
+    bookingFallback: "Booking",
+    idLabel: "ID",
+  },
+  km: {
+    nav: {
+      dashboard: "ផ្ទាំងគ្រប់គ្រង",
+      events: "ព្រឹត្តិការណ៍",
+      bookings: "ការកក់",
+      vendors: "អ្នកផ្គត់ផ្គង់",
+      customers: "អតិថិជន",
+      revenue: "ចំណូល",
+      settings: "ការកំណត់",
+    },
+    settingsSections: {
+      security: "សុវត្ថិភាព",
+      notifications: "ការជូនដំណឹង",
+      system: "ចំណូលចិត្តប្រព័ន្ធ",
+    },
+    languageNames: {
+      en: "អង់គ្លេស",
+      km: "ខ្មែរ",
+      zh: "ចិន",
+    },
+    currencyNames: {
+      USD: "USD - ដុល្លារអាមេរិក",
+      KHR: "KHR - រៀលខ្មែរ",
+      EUR: "EUR - អឺរ៉ូ",
+    },
+    roleNames: {
+      admin: "អ្នកគ្រប់គ្រង",
+      vendor: "អ្នកផ្គត់ផ្គង់",
+      user: "អ្នកប្រើ",
+    },
+    statusNames: {
+      active: "សកម្ម",
+      inactive: "មិនសកម្ម",
+    },
+    brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "កន្លែងធ្វើការគ្រប់គ្រង",
+    navigation: "ការរុករក",
+    adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+    searchInsights: "ស្វែងរកទិន្នន័យសង្ខេប...",
+    notificationsButton: "ការជូនដំណឹង",
+    helpButton: "ជំនួយ",
+    dashboardEyebrow: "អ្នកគ្រប់គ្រង Achar Event",
+    dashboardTitle: "ផ្ទាំងគ្រប់គ្រងអ្នកគ្រប់គ្រង",
+    dashboardSubtitle: "តាមដានការកក់ អ្នកផ្គត់ផ្គង់ និងចំណូលក្នុងមួយភ្លែត។",
+    exportReport: "នាំចេញរបាយការណ៍",
+    totalEvents: "ព្រឹត្តិការណ៍សរុប",
+    totalBookings: "ការកក់សរុប",
+    totalAccounts: "គណនីសរុប",
+    serviceFeeTotal: "ថ្លៃសេវាសរុប",
+    newBadge: "ថ្មី",
+    accountsBreakdown: "{vendors} អ្នកផ្គត់ផ្គង់, {customers} អតិថិជន",
+    noAccounts: "មិនទាន់មានគណនីអតិថិជន ឬអ្នកផ្គត់ផ្គង់ទេ",
+    monthlyReport: "របាយការណ៍ប្រចាំខែ",
+    downloadPdf: "ទាញយក PDF",
+    reportDirectionUp: "កើនឡើង",
+    reportDirectionDown: "ថយចុះ",
+    reportMessage:
+      "ចំណូលថ្លៃសេវា {direction} {amount}% បើប្រៀបធៀបនឹងខែមុន។",
+    reportPending: "ទិន្នន័យថ្លៃសេវានឹងបង្ហាញនៅពេលមានការកក់បានបញ្ជាក់។",
+    systemStatus: "ស្ថានភាពប្រព័ន្ធ",
+    apiHealth: "សុខភាព API",
+    cacheSync: "សមកាលកម្ម Cache",
+    healthy: "ល្អ",
+    degraded: "ថយចុះ",
+    unknown: "មិនស្គាល់",
+    cacheOk: "Cache ល្អ",
+    cacheIssue: "Cache មានបញ្ហា",
+    cacheUnknown: "មិនស្គាល់ស្ថានភាព Cache",
+    settingsTitle: "ការកំណត់",
+    settingsSubtitle: "គ្រប់គ្រងចំណូលចិត្តគណនី និងការជូនដំណឹងរបស់អ្នក។",
+    joinedPrefix: "បានចូលរួម {date}",
+    joinDateUnavailable: "មិនមានថ្ងៃចូលរួម",
+    lastActivePrefix: "សកម្មចុងក្រោយ {time}",
+    recentlyActive: "សកម្មថ្មីៗនេះ",
+    save: "រក្សាទុក",
+    securityTitle: "សុវត្ថិភាព និងឯកជនភាព",
+    securitySubtitle: "គ្រប់គ្រងពាក្យសម្ងាត់ និងការផ្ទៀងផ្ទាត់របស់អ្នក។",
+    secure: "មានសុវត្ថិភាព",
+    currentPassword: "ពាក្យសម្ងាត់បច្ចុប្បន្ន",
+    currentPasswordPlaceholder: "បញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន",
+    newPassword: "ពាក្យសម្ងាត់ថ្មី",
+    newPasswordPlaceholder: "បញ្ចូលពាក្យសម្ងាត់ថ្មី",
+    confirmPassword: "បញ្ជាក់ពាក្យសម្ងាត់",
+    confirmPasswordPlaceholder: "បញ្ជាក់ពាក្យសម្ងាត់ថ្មី",
+    lastActive: "សកម្មចុងក្រោយ",
+    twoFactorTitle: "ការផ្ទៀងផ្ទាត់ពីរជំហាន",
+    twoFactorSubtitle: "បន្ថែមស្រទាប់សុវត្ថិភាពបន្ថែមសម្រាប់គណនីរបស់អ្នក។",
+    updateSecurity: "ធ្វើបច្ចុប្បន្នភាពសុវត្ថិភាព",
+    updating: "កំពុងធ្វើបច្ចុប្បន្នភាព...",
+    notificationsTitle: "ចំណូលចិត្តការជូនដំណឹង",
+    notificationsSubtitle: "ជ្រើសរើសរបៀបដែលអ្នកចង់ទទួលការជូនដំណឹង។",
+    alerts: "ការជូនដំណឹង",
+    emailNotifications: "ការជូនដំណឹងតាមអ៊ីមែល",
+    emailNotificationsSubtitle: "ទទួលសេចក្តីសង្ខេបអំពីការកក់ និងចំណូល។",
+    smsAlerts: "ការជូនដំណឹង SMS",
+    smsAlertsSubtitle: "ការលុបព្រឹត្តិការណ៍បន្ទាន់ ឬការជូនដំណឹងសុវត្ថិភាព។",
+    pushNotifications: "ការជូនដំណឹង Push",
+    pushNotificationsSubtitle: "ការជូនដំណឹង Push តាមកម្មវិធី និងកម្មវិធីរុករក។",
+    systemPreferencesTitle: "ចំណូលចិត្តប្រព័ន្ធ",
+    systemPreferencesSubtitle: "កំណត់ភាសា រូបិយប័ណ្ណ និងរូបរាង។",
+    global: "សកល",
+    interfaceLanguage: "ភាសាផ្ទៃមុខ",
+    defaultCurrency: "រូបិយប័ណ្ណលំនាំដើម",
+    interfaceTheme: "រូបរាងផ្ទៃមុខ",
+    interfaceThemeSubtitle: "ប្ដូររវាងរបៀបបង្ហាញពណ៌ភ្លឺ និងងងឹត។",
+    light: "ភ្លឺ",
+    dark: "ងងឹត",
+    searchUsers: "ស្វែងរកអ្នកប្រើតាមឈ្មោះ អ៊ីមែល...",
+    totalUsers: "អ្នកប្រើសរុប",
+    newUsersMonth: "អ្នកប្រើថ្មី (ខែនេះ)",
+    activeUsers: "អ្នកប្រើសកម្ម",
+    churnRate: "អត្រាចាកចេញ",
+    userDirectory: "បញ្ជីអ្នកប្រើ",
+    userDirectorySubtitle: "គ្រប់គ្រងគណនីដែលបានចុះឈ្មោះទាំងអស់លើវេទិកា។",
+    filter: "តម្រង",
+    exportCsv: "នាំចេញ CSV",
+    user: "អ្នកប្រើ",
+    contactInfo: "ព័ត៌មានទំនាក់ទំនង",
+    joinedDate: "ថ្ងៃចូលរួម",
+    bookings: "ការកក់",
+    status: "ស្ថានភាព",
+    action: "សកម្មភាព",
+    loadingUsers: "កំពុងផ្ទុកអ្នកប្រើ...",
+    noUsersFound: "រកមិនឃើញអ្នកប្រើ។",
+    totalSuffix: "សរុប",
+    showingUsers: "កំពុងបង្ហាញ {start}-{shown} នៃអ្នកប្រើ {total}",
+    showingZeroUsers: "កំពុងបង្ហាញ 0 នៃអ្នកប្រើ 0",
+    selectUser: "ជ្រើសរើសអ្នកប្រើម្នាក់",
+    noEmailAvailable: "មិនមានអ៊ីមែល",
+    spent: "បានចំណាយ",
+    lastLogin: "ចូលចុងក្រោយ",
+    recentActivity: "សកម្មភាពថ្មីៗ",
+    viewAll: "មើលទាំងអស់",
+    loadingLatestActivity: "កំពុងផ្ទុកសកម្មភាពថ្មីៗ...",
+    noRecentPlatformActivity: "មិនទាន់មានសកម្មភាពថ្មីៗពីអតិថិជន ឬអ្នកផ្គត់ផ្គង់ទេ។",
+    noRecentActivity: "មិនទាន់មានសកម្មភាពថ្មីៗ",
+    noRecentActivitySubtitle:
+      "សកម្មភាពនឹងបង្ហាញនៅពេលអ្នកប្រើកក់ ឬធ្វើបច្ចុប្បន្នភាពគណនី។",
+    edit: "កែប្រែ",
+    reset: "កំណត់ឡើងវិញ",
+    suspendUserAccount: "ផ្អាកគណនីអ្នកប្រើ",
+    eliteMember: "សមាជិកឆ្នើម",
+    eliteMemberMessage:
+      "{name} ស្ថិតនៅក្នុងអ្នករួមចំណែកកំពូល 2% នៅតំបន់សៀមរាប។",
+    thisUser: "អ្នកប្រើនេះ",
+    viewFullEngagementReport: "មើលរបាយការណ៍ចូលរួមពេញលេញ",
+    fillPasswords:
+      "សូមបំពេញពាក្យសម្ងាត់បច្ចុប្បន្ន ថ្មី និងបញ្ជាក់ ដើម្បីធ្វើបច្ចុប្បន្នភាពការកំណត់សុវត្ថិភាព។",
+    passwordTooShort: "ពាក្យសម្ងាត់ថ្មីត្រូវមានយ៉ាងតិច 8 តួអក្សរ។",
+    passwordMismatch: "ការបញ្ជាក់ពាក្យសម្ងាត់មិនត្រូវគ្នា។",
+    passwordUpdated: "បានធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់ដោយជោគជ័យ។",
+    passwordUpdateFailed: "មិនអាចធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់បានទេ។",
+    securitySaved: "បានរក្សាទុកចំណូលចិត្តសុវត្ថិភាព។",
+    securityReset: "បានកំណត់ចំណូលចិត្តសុវត្ថិភាពឡើងវិញ។",
+    notificationsSaved: "បានរក្សាទុកចំណូលចិត្តការជូនដំណឹង។",
+    notificationsReset: "បានកំណត់ចំណូលចិត្តការជូនដំណឹងឡើងវិញទៅលំនាំដើម។",
+    systemSaved: "បានរក្សាទុកចំណូលចិត្តប្រព័ន្ធ។",
+    systemReset: "បានកំណត់ចំណូលចិត្តប្រព័ន្ធឡើងវិញទៅលំនាំដើម។",
+    guestUser: "អ្នកប្រើភ្ញៀវ",
+    noEmail: "មិនមានអ៊ីមែល",
+    noPhone: "មិនមានលេខទូរស័ព្ទ",
+    notAvailable: "មិនមាន",
+    justNow: "មុននេះបន្តិច",
+    dateTbd: "មិនទាន់កំណត់ថ្ងៃ",
+    noData: "មិនមានទិន្នន័យ",
+    na: "មិនមាន",
+    newThisMonth: "ថ្មី {count} ក្នុងខែនេះ",
+    ofTotal: "{percent}% នៃសរុប",
+    retention: "ការរក្សាទុក {percent}%",
+    inactiveCount: "មិនសកម្ម {count}",
+    bookingFallback: "ការកក់",
+    idLabel: "អត្តសញ្ញាណ",
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    settingsSections: {
+      security: "安全",
+      notifications: "通知",
+      system: "系统偏好",
+    },
+    languageNames: {
+      en: "英文",
+      km: "高棉文",
+      zh: "中文",
+    },
+    currencyNames: {
+      USD: "USD - 美元",
+      KHR: "KHR - 柬埔寨瑞尔",
+      EUR: "EUR - 欧元",
+    },
+    roleNames: {
+      admin: "管理员",
+      vendor: "商家",
+      user: "用户",
+    },
+    statusNames: {
+      active: "活跃",
+      inactive: "未活跃",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "运营工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchInsights: "搜索洞察...",
+    notificationsButton: "通知",
+    helpButton: "帮助",
+    dashboardEyebrow: "Achar Event 管理后台",
+    dashboardTitle: "管理员仪表盘",
+    dashboardSubtitle: "一目了然地跟踪预订、商家和收入。",
+    exportReport: "导出报告",
+    totalEvents: "活动总数",
+    totalBookings: "预订总数",
+    totalAccounts: "账户总数",
+    serviceFeeTotal: "服务费总额",
+    newBadge: "新增",
+    accountsBreakdown: "{vendors} 个商家，{customers} 位客户",
+    noAccounts: "暂无客户或商家账户",
+    monthlyReport: "月度报告",
+    downloadPdf: "下载 PDF",
+    reportDirectionUp: "上升",
+    reportDirectionDown: "下降",
+    reportMessage: "服务费收入较上月{direction} {amount}%。",
+    reportPending: "预订确认后，这里会显示服务费洞察。",
+    systemStatus: "系统状态",
+    apiHealth: "API 状态",
+    cacheSync: "缓存同步",
+    healthy: "健康",
+    degraded: "下降",
+    unknown: "未知",
+    cacheOk: "缓存正常",
+    cacheIssue: "缓存异常",
+    cacheUnknown: "缓存未知",
+    settingsTitle: "设置",
+    settingsSubtitle: "管理您的账户偏好和通知设置。",
+    joinedPrefix: "加入于 {date}",
+    joinDateUnavailable: "暂无加入日期",
+    lastActivePrefix: "最后活跃 {time}",
+    recentlyActive: "最近活跃",
+    save: "保存",
+    securityTitle: "安全与隐私",
+    securitySubtitle: "管理您的密码和身份验证。",
+    secure: "安全",
+    currentPassword: "当前密码",
+    currentPasswordPlaceholder: "输入当前密码",
+    newPassword: "新密码",
+    newPasswordPlaceholder: "输入新密码",
+    confirmPassword: "确认密码",
+    confirmPasswordPlaceholder: "确认新密码",
+    lastActive: "最后活跃",
+    twoFactorTitle: "双重身份验证",
+    twoFactorSubtitle: "为您的账户增加一层额外安全保护。",
+    updateSecurity: "更新安全设置",
+    updating: "更新中...",
+    notificationsTitle: "通知偏好",
+    notificationsSubtitle: "选择您希望接收通知的方式。",
+    alerts: "提醒",
+    emailNotifications: "邮件通知",
+    emailNotificationsSubtitle: "接收预订和收入摘要。",
+    smsAlerts: "短信提醒",
+    smsAlertsSubtitle: "紧急活动取消或安全提醒。",
+    pushNotifications: "推送通知",
+    pushNotificationsSubtitle: "浏览器和移动端推送提醒。",
+    systemPreferencesTitle: "系统偏好",
+    systemPreferencesSubtitle: "设置语言、货币和主题。",
+    global: "全局",
+    interfaceLanguage: "界面语言",
+    defaultCurrency: "默认货币",
+    interfaceTheme: "界面主题",
+    interfaceThemeSubtitle: "在浅色和深色显示模式之间切换。",
+    light: "浅色",
+    dark: "深色",
+    searchUsers: "按姓名、邮箱搜索用户...",
+    totalUsers: "用户总数",
+    newUsersMonth: "本月新增用户",
+    activeUsers: "活跃用户",
+    churnRate: "流失率",
+    userDirectory: "用户目录",
+    userDirectorySubtitle: "管理平台上的所有注册账户。",
+    filter: "筛选",
+    exportCsv: "导出 CSV",
+    user: "用户",
+    contactInfo: "联系信息",
+    joinedDate: "加入日期",
+    bookings: "预订",
+    status: "状态",
+    action: "操作",
+    loadingUsers: "正在加载用户...",
+    noUsersFound: "未找到用户。",
+    totalSuffix: "总计",
+    showingUsers: "显示 {start}-{shown} / 共 {total} 位用户",
+    showingZeroUsers: "显示 0 / 共 0 位用户",
+    selectUser: "选择一位用户",
+    noEmailAvailable: "暂无邮箱",
+    spent: "消费",
+    lastLogin: "最后登录",
+    recentActivity: "最近活动",
+    viewAll: "查看全部",
+    loadingLatestActivity: "正在加载最近活动...",
+    noRecentPlatformActivity: "暂无客户或商家的最近活动。",
+    noRecentActivity: "暂无最近活动",
+    noRecentActivitySubtitle: "当用户预订或更新账户时，这里会显示活动。",
+    edit: "编辑",
+    reset: "重置",
+    suspendUserAccount: "暂停用户账户",
+    eliteMember: "精英会员",
+    eliteMemberMessage: "{name} 位于暹粒地区贡献者前 2%。",
+    thisUser: "该用户",
+    viewFullEngagementReport: "查看完整互动报告",
+    fillPasswords: "请填写当前密码、新密码和确认密码以更新安全设置。",
+    passwordTooShort: "新密码至少需要 8 个字符。",
+    passwordMismatch: "两次输入的密码不一致。",
+    passwordUpdated: "密码更新成功。",
+    passwordUpdateFailed: "无法更新密码。",
+    securitySaved: "安全偏好已保存。",
+    securityReset: "安全偏好已重置。",
+    notificationsSaved: "通知偏好已保存。",
+    notificationsReset: "通知偏好已恢复默认。",
+    systemSaved: "系统偏好已保存。",
+    systemReset: "系统偏好已恢复默认。",
+    guestUser: "访客用户",
+    noEmail: "暂无邮箱",
+    noPhone: "暂无电话",
+    notAvailable: "暂无",
+    justNow: "刚刚",
+    dateTbd: "日期待定",
+    noData: "暂无数据",
+    na: "无",
+    newThisMonth: "本月新增 {count}",
+    ofTotal: "占总数的 {percent}%",
+    retention: "留存率 {percent}%",
+    inactiveCount: "{count} 位未活跃",
+    bookingFallback: "预订",
+    idLabel: "编号",
+  },
+};
+
+const { language, uiText } = useLanguageCopy(copyByLanguage);
+const localeByLanguage = {
+  en: "en-US",
+  km: "km-KH",
+  zh: "zh-CN",
+};
+
 const searchQuery = ref("");
 const usersSearchQuery = ref("");
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
-const adminPageKeys = navItems.map((item) => item.key);
+const adminPageKeys = ["dashboard", "events", "admin-bookings", "vendors", "customers", "revenue", "settings"];
 const router = useRouter();
 const route = useRoute();
 const activeKey = ref("dashboard");
@@ -69,21 +588,33 @@ const initials = computed(() => {
 const ADMIN_NOTIFICATION_SETTINGS_KEY = "achar_admin_notification_settings_v1";
 const ADMIN_SECURITY_SETTINGS_KEY = "achar_admin_security_settings_v1";
 const ADMIN_SYSTEM_SETTINGS_KEY = "achar_admin_system_settings_v1";
-const settingsSections = [
-  { key: "security", label: "Security" },
-  { key: "notifications", label: "Notifications" },
-  { key: "system", label: "System Preferences" },
-];
-const languageOptions = [
-  { value: "en", label: "English" },
-  { value: "km", label: "Khmer" },
-  { value: "zh", label: "Chinese" },
-];
-const currencyOptions = [
-  { value: "USD", label: "USD - US Dollar" },
-  { value: "KHR", label: "KHR - Khmer Riel" },
-  { value: "EUR", label: "EUR - Euro" },
-];
+const activeLocale = computed(() => localeByLanguage[language.value] || "en-US");
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
+const settingsSections = computed(() => [
+  { key: "security", label: uiText.value.settingsSections.security },
+  { key: "notifications", label: uiText.value.settingsSections.notifications },
+  { key: "system", label: uiText.value.settingsSections.system },
+]);
+const languageOptions = computed(() => [
+  { value: "en", label: uiText.value.languageNames.en },
+  { value: "km", label: uiText.value.languageNames.km },
+  { value: "zh", label: uiText.value.languageNames.zh },
+]);
+const currencyOptions = computed(() => [
+  { value: "USD", label: uiText.value.currencyNames.USD },
+  { value: "KHR", label: uiText.value.currencyNames.KHR },
+  { value: "EUR", label: uiText.value.currencyNames.EUR },
+]);
 
 const readStoredObject = (key, fallback) => {
   try {
@@ -136,7 +667,7 @@ const notificationSettings = reactive(readStoredObject(ADMIN_NOTIFICATION_SETTIN
 const securitySettings = reactive(readStoredObject(ADMIN_SECURITY_SETTINGS_KEY, getDefaultSecuritySettings()));
 const systemSettings = reactive(readStoredObject(ADMIN_SYSTEM_SETTINGS_KEY, getDefaultSystemSettings()));
 const preferredCurrency = computed(() =>
-  currencyOptions.some((option) => option.value === systemSettings.currency) ? systemSettings.currency : "USD",
+  currencyOptions.value.some((option) => option.value === systemSettings.currency) ? systemSettings.currency : "USD",
 );
 const setSettingsNotice = (message, tone = "info") => {
   settingsNotice.value = String(message || "").trim();
@@ -175,7 +706,7 @@ const persistSystemSettings = () => {
 };
 
 const activateSettingsSection = (key) => {
-  if (!settingsSections.some((section) => section.key === key)) return;
+  if (!settingsSections.value.some((section) => section.key === key)) return;
   activeSettingsSection.value = key;
   clearSettingsNotice();
   passwordForm.notice = "";
@@ -199,13 +730,13 @@ const navigateTo = (key) => {
 
 const formatNumber = (value) => {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat("en-US").format(Number.isFinite(amount) ? amount : 0);
+  return new Intl.NumberFormat(activeLocale.value).format(Number.isFinite(amount) ? amount : 0);
 };
 
 const formatCompactNumber = (value) => {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount)) return "0";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(activeLocale.value, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(amount);
@@ -213,7 +744,7 @@ const formatCompactNumber = (value) => {
 
 const formatCurrency = (value) => {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(activeLocale.value, {
     style: "currency",
     currency: preferredCurrency.value,
     minimumFractionDigits: 2,
@@ -221,7 +752,7 @@ const formatCurrency = (value) => {
 };
 
 const formatPercentDelta = (current, previous) => {
-  if (!previous) return "New";
+  if (!previous) return uiText.value.newBadge;
   const delta = ((current - previous) / Math.abs(previous)) * 100;
   const sign = delta >= 0 ? "+" : "";
   return `${sign}${delta.toFixed(1)}%`;
@@ -229,21 +760,24 @@ const formatPercentDelta = (current, previous) => {
 
 const timeAgo = (value) => {
   const date = value ? new Date(value) : null;
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Just now";
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return uiText.value.justNow;
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 2) return "Just now";
-  if (diffMins < 60) return `${diffMins} mins ago`;
+  if (diffMins < 2) return uiText.value.justNow;
+  const formatter = new Intl.RelativeTimeFormat(activeLocale.value, {
+    numeric: "always",
+  });
+  if (diffMins < 60) return formatter.format(-diffMins, "minute");
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffHours < 24) return formatter.format(-diffHours, "hour");
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} days ago`;
+  return formatter.format(-diffDays, "day");
 };
 
 const formatDate = (value) => {
   const date = value ? new Date(value) : null;
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Date TBD";
-  return date.toLocaleDateString("en-US", {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return uiText.value.dateTbd;
+  return date.toLocaleDateString(activeLocale.value, {
     month: "short",
     day: "2-digit",
     year: "numeric",
@@ -251,14 +785,8 @@ const formatDate = (value) => {
 };
 
 const formatRoleLabel = (value) => {
-  const normalized = String(value || "")
-    .replace(/[_-]+/g, " ")
-    .trim();
-  if (!normalized) return "Admin";
-  return normalized
-    .split(/\s+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
+  const normalized = String(value || "").trim().toLowerCase();
+  return uiText.value.roleNames[normalized] || uiText.value.roleNames.admin;
 };
 
 const normalizeUserRole = (value) => {
@@ -271,7 +799,7 @@ const normalizeUserRole = (value) => {
 };
 
 const getInitials = (value) =>
-  String(value || "User")
+  String(value || uiText.value.user)
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -281,9 +809,11 @@ const getInitials = (value) =>
 
 const normalizeUserStatus = (user) => {
   const status = String(user?.status || "").toLowerCase();
-  if (status === "inactive" || status === "banned" || user?.is_active === false) return "Inactive";
-  return "Active";
+  if (status === "inactive" || status === "banned" || user?.is_active === false) return "inactive";
+  return "active";
 };
+
+const formatUserStatus = (value) => uiText.value.statusNames[value] || uiText.value.statusNames.active;
 
 const bookingCountForUser = (user) => {
   const id = Number(user?.id || 0);
@@ -316,16 +846,18 @@ const normalizedUsers = computed(() =>
     const lastLogin = user?.last_login_at || user?.last_active_at || user?.updated_at || null;
     const bookingsCount = Number(user?.bookings_count || user?.bookings_total || bookingCountForUser(user));
     const spent = Number(user?.total_spent || spentForUser(user));
+    const statusKey = normalizeUserStatus(user);
     return {
-      id: user?.id ? `#${user.id}` : "N/A",
+      id: user?.id ? `#${user.id}` : uiText.value.na,
       rawId: Number(user?.id || 0),
       role: normalizeUserRole(user?.role),
-      name: user?.name || user?.full_name || "Guest User",
-      email: user?.email || user?.customer_email || "No email",
-      phone: user?.phone || user?.phone_number || "No phone",
+      name: user?.name || user?.full_name || uiText.value.guestUser,
+      email: user?.email || user?.customer_email || uiText.value.noEmail,
+      phone: user?.phone || user?.phone_number || uiText.value.noPhone,
       createdAt,
       joinedLabel: formatDate(createdAt),
-      status: normalizeUserStatus(user),
+      statusKey,
+      status: formatUserStatus(statusKey),
       initials: getInitials(user?.name || user?.full_name),
       bookingsCount,
       eventsCount: Number(user?.events_count || 0),
@@ -382,9 +914,9 @@ const adminSettingsProfile = computed(() => {
     merged?.profile_image_url || matchedUser?.profile_image_url || authUser?.profile_image_url || "",
   ).trim();
   const name =
-    String(merged?.name || matchedUser?.full_name || authUser?.name || props.adminDisplayName || "Admin").trim() ||
-    "Admin";
-  const status = normalizeUserStatus(merged);
+    String(merged?.name || matchedUser?.full_name || authUser?.name || props.adminDisplayName || uiText.value.roleNames.admin)
+      .trim() || uiText.value.roleNames.admin;
+  const statusKey = normalizeUserStatus(merged);
 
   return {
     id: Number(merged?.id || authUser?.id || matchedUser?.id || 0),
@@ -395,10 +927,15 @@ const adminSettingsProfile = computed(() => {
     profileImageUrl,
     initials: getInitials(name),
     roleLabel: formatRoleLabel(roleRaw),
-    status,
-    joinedLabel: createdAt ? `Joined ${formatDate(createdAt)}` : "Join date unavailable",
-    joinedDate: createdAt ? formatDate(createdAt) : "Not available",
-    lastActiveLabel: lastActiveAt ? timeAgo(lastActiveAt) : "Recently active",
+    status: formatUserStatus(statusKey),
+    joinedLabel: createdAt
+      ? interpolate(uiText.value.joinedPrefix, { date: formatDate(createdAt) })
+      : uiText.value.joinDateUnavailable,
+    joinedDate: createdAt ? formatDate(createdAt) : uiText.value.notAvailable,
+    lastActiveLabel: lastActiveAt ? timeAgo(lastActiveAt) : uiText.value.recentlyActive,
+    lastActiveDisplay: lastActiveAt
+      ? interpolate(uiText.value.lastActivePrefix, { time: timeAgo(lastActiveAt) })
+      : uiText.value.recentlyActive,
   };
 });
 
@@ -422,27 +959,27 @@ const saveSecuritySettings = async (showNotice = true) => {
 
   if (!hasPasswordInput) {
     if (showNotice) {
-      setSettingsNotice("Security preferences saved.", "success");
+      setSettingsNotice(uiText.value.securitySaved, "success");
     }
     return true;
   }
 
   if (!current || !next || !confirm) {
-    const message = "Fill in current, new, and confirm password to update security settings.";
+    const message = uiText.value.fillPasswords;
     passwordForm.error = message;
     setSettingsNotice(message, "error");
     return false;
   }
 
   if (next.length < 8) {
-    const message = "New password must be at least 8 characters.";
+    const message = uiText.value.passwordTooShort;
     passwordForm.error = message;
     setSettingsNotice(message, "error");
     return false;
   }
 
   if (next !== confirm) {
-    const message = "Password confirmation does not match.";
+    const message = uiText.value.passwordMismatch;
     passwordForm.error = message;
     setSettingsNotice(message, "error");
     return false;
@@ -459,7 +996,7 @@ const saveSecuritySettings = async (showNotice = true) => {
       new_password_confirmation: confirm,
     });
 
-    const message = result?.message || "Password updated successfully.";
+    const message = result?.message || uiText.value.passwordUpdated;
     resetPasswordForm();
     passwordForm.notice = message;
     if (showNotice) {
@@ -467,7 +1004,7 @@ const saveSecuritySettings = async (showNotice = true) => {
     }
     return true;
   } catch (error) {
-    const message = error?.message || "Could not update password.";
+    const message = error?.message || uiText.value.passwordUpdateFailed;
     passwordForm.error = message;
     setSettingsNotice(message, "error");
     return false;
@@ -480,13 +1017,13 @@ const resetSecuritySettings = () => {
   Object.assign(securitySettings, getDefaultSecuritySettings());
   persistSecuritySettings();
   resetPasswordForm();
-  setSettingsNotice("Security preferences reset.", "success");
+  setSettingsNotice(uiText.value.securityReset, "success");
 };
 
 const saveNotificationPreferences = (showNotice = true) => {
   persistNotificationSettings();
   if (showNotice) {
-    setSettingsNotice("Notification preferences saved.", "success");
+    setSettingsNotice(uiText.value.notificationsSaved, "success");
   }
   return true;
 };
@@ -494,13 +1031,13 @@ const saveNotificationPreferences = (showNotice = true) => {
 const resetNotificationPreferences = () => {
   Object.assign(notificationSettings, getDefaultNotificationSettings());
   persistNotificationSettings();
-  setSettingsNotice("Notification preferences reset to default.", "success");
+  setSettingsNotice(uiText.value.notificationsReset, "success");
 };
 
 const saveSystemPreferences = (showNotice = true) => {
   persistSystemSettings();
   if (showNotice) {
-    setSettingsNotice("System preferences saved.", "success");
+    setSettingsNotice(uiText.value.systemSaved, "success");
   }
   return true;
 };
@@ -508,7 +1045,7 @@ const saveSystemPreferences = (showNotice = true) => {
 const resetSystemPreferences = () => {
   Object.assign(systemSettings, getDefaultSystemSettings());
   persistSystemSettings();
-  setSettingsNotice("System preferences reset to default.", "success");
+  setSettingsNotice(uiText.value.systemReset, "success");
 };
 
 const saveCurrentSettingsSection = async () => {
@@ -561,27 +1098,41 @@ const usersStats = computed(() => {
   const total = normalizedUsers.value.length;
   const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const newUsers = normalizedUsers.value.filter((user) => new Date(user.createdAt || 0).getTime() >= monthAgo).length;
-  const active = normalizedUsers.value.filter((user) => normalizeUserStatus(user) === "Active").length;
+  const active = normalizedUsers.value.filter((user) => user.statusKey === "active").length;
   const retention = total ? Math.round((active / total) * 100) : 0;
   const inactive = total - active;
   const churn = total ? (inactive / total) * 100 : 0;
   return {
     totalLabel: formatNumber(total),
-    totalDelta: `${formatNumber(newUsers)} new this month`,
+    totalDelta: interpolate(uiText.value.newThisMonth, {
+      count: formatNumber(newUsers),
+    }),
     newUsersLabel: formatNumber(newUsers),
-    newUsersDelta: total ? `${((newUsers / total) * 100).toFixed(1)}% of total` : "No data",
+    newUsersDelta: total
+      ? interpolate(uiText.value.ofTotal, {
+          percent: ((newUsers / total) * 100).toFixed(1),
+        })
+      : uiText.value.noData,
     activeLabel: formatNumber(active),
-    activeDelta: `${retention}% retention`,
-    churnLabel: total ? `${churn.toFixed(1)}%` : "N/A",
-    churnDelta: `${formatNumber(inactive)} inactive`,
+    activeDelta: interpolate(uiText.value.retention, {
+      percent: retention,
+    }),
+    churnLabel: total ? `${churn.toFixed(1)}%` : uiText.value.na,
+    churnDelta: interpolate(uiText.value.inactiveCount, {
+      count: formatNumber(inactive),
+    }),
   };
 });
 
 const usersFooterLabel = computed(() => {
   const total = normalizedUsers.value.length;
   const shown = filteredUsers.value.length;
-  if (!total) return "Showing 0 of 0 users";
-  return `Showing 1-${shown} of ${formatNumber(total)} users`;
+  if (!total) return uiText.value.showingZeroUsers;
+  return interpolate(uiText.value.showingUsers, {
+    start: 1,
+    shown,
+    total: formatNumber(total),
+  });
 });
 
 const selectedUserActivities = computed(() => {
@@ -602,7 +1153,7 @@ const selectedUserActivities = computed(() => {
     .slice(0, 3);
 
   return rows.map((row) => ({
-    title: row?.event?.title || row?.service_name || "Booking",
+    title: row?.event?.title || row?.service_name || uiText.value.bookingFallback,
     time: timeAgo(getRowDate(row, row?.event?.starts_at)),
     meta: formatCurrency(row?.total_amount || 0),
   }));
@@ -678,25 +1229,28 @@ const dashboardStats = computed(() => {
   );
   const accountsDelta =
     totalAccounts > 0
-      ? `${formatNumber(totalVendors)} vendors, ${formatNumber(totalCustomers)} customers`
-      : "No customer or vendor accounts";
+      ? interpolate(uiText.value.accountsBreakdown, {
+          vendors: formatNumber(totalVendors),
+          customers: formatNumber(totalCustomers),
+        })
+      : uiText.value.noAccounts;
   const serviceFeeDelta = formatPercentDelta(
     sumServiceFees(bookingRows.value, currentMonth),
     sumServiceFees(bookingRows.value, previousMonth),
   );
 
   return [
-    { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
-    { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
+    { label: uiText.value.totalEvents, value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
+    { label: uiText.value.totalBookings, value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
     {
-      label: "Total Accounts",
+      label: uiText.value.totalAccounts,
       value: formatNumber(totalAccounts),
       delta: accountsDelta,
       tone: "neutral",
       icon: "users",
     },
     {
-      label: "Service Fee Total",
+      label: uiText.value.serviceFeeTotal,
       value: formatCurrency(totalServiceFees),
       delta: serviceFeeDelta,
       tone: "solid",
@@ -715,8 +1269,11 @@ const monthlyReport = computed(() => {
     growthLabel: `${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`,
     message:
       previousServiceFees > 0
-        ? `Service fee income is ${growth >= 0 ? "up" : "down"} ${Math.abs(growth).toFixed(1)}% compared to last month.`
-        : "Service fee insights will appear once bookings are confirmed.",
+        ? interpolate(uiText.value.reportMessage, {
+            direction: growth >= 0 ? uiText.value.reportDirectionUp : uiText.value.reportDirectionDown,
+            amount: Math.abs(growth).toFixed(1),
+          })
+        : uiText.value.reportPending,
   };
 });
 
@@ -725,9 +1282,14 @@ const systemStatus = computed(() => {
   const cacheRoundTrip = healthStatus.value?.cache_round_trip;
   const isHealthy = status === "ok";
   return {
-    apiLabel: isHealthy ? "Healthy" : status === "degraded" ? "Degraded" : "Unknown",
+    apiLabel: isHealthy ? uiText.value.healthy : status === "degraded" ? uiText.value.degraded : uiText.value.unknown,
     apiPercent: isHealthy ? 99.9 : status === "degraded" ? 92.5 : 85,
-    cacheLabel: cacheRoundTrip === true ? "Cache OK" : cacheRoundTrip === false ? "Cache Issue" : "Cache Unknown",
+    cacheLabel:
+      cacheRoundTrip === true
+        ? uiText.value.cacheOk
+        : cacheRoundTrip === false
+          ? uiText.value.cacheIssue
+          : uiText.value.cacheUnknown,
     cachePercent: cacheRoundTrip === true ? 88 : cacheRoundTrip === false ? 54 : 70,
   };
 });
@@ -762,17 +1324,17 @@ onMounted(() =>
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Operations workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -838,17 +1400,22 @@ onMounted(() =>
               />
             </svg>
           </span>
-          <input v-model="searchQuery" type="search" placeholder="Search insights..." />
+          <input v-model="searchQuery" type="search" :placeholder="uiText.searchInsights" />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button
+            class="icon-btn"
+            type="button"
+            :title="uiText.notificationsButton"
+            :aria-label="uiText.notificationsButton"
+          >
             <svg viewBox="0 0 24 24">
               <path
                 d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z"
               />
             </svg>
           </button>
-          <button class="icon-btn" type="button" title="Help" aria-label="Help">
+          <button class="icon-btn" type="button" :title="uiText.helpButton" :aria-label="uiText.helpButton">
             <svg viewBox="0 0 24 24">
               <path
                 d="M12 19a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm0-15a6 6 0 0 1 6 6c0 2.455-1.812 3.498-2.83 4.085-.87.505-1.17.75-1.17 1.415v.5h-2v-.5c0-1.86 1.126-2.512 2.17-3.115C14.98 11.83 16 11.235 16 10a4 4 0 0 0-8 0H6a6 6 0 0 1 6-6Z"
@@ -860,11 +1427,11 @@ onMounted(() =>
       </header>
 
       <section v-if="activeKey === 'dashboard'" class="admin-hero">
-        <p class="eyebrow">Achar Event Admin</p>
-        <h1 class="hero-title">Admin Dashboard</h1>
-        <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
+        <p class="eyebrow">{{ uiText.dashboardEyebrow }}</p>
+        <h1 class="hero-title">{{ uiText.dashboardTitle }}</h1>
+        <p class="hero-subtitle">{{ uiText.dashboardSubtitle }}</p>
         <div class="hero-actions">
-          <button class="primary-btn" type="button">Export Report</button>
+          <button class="primary-btn" type="button">{{ uiText.exportReport }}</button>
         </div>
       </section>
 
@@ -904,14 +1471,14 @@ onMounted(() =>
       <section v-if="activeKey === 'dashboard'" class="admin-grid">
         <article v-if="false" class="activity-card">
           <header>
-            <h3>Recent Activity</h3>
-            <button class="link-btn" type="button">View All →</button>
+            <h3>{{ uiText.recentActivity }}</h3>
+            <button class="link-btn" type="button">{{ uiText.viewAll }} →</button>
           </header>
           <div class="activity-list">
-            <div v-if="isLoading" class="activity-empty">Loading latest activity...</div>
+            <div v-if="isLoading" class="activity-empty">{{ uiText.loadingLatestActivity }}</div>
             <div v-else-if="loadError" class="activity-empty">{{ loadError }}</div>
             <div v-else-if="!recentActivity.length" class="activity-empty">
-              No recent customer or vendor activity yet.
+              {{ uiText.noRecentPlatformActivity }}
             </div>
             <template v-else>
               <div v-for="item in recentActivity" :key="item.key" class="activity-item">
@@ -933,18 +1500,18 @@ onMounted(() =>
         <div class="side-stack">
           <article class="report-card">
             <div class="report-head">
-              <h3>Monthly Report</h3>
+              <h3>{{ uiText.monthlyReport }}</h3>
               <span class="report-pill">{{ monthlyReport.growthLabel }}</span>
             </div>
             <p>{{ monthlyReport.message }}</p>
-            <button class="primary-btn" type="button">Download PDF</button>
+            <button class="primary-btn" type="button">{{ uiText.downloadPdf }}</button>
           </article>
 
           <article class="status-card">
-            <h3>System Status</h3>
+            <h3>{{ uiText.systemStatus }}</h3>
             <div class="status-row">
               <div>
-                <p>API Health</p>
+                <p>{{ uiText.apiHealth }}</p>
                 <span>{{ systemStatus.apiLabel }} · {{ systemStatus.apiPercent }}%</span>
               </div>
               <div class="bar">
@@ -953,7 +1520,7 @@ onMounted(() =>
             </div>
             <div class="status-row">
               <div>
-                <p>Cache Sync</p>
+                <p>{{ uiText.cacheSync }}</p>
                 <span>{{ systemStatus.cacheLabel }} · {{ systemStatus.cachePercent }}%</span>
               </div>
               <div class="bar">
@@ -975,20 +1542,20 @@ onMounted(() =>
               </svg>
             </div>
             <div>
-              <h2>Settings</h2>
-              <p>Manage your account preferences and notifications.</p>
+              <h2>{{ uiText.settingsTitle }}</h2>
+              <p>{{ uiText.settingsSubtitle }}</p>
             </div>
           </div>
           <div class="settings-quick">
             <span class="pill alt">{{ adminSettingsProfile.joinedLabel }}</span>
-            <span class="pill alt">Last active {{ adminSettingsProfile.lastActiveLabel }}</span>
+            <span class="pill alt">{{ adminSettingsProfile.lastActiveDisplay }}</span>
             <button
               class="primary-btn"
               type="button"
               :disabled="isSavingSettings || passwordForm.saving"
               @click="saveCurrentSettingsSection"
             >
-              Save
+              {{ uiText.save }}
             </button>
           </div>
         </div>
@@ -1022,48 +1589,48 @@ onMounted(() =>
             <article v-if="activeSettingsSection === 'security'" class="settings-card">
               <div class="card-header">
                 <div>
-                  <h3>Security & Privacy</h3>
-                  <p>Manage your password and authentication.</p>
+                  <h3>{{ uiText.securityTitle }}</h3>
+                  <p>{{ uiText.securitySubtitle }}</p>
                 </div>
-                <span class="pill alt">Secure</span>
+                <span class="pill alt">{{ uiText.secure }}</span>
               </div>
               <div class="form-grid">
                 <label>
-                  <span>Current Password</span>
+                  <span>{{ uiText.currentPassword }}</span>
                   <input
                     v-model="passwordForm.current"
                     type="password"
                     autocomplete="current-password"
-                    placeholder="Enter current password"
+                    :placeholder="uiText.currentPasswordPlaceholder"
                   />
                 </label>
                 <label>
-                  <span>New Password</span>
+                  <span>{{ uiText.newPassword }}</span>
                   <input
                     v-model="passwordForm.next"
                     type="password"
                     autocomplete="new-password"
-                    placeholder="Enter new password"
+                    :placeholder="uiText.newPasswordPlaceholder"
                   />
                 </label>
                 <label>
-                  <span>Confirm Password</span>
+                  <span>{{ uiText.confirmPassword }}</span>
                   <input
                     v-model="passwordForm.confirm"
                     type="password"
                     autocomplete="new-password"
-                    placeholder="Confirm new password"
+                    :placeholder="uiText.confirmPasswordPlaceholder"
                   />
                 </label>
                 <label class="full">
-                  <span>Last Active</span>
+                  <span>{{ uiText.lastActive }}</span>
                   <input type="text" :value="adminSettingsProfile.lastActiveLabel" readonly />
                 </label>
               </div>
               <div class="toggle-row">
                 <div>
-                  <p>Two-Factor Authentication</p>
-                  <span>Add an extra layer of security to your account.</span>
+                  <p>{{ uiText.twoFactorTitle }}</p>
+                  <span>{{ uiText.twoFactorSubtitle }}</span>
                 </div>
                 <label class="switch">
                   <input v-model="securitySettings.twoFactor" type="checkbox" />
@@ -1077,7 +1644,7 @@ onMounted(() =>
                   :disabled="passwordForm.saving"
                   @click="saveSecuritySettings(true)"
                 >
-                  {{ passwordForm.saving ? "Updating..." : "Update Security" }}
+                  {{ passwordForm.saving ? uiText.updating : uiText.updateSecurity }}
                 </button>
                 <p v-if="passwordForm.notice" class="inline-feedback success">{{ passwordForm.notice }}</p>
                 <p v-else-if="passwordForm.error" class="inline-feedback error">{{ passwordForm.error }}</p>
@@ -1087,16 +1654,16 @@ onMounted(() =>
             <article v-else-if="activeSettingsSection === 'notifications'" class="settings-card">
               <div class="card-header">
                 <div>
-                  <h3>Notification Preferences</h3>
-                  <p>Choose how you want to be notified.</p>
+                  <h3>{{ uiText.notificationsTitle }}</h3>
+                  <p>{{ uiText.notificationsSubtitle }}</p>
                 </div>
-                <span class="pill">Alerts</span>
+                <span class="pill">{{ uiText.alerts }}</span>
               </div>
               <div class="toggle-list">
                 <div class="toggle-row">
                   <div>
-                    <p>Email Notifications</p>
-                    <span>Receive summaries of bookings and revenue.</span>
+                    <p>{{ uiText.emailNotifications }}</p>
+                    <span>{{ uiText.emailNotificationsSubtitle }}</span>
                   </div>
                   <label class="switch">
                     <input v-model="notificationSettings.email" type="checkbox" />
@@ -1105,8 +1672,8 @@ onMounted(() =>
                 </div>
                 <div class="toggle-row">
                   <div>
-                    <p>SMS Alerts</p>
-                    <span>Urgent event cancellations or security alerts.</span>
+                    <p>{{ uiText.smsAlerts }}</p>
+                    <span>{{ uiText.smsAlertsSubtitle }}</span>
                   </div>
                   <label class="switch">
                     <input v-model="notificationSettings.sms" type="checkbox" />
@@ -1115,8 +1682,8 @@ onMounted(() =>
                 </div>
                 <div class="toggle-row">
                   <div>
-                    <p>Push Notifications</p>
-                    <span>Browser and mobile app push alerts.</span>
+                    <p>{{ uiText.pushNotifications }}</p>
+                    <span>{{ uiText.pushNotificationsSubtitle }}</span>
                   </div>
                   <label class="switch">
                     <input v-model="notificationSettings.push" type="checkbox" />
@@ -1129,14 +1696,14 @@ onMounted(() =>
             <article v-else-if="activeSettingsSection === 'system'" class="settings-card">
               <div class="card-header">
                 <div>
-                  <h3>System Preferences</h3>
-                  <p>Set language, currency, and theme.</p>
+                  <h3>{{ uiText.systemPreferencesTitle }}</h3>
+                  <p>{{ uiText.systemPreferencesSubtitle }}</p>
                 </div>
-                <span class="pill alt">Global</span>
+                <span class="pill alt">{{ uiText.global }}</span>
               </div>
               <div class="form-grid">
                 <label>
-                  <span>Interface Language</span>
+                  <span>{{ uiText.interfaceLanguage }}</span>
                   <select v-model="systemSettings.language">
                     <option v-for="option in languageOptions" :key="option.value" :value="option.value">
                       {{ option.label }}
@@ -1144,7 +1711,7 @@ onMounted(() =>
                   </select>
                 </label>
                 <label>
-                  <span>Default Currency</span>
+                  <span>{{ uiText.defaultCurrency }}</span>
                   <select v-model="systemSettings.currency">
                     <option v-for="option in currencyOptions" :key="option.value" :value="option.value">
                       {{ option.label }}
@@ -1154,8 +1721,8 @@ onMounted(() =>
               </div>
               <div class="toggle-row theme-row">
                 <div>
-                  <p>Interface Theme</p>
-                  <span>Switch between light and dark display modes.</span>
+                  <p>{{ uiText.interfaceTheme }}</p>
+                  <span>{{ uiText.interfaceThemeSubtitle }}</span>
                 </div>
                 <div class="theme-toggle">
                   <button
@@ -1163,14 +1730,14 @@ onMounted(() =>
                     :class="{ active: systemSettings.theme === 'light' }"
                     @click="systemSettings.theme = 'light'"
                   >
-                    Light
+                    {{ uiText.light }}
                   </button>
                   <button
                     type="button"
                     :class="{ active: systemSettings.theme === 'dark' }"
                     @click="systemSettings.theme = 'dark'"
                   >
-                    Dark
+                    {{ uiText.dark }}
                   </button>
                 </div>
               </div>
@@ -1189,7 +1756,7 @@ onMounted(() =>
                 />
               </svg>
             </span>
-            <input v-model="usersSearchQuery" type="search" placeholder="Search users by name, email..." />
+            <input v-model="usersSearchQuery" type="search" :placeholder="uiText.searchUsers" />
           </label>
         </div>
 
@@ -1200,7 +1767,7 @@ onMounted(() =>
                 <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
               </svg>
             </div>
-            <p>Total Users</p>
+            <p>{{ uiText.totalUsers }}</p>
             <h3>{{ usersStats.totalLabel }}</h3>
             <span class="delta up">{{ usersStats.totalDelta }}</span>
           </article>
@@ -1212,7 +1779,7 @@ onMounted(() =>
                 />
               </svg>
             </div>
-            <p>New Users (Month)</p>
+            <p>{{ uiText.newUsersMonth }}</p>
             <h3>{{ usersStats.newUsersLabel }}</h3>
             <span class="delta up">{{ usersStats.newUsersDelta }}</span>
           </article>
@@ -1222,7 +1789,7 @@ onMounted(() =>
                 <path d="M20.285 6.709 9 18l-5.285-5.291 1.414-1.414L9 15.172l9.871-9.877z" />
               </svg>
             </div>
-            <p>Active Users</p>
+            <p>{{ uiText.activeUsers }}</p>
             <h3>{{ usersStats.activeLabel }}</h3>
             <span class="delta neutral">{{ usersStats.activeDelta }}</span>
           </article>
@@ -1232,7 +1799,7 @@ onMounted(() =>
                 <path d="M5 7h10l-3-3 1.414-1.414L19.828 9l-6.414 6.414L12 14l3-3H5V7zm14 10H9l3 3-1.414 1.414L4.172 15l6.414-6.414L12 10l-3 3h10v4z" />
               </svg>
             </div>
-            <p>Churn Rate</p>
+            <p>{{ uiText.churnRate }}</p>
             <h3>{{ usersStats.churnLabel }}</h3>
             <span class="delta down">{{ usersStats.churnDelta }}</span>
           </article>
@@ -1242,27 +1809,27 @@ onMounted(() =>
           <article class="users-directory">
             <header class="directory-header">
               <div>
-                <h2>User Directory</h2>
-                <p>Managing all registered accounts across the platform.</p>
+                <h2>{{ uiText.userDirectory }}</h2>
+                <p>{{ uiText.userDirectorySubtitle }}</p>
               </div>
               <div class="directory-actions">
-                <button class="ghost-btn" type="button">Filter</button>
-                <button class="ghost-btn" type="button">Export CSV</button>
+                <button class="ghost-btn" type="button">{{ uiText.filter }}</button>
+                <button class="ghost-btn" type="button">{{ uiText.exportCsv }}</button>
               </div>
             </header>
 
             <div class="directory-table">
               <div class="table-head">
-                <span>User</span>
-                <span>Contact Info</span>
-                <span>Joined Date</span>
-                <span>Bookings</span>
-                <span>Status</span>
-                <span>Action</span>
+                <span>{{ uiText.user }}</span>
+                <span>{{ uiText.contactInfo }}</span>
+                <span>{{ uiText.joinedDate }}</span>
+                <span>{{ uiText.bookings }}</span>
+                <span>{{ uiText.status }}</span>
+                <span>{{ uiText.action }}</span>
               </div>
-              <div v-if="isUsersLoading" class="table-empty">Loading users...</div>
+              <div v-if="isUsersLoading" class="table-empty">{{ uiText.loadingUsers }}</div>
               <div v-else-if="usersLoadError" class="table-empty">{{ usersLoadError }}</div>
-              <div v-else-if="!filteredUsers.length" class="table-empty">No users found.</div>
+              <div v-else-if="!filteredUsers.length" class="table-empty">{{ uiText.noUsersFound }}</div>
               <div
                 v-else
                 v-for="user in filteredUsers"
@@ -1274,7 +1841,7 @@ onMounted(() =>
                   <div class="user-avatar">{{ user.initials }}</div>
                   <div>
                     <p>{{ user.name }}</p>
-                    <span>ID: {{ user.id }}</span>
+                    <span>{{ uiText.idLabel }}: {{ user.id }}</span>
                   </div>
                 </div>
                 <div class="contact-cell">
@@ -1282,8 +1849,8 @@ onMounted(() =>
                   <span>{{ user.phone }}</span>
                 </div>
                 <div>{{ user.joinedLabel }}</div>
-                <div><span class="tag">{{ formatCompactNumber(user.bookingsCount) }} Total</span></div>
-                <div><span class="status" :class="user.status.toLowerCase()">{{ user.status }}</span></div>
+                <div><span class="tag">{{ formatCompactNumber(user.bookingsCount) }} {{ uiText.totalSuffix }}</span></div>
+                <div><span class="status" :class="user.statusKey">{{ user.status }}</span></div>
                 <div class="dots">• • •</div>
               </div>
 
@@ -1305,29 +1872,29 @@ onMounted(() =>
               <div class="profile-hero"></div>
               <div class="profile-body">
                 <div class="profile-photo">{{ selectedUser?.initials || "?" }}</div>
-                <h3>{{ selectedUser?.name || "Select a user" }}</h3>
-                <p class="profile-email">{{ selectedUser?.email || "No email available" }}</p>
+                <h3>{{ selectedUser?.name || uiText.selectUser }}</h3>
+                <p class="profile-email">{{ selectedUser?.email || uiText.noEmailAvailable }}</p>
                 <div class="profile-stats">
                   <div>
-                    <span>Spent</span>
+                    <span>{{ uiText.spent }}</span>
                     <strong>{{ selectedUser ? formatCurrency(selectedUser.spent) : "$0.00" }}</strong>
                   </div>
                   <div>
-                    <span>Bookings</span>
+                    <span>{{ uiText.bookings }}</span>
                     <strong>{{ selectedUser ? formatNumber(selectedUser.bookingsCount) : "0" }}</strong>
                   </div>
                   <div>
-                    <span>Last Login</span>
-                    <strong>{{ selectedUser?.lastLoginLabel || "N/A" }}</strong>
+                    <span>{{ uiText.lastLogin }}</span>
+                    <strong>{{ selectedUser?.lastLoginLabel || uiText.na }}</strong>
                   </div>
                 </div>
                 <div class="profile-activity">
-                  <p>Recent Activity</p>
+                  <p>{{ uiText.recentActivity }}</p>
                   <div v-if="!selectedUserActivities.length" class="activity-item">
                     <div class="activity-dot"></div>
                     <div>
-                      <strong>No recent activity</strong>
-                      <span>Activity will appear when the user books or updates their account.</span>
+                      <strong>{{ uiText.noRecentActivity }}</strong>
+                      <span>{{ uiText.noRecentActivitySubtitle }}</span>
                     </div>
                   </div>
                   <div
@@ -1344,16 +1911,16 @@ onMounted(() =>
                   </div>
                 </div>
                 <div class="profile-actions">
-                  <button class="ghost-btn" type="button">Edit</button>
-                  <button class="ghost-btn" type="button">Reset</button>
+                  <button class="ghost-btn" type="button">{{ uiText.edit }}</button>
+                  <button class="ghost-btn" type="button">{{ uiText.reset }}</button>
                 </div>
-                <button class="danger-btn" type="button">Suspend User Account</button>
+                <button class="danger-btn" type="button">{{ uiText.suspendUserAccount }}</button>
               </div>
             </div>
             <div class="elite-card">
-              <h4>Elite Member</h4>
-              <p>{{ selectedUser?.name || "This user" }} is in the top 2% of contributors in the Siem Reap region.</p>
-              <button class="link-btn" type="button">View full engagement report</button>
+              <h4>{{ uiText.eliteMember }}</h4>
+              <p>{{ interpolate(uiText.eliteMemberMessage, { name: selectedUser?.name || uiText.thisUser }) }}</p>
+              <button class="link-btn" type="button">{{ uiText.viewFullEngagementReport }}</button>
             </div>
           </aside>
         </div>

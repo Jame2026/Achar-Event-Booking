@@ -143,21 +143,67 @@ const copyByLanguage = {
     editService: "Edit Service",
     updateService: "Update Service",
     cancelEdit: "Cancel Edit",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    delete: "Delete",
+    edit: "Edit",
+    pause: "Pause",
+    activate: "Activate",
+    remove: "Remove",
     serviceType: "Service Type",
+    typeLabel: "Type",
+    serviceInformation: "Service Information",
+    serviceName: "Service name",
+    serviceNamePlaceholder: "Community Workshop",
+    servicePrice: "Service price",
+    serviceDetailsLabel: "Service details",
+    serviceDetailsPlaceholder: "Describe what this service includes.",
+    servicePackageLabel: "Service",
+    wholePackageTotal: "Whole package total",
     overallService: "Overall Service",
     overallServiceHint: "One price for the full service.",
     packageService: "Package Service",
     packageServiceHint: "Bundle multiple services in one package and show one total price.",
     overallPricing: "Overall Pricing",
     packageBuilder: "Package Services",
+    packageItemPlaceholder: "Photography / Decoration / Makeup",
     currentListings: "Current listings",
     loadingServices: "Loading services...",
+    active: "Active",
+    inactive: "Inactive",
+    paused: "Paused",
+    servicesCount: "Services",
+    media: "Media",
+    uploadCoverPhoto: "Click to upload cover photo",
+    uploadImageHint: "PNG, JPG (MAX. 5MB)",
+    selectedServicePreviewAlt: "Selected service preview",
+    pasteImageLink: "Or paste image link",
+    paymentQrCode: "Payment QR code",
+    pasteQrLink: "Or paste QR code link",
+    selectedPaymentQrPreviewAlt: "Selected payment QR preview",
+    removeImage: "Remove image",
+    removeQr: "Remove QR",
+    visibility: "Visibility",
+    activeListing: "Active listing",
+    visibleToUsersWhenEnabled: "Visible to users when enabled.",
     bookingRequests: "Requests",
     newBookingRequests: "New Booking Requests",
     loadingBookings: "Loading bookings...",
+    total: "Total",
+    allBookingRequests: "All booking requests",
+    pending: "Pending",
+    awaitingConfirmation: "Awaiting confirmation",
+    confirmed: "Confirmed",
+    activeBookings: "Active bookings",
+    cancelled: "Cancelled",
+    cancelledRequests: "Cancelled requests",
+    noBookingRequestsYet: "No booking requests yet.",
+    clientLabel: "Client",
+    actions: "Actions",
     customerMessages: "Customer Messages",
     incomeInsights: "Vendor Income Insights",
     addNewService: "Add New Service",
+    saveService: "Save Service",
     availabilitySettings: "Availability & calendar",
     availabilityIntro:
       "Set your working hours and block off dates you cannot take bookings.",
@@ -225,6 +271,12 @@ const copyByLanguage = {
     eventLocationLabel: "Event Location",
     serviceDetails: "Service Details",
     customerContact: "Customer Contact",
+    customerNameLabel: "Name",
+    customerEmailLabel: "Email",
+    customerPhoneLabel: "Phone",
+    customerLocationLabel: "Customer Location",
+    emailCustomer: "Email Customer",
+    callCustomer: "Call Customer",
     dateLabel: "Date",
     statusLabel: "Status",
     quantityLabel: "Quantity",
@@ -284,100 +336,152 @@ const copyByLanguage = {
     noConfirmedIncome: "មិនទាន់មានចំណូលដែលបានបញ្ជាក់សម្រាប់រយៈពេលនេះទេ។",
     createService: "បង្កើតសេវាកម្ម",
     insertService: "បញ្ចូលសេវាកម្ម",
-    editService: "Edit Service",
-    updateService: "Update Service",
-    cancelEdit: "Cancel Edit",
-    serviceType: "Service Type",
-    overallService: "Overall Service",
-    overallServiceHint: "One price for the full service.",
-    packageService: "Package Service",
-    packageServiceHint: "Bundle multiple services in one package and show one total price.",
-    overallPricing: "Overall Pricing",
-    packageBuilder: "Package Services",
+    editService: "កែសេវាកម្ម",
+    updateService: "ធ្វើបច្ចុប្បន្នភាពសេវាកម្ម",
+    cancelEdit: "បោះបង់ការកែប្រែ",
+    cancel: "បោះបង់",
+    confirm: "បញ្ជាក់",
+    delete: "លុប",
+    edit: "កែប្រែ",
+    pause: "ផ្អាក",
+    activate: "បើកដំណើរការ",
+    remove: "ដកចេញ",
+    serviceType: "ប្រភេទសេវាកម្ម",
+    typeLabel: "ប្រភេទ",
+    serviceInformation: "ព័ត៌មានសេវាកម្ម",
+    serviceName: "ឈ្មោះសេវាកម្ម",
+    serviceNamePlaceholder: "សិក្ខាសាលាសហគមន៍",
+    servicePrice: "តម្លៃសេវាកម្ម",
+    serviceDetailsLabel: "ព័ត៌មានលម្អិតសេវាកម្ម",
+    serviceDetailsPlaceholder: "ពិពណ៌នាអំពីអ្វីដែលសេវាកម្មនេះរួមបញ្ចូល។",
+    servicePackageLabel: "សេវាកម្ម",
+    wholePackageTotal: "តម្លៃសរុបកញ្ចប់ទាំងមូល",
+    overallService: "សេវាកម្មទាំងមូល",
+    overallServiceHint: "តម្លៃតែមួយសម្រាប់សេវាកម្មទាំងមូល។",
+    packageService: "សេវាកម្មជាកញ្ចប់",
+    packageServiceHint: "រួមបញ្ចូលសេវាកម្មច្រើនក្នុងកញ្ចប់តែមួយ ហើយបង្ហាញតម្លៃសរុបតែមួយ។",
+    overallPricing: "តម្លៃសរុប",
+    packageBuilder: "សេវាកម្មក្នុងកញ្ចប់",
+    packageItemPlaceholder: "ថតរូប / តុបតែង / តុបតែងមុខ",
     currentListings: "បញ្ជីបច្ចុប្បន្ន",
     loadingServices: "កំពុងផ្ទុកសេវាកម្ម...",
+    active: "សកម្ម",
+    inactive: "អសកម្ម",
+    paused: "ផ្អាក",
+    servicesCount: "សេវាកម្ម",
+    media: "មេឌៀ",
+    uploadCoverPhoto: "ចុចដើម្បីបង្ហោះរូបភាពគម្រប",
+    uploadImageHint: "PNG, JPG (អតិបរមា 5MB)",
+    selectedServicePreviewAlt: "ការមើលជាមុនសេវាកម្មដែលបានជ្រើស",
+    pasteImageLink: "ឬបិទភ្ជាប់តំណរូបភាព",
+    paymentQrCode: "កូដ QR សម្រាប់ទូទាត់",
+    pasteQrLink: "ឬបិទភ្ជាប់តំណកូដ QR",
+    selectedPaymentQrPreviewAlt: "ការមើលជាមុនកូដ QR ទូទាត់ដែលបានជ្រើស",
+    removeImage: "លុបរូបភាព",
+    removeQr: "លុប QR",
+    visibility: "ការបង្ហាញ",
+    activeListing: "បញ្ជីសកម្ម",
+    visibleToUsersWhenEnabled: "អាចមើលឃើញដោយអ្នកប្រើ នៅពេលបានបើកដំណើរការ។",
     bookingRequests: "សំណើ",
     newBookingRequests: "សំណើកក់ថ្មី",
     loadingBookings: "កំពុងផ្ទុកការកក់...",
+    total: "សរុប",
+    allBookingRequests: "សំណើកក់ទាំងអស់",
+    pending: "កំពុងរង់ចាំ",
+    awaitingConfirmation: "កំពុងរង់ចាំការបញ្ជាក់",
+    confirmed: "បានបញ្ជាក់",
+    activeBookings: "ការកក់សកម្ម",
+    cancelled: "បានបោះបង់",
+    cancelledRequests: "សំណើដែលបានបោះបង់",
+    noBookingRequestsYet: "មិនទាន់មានសំណើកក់នៅឡើយទេ។",
+    clientLabel: "អតិថិជន",
+    actions: "សកម្មភាព",
     customerMessages: "សារអតិថិជន",
     incomeInsights: "ការយល់ដឹងអំពីចំណូលអ្នកផ្គត់ផ្គង់",
     addNewService: "បន្ថែមសេវាកម្មថ្មី",
-    availabilitySettings: "Availability & calendar",
+    saveService: "រក្សាទុកសេវាកម្ម",
+    availabilitySettings: "កាលវិភាគ និងប្រតិទិន",
     availabilityIntro:
-      "Set your working hours and block off dates you cannot take bookings.",
-    applyToService: "Apply to",
-    allServices: "All services (default)",
-    weeklyHours: "Weekly hours",
-    closed: "Closed",
-    hoursLabel: "Hours",
-    timezone: "Timezone",
-    blockedDates: "Vacation Mode / Day Off",
-    vacationMode: "Vacation Mode / Day Off",
-    vacationHint: "Temporarily block your availability for all services.",
-    startDate: "Start date",
-    endDate: "End date",
+      "កំណត់ម៉ោងធ្វើការ និងបិទថ្ងៃដែលអ្នកមិនអាចទទួលការកក់បាន។",
+    applyToService: "អនុវត្តចំពោះ",
+    allServices: "សេវាកម្មទាំងអស់ (លំនាំដើម)",
+    weeklyHours: "ម៉ោងប្រចាំសប្ដាហ៍",
+    closed: "បិទ",
+    hoursLabel: "ម៉ោង",
+    timezone: "តំបន់ពេលវេលា",
+    blockedDates: "របៀបសម្រាក / ថ្ងៃឈប់",
+    vacationMode: "របៀបសម្រាក / ថ្ងៃឈប់",
+    vacationHint: "បិទពេលទំនេររបស់អ្នកជាបណ្តោះអាសន្នសម្រាប់សេវាកម្មទាំងអស់។",
+    startDate: "ថ្ងៃចាប់ផ្តើម",
+    endDate: "ថ្ងៃបញ្ចប់",
     vacationNote:
-      "Existing bookings within this period will remain active. New bookings will be disabled.",
-    bookingRules: "Booking rules",
-    autoAccept: "Auto-accept bookings",
-    leadTime: "Lead time (hours)",
-    bufferTime: "Buffer between bookings (minutes)",
-    maxPerDay: "Max bookings per day",
-    paymentsPolicies: "Payments & policies",
-    depositPercent: "Deposit required (%)",
-    cancellationWindow: "Free cancellation window (hours)",
-    rescheduleWindow: "Free reschedule window (hours)",
-    notifications: "Notifications",
-    notifyEmail: "Email alerts",
-    notifySms: "SMS alerts",
-    quietHours: "Quiet hours",
-    quietStart: "Start (HH:MM)",
-    quietEnd: "End (HH:MM)",
-    accountManagement: "Account management",
+      "ការកក់ដែលមានស្រាប់ក្នុងរយៈពេលនេះនឹងនៅតែសកម្ម។ ការកក់ថ្មីនឹងត្រូវបិទ។",
+    bookingRules: "ច្បាប់ការកក់",
+    autoAccept: "ទទួលការកក់ដោយស្វ័យប្រវត្តិ",
+    leadTime: "រយៈពេលមុនការកក់ (ម៉ោង)",
+    bufferTime: "ចន្លោះពេលរវាងការកក់ (នាទី)",
+    maxPerDay: "ចំនួនកក់អតិបរមាក្នុងមួយថ្ងៃ",
+    paymentsPolicies: "ការទូទាត់ និងគោលការណ៍",
+    depositPercent: "ប្រាក់កក់ត្រូវការ (%)",
+    cancellationWindow: "រយៈពេលអាចលុបដោយឥតគិតថ្លៃ (ម៉ោង)",
+    rescheduleWindow: "រយៈពេលអាចប្ដូរពេលដោយឥតគិតថ្លៃ (ម៉ោង)",
+    notifications: "ការជូនដំណឹង",
+    notifyEmail: "ការជូនដំណឹងតាមអ៊ីមែល",
+    notifySms: "ការជូនដំណឹងតាមសារ SMS",
+    quietHours: "ម៉ោងស្ងប់",
+    quietStart: "ចាប់ផ្តើម (HH:MM)",
+    quietEnd: "បញ្ចប់ (HH:MM)",
+    accountManagement: "ការគ្រប់គ្រងគណនី",
     passwordHint:
-      "Update your login password. You will use it next time you sign in.",
-    currentPassword: "Current password",
-    newPassword: "New password",
-    confirmPassword: "Confirm new password",
-    updatePassword: "Update password",
-    passwordSaved: "Password updated successfully.",
-    saveSettings: "Save settings",
-    saving: "Saving...",
-    settingsSaved: "Settings saved.",
-    unavailableHint: "Customers won't be able to book these dates.",
-    listingPreview: "Listing Preview",
-    quickTips: "Quick Tips",
-    checklist: "Checklist",
-    previewTitleFallback: "Service Title",
-    previewLocationFallback: "Location",
-    previewAddPrice: "Add price",
-    previewEventTypeFallback: "Event type",
-    previewStatusActive: "Active",
-    previewStatusDraft: "Draft",
-    previewHint: "This is a quick look at how customers see your card.",
-    tipShortName: "Use a short, clear service name.",
-    tipAddPhoto: "Add a cover photo to boost clicks.",
-    tipAddLocation: "Include location for better matching.",
-    tipSetPrice: "Set a price so customers can book faster.",
-    tipAddDescription: "Write a short description of what is included.",
-    checklistBasics: "Title and description added",
-    checklistPricing: "Price and capacity set",
-    checklistMedia: "Cover photo uploaded",
-    checklistPayment: "Payment QR added",
-    bookingDetails: "Booking Details",
-    customerDetails: "Customer Details",
-    eventLocationLabel: "Event Location",
-    serviceDetails: "Service Details",
-    customerContact: "Customer Contact",
-    dateLabel: "Date",
-    statusLabel: "Status",
-    quantityLabel: "Quantity",
-    totalLabel: "Total",
-    bookedItems: "Booked Items",
-    noItems: "No items listed",
-    viewDetails: "View Details",
-    getDirections: "Get Directions",
-    close: "Close",
+      "ធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់ចូលប្រព័ន្ធរបស់អ្នក។ អ្នកនឹងប្រើវាលើកក្រោយពេលចូល។",
+    currentPassword: "ពាក្យសម្ងាត់បច្ចុប្បន្ន",
+    newPassword: "ពាក្យសម្ងាត់ថ្មី",
+    confirmPassword: "បញ្ជាក់ពាក្យសម្ងាត់ថ្មី",
+    updatePassword: "ធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
+    passwordSaved: "បានធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់ដោយជោគជ័យ។",
+    saveSettings: "រក្សាទុកការកំណត់",
+    saving: "កំពុងរក្សាទុក...",
+    settingsSaved: "បានរក្សាទុកការកំណត់។",
+    unavailableHint: "អតិថិជននឹងមិនអាចកក់ថ្ងៃទាំងនេះបានទេ។",
+    listingPreview: "មើលការបង្ហាញជាមុន",
+    quickTips: "គន្លឹះរហ័ស",
+    checklist: "បញ្ជីត្រួតពិនិត្យ",
+    previewTitleFallback: "ចំណងជើងសេវាកម្ម",
+    previewLocationFallback: "ទីតាំង",
+    previewAddPrice: "បន្ថែមតម្លៃ",
+    previewEventTypeFallback: "ប្រភេទព្រឹត្តិការណ៍",
+    previewStatusActive: "សកម្ម",
+    previewStatusDraft: "ព្រាង",
+    previewHint: "នេះគឺជាការមើលរហ័សថាអតិថិជនឃើញកាតរបស់អ្នកយ៉ាងដូចម្តេច។",
+    tipShortName: "ប្រើឈ្មោះសេវាកម្មខ្លី និងច្បាស់។",
+    tipAddPhoto: "បន្ថែមរូបភាពគម្របដើម្បីបង្កើនការចុច។",
+    tipAddLocation: "បន្ថែមទីតាំងដើម្បីផ្គូផ្គងបានកាន់តែល្អ។",
+    tipSetPrice: "កំណត់តម្លៃដើម្បីឱ្យអតិថិជនអាចកក់បានលឿនជាងមុន។",
+    tipAddDescription: "សរសេរការពិពណ៌នាខ្លីអំពីអ្វីដែលរួមបញ្ចូល។",
+    checklistBasics: "បានបន្ថែមចំណងជើង និងការពិពណ៌នា",
+    checklistPricing: "បានកំណត់តម្លៃ និងចំនួនទទួលបាន",
+    checklistMedia: "បានអាប់ឡូដរូបភាពគម្រប",
+    checklistPayment: "បានបន្ថែម QR ទូទាត់",
+    bookingDetails: "ព័ត៌មានលម្អិតការកក់",
+    customerDetails: "ព័ត៌មានលម្អិតអតិថិជន",
+    eventLocationLabel: "ទីតាំងព្រឹត្តិការណ៍",
+    serviceDetails: "ព័ត៌មានលម្អិតសេវាកម្ម",
+    customerContact: "ទំនាក់ទំនងអតិថិជន",
+    customerNameLabel: "ឈ្មោះ",
+    customerEmailLabel: "អ៊ីមែល",
+    customerPhoneLabel: "ទូរស័ព្ទ",
+    customerLocationLabel: "ទីតាំងអតិថិជន",
+    emailCustomer: "ផ្ញើអ៊ីមែលទៅអតិថិជន",
+    callCustomer: "ហៅទៅអតិថិជន",
+    dateLabel: "កាលបរិច្ឆេទ",
+    statusLabel: "ស្ថានភាព",
+    quantityLabel: "បរិមាណ",
+    totalLabel: "សរុប",
+    bookedItems: "ធាតុដែលបានកក់",
+    noItems: "គ្មានធាតុ",
+    viewDetails: "មើលព័ត៌មានលម្អិត",
+    getDirections: "បើកផ្លូវ",
+    close: "បិទ",
   },
   zh: {
     overview: "概览",
@@ -427,100 +531,152 @@ const copyByLanguage = {
     noConfirmedIncome: "该时段暂无已确认收入。",
     createService: "创建服务",
     insertService: "录入服务",
-    editService: "Edit Service",
-    updateService: "Update Service",
-    cancelEdit: "Cancel Edit",
-    serviceType: "Service Type",
-    overallService: "Overall Service",
-    overallServiceHint: "One price for the full service.",
-    packageService: "Package Service",
-    packageServiceHint: "Bundle multiple services in one package and show one total price.",
-    overallPricing: "Overall Pricing",
-    packageBuilder: "Package Services",
+    editService: "编辑服务",
+    updateService: "更新服务",
+    cancelEdit: "取消编辑",
+    cancel: "取消",
+    confirm: "确认",
+    delete: "删除",
+    edit: "编辑",
+    pause: "暂停",
+    activate: "启用",
+    remove: "移除",
+    serviceType: "服务类型",
+    typeLabel: "类型",
+    serviceInformation: "服务信息",
+    serviceName: "服务名称",
+    serviceNamePlaceholder: "社区工作坊",
+    servicePrice: "服务价格",
+    serviceDetailsLabel: "服务详情",
+    serviceDetailsPlaceholder: "描述此服务包含的内容。",
+    servicePackageLabel: "服务",
+    wholePackageTotal: "整套套餐总价",
+    overallService: "整项服务",
+    overallServiceHint: "整项服务使用一个总价。",
+    packageService: "套餐服务",
+    packageServiceHint: "将多个服务组合成一个套餐，并显示一个总价。",
+    overallPricing: "总价设置",
+    packageBuilder: "套餐服务项",
+    packageItemPlaceholder: "摄影 / 布置 / 化妆",
     currentListings: "当前列表",
     loadingServices: "正在加载服务...",
+    active: "启用中",
+    inactive: "未启用",
+    paused: "已暂停",
+    servicesCount: "服务数",
+    media: "媒体",
+    uploadCoverPhoto: "点击上传封面图",
+    uploadImageHint: "PNG、JPG（最大 5MB）",
+    selectedServicePreviewAlt: "已选择的服务预览",
+    pasteImageLink: "或粘贴图片链接",
+    paymentQrCode: "支付二维码",
+    pasteQrLink: "或粘贴二维码链接",
+    selectedPaymentQrPreviewAlt: "已选择的支付二维码预览",
+    removeImage: "移除图片",
+    removeQr: "移除二维码",
+    visibility: "可见性",
+    activeListing: "启用列表",
+    visibleToUsersWhenEnabled: "启用后将对用户可见。",
     bookingRequests: "请求",
     newBookingRequests: "新的预订请求",
     loadingBookings: "正在加载预订...",
+    total: "总计",
+    allBookingRequests: "全部预订请求",
+    pending: "待处理",
+    awaitingConfirmation: "等待确认",
+    confirmed: "已确认",
+    activeBookings: "进行中的预订",
+    cancelled: "已取消",
+    cancelledRequests: "已取消的请求",
+    noBookingRequestsYet: "暂无预订请求。",
+    clientLabel: "客户",
+    actions: "操作",
     customerMessages: "客户消息",
     incomeInsights: "商家收入洞察",
     addNewService: "添加新服务",
-    availabilitySettings: "Availability & calendar",
+    saveService: "保存服务",
+    availabilitySettings: "可用时间与日历",
     availabilityIntro:
-      "Set your working hours and block off dates you cannot take bookings.",
-    applyToService: "Apply to",
-    allServices: "All services (default)",
-    weeklyHours: "Weekly hours",
-    closed: "Closed",
-    hoursLabel: "Hours",
-    timezone: "Timezone",
-    blockedDates: "Vacation Mode / Day Off",
-    vacationMode: "Vacation Mode / Day Off",
-    vacationHint: "Temporarily block your availability for all services.",
-    startDate: "Start date",
-    endDate: "End date",
+      "设置您的营业时间，并屏蔽无法接单的日期。",
+    applyToService: "应用到",
+    allServices: "所有服务（默认）",
+    weeklyHours: "每周营业时间",
+    closed: "关闭",
+    hoursLabel: "时间",
+    timezone: "时区",
+    blockedDates: "休假模式 / 休息日",
+    vacationMode: "休假模式 / 休息日",
+    vacationHint: "临时屏蔽所有服务的可预订时间。",
+    startDate: "开始日期",
+    endDate: "结束日期",
     vacationNote:
-      "Existing bookings within this period will remain active. New bookings will be disabled.",
-    bookingRules: "Booking rules",
-    autoAccept: "Auto-accept bookings",
-    leadTime: "Lead time (hours)",
-    bufferTime: "Buffer between bookings (minutes)",
-    maxPerDay: "Max bookings per day",
-    paymentsPolicies: "Payments & policies",
-    depositPercent: "Deposit required (%)",
-    cancellationWindow: "Free cancellation window (hours)",
-    rescheduleWindow: "Free reschedule window (hours)",
-    notifications: "Notifications",
-    notifyEmail: "Email alerts",
-    notifySms: "SMS alerts",
-    quietHours: "Quiet hours",
-    quietStart: "Start (HH:MM)",
-    quietEnd: "End (HH:MM)",
-    accountManagement: "Account management",
+      "此期间内现有预订仍将保持有效。新预订将被禁用。",
+    bookingRules: "预订规则",
+    autoAccept: "自动接受预订",
+    leadTime: "提前预订时间（小时）",
+    bufferTime: "预订之间缓冲时间（分钟）",
+    maxPerDay: "每日最大预订数",
+    paymentsPolicies: "支付与政策",
+    depositPercent: "所需定金 (%)",
+    cancellationWindow: "免费取消时间窗口（小时）",
+    rescheduleWindow: "免费改期时间窗口（小时）",
+    notifications: "通知",
+    notifyEmail: "邮件提醒",
+    notifySms: "短信提醒",
+    quietHours: "免打扰时间",
+    quietStart: "开始（HH:MM）",
+    quietEnd: "结束（HH:MM）",
+    accountManagement: "账户管理",
     passwordHint:
-      "Update your login password. You will use it next time you sign in.",
-    currentPassword: "Current password",
-    newPassword: "New password",
-    confirmPassword: "Confirm new password",
-    updatePassword: "Update password",
-    passwordSaved: "Password updated successfully.",
-    saveSettings: "Save settings",
-    saving: "Saving...",
-    settingsSaved: "Settings saved.",
-    unavailableHint: "Customers won't be able to book these dates.",
-    listingPreview: "Listing Preview",
-    quickTips: "Quick Tips",
-    checklist: "Checklist",
-    previewTitleFallback: "Service Title",
-    previewLocationFallback: "Location",
-    previewAddPrice: "Add price",
-    previewEventTypeFallback: "Event type",
-    previewStatusActive: "Active",
-    previewStatusDraft: "Draft",
-    previewHint: "This is a quick look at how customers see your card.",
-    tipShortName: "Use a short, clear service name.",
-    tipAddPhoto: "Add a cover photo to boost clicks.",
-    tipAddLocation: "Include location for better matching.",
-    tipSetPrice: "Set a price so customers can book faster.",
-    tipAddDescription: "Write a short description of what is included.",
-    checklistBasics: "Title and description added",
-    checklistPricing: "Price and capacity set",
-    checklistMedia: "Cover photo uploaded",
-    checklistPayment: "Payment QR added",
-    bookingDetails: "Booking Details",
-    customerDetails: "Customer Details",
-    eventLocationLabel: "Event Location",
-    serviceDetails: "Service Details",
-    customerContact: "Customer Contact",
-    dateLabel: "Date",
-    statusLabel: "Status",
-    quantityLabel: "Quantity",
-    totalLabel: "Total",
-    bookedItems: "Booked Items",
-    noItems: "No items listed",
-    viewDetails: "View Details",
-    getDirections: "Get Directions",
-    close: "Close",
+      "更新您的登录密码。下次登录时将使用新密码。",
+    currentPassword: "当前密码",
+    newPassword: "新密码",
+    confirmPassword: "确认新密码",
+    updatePassword: "更新密码",
+    passwordSaved: "密码更新成功。",
+    saveSettings: "保存设置",
+    saving: "保存中...",
+    settingsSaved: "设置已保存。",
+    unavailableHint: "客户将无法预订这些日期。",
+    listingPreview: "列表预览",
+    quickTips: "快速提示",
+    checklist: "检查清单",
+    previewTitleFallback: "服务标题",
+    previewLocationFallback: "位置",
+    previewAddPrice: "添加价格",
+    previewEventTypeFallback: "活动类型",
+    previewStatusActive: "启用中",
+    previewStatusDraft: "草稿",
+    previewHint: "这里可以快速预览客户看到的服务卡片。",
+    tipShortName: "使用简短清晰的服务名称。",
+    tipAddPhoto: "添加封面图可提升点击率。",
+    tipAddLocation: "添加位置有助于更精准匹配。",
+    tipSetPrice: "设置价格可让客户更快下单。",
+    tipAddDescription: "写一段简短说明，介绍包含的内容。",
+    checklistBasics: "已添加标题和描述",
+    checklistPricing: "已设置价格和容量",
+    checklistMedia: "已上传封面图",
+    checklistPayment: "已添加支付二维码",
+    bookingDetails: "预订详情",
+    customerDetails: "客户详情",
+    eventLocationLabel: "活动地点",
+    serviceDetails: "服务详情",
+    customerContact: "客户联系信息",
+    customerNameLabel: "姓名",
+    customerEmailLabel: "邮箱",
+    customerPhoneLabel: "电话",
+    customerLocationLabel: "客户位置",
+    emailCustomer: "发送邮件给客户",
+    callCustomer: "致电客户",
+    dateLabel: "日期",
+    statusLabel: "状态",
+    quantityLabel: "数量",
+    totalLabel: "总计",
+    bookedItems: "已预订项目",
+    noItems: "暂无项目",
+    viewDetails: "查看详情",
+    getDirections: "获取路线",
+    close: "关闭",
   },
 };
 const { uiText } = useLanguageCopy(copyByLanguage);
@@ -2236,20 +2392,20 @@ watch(
                 <section class="form-card">
                   <div class="form-card-head">
                     <span class="form-card-icon">i</span>
-                    <h3>Service Information</h3>
+                    <h3>{{ uiText.serviceInformation }}</h3>
                   </div>
                   <label class="field">
-                    <span>Service name</span>
+                    <span>{{ uiText.serviceName }}</span>
                     <input
                       :value="props.vendorServiceForm?.title || ''"
                       type="text"
-                      placeholder="Community Workshop"
+                      :placeholder="uiText.serviceNamePlaceholder"
                       @input="props.vendorServiceForm.title = $event.target.value"
                     />
                   </label>
                   <div class="form-row">
                     <label class="field">
-                      <span>Types</span>
+                      <span>{{ uiText.serviceType }}</span>
                       <div
                         class="select-field"
                         ref="eventTypeSelectRef"
@@ -2351,10 +2507,10 @@ watch(
                     </a>
                   </div>
                   <label class="field field-full">
-                    <span>Service information</span>
+                    <span>{{ uiText.serviceInformation }}</span>
                     <textarea
                       :value="props.vendorServiceForm?.description || ''"
-                      placeholder="Describe the service, what is included, and what the customer should know."
+                      :placeholder="uiText.serviceDetailsPlaceholder"
                       @input="props.vendorServiceForm.description = $event.target.value"
                     ></textarea>
                   </label>
@@ -2422,27 +2578,27 @@ watch(
                       class="package-row"
                     >
                       <div class="package-row-head">
-                        <strong>Service {{ index + 1 }}</strong>
+                        <strong>{{ uiText.servicePackageLabel }} {{ index + 1 }}</strong>
                         <button
                           type="button"
                           class="text-button danger"
                           @click="removeVendorPackage(index)"
                         >
-                          Remove
+                          {{ uiText.remove }}
                         </button>
                       </div>
                       <div class="package-row-grid">
                         <label class="field">
-                          <span>Service name</span>
+                          <span>{{ uiText.serviceName }}</span>
                           <input
                             :value="pkg?.name || ''"
                             type="text"
-                            placeholder="Photography / Decoration / Makeup"
+                            :placeholder="uiText.packageItemPlaceholder"
                             @input="pkg.name = $event.target.value"
                           />
                         </label>
                         <label class="field">
-                          <span>Service price</span>
+                          <span>{{ uiText.servicePrice }}</span>
                           <input
                             :value="pkg?.price ?? 0"
                             type="number"
@@ -2454,16 +2610,16 @@ watch(
                         </label>
                       </div>
                       <label class="field">
-                        <span>Service details</span>
+                        <span>{{ uiText.serviceDetailsLabel }}</span>
                         <textarea
                           :value="pkg?.details || ''"
-                          placeholder="Describe what this service includes."
+                          :placeholder="uiText.serviceDetailsPlaceholder"
                           @input="pkg.details = $event.target.value"
                         ></textarea>
                       </label>
                     </div>
                     <div class="package-row-head package-total-row">
-                      <strong>Whole package total</strong>
+                      <strong>{{ uiText.wholePackageTotal }}</strong>
                       <strong>{{ formatCurrency(packageServicesTotal) }}</strong>
                     </div>
                   </div>
@@ -2474,29 +2630,29 @@ watch(
                 <section class="form-card media-card">
                   <div class="form-card-head">
                     <span class="form-card-icon">M</span>
-                    <h3>Media</h3>
+                    <h3>{{ uiText.media }}</h3>
                   </div>
                   <label class="media-upload">
                     <input type="file" accept="image/*" @change="handleVendorServiceImageChange" />
-                    <span>Click to upload cover photo</span>
-                    <small>PNG, JPG (MAX. 5MB)</small>
+                    <span>{{ uiText.uploadCoverPhoto }}</span>
+                    <small>{{ uiText.uploadImageHint }}</small>
                   </label>
                   <div v-if="props.vendorServiceForm?.image_url" class="media-preview">
                     <img
                       class="image-preview"
                       :src="props.vendorServiceForm.image_url"
-                      alt="Selected service preview"
+                      :alt="uiText.selectedServicePreviewAlt"
                     />
                     <button
                       type="button"
                       class="secondary-button"
                       @click="clearVendorServiceImage"
                     >
-                      Remove image
+                      {{ uiText.removeImage }}
                     </button>
                   </div>
                   <label class="field">
-                    <span>Or paste image link</span>
+                    <span>{{ uiText.pasteImageLink }}</span>
                     <input
                       :value="props.vendorServiceForm?.image_url || ''"
                       type="url"
@@ -2505,7 +2661,7 @@ watch(
                     />
                   </label>
                   <label class="field">
-                    <span>Payment QR code</span>
+                    <span>{{ uiText.paymentQrCode }}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -2513,7 +2669,7 @@ watch(
                     />
                   </label>
                   <label class="field">
-                    <span>Or paste QR code link</span>
+                    <span>{{ uiText.pasteQrLink }}</span>
                     <input
                       :value="props.vendorServiceForm?.qr_code_url || ''"
                       type="url"
@@ -2528,14 +2684,14 @@ watch(
                     <img
                       class="qr-preview"
                       :src="props.vendorServiceForm.qr_code_url"
-                      alt="Selected payment QR preview"
+                      :alt="uiText.selectedPaymentQrPreviewAlt"
                     />
                     <button
                       type="button"
                       class="secondary-button"
                       @click="clearVendorQrCode"
                     >
-                      Remove QR
+                      {{ uiText.removeQr }}
                     </button>
                   </div>
                 </section>
@@ -2543,12 +2699,12 @@ watch(
                 <section class="form-card">
                   <div class="form-card-head">
                     <span class="form-card-icon">V</span>
-                    <h3>Visibility</h3>
+                    <h3>{{ uiText.visibility }}</h3>
                   </div>
                   <div class="toggle-row">
                     <div>
-                      <strong>Active listing</strong>
-                      <p>Visible to users when enabled.</p>
+                      <strong>{{ uiText.activeListing }}</strong>
+                      <p>{{ uiText.visibleToUsersWhenEnabled }}</p>
                     </div>
                     <label class="switch">
                       <input
@@ -2651,25 +2807,25 @@ watch(
               <div class="package-builder-head">
                 <div>
                   <p class="eyebrow">{{ uiText.addNewService }}</p>
-                  <h3>Add Service</h3>
+                  <h3>{{ uiText.addNewService }}</h3>
                 </div>
                 <div class="package-builder-actions">
-                  <button type="button" class="secondary-button" @click="closePackageBuilder">Cancel</button>
-                  <button type="button" class="primary-button" @click="savePackageDraft">Save Service</button>
+                  <button type="button" class="secondary-button" @click="closePackageBuilder">{{ uiText.cancel }}</button>
+                  <button type="button" class="primary-button" @click="savePackageDraft">{{ uiText.saveService }}</button>
                 </div>
               </div>
               <div class="package-builder-body">
                 <label class="field">
-                  <span>Service name</span>
+                  <span>{{ uiText.serviceName }}</span>
                   <input
                     :value="packageDraft.name"
                     type="text"
-                    placeholder="Photography / Decoration / Makeup"
+                    :placeholder="uiText.packageItemPlaceholder"
                     @input="packageDraft.name = $event.target.value"
                   />
                 </label>
                 <label class="field">
-                  <span>Service price</span>
+                  <span>{{ uiText.servicePrice }}</span>
                   <input
                     :value="packageDraft.price"
                     type="number"
@@ -2680,10 +2836,10 @@ watch(
                   />
                 </label>
                 <label class="field field-full">
-                  <span>Service details</span>
+                  <span>{{ uiText.serviceDetailsLabel }}</span>
                   <textarea
                     :value="packageDraft.details"
-                    placeholder="Describe what this service includes."
+                    :placeholder="uiText.serviceDetailsPlaceholder"
                     @input="packageDraft.details = $event.target.value"
                   ></textarea>
                 </label>
@@ -2729,12 +2885,12 @@ watch(
                 <div class="service-header">
                   <strong>{{ item.title }}</strong>
                   <span class="service-state" :class="{ live: item.isActive }">
-                    {{ item.isActive ? "Active" : "Paused" }}
+                    {{ item.isActive ? uiText.active : uiText.paused }}
                   </span>
                 </div>
                 <small>{{ item.eventTypeLabel }} | {{ item.priceLabel }}</small>
                 <small v-if="item.packages?.length" class="service-packages">
-                  Services: {{ item.packages.length }}
+                  {{ uiText.servicesCount }}: {{ item.packages.length }}
                 </small>
                 <p>{{ item.description }}</p>
               </div>
@@ -2743,20 +2899,20 @@ watch(
                   type="button"
                   @click="startEditService(item)"
                 >
-                  Edit
+                  {{ uiText.edit }}
                 </button>
                 <button
                   type="button"
                   @click="props.toggleVendorServiceActive(item)"
                 >
-                  {{ item.isActive ? "Pause" : "Activate" }}
+                  {{ item.isActive ? uiText.pause : uiText.activate }}
                 </button>
                 <button
                   type="button"
                   class="danger"
                   @click="props.deleteVendorService(item)"
                 >
-                  Delete
+                  {{ uiText.delete }}
                 </button>
               </div>
             </li>
@@ -2808,10 +2964,10 @@ watch(
                   />
                 </svg>
               </span>
-              <small>Total</small>
+              <small>{{ uiText.total }}</small>
             </div>
             <strong>{{ safeVendorBookings.length }}</strong>
-            <span>All booking requests</span>
+            <span>{{ uiText.allBookingRequests }}</span>
           </article>
           <article class="stat-card stat-orange">
             <div class="stat-header-row">
@@ -2837,12 +2993,12 @@ watch(
                   />
                 </svg>
               </span>
-              <small>Pending</small>
+              <small>{{ uiText.pending }}</small>
             </div>
             <strong>{{
               safeVendorBookings.filter((b) => b.status === "pending").length
             }}</strong>
-            <span>Awaiting confirmation</span>
+            <span>{{ uiText.awaitingConfirmation }}</span>
           </article>
           <article class="stat-card stat-blue">
             <div class="stat-header-row">
@@ -2868,12 +3024,12 @@ watch(
                   />
                 </svg>
               </span>
-              <small>Confirmed</small>
+              <small>{{ uiText.confirmed }}</small>
             </div>
             <strong>{{
               safeVendorBookings.filter((b) => b.status === "confirmed").length
             }}</strong>
-            <span>Active bookings</span>
+            <span>{{ uiText.activeBookings }}</span>
           </article>
           <article class="stat-card stat-red">
             <div class="stat-header-row">
@@ -2898,12 +3054,12 @@ watch(
                   />
                 </svg>
               </span>
-              <small>Cancelled</small>
+              <small>{{ uiText.cancelled }}</small>
             </div>
             <strong>{{
               safeVendorBookings.filter((b) => b.status === "cancelled").length
             }}</strong>
-            <span>Cancelled requests</span>
+            <span>{{ uiText.cancelledRequests }}</span>
           </article>
         </section>
 
@@ -2911,7 +3067,7 @@ watch(
           {{ uiText.loadingBookings }}
         </p>
         <p v-else-if="!safeVendorBookings.length" class="notice">
-          No booking requests yet.
+          {{ uiText.noBookingRequestsYet }}
         </p>
         <table v-else class="table booking-table">
           <colgroup>
@@ -2923,11 +3079,11 @@ watch(
           </colgroup>
           <thead>
             <tr>
-              <th>Service</th>
-              <th>Client</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{{ uiText.serviceName }}</th>
+              <th>{{ uiText.clientLabel }}</th>
+              <th>{{ uiText.dateLabel }}</th>
+              <th>{{ uiText.statusLabel }}</th>
+              <th>{{ uiText.actions }}</th>
             </tr>
           </thead>
           <tbody>
@@ -2990,14 +3146,14 @@ watch(
                   class="action-confirm"
                   @click="props.updateVendorBookingStatus(item, 'confirmed')"
                 >
-                  Confirm
+                  {{ uiText.confirm }}
                 </button>
                 <button
                   type="button"
                   class="action-cancel"
                   @click="props.updateVendorBookingStatus(item, 'cancelled')"
                 >
-                  Cancel
+                  {{ uiText.cancel }}
                 </button>
                 <button
                   v-if="item.can_delete"
@@ -3005,7 +3161,7 @@ watch(
                   class="action-delete"
                   @click="props.deleteVendorBooking(item)"
                 >
-                  Delete
+                  {{ uiText.delete }}
                 </button>
                 <span
                   v-else
@@ -3065,7 +3221,7 @@ watch(
                         bookingDetail.event_type || bookingDetail.requested_event_type
                       "
                     >
-                      Type:
+                      {{ uiText.typeLabel }}:
                       {{
                         formatEventType(
                           bookingDetail.event_type ||
@@ -3113,23 +3269,23 @@ watch(
                 <h4>{{ uiText.customerDetails }}</h4>
                 <div class="detail-list">
                   <div>
-                    <span>Name</span>
+                    <span>{{ uiText.customerNameLabel }}</span>
                     <strong>{{ bookingDetail.customer_name || uiText.noData }}</strong>
                   </div>
                   <div>
-                    <span>Email</span>
+                    <span>{{ uiText.customerEmailLabel }}</span>
                     <strong>{{
                       bookingDetail.customer_email || uiText.noData
                     }}</strong>
                   </div>
                   <div>
-                    <span>Phone</span>
+                    <span>{{ uiText.customerPhoneLabel }}</span>
                     <strong>{{
                       bookingDetail.customer_phone || uiText.noData
                     }}</strong>
                   </div>
                   <div>
-                    <span>Customer Location</span>
+                    <span>{{ uiText.customerLocationLabel }}</span>
                     <strong>{{
                       bookingDetail.customer_location || uiText.noData
                     }}</strong>
@@ -3144,14 +3300,14 @@ watch(
                     class="secondary-button detail-link"
                     :href="customerEmailLink"
                   >
-                    Email Customer
+                    {{ uiText.emailCustomer }}
                   </a>
                   <a
                     v-if="customerPhoneLink"
                     class="secondary-button detail-link"
                     :href="customerPhoneLink"
                   >
-                    Call Customer
+                    {{ uiText.callCustomer }}
                   </a>
                   <a
                     v-if="bookingDirectionsUrl"
@@ -3584,7 +3740,7 @@ watch(
               </article>
               <article class="settings-mini-card">
                 <small>{{ uiText.blockedDates }}</small>
-                <strong>{{ settingsForm.vacationEnabled ? "Active" : "Inactive" }}</strong>
+                <strong>{{ settingsForm.vacationEnabled ? uiText.active : uiText.inactive }}</strong>
               </article>
             </div>
             <div class="grid-2 vacation-grid">

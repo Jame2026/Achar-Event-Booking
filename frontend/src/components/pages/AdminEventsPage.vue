@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
 import { apiGet } from "../../features/apiClient";
+import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: {
@@ -20,6 +21,226 @@ const props = defineProps({
   },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Vendor listing workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchPlaceholder: "Search vendor events or services...",
+    notifications: "Notifications",
+    heroEyebrow: "Vendor Event Directory",
+    heroTitle: "All Vendor Events & Services",
+    heroSubtitle: "Browse every event and service your vendors have created, including inactive listings.",
+    refreshList: "Refresh List",
+    totalListings: "Total Listings",
+    activeListings: "Active Listings",
+    vendorCoverage: "Vendor Coverage",
+    linkedBookings: "Linked Bookings",
+    vendorsCount: "{count} vendors",
+    inactiveCount: "{count} inactive",
+    allListingsLive: "All listings are live",
+    accountsWithServices: "Accounts with services",
+    acrossVendorEvents: "Across all vendor events",
+    vendorEventList: "Vendor Event List",
+    listingSummary: "{shown} of {total} listing(s) shown",
+    all: "All",
+    active: "Active",
+    inactive: "Inactive",
+    loadingList: "Loading vendor event list...",
+    noMatches: "No vendor events matched this filter.",
+    bookingsCount: "{count} booking(s)",
+    selectedEvent: "Selected Event",
+    viewVendors: "View Vendors",
+    status: "Status",
+    bookings: "Bookings",
+    category: "Category",
+    price: "Price",
+    capacity: "Capacity",
+    mode: "Mode",
+    open: "Open",
+    package: "Package",
+    overall: "Overall",
+    eventDate: "Event Date",
+    lastUpdate: "Last Update",
+    noDescription: "This listing does not have a description yet.",
+    openVendorWorkspace: "Open Vendor Workspace",
+    noEventSelected: "No Event Selected",
+    noEventSelectedSubtitle: "Select a vendor event from the list to inspect its details here.",
+    vendorFallback: "Vendor",
+    untitledService: "Untitled Service",
+    other: "Other",
+    locationMissing: "Location not added yet",
+    dateTbd: "Date TBD",
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "商家列表工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchPlaceholder: "搜索商家活动或服务...",
+    notifications: "通知",
+    heroEyebrow: "商家活动目录",
+    heroTitle: "所有商家活动与服务",
+    heroSubtitle: "浏览商家创建的所有活动和服务，包括未启用的列表。",
+    refreshList: "刷新列表",
+    totalListings: "列表总数",
+    activeListings: "活跃列表",
+    vendorCoverage: "商家覆盖",
+    linkedBookings: "关联预订",
+    vendorsCount: "{count} 个商家",
+    inactiveCount: "{count} 个未启用",
+    allListingsLive: "所有列表均已上线",
+    accountsWithServices: "有服务的账户",
+    acrossVendorEvents: "覆盖所有商家活动",
+    vendorEventList: "商家活动列表",
+    listingSummary: "显示 {shown} / 共 {total} 个列表",
+    all: "全部",
+    active: "启用",
+    inactive: "未启用",
+    loadingList: "正在加载商家活动列表...",
+    noMatches: "没有符合当前筛选条件的商家活动。",
+    bookingsCount: "{count} 个预订",
+    selectedEvent: "已选活动",
+    viewVendors: "查看商家",
+    status: "状态",
+    bookings: "预订",
+    category: "分类",
+    price: "价格",
+    capacity: "容量",
+    mode: "模式",
+    open: "开放",
+    package: "套餐",
+    overall: "综合",
+    eventDate: "活动日期",
+    lastUpdate: "最后更新",
+    noDescription: "该列表暂无描述。",
+    openVendorWorkspace: "打开商家工作区",
+    noEventSelected: "未选择活动",
+    noEventSelectedSubtitle: "从列表中选择一个商家活动以在此查看详细信息。",
+    vendorFallback: "商家",
+    untitledService: "未命名服务",
+    other: "其他",
+    locationMissing: "尚未添加位置",
+    dateTbd: "日期待定",
+  },
+};
+copyByLanguage.zh.eventTypes = {
+  wedding: "婚礼",
+  monk_ceremony: "僧侣仪式",
+  house_blessing: "住宅祈福",
+  company_party: "公司派对",
+  birthday: "生日",
+  school_event: "学校活动",
+  engagement: "订婚",
+  anniversary: "周年纪念",
+  baby_shower: "迎婴派对",
+  graduation: "毕业典礼",
+  festival: "节庆",
+  other: "其他",
+};
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  nav: {
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    events: "ព្រឹត្តិការណ៍",
+    bookings: "ការកក់",
+    vendors: "អ្នកផ្គត់ផ្គង់",
+    customers: "អតិថិជន",
+    revenue: "ចំណូល",
+    settings: "ការកំណត់",
+  },
+  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandTitle: "Achar Admin",
+  brandSubtitle: "កន្លែងធ្វើការបញ្ជីអ្នកផ្គត់ផ្គង់",
+  navigation: "ការរុករក",
+  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+  searchPlaceholder: "ស្វែងរកព្រឹត្តិការណ៍ ឬសេវារបស់អ្នកផ្គត់ផ្គង់...",
+  notifications: "ការជូនដំណឹង",
+  heroEyebrow: "បញ្ជីព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់",
+  heroTitle: "ព្រឹត្តិការណ៍ និងសេវាទាំងអស់របស់អ្នកផ្គត់ផ្គង់",
+  heroSubtitle: "រកមើលព្រឹត្តិការណ៍ និងសេវាទាំងអស់ដែលអ្នកផ្គត់ផ្គង់បានបង្កើត រួមទាំងបញ្ជីដែលមិនសកម្ម។",
+  refreshList: "ផ្ទុកបញ្ជីឡើងវិញ",
+  totalListings: "បញ្ជីសរុប",
+  activeListings: "បញ្ជីសកម្ម",
+  vendorCoverage: "ការគ្របដណ្តប់អ្នកផ្គត់ផ្គង់",
+  linkedBookings: "ការកក់ដែលពាក់ព័ន្ធ",
+  vendorsCount: "អ្នកផ្គត់ផ្គង់ {count}",
+  inactiveCount: "មិនសកម្ម {count}",
+  allListingsLive: "បញ្ជីទាំងអស់កំពុងដំណើរការ",
+  accountsWithServices: "គណនីដែលមានសេវាកម្ម",
+  acrossVendorEvents: "នៅទូទាំងព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់ទាំងអស់",
+  vendorEventList: "បញ្ជីព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់",
+  listingSummary: "បង្ហាញ {shown} នៃ {total} បញ្ជី",
+  all: "ទាំងអស់",
+  active: "សកម្ម",
+  inactive: "មិនសកម្ម",
+  loadingList: "កំពុងផ្ទុកបញ្ជីព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់...",
+  noMatches: "មិនមានព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់ត្រូវនឹងតម្រងនេះទេ។",
+  bookingsCount: "ការកក់ {count}",
+  selectedEvent: "ព្រឹត្តិការណ៍ដែលបានជ្រើស",
+  viewVendors: "មើលអ្នកផ្គត់ផ្គង់",
+  status: "ស្ថានភាព",
+  bookings: "ការកក់",
+  category: "ប្រភេទ",
+  price: "តម្លៃ",
+  capacity: "ចំណុះ",
+  mode: "របៀប",
+  open: "បើក",
+  package: "កញ្ចប់",
+  overall: "ទូទៅ",
+  eventDate: "កាលបរិច្ឆេទព្រឹត្តិការណ៍",
+  lastUpdate: "បច្ចុប្បន្នភាពចុងក្រោយ",
+  noDescription: "បញ្ជីនេះមិនទាន់មានការពិពណ៌នានៅឡើយទេ។",
+  openVendorWorkspace: "បើកកន្លែងធ្វើការអ្នកផ្គត់ផ្គង់",
+  noEventSelected: "មិនទាន់ជ្រើសព្រឹត្តិការណ៍",
+  noEventSelectedSubtitle: "ជ្រើសព្រឹត្តិការណ៍អ្នកផ្គត់ផ្គង់មួយពីបញ្ជី ដើម្បីមើលព័ត៌មានលម្អិតនៅទីនេះ។",
+  vendorFallback: "អ្នកផ្គត់ផ្គង់",
+  untitledService: "សេវាដែលមិនទាន់ដាក់ឈ្មោះ",
+  other: "ផ្សេងៗ",
+  locationMissing: "មិនទាន់បន្ថែមទីតាំង",
+  dateTbd: "កាលបរិច្ឆេទមិនទាន់កំណត់",
+  eventTypes: {
+    wedding: "អាពាហ៍ពិពាហ៍",
+    monk_ceremony: "ពិធីព្រះសង្ឃ",
+    house_blessing: "ពិធីឡើងផ្ទះ",
+    company_party: "ពិធីជប់លៀងក្រុមហ៊ុន",
+    birthday: "ខួបកំណើត",
+    school_event: "ព្រឹត្តិការណ៍សាលា",
+    engagement: "ពិធីភ្ជាប់ពាក្យ",
+    anniversary: "ខួបអនុស្សាវរីយ៍",
+    baby_shower: "ពិធីស្វាគមន៍ទារក",
+    graduation: "ពិធីបញ្ចប់ការសិក្សា",
+    festival: "ពិធីបុណ្យ",
+    other: "ផ្សេងៗ",
+  },
+};
+
+const { language, uiText } = useLanguageCopy(copyByLanguage);
+const activeLocale = computed(() => (language.value === "zh" ? "zh-CN" : language.value === "km" ? "km-KH" : "en-US"));
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
 const router = useRouter();
 const route = useRoute();
 const searchQuery = ref("");
@@ -29,15 +250,15 @@ const loadError = ref("");
 const vendorEvents = ref([]);
 const selectedEventId = ref(null);
 const failedVendorImages = ref(new Set());
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
 const activeKey = ref("events");
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -49,7 +270,7 @@ const initials = computed(() => {
 });
 const normalizedEvents = computed(() =>
   vendorEvents.value.map((event) => {
-    const vendorName = String(event.vendor?.name || event.vendor_name || "Vendor").trim() || "Vendor";
+    const vendorName = String(event.vendor?.name || event.vendor_name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback;
     const vendorId = Number(event.vendor_id || 0) || null;
     const eventType = String(event.event_type || "other").trim().toLowerCase();
     const isActive = Boolean(event.is_active);
@@ -64,21 +285,25 @@ const normalizedEvents = computed(() =>
         .map((part) => part[0])
         .join("")
         .toUpperCase() || "EV",
-      title: String(event.title || "Untitled Service").trim() || "Untitled Service",
+      title: String(event.title || uiText.value.untitledService).trim() || uiText.value.untitledService,
       vendorName,
       vendorId,
       vendorImageKey: vendorId ? `vendor:${vendorId}` : `vendor:${vendorName.toLowerCase()}`,
       vendorProfileImageUrl: String(event.vendor?.profile_image_url || event.vendor_profile_image_url || "").trim(),
-      category: eventTypeMap[eventType] || "Other",
-      location: String(event.location || "Location not added yet").trim() || "Location not added yet",
+      category: uiText.value.eventTypes?.[eventType] || eventTypeMap[eventType] || uiText.value.other,
+      location: String(event.location || uiText.value.locationMissing).trim() || uiText.value.locationMissing,
       startsAt: event.starts_at || "",
       updatedAt: event.updated_at || event.created_at || event.starts_at || "",
       submitted: formatDateTime(event.updated_at || event.created_at || event.starts_at),
-      status: isActive ? "Active" : "Inactive",
+      status: isActive ? uiText.value.active : uiText.value.inactive,
       statusClass: isActive ? "active" : "inactive",
       bookingsCount: Number(event.bookings_count || 0),
       price: Number(event.price || 0),
-      priceLabel: `$${Number(event.price || 0).toLocaleString()}`,
+      priceLabel: new Intl.NumberFormat(activeLocale.value, {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }).format(Number(event.price || 0)),
       capacity: Number(event.capacity || 0),
       serviceMode: String(event.service_mode || "overall").toLowerCase(),
       imageUrl: String(event.image_url || "").trim(),
@@ -129,24 +354,26 @@ const totalBookingsCount = computed(() =>
 
 const highlights = computed(() => [
   {
-    label: "Total Listings",
+    label: uiText.value.totalListings,
     value: String(normalizedEvents.value.length),
-    delta: `${totalVendorCount.value} vendors`,
+    delta: interpolate(uiText.value.vendorsCount, { count: totalVendorCount.value }),
   },
   {
-    label: "Active Listings",
+    label: uiText.value.activeListings,
     value: String(activeListingCount.value),
-    delta: inactiveListingCount.value ? `${inactiveListingCount.value} inactive` : "All listings are live",
+    delta: inactiveListingCount.value
+      ? interpolate(uiText.value.inactiveCount, { count: inactiveListingCount.value })
+      : uiText.value.allListingsLive,
   },
   {
-    label: "Vendor Coverage",
+    label: uiText.value.vendorCoverage,
     value: String(totalVendorCount.value),
-    delta: "Accounts with services",
+    delta: uiText.value.accountsWithServices,
   },
   {
-    label: "Linked Bookings",
+    label: uiText.value.linkedBookings,
     value: String(totalBookingsCount.value),
-    delta: "Across all vendor events",
+    delta: uiText.value.acrossVendorEvents,
   },
 ]);
 
@@ -174,7 +401,7 @@ async function loadAdminEvents() {
     failedVendorImages.value = new Set();
   } catch (error) {
     vendorEvents.value = [];
-    loadError.value = error?.message || "Could not load vendor events.";
+    loadError.value = error?.message || uiText.value.noMatches;
   } finally {
     isLoading.value = false;
   }
@@ -228,17 +455,17 @@ onMounted(() => void loadAdminEvents());
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Vendor listing workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -288,10 +515,10 @@ onMounted(() => void loadAdminEvents());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" type="search" placeholder="Search vendor events or services..." />
+          <input v-model="searchQuery" type="search" :placeholder="uiText.searchPlaceholder" />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button class="icon-btn" type="button" :title="uiText.notifications" :aria-label="uiText.notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
@@ -302,13 +529,11 @@ onMounted(() => void loadAdminEvents());
 
       <section class="events-hero">
         <div>
-          <p class="eyebrow">Vendor Event Directory</p>
-          <h1 class="hero-title">All Vendor Events & Services</h1>
-          <p class="hero-subtitle">
-            Browse every event and service your vendors have created, including inactive listings.
-          </p>
+          <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
+          <h1 class="hero-title">{{ uiText.heroTitle }}</h1>
+          <p class="hero-subtitle">{{ uiText.heroSubtitle }}</p>
         </div>
-        <button class="primary-btn" type="button" @click="loadAdminEvents">Refresh List</button>
+        <button class="primary-btn" type="button" @click="loadAdminEvents">{{ uiText.refreshList }}</button>
       </section>
 
       <section class="events-highlights">
@@ -323,20 +548,20 @@ onMounted(() => void loadAdminEvents());
         <article class="queue-card">
           <header>
             <div>
-              <h3>Vendor Event List</h3>
+              <h3>{{ uiText.vendorEventList }}</h3>
               <p class="queue-summary">
-                {{ filteredEvents.length }} of {{ normalizedEvents.length }} listing(s) shown
+                {{ interpolate(uiText.listingSummary, { shown: filteredEvents.length, total: normalizedEvents.length }) }}
               </p>
             </div>
             <div class="filters">
-              <button class="pill" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">All</button>
-              <button class="pill" :class="{ active: statusFilter === 'active' }" type="button" @click="statusFilter = 'active'">Active</button>
-              <button class="pill" :class="{ active: statusFilter === 'inactive' }" type="button" @click="statusFilter = 'inactive'">Inactive</button>
+              <button class="pill" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">{{ uiText.all }}</button>
+              <button class="pill" :class="{ active: statusFilter === 'active' }" type="button" @click="statusFilter = 'active'">{{ uiText.active }}</button>
+              <button class="pill" :class="{ active: statusFilter === 'inactive' }" type="button" @click="statusFilter = 'inactive'">{{ uiText.inactive }}</button>
             </div>
           </header>
           <p v-if="loadError" class="queue-feedback error">{{ loadError }}</p>
-          <p v-else-if="isLoading" class="queue-feedback">Loading vendor event list...</p>
-          <p v-else-if="!filteredEvents.length" class="queue-feedback">No vendor events matched this filter.</p>
+          <p v-else-if="isLoading" class="queue-feedback">{{ uiText.loadingList }}</p>
+          <p v-else-if="!filteredEvents.length" class="queue-feedback">{{ uiText.noMatches }}</p>
           <div v-else class="queue-list">
             <button
               v-for="item in filteredEvents"
@@ -363,7 +588,7 @@ onMounted(() => void loadAdminEvents());
               <span class="status" :class="item.statusClass">{{ item.status }}</span>
               <div class="row-actions">
                 <span class="queue-stat">{{ item.priceLabel }}</span>
-                <span class="queue-stat muted">{{ item.bookingsCount }} booking(s)</span>
+                <span class="queue-stat muted">{{ interpolate(uiText.bookingsCount, { count: item.bookingsCount }) }}</span>
               </div>
             </button>
           </div>
@@ -372,8 +597,8 @@ onMounted(() => void loadAdminEvents());
         <aside class="side-column">
           <article v-if="selectedEvent" class="card detail-card">
             <header>
-              <h3>Selected Event</h3>
-              <button class="link-btn" type="button" @click="navigateTo('vendors')">View Vendors</button>
+              <h3>{{ uiText.selectedEvent }}</h3>
+              <button class="link-btn" type="button" @click="navigateTo('vendors')">{{ uiText.viewVendors }}</button>
             </header>
             <div class="vendor-block">
               <div class="vendor-avatar">
@@ -392,50 +617,50 @@ onMounted(() => void loadAdminEvents());
             </div>
             <div class="vendor-stats">
               <div>
-                <span>Status</span>
+                <span>{{ uiText.status }}</span>
                 <strong>{{ selectedEvent.status }}</strong>
               </div>
               <div>
-                <span>Bookings</span>
+                <span>{{ uiText.bookings }}</span>
                 <strong>{{ selectedEvent.bookingsCount }}</strong>
               </div>
             </div>
             <div class="event-details-grid">
               <div>
-                <span>Category</span>
+                <span>{{ uiText.category }}</span>
                 <strong>{{ selectedEvent.category }}</strong>
               </div>
               <div>
-                <span>Price</span>
+                <span>{{ uiText.price }}</span>
                 <strong>{{ selectedEvent.priceLabel }}</strong>
               </div>
               <div>
-                <span>Capacity</span>
-                <strong>{{ selectedEvent.capacity || "Open" }}</strong>
+                <span>{{ uiText.capacity }}</span>
+                <strong>{{ selectedEvent.capacity || uiText.open }}</strong>
               </div>
               <div>
-                <span>Mode</span>
-                <strong>{{ selectedEvent.serviceMode === "package" ? "Package" : "Overall" }}</strong>
+                <span>{{ uiText.mode }}</span>
+                <strong>{{ selectedEvent.serviceMode === "package" ? uiText.package : uiText.overall }}</strong>
               </div>
               <div>
-                <span>Event Date</span>
-                <strong>{{ selectedEvent.startsAt ? formatDateTime(selectedEvent.startsAt) : "Date TBD" }}</strong>
+                <span>{{ uiText.eventDate }}</span>
+                <strong>{{ selectedEvent.startsAt ? formatDateTime(selectedEvent.startsAt) : uiText.dateTbd }}</strong>
               </div>
               <div>
-                <span>Last Update</span>
+                <span>{{ uiText.lastUpdate }}</span>
                 <strong>{{ selectedEvent.submitted }}</strong>
               </div>
             </div>
             <p class="event-detail-copy">
-              {{ selectedEvent.description || "This listing does not have a description yet." }}
+              {{ selectedEvent.description || uiText.noDescription }}
             </p>
-            <button class="primary-btn full" type="button" @click="navigateTo('vendors')">Open Vendor Workspace</button>
+            <button class="primary-btn full" type="button" @click="navigateTo('vendors')">{{ uiText.openVendorWorkspace }}</button>
           </article>
           <article v-else class="card detail-card empty-detail-card">
             <header>
-              <h3>No Event Selected</h3>
+              <h3>{{ uiText.noEventSelected }}</h3>
             </header>
-            <p>Select a vendor event from the list to inspect its details here.</p>
+            <p>{{ uiText.noEventSelectedSubtitle }}</p>
           </article>
         </aside>
       </section>

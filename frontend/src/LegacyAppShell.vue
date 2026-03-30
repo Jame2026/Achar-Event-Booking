@@ -216,6 +216,22 @@ function getStoredUser() {
 
 loggedInUser.value = getStoredUser()
 
+function refreshLoggedInUserFromStorage() {
+  const storedUser = getStoredUser()
+  if (!storedUser) {
+    if (loggedInUser.value) {
+      loggedInUser.value = null
+    }
+    return
+  }
+
+  const currentSerialized = JSON.stringify(loggedInUser.value || null)
+  const storedSerialized = JSON.stringify(storedUser)
+  if (currentSerialized !== storedSerialized) {
+    loggedInUser.value = storedUser
+  }
+}
+
 function toggleView() {
   currentView.value = currentView.value === 'register' ? 'login' : 'register'
 }
@@ -315,12 +331,20 @@ const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'c
 const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', ...adminLegacyPages]
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
-const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
+const currentRole = computed(() => {
+  const liveRole = String(loggedInUser.value?.role || '').trim().toLowerCase()
+  if (liveRole) return liveRole
+  return String(getStoredUser()?.role || '').trim().toLowerCase()
+})
+const isPlannerUser = computed(() => currentRole.value === 'user')
 const isAdminAccount = computed(
-  () => String(loggedInUser.value?.role || '').trim().toLowerCase() === 'admin',
+  () => currentRole.value === 'admin',
+)
+const isVendorDashboardAccount = computed(
+  () => currentRole.value === 'vendor',
 )
 const isVendorAccount = computed(() =>
-  ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
+  ['vendor', 'admin'].includes(currentRole.value),
 )
 const defaultLegacyPage = computed(() => (isVendorAccount.value ? 'dashboard' : 'bookings'))
 const resolvedCurrentPage = computed(() => {
@@ -368,14 +392,14 @@ function applyRouteStateFromQuery(query) {
     if (authView) currentView.value = authView
   }
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
-  if (isVendorAccount.value && nextPage === 'dashboard') {
+  if (isVendorDashboardAccount.value && nextPage === 'dashboard') {
     vendorDashboardTab.value = normalizeVendorDashboardTab(query.vtab)
   }
 
   if (loggedInUser.value && requestedPage === 'overview') {
     const nextQuery = { ...route.query }
     delete nextQuery.page
-    if (!isAdminAccount.value && isVendorAccount.value) {
+    if (isVendorDashboardAccount.value) {
       nextQuery.vtab = 'overview'
     } else {
       delete nextQuery.vtab
@@ -386,9 +410,11 @@ function applyRouteStateFromQuery(query) {
 
 function syncRouteQueryFromState() {
   const nextQuery = {}
-  if (currentPage.value !== defaultLegacyPage.value) nextQuery.page = currentPage.value
+  if (currentPage.value !== defaultLegacyPage.value || (currentPage.value === 'dashboard' && isVendorAccount.value)) {
+    nextQuery.page = currentPage.value
+  }
   if (currentPage.value === 'vendor') nextQuery.tab = activeVendorTab.value
-  if (isVendorAccount.value && currentPage.value === 'dashboard') nextQuery.vtab = vendorDashboardTab.value
+  if (isVendorDashboardAccount.value && currentPage.value === 'dashboard') nextQuery.vtab = vendorDashboardTab.value
 
   const currentPageQuery = firstQueryValue(route.query.page)
   const currentTabQuery = firstQueryValue(route.query.tab)
@@ -2138,7 +2164,10 @@ watch(
 
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('achar:auth-updated', refreshLoggedInUserFromStorage)
+  window.addEventListener('storage', refreshLoggedInUserFromStorage)
   window.addEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
+  refreshLoggedInUserFromStorage()
   applyRouteStateFromQuery(route.query)
   handleSocialQueryResult()
   if (!loggedInUser.value) return
@@ -2150,13 +2179,14 @@ onMounted(async () => {
   if (!customerName.value.trim()) customerName.value = loggedInUser.value?.name || ''
   if (!customerEmail.value.trim()) customerEmail.value = loggedInUser.value?.email || ''
   if (!userPhone.value.trim()) userPhone.value = loggedInUser.value?.phone || ''
-  handlePostAuthRedirect()
   await bootstrapAuthenticatedShell()
   consumeMessageVendorTarget()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('achar:auth-updated', refreshLoggedInUserFromStorage)
+  window.removeEventListener('storage', refreshLoggedInUserFromStorage)
   window.removeEventListener('achar:global-search-updated', handleGlobalSearchUpdated)
   stopNotificationPolling()
 })
@@ -2170,7 +2200,6 @@ onBeforeUnmount(() => {
       <PublicNavbar />
       <AdminDashboardPage
         v-if="isAdminAccount && (resolvedCurrentPage === 'dashboard' || resolvedCurrentPage === 'settings')"
-        :key="resolvedCurrentPage"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :admin-user="loggedInUser"

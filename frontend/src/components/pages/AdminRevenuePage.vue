@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { serviceFeeRate } from "../../features/appData";
 import { useAdminDataStore } from "../../features/useAdminDataStore";
+import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: {
@@ -19,18 +20,264 @@ const props = defineProps({
   },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Revenue performance workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchPlaceholder: "Search revenue records...",
+    notifications: "Notifications",
+    help: "Help",
+    heroEyebrow: "Revenue Intelligence",
+    heroTitle: "Financial Health Overview",
+    heroSubtitle: "Monitor revenue health, platform fees, and profit trends in one place.",
+    automatedPayouts: "Automated Payouts",
+    fraudWatch: "Fraud Watch",
+    dailyUpdates: "Daily Updates",
+    last30Days: "Last 30 Days",
+    quarter: "Quarter",
+    year: "Year",
+    exportReport: "Export Report",
+    totalRevenue: "Total Revenue",
+    pendingPayouts: "Pending Payouts",
+    platformFees: "Platform Fees",
+    netProfit: "Net Profit",
+    activeCount: "{count} active",
+    feeLabel: "{percent}% fee",
+    newBadge: "New",
+    revenueTrends: "Revenue Trends",
+    grossVsNet: "Gross vs net performance by month",
+    gross: "Gross",
+    net: "Net",
+    peakPeriod: "Peak period",
+    avgGrowth: "Avg. growth",
+    forecast: "Forecast",
+    revenueBreakdown: "Revenue Breakdown",
+    confirmedBookingsRange: "Based on confirmed bookings in range",
+    ready: "Ready",
+    availableRevenue: "Available Revenue",
+    recognized: "{percent}% recognized",
+    bankTransfers: "Bank Transfers",
+    cardRefunds: "Card Refunds",
+    viewRevenueDetails: "View Revenue Details",
+    transactionHistory: "Transaction History",
+    latestPayouts: "Latest payouts and adjustments",
+    viewAll: "View All",
+    transaction: "Transaction",
+    vendor: "Vendor",
+    date: "Date",
+    amount: "Amount",
+    status: "Status",
+    expectedRevenue: "Expected revenue",
+    confidenceLabel: "Confidence",
+    riskLevel: "Risk level",
+    loadingRevenue: "Loading revenue data...",
+    noTransactions: "No transactions found for this range.",
+    forecastEyebrow: "Forecast",
+    quarterlyProjection: "Quarterly Projection",
+    currentRangeTrends: "Based on current range trends.",
+    confidence: "{percent}% confidence",
+    dateTbd: "Date TBD",
+    completed: "Completed",
+    failed: "Failed",
+    pending: "Pending",
+    vendorFallback: "Vendor",
+    onTrack: "On track",
+    caution: "Caution",
+    atRisk: "At risk",
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "收入表现工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchPlaceholder: "搜索收入记录...",
+    notifications: "通知",
+    help: "帮助",
+    heroEyebrow: "收入洞察",
+    heroTitle: "财务健康总览",
+    heroSubtitle: "在一个页面中监控收入健康、平台费用和利润趋势。",
+    automatedPayouts: "自动结算",
+    fraudWatch: "欺诈监测",
+    dailyUpdates: "每日更新",
+    last30Days: "最近 30 天",
+    quarter: "季度",
+    year: "全年",
+    exportReport: "导出报告",
+    totalRevenue: "总收入",
+    pendingPayouts: "待结算款项",
+    platformFees: "平台费用",
+    netProfit: "净利润",
+    activeCount: "{count} 笔处理中",
+    feeLabel: "{percent}% 费率",
+    newBadge: "新增",
+    revenueTrends: "收入趋势",
+    grossVsNet: "按月查看总额与净额表现",
+    gross: "总额",
+    net: "净额",
+    peakPeriod: "峰值周期",
+    avgGrowth: "平均增长",
+    forecast: "预测",
+    revenueBreakdown: "收入拆分",
+    confirmedBookingsRange: "基于所选范围内已确认的预订",
+    ready: "已就绪",
+    availableRevenue: "可用收入",
+    recognized: "已确认 {percent}%",
+    bankTransfers: "银行转账",
+    cardRefunds: "银行卡退款",
+    viewRevenueDetails: "查看收入详情",
+    transactionHistory: "交易记录",
+    latestPayouts: "最新结算与调整",
+    viewAll: "查看全部",
+    transaction: "交易",
+    vendor: "商家",
+    date: "日期",
+    amount: "金额",
+    status: "状态",
+    expectedRevenue: "预期收入",
+    confidenceLabel: "置信度",
+    riskLevel: "风险等级",
+    loadingRevenue: "正在加载收入数据...",
+    noTransactions: "此范围内没有交易记录。",
+    forecastEyebrow: "预测",
+    quarterlyProjection: "季度预测",
+    currentRangeTrends: "基于当前范围趋势。",
+    confidence: "置信度 {percent}%",
+    dateTbd: "日期待定",
+    completed: "已完成",
+    failed: "失败",
+    pending: "待处理",
+    vendorFallback: "商家",
+    onTrack: "进展正常",
+    caution: "需要留意",
+    atRisk: "存在风险",
+    low: "低",
+    medium: "中",
+    high: "高",
+  },
+};
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  nav: {
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    events: "ព្រឹត្តិការណ៍",
+    bookings: "ការកក់",
+    vendors: "អ្នកផ្គត់ផ្គង់",
+    customers: "អតិថិជន",
+    revenue: "ចំណូល",
+    settings: "ការកំណត់",
+  },
+  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandTitle: "Achar Admin",
+  brandSubtitle: "កន្លែងធ្វើការវិភាគចំណូល",
+  navigation: "ការរុករក",
+  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+  searchPlaceholder: "ស្វែងរកកំណត់ត្រាចំណូល...",
+  notifications: "ការជូនដំណឹង",
+  help: "ជំនួយ",
+  heroEyebrow: "ការវិភាគចំណូល",
+  heroTitle: "ទិដ្ឋភាពទូទៅសុខភាពហិរញ្ញវត្ថុ",
+  heroSubtitle: "តាមដានសុខភាពចំណូល ថ្លៃសេវាវេទិកា និងនិន្នាការប្រាក់ចំណេញនៅកន្លែងតែមួយ។",
+  automatedPayouts: "ការទូទាត់ស្វ័យប្រវត្តិ",
+  fraudWatch: "ការតាមដានការក្លែងបន្លំ",
+  dailyUpdates: "បច្ចុប្បន្នភាពប្រចាំថ្ងៃ",
+  last30Days: "30 ថ្ងៃចុងក្រោយ",
+  quarter: "ត្រីមាស",
+  year: "ឆ្នាំ",
+  exportReport: "នាំចេញរបាយការណ៍",
+  totalRevenue: "ចំណូលសរុប",
+  pendingPayouts: "ការទូទាត់ដែលកំពុងរង់ចាំ",
+  platformFees: "ថ្លៃសេវាវេទិកា",
+  netProfit: "ប្រាក់ចំណេញសុទ្ធ",
+  activeCount: "សកម្ម {count}",
+  feeLabel: "ថ្លៃ {percent}%",
+  newBadge: "ថ្មី",
+  revenueTrends: "និន្នាការចំណូល",
+  grossVsNet: "ការប្រៀបធៀបចំណូលសរុប និងសុទ្ធតាមខែ",
+  gross: "សរុប",
+  net: "សុទ្ធ",
+  peakPeriod: "រយៈពេលខ្ពស់បំផុត",
+  avgGrowth: "កំណើនមធ្យម",
+  forecast: "ការព្យាករណ៍",
+  revenueBreakdown: "ការបែងចែកចំណូល",
+  confirmedBookingsRange: "ផ្អែកលើការកក់ដែលបានបញ្ជាក់ក្នុងចន្លោះនេះ",
+  ready: "រួចរាល់",
+  availableRevenue: "ចំណូលដែលអាចប្រើបាន",
+  recognized: "បានទទួលស្គាល់ {percent}%",
+  bankTransfers: "ការផ្ទេរតាមធនាគារ",
+  cardRefunds: "ការសងប្រាក់វិញតាមកាត",
+  viewRevenueDetails: "មើលព័ត៌មានចំណូលលម្អិត",
+  transactionHistory: "ប្រវត្តិប្រតិបត្តិការ",
+  latestPayouts: "ការទូទាត់ និងការកែតម្រូវចុងក្រោយ",
+  viewAll: "មើលទាំងអស់",
+  transaction: "ប្រតិបត្តិការ",
+  vendor: "អ្នកផ្គត់ផ្គង់",
+  date: "កាលបរិច្ឆេទ",
+  amount: "ចំនួនទឹកប្រាក់",
+  status: "ស្ថានភាព",
+  expectedRevenue: "ចំណូលដែលរំពឹងទុក",
+  confidenceLabel: "កម្រិតជឿជាក់",
+  riskLevel: "កម្រិតហានិភ័យ",
+  loadingRevenue: "កំពុងផ្ទុកទិន្នន័យចំណូល...",
+  noTransactions: "មិនមានប្រតិបត្តិការសម្រាប់ចន្លោះនេះទេ។",
+  forecastEyebrow: "ការព្យាករណ៍",
+  quarterlyProjection: "ការព្យាករណ៍ត្រីមាស",
+  currentRangeTrends: "ផ្អែកលើនិន្នាការនៃចន្លោះបច្ចុប្បន្ន។",
+  confidence: "ភាពជឿជាក់ {percent}%",
+  dateTbd: "កាលបរិច្ឆេទមិនទាន់កំណត់",
+  completed: "បានបញ្ចប់",
+  failed: "បរាជ័យ",
+  pending: "រង់ចាំ",
+  vendorFallback: "អ្នកផ្គត់ផ្គង់",
+  onTrack: "ដំណើរការល្អ",
+  caution: "ប្រយ័ត្ន",
+  atRisk: "មានហានិភ័យ",
+  low: "ទាប",
+  medium: "មធ្យម",
+  high: "ខ្ពស់",
+};
+
+const { language, uiText } = useLanguageCopy(copyByLanguage);
+const activeLocale = computed(() => (language.value === "zh" ? "zh-CN" : language.value === "km" ? "km-KH" : "en-US"));
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
 const router = useRouter();
 const route = useRoute();
 const searchQuery = ref("");
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
 const activeKey = ref("revenue");
 const adminStore = useAdminDataStore();
 const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
@@ -38,11 +285,11 @@ const loadError = computed(() => adminStore.errors.bookings);
 const rawBookings = computed(() => adminStore.state.bookings);
 const rangeKey = ref("30d");
 const chartMetric = ref("gross");
-const rangeOptions = [
-  { key: "30d", label: "Last 30 Days", days: 30 },
-  { key: "quarter", label: "Quarter", days: 90 },
-  { key: "year", label: "Year", days: 365 },
-];
+const rangeOptions = computed(() => [
+  { key: "30d", label: uiText.value.last30Days, days: 30 },
+  { key: "quarter", label: uiText.value.quarter, days: 90 },
+  { key: "year", label: uiText.value.year, days: 365 },
+]);
 
 const initials = computed(() => {
   const pieces = String(props.adminDisplayName || "Admin")
@@ -70,7 +317,7 @@ const navigateTo = (key) => {
 
 const formatCurrency = (value) => {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(activeLocale.value, {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
@@ -80,7 +327,7 @@ const formatCurrency = (value) => {
 const formatCompactCurrency = (value) => {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount)) return "$0";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(activeLocale.value, {
     style: "currency",
     currency: "USD",
     notation: "compact",
@@ -99,8 +346,8 @@ const normalizeStatus = (row) => {
 
 const formatDateLabel = (value) => {
   const date = value instanceof Date ? value : new Date(value);
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Date TBD";
-  return date.toLocaleDateString("en-US", {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return uiText.value.dateTbd;
+  return date.toLocaleDateString(activeLocale.value, {
     month: "short",
     day: "2-digit",
     year: "numeric",
@@ -128,7 +375,7 @@ const normalizeBooking = (row) => {
     row?.vendor_name ||
     row?.service_name ||
     row?.customer_name ||
-    "Vendor";
+    uiText.value.vendorFallback;
   const amount = Number(row?.total_amount || 0);
   const status = normalizeStatus(row);
   return {
@@ -136,14 +383,14 @@ const normalizeBooking = (row) => {
     vendorName,
     amount,
     status,
-    statusLabel: status === "completed" ? "Completed" : status === "failed" ? "Failed" : "Pending",
+    statusLabel: status === "completed" ? uiText.value.completed : status === "failed" ? uiText.value.failed : uiText.value.pending,
     date,
-    dateLabel: date ? formatDateLabel(date) : "Date TBD",
+    dateLabel: date ? formatDateLabel(date) : uiText.value.dateTbd,
     paymentMethod: String(row?.payment_method || ""),
   };
 };
 
-const selectedRange = computed(() => rangeOptions.find((item) => item.key === rangeKey.value) || rangeOptions[0]);
+const selectedRange = computed(() => rangeOptions.value.find((item) => item.key === rangeKey.value) || rangeOptions.value[0]);
 
 const normalizeRangeDates = (days) => {
   const end = new Date();
@@ -198,7 +445,7 @@ const previousRevenueTotals = computed(() => ({
 }));
 
 const formatDelta = (current, previous) => {
-  if (!previous) return "New";
+  if (!previous) return uiText.value.newBadge;
   const delta = ((current - previous) / Math.abs(previous)) * 100;
   const sign = delta >= 0 ? "+" : "";
   return `${sign}${delta.toFixed(1)}%`;
@@ -206,22 +453,22 @@ const formatDelta = (current, previous) => {
 
 const revenueStats = computed(() => [
   {
-    label: "Total Revenue",
+    label: uiText.value.totalRevenue,
     value: formatCurrency(revenueTotals.value.confirmed),
     delta: formatDelta(revenueTotals.value.confirmed, previousRevenueTotals.value.confirmed),
   },
   {
-    label: "Pending Payouts",
+    label: uiText.value.pendingPayouts,
     value: formatCurrency(revenueTotals.value.pending),
-    delta: `${revenueTotals.value.pendingCount} active`,
+    delta: interpolate(uiText.value.activeCount, { count: revenueTotals.value.pendingCount }),
   },
   {
-    label: "Platform Fees",
+    label: uiText.value.platformFees,
     value: formatCurrency(revenueTotals.value.fees),
-    delta: `${(serviceFeeRate * 100).toFixed(1)}% fee`,
+    delta: interpolate(uiText.value.feeLabel, { percent: (serviceFeeRate * 100).toFixed(1) }),
   },
   {
-    label: "Net Profit",
+    label: uiText.value.netProfit,
     value: formatCurrency(revenueTotals.value.net),
     delta: formatDelta(revenueTotals.value.net, previousRevenueTotals.value.net),
   },
@@ -239,11 +486,11 @@ const chartSeries = computed(() => {
     bucketEnd.setDate(bucketStart.getDate() + bucketSize - 1);
     bucketEnd.setHours(23, 59, 59, 999);
     return {
-      label: bucketStart.toLocaleDateString("en-US", {
+      label: bucketStart.toLocaleDateString(activeLocale.value, {
         month: "short",
         day: "2-digit",
       }),
-      fullLabel: bucketStart.toLocaleDateString("en-US", {
+      fullLabel: bucketStart.toLocaleDateString(activeLocale.value, {
         month: "short",
         day: "2-digit",
         year: "numeric",
@@ -315,10 +562,10 @@ const projection = computed(() => {
   const failedCount = countByStatus(rangeBookings.value, "failed");
   const failureRate = totalCount > 0 ? failedCount / totalCount : 0;
   const confidence = totalCount > 0 ? Math.round((1 - failureRate) * 100) : 0;
-  let risk = "Low";
-  if (failureRate > 0.2) risk = "High";
-  else if (failureRate > 0.1) risk = "Medium";
-  const status = confidence >= 80 ? "On track" : confidence >= 60 ? "Caution" : "At risk";
+  let risk = uiText.value.low;
+  if (failureRate > 0.2) risk = uiText.value.high;
+  else if (failureRate > 0.1) risk = uiText.value.medium;
+  const status = confidence >= 80 ? uiText.value.onTrack : confidence >= 60 ? uiText.value.caution : uiText.value.atRisk;
   return {
     valueLabel: formatCurrency(chartFooter.value.forecastValue || 0),
     confidence: confidence || 0,
@@ -386,17 +633,17 @@ onMounted(() => void adminStore.loadAll());
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Revenue performance workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -446,15 +693,15 @@ onMounted(() => void adminStore.loadAll());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" type="search" placeholder="Search revenue records..." />
+          <input v-model="searchQuery" type="search" :placeholder="uiText.searchPlaceholder" />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button class="icon-btn" type="button" :title="uiText.notifications" :aria-label="uiText.notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
           </button>
-          <button class="icon-btn" type="button" title="Help" aria-label="Help">
+          <button class="icon-btn" type="button" :title="uiText.help" :aria-label="uiText.help">
             <svg viewBox="0 0 24 24">
               <path d="M12 19a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm0-15a6 6 0 0 1 6 6c0 2.455-1.812 3.498-2.83 4.085-.87.505-1.17.75-1.17 1.415v.5h-2v-.5c0-1.86 1.126-2.512 2.17-3.115C14.98 11.83 16 11.235 16 10a4 4 0 0 0-8 0H6a6 6 0 0 1 6-6Z" />
             </svg>
@@ -465,13 +712,13 @@ onMounted(() => void adminStore.loadAll());
 
       <section class="revenue-hero">
         <div class="hero-copy">
-          <p class="eyebrow">Revenue Intelligence</p>
-          <h1 class="hero-title">Financial Health Overview</h1>
-          <p class="hero-subtitle">Monitor revenue health, platform fees, and profit trends in one place.</p>
+          <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
+          <h1 class="hero-title">{{ uiText.heroTitle }}</h1>
+          <p class="hero-subtitle">{{ uiText.heroSubtitle }}</p>
           <div class="hero-tags">
-            <span class="hero-tag">Automated Payouts</span>
-            <span class="hero-tag soft">Fraud Watch</span>
-            <span class="hero-tag soft">Daily Updates</span>
+            <span class="hero-tag">{{ uiText.automatedPayouts }}</span>
+            <span class="hero-tag soft">{{ uiText.fraudWatch }}</span>
+            <span class="hero-tag soft">{{ uiText.dailyUpdates }}</span>
           </div>
         </div>
         <div class="hero-actions">
@@ -487,7 +734,7 @@ onMounted(() => void adminStore.loadAll());
               {{ option.label }}
             </button>
           </div>
-          <button class="primary-btn" type="button">Export Report</button>
+          <button class="primary-btn" type="button">{{ uiText.exportReport }}</button>
         </div>
       </section>
 
@@ -513,8 +760,8 @@ onMounted(() => void adminStore.loadAll());
         <article class="card wide chart-card">
           <header>
             <div>
-              <h3>Revenue Trends</h3>
-              <p class="card-subtitle">Gross vs net performance by month</p>
+              <h3>{{ uiText.revenueTrends }}</h3>
+              <p class="card-subtitle">{{ uiText.grossVsNet }}</p>
             </div>
             <div class="pill-group">
               <button
@@ -523,7 +770,7 @@ onMounted(() => void adminStore.loadAll());
                 type="button"
                 @click="setChartMetric('gross')"
               >
-                Gross
+                {{ uiText.gross }}
               </button>
               <button
                 class="pill"
@@ -531,7 +778,7 @@ onMounted(() => void adminStore.loadAll());
                 type="button"
                 @click="setChartMetric('net')"
               >
-                Net
+                {{ uiText.net }}
               </button>
             </div>
           </header>
@@ -552,15 +799,15 @@ onMounted(() => void adminStore.loadAll());
           </div>
           <div class="chart-footer">
             <div>
-              <p>Peak period</p>
+              <p>{{ uiText.peakPeriod }}</p>
               <strong>{{ chartFooter.peakLabel }}</strong>
             </div>
             <div>
-              <p>Avg. growth</p>
+              <p>{{ uiText.avgGrowth }}</p>
               <strong>{{ chartFooter.avgGrowthLabel }}</strong>
             </div>
             <div>
-              <p>Forecast</p>
+              <p>{{ uiText.forecast }}</p>
               <strong>{{ chartFooter.forecastLabel }}</strong>
             </div>
           </div>
@@ -569,18 +816,18 @@ onMounted(() => void adminStore.loadAll());
         <article class="card side payout-card">
           <header class="side-header">
             <div>
-              <h3>Revenue Breakdown</h3>
-              <p class="card-subtitle">Based on confirmed bookings in range</p>
+              <h3>{{ uiText.revenueBreakdown }}</h3>
+              <p class="card-subtitle">{{ uiText.confirmedBookingsRange }}</p>
             </div>
-            <span class="status-pill">Ready</span>
+            <span class="status-pill">{{ uiText.ready }}</span>
           </header>
           <div class="payout-summary">
             <div>
-              <p>Available Revenue</p>
+              <p>{{ uiText.availableRevenue }}</p>
               <h4>{{ payoutSummary.available }}</h4>
             </div>
             <div class="payout-progress">
-              <span>{{ payoutSummary.progress }}% recognized</span>
+              <span>{{ interpolate(uiText.recognized, { percent: payoutSummary.progress }) }}</span>
               <div class="progress">
                 <span class="progress-fill" :style="{ width: `${payoutSummary.progress}%` }"></span>
               </div>
@@ -588,40 +835,40 @@ onMounted(() => void adminStore.loadAll());
           </div>
           <div class="payout-list">
             <div>
-              <span>Bank Transfers</span>
+              <span>{{ uiText.bankTransfers }}</span>
               <strong>{{ payoutSummary.bankTransfers }}</strong>
             </div>
             <div>
-              <span>Card Refunds</span>
+              <span>{{ uiText.cardRefunds }}</span>
               <strong>{{ payoutSummary.cardRefunds }}</strong>
             </div>
             <div>
-              <span>Platform Fees</span>
+              <span>{{ uiText.platformFees }}</span>
               <strong class="danger">{{ payoutSummary.platformFees }}</strong>
             </div>
           </div>
-          <button class="primary-btn full" type="button">View Revenue Details</button>
+          <button class="primary-btn full" type="button">{{ uiText.viewRevenueDetails }}</button>
         </article>
 
         <article class="card wide table-card">
           <header>
             <div>
-              <h3>Transaction History</h3>
-              <p class="card-subtitle">Latest payouts and adjustments</p>
+              <h3>{{ uiText.transactionHistory }}</h3>
+              <p class="card-subtitle">{{ uiText.latestPayouts }}</p>
             </div>
-            <button class="link-btn" type="button">View All</button>
+            <button class="link-btn" type="button">{{ uiText.viewAll }}</button>
           </header>
           <div class="table">
             <div class="table-head">
-              <span>Transaction</span>
-              <span>Vendor</span>
-              <span>Date</span>
-              <span>Amount</span>
-              <span>Status</span>
+              <span>{{ uiText.transaction }}</span>
+              <span>{{ uiText.vendor }}</span>
+              <span>{{ uiText.date }}</span>
+              <span>{{ uiText.amount }}</span>
+              <span>{{ uiText.status }}</span>
             </div>
-            <div v-if="isLoading" class="table-empty">Loading revenue data...</div>
+            <div v-if="isLoading" class="table-empty">{{ uiText.loadingRevenue }}</div>
             <div v-else-if="loadError" class="table-empty">{{ loadError }}</div>
-            <div v-else-if="!transactions.length" class="table-empty">No transactions found for this range.</div>
+            <div v-else-if="!transactions.length" class="table-empty">{{ uiText.noTransactions }}</div>
             <template v-else>
               <div v-for="item in transactions" :key="item.id" class="table-row">
                 <span>{{ item.id }}</span>
@@ -640,27 +887,27 @@ onMounted(() => void adminStore.loadAll());
         <article class="card side projection">
           <header class="projection-head">
             <div>
-              <p class="projection-eyebrow">Forecast</p>
-              <h3>Quarterly Projection</h3>
-              <p class="projection-sub">Based on current range trends.</p>
+              <p class="projection-eyebrow">{{ uiText.forecastEyebrow }}</p>
+              <h3>{{ uiText.quarterlyProjection }}</h3>
+              <p class="projection-sub">{{ uiText.currentRangeTrends }}</p>
             </div>
             <span class="status-pill">{{ projection.status }}</span>
           </header>
           <div class="projection-value">
-            <span class="value-label">Expected revenue</span>
+            <span class="value-label">{{ uiText.expectedRevenue }}</span>
             <h4>{{ projection.valueLabel }}</h4>
             <div class="projection-bar" role="presentation">
               <span class="projection-bar-fill" :style="{ width: `${projection.confidence}%` }"></span>
             </div>
-            <p class="projection-note">{{ projection.confidence }}% confidence</p>
+            <p class="projection-note">{{ interpolate(uiText.confidence, { percent: projection.confidence }) }}</p>
           </div>
           <div class="projection-grid">
             <div class="projection-metric">
-              <span>Confidence</span>
+              <span>{{ uiText.confidenceLabel }}</span>
               <strong>{{ projection.confidence }}%</strong>
             </div>
             <div class="projection-metric">
-              <span>Risk level</span>
+              <span>{{ uiText.riskLevel }}</span>
               <strong>{{ projection.risk }}</strong>
             </div>
           </div>

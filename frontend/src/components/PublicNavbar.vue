@@ -371,8 +371,10 @@ const isAdminRole = computed(() => currentRole.value === 'admin')
 const isDashboardRole = computed(() => isVendorRole.value || isAdminRole.value)
 const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'customers', 'revenue', 'settings']
 const legacyPage = computed(() => {
-  const page = route.query?.page
-  return typeof page === 'string' ? page : 'bookings'
+  const rawPage = route.query?.page
+  const page = Array.isArray(rawPage) ? rawPage[0] : rawPage
+  if (typeof page === 'string' && page.trim()) return page
+  return isDashboardRole.value ? 'dashboard' : 'bookings'
 })
 const isDashboardActive = computed(
   () => {
