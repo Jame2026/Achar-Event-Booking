@@ -2093,6 +2093,14 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => String(loggedInUser.value?.role || '').trim().toLowerCase(),
+  () => {
+    if (!loggedInUser.value) return
+    applyRouteStateFromQuery(route.query)
+  },
+)
+
 watch([currentPage, activeVendorTab, vendorDashboardTab], () => {
   closeNotificationDropdown()
   syncRouteQueryFromState()
