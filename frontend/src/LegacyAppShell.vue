@@ -323,6 +323,10 @@ const isVendorAccount = computed(() =>
   ['vendor', 'admin'].includes(String(loggedInUser.value?.role || '').trim().toLowerCase()),
 )
 const defaultLegacyPage = computed(() => (isVendorAccount.value ? 'dashboard' : 'bookings'))
+const resolvedCurrentPage = computed(() => {
+  const requestedPage = firstQueryValue(route.query.page)
+  return normalizePage(requestedPage === undefined ? currentPage.value : requestedPage)
+})
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
@@ -2165,48 +2169,48 @@ onBeforeUnmount(() => {
     <div v-else class="page">
       <PublicNavbar />
       <AdminDashboardPage
-        v-if="isAdminAccount && (currentPage === 'dashboard' || currentPage === 'settings')"
-        :key="currentPage"
+        v-if="isAdminAccount && (resolvedCurrentPage === 'dashboard' || resolvedCurrentPage === 'settings')"
+        :key="resolvedCurrentPage"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :admin-user="loggedInUser"
-        :active-page="currentPage"
+        :active-page="resolvedCurrentPage"
         :update-admin-user="syncAuthenticatedUser"
         :logout-user="logout"
       />
       <AdminBookingsPage
-        v-else-if="isAdminAccount && currentPage === 'admin-bookings'"
+        v-else-if="isAdminAccount && resolvedCurrentPage === 'admin-bookings'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :logout-user="logout"
       />
       <AdminEventsPage
-        v-else-if="isAdminAccount && currentPage === 'events'"
+        v-else-if="isAdminAccount && resolvedCurrentPage === 'events'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :logout-user="logout"
       />
       <AdminRevenuePage
-        v-else-if="isAdminAccount && currentPage === 'revenue'"
+        v-else-if="isAdminAccount && resolvedCurrentPage === 'revenue'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :logout-user="logout"
       />
       <AdminVendorsPage
-        v-else-if="isAdminAccount && currentPage === 'vendors'"
+        v-else-if="isAdminAccount && resolvedCurrentPage === 'vendors'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :logout-user="logout"
       />
       <AdminCustomersPage
-        v-else-if="isAdminAccount && currentPage === 'customers'"
+        v-else-if="isAdminAccount && resolvedCurrentPage === 'customers'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :admin-user-id="loggedInUser?.id"
         :logout-user="logout"
       />
       <VendorDashboardPage
-        v-else-if="isVendorAccount && currentPage === 'dashboard'"
+        v-else-if="isVendorAccount && resolvedCurrentPage === 'dashboard'"
         :app-logo-src="brandLogoSrc"
         :vendor-display-name="vendorDisplayName"
         v-model:active-tab="vendorDashboardTab"
@@ -2249,7 +2253,7 @@ onBeforeUnmount(() => {
         :logout-user="logout"
       />
       <DashboardPage
-      v-else-if="currentPage === 'dashboard'"
+      v-else-if="resolvedCurrentPage === 'dashboard'"
       :notice="notice"
       :customer-name="customerName"
       :dashboard-stats="dashboardStats"
@@ -2263,7 +2267,7 @@ onBeforeUnmount(() => {
     />
 
       <VendorPage
-      v-else-if="currentPage === 'vendor'"
+      v-else-if="resolvedCurrentPage === 'vendor'"
       :vendor-profile="vendorProfile"
       :bindings="vendorBindings"
       :is-vendor-account="isVendorAccount"
@@ -2292,7 +2296,7 @@ onBeforeUnmount(() => {
     />
 
       <CustomizationPage
-      v-else-if="currentPage === 'customization'"
+      v-else-if="resolvedCurrentPage === 'customization'"
       :event-type-options="eventTypeOptions"
       :event-type-map="eventTypeMap"
       :service-fee-rate="serviceFeeRate"
@@ -2322,7 +2326,7 @@ onBeforeUnmount(() => {
     />
 
       <AvailabilityPage
-      v-else-if="currentPage === 'availability'"
+      v-else-if="resolvedCurrentPage === 'availability'"
       :bindings="availabilityBindings"
       :month-label="monthLabel"
       :calendar-cells="calendarCells"
@@ -2343,7 +2347,7 @@ onBeforeUnmount(() => {
     />
 
       <BookingsPage
-      v-else-if="currentPage === 'bookings'"
+      v-else-if="resolvedCurrentPage === 'bookings'"
       :bindings="bookingsBindings"
       :event-type-options="eventTypeOptions"
       :notice="notice"
@@ -2358,7 +2362,7 @@ onBeforeUnmount(() => {
     />
 
       <ProfilePage
-      v-else-if="currentPage === 'profile'"
+      v-else-if="resolvedCurrentPage === 'profile'"
       :bindings="profileBindings"
       :user-profile-notice="userProfileNotice"
       :is-detecting-location="isDetectingLocation"
