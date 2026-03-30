@@ -203,20 +203,37 @@ class UserController extends Controller
     {
         $disk = (string) config('media.profile_image_disk', 'public');
         $directory = trim((string) config('media.profile_image_directory', 'profiles'), '/');
+
+        if ($disk === 'cloudinary') {
+            $prefix = trim((string) config("filesystems.disks.{$disk}.prefix", ''), '/');
+            $folder = ltrim(collect([$prefix, $directory])->filter()->implode('/'), '/');
+            $publicId = 'profile_'.Str::uuid()->toString();
+            $uploadOptions = [
+                'public_id' => $publicId,
+                'resource_type' => 'image',
+            ];
+
+            if ($folder !== '') {
+                $uploadOptions['folder'] = $folder;
+            }
+
+            $result = cloudinary()->uploadApi()->upload($image->getRealPath(), $uploadOptions);
+            $secureUrl = (string) data_get($result, 'secure_url', '');
+            if ($secureUrl === '') {
+                throw new \RuntimeException('Cloudinary did not return a secure URL.');
+            }
+
+            return $secureUrl;
+        }
+
         $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
         $filename = 'profile_'.Str::uuid().'.'.$extension;
         $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
-
         if (! is_string($path) || trim($path) === '') {
             throw new \RuntimeException('Failed to store profile image.');
         }
 
-        $url = Storage::disk($disk)->url($path);
-        if (is_string($url) && trim($url) !== '') {
-            return $url;
-        }
-
-        return asset('storage/'.$path);
+        return Storage::disk($disk)->url($path);
     }
 
     private function deleteStoredProfileImage(?string $imageUrl): void
