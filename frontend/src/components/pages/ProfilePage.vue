@@ -21,6 +21,13 @@ const copyByLanguage = {
   en: {
     breadcrumbs: 'Dashboard > My Profile',
     title: 'Edit My Profile',
+    heroEyebrow: 'Profile · Secure',
+    heroSubtitle: 'Keep your booking profile crisp: photo, contact, and location in one place.',
+    tagRealtimeSync: 'Realtime sync',
+    tagLocationAware: 'Location aware',
+    tagPrivateByDefault: 'Private by default',
+    badgeVerifiedEmail: 'Verified email',
+    badgeTwoFactor: '2FA recommended',
     fullName: 'Full Name',
     fullNamePlaceholder: 'Your full name',
     email: 'Email',
@@ -34,10 +41,31 @@ const copyByLanguage = {
     logout: 'Logout',
     reset: 'Reset',
     saveProfile: 'Save Profile',
+    saving: 'Saving...',
+    profileImageAlt: 'Profile image',
+    yourProfile: 'Your Profile',
+    noEmailYet: 'No email yet',
+    profileCompleteness: 'Profile completeness',
+    uploadPhoto: 'Upload Photo',
+    removePhoto: 'Remove Photo',
+    account: 'Account',
+    helperNote: 'Tip: use your legal name and a reachable phone so confirmations never miss you.',
+    tips: 'Tips',
+    tipPhoto: 'Use a bright, centered headshot for best clarity.',
+    tipPhone: 'Keep phone reachable for booking confirmations.',
+    tipLocation: 'Turn on location so vendors can suggest nearby options.',
+    tipSave: 'Save changes before leaving to keep everything synced.',
   },
   km: {
     breadcrumbs: 'ក្ដារត្រួតពិនិត្យ > ព័ត៌មានផ្ទាល់ខ្លួន',
     title: 'កែព័ត៌មានផ្ទាល់ខ្លួន',
+    heroEyebrow: 'ប្រវត្តិរូប · សុវត្ថិភាព',
+    heroSubtitle: 'រក្សាព័ត៌មានប្រវត្តិរូបសម្រាប់ការកក់របស់អ្នកឱ្យច្បាស់លាស់ ដោយដាក់រូបភាព ទំនាក់ទំនង និងទីតាំងនៅកន្លែងតែមួយ។',
+    tagRealtimeSync: 'ធ្វើសមកាលកម្មភ្លាមៗ',
+    tagLocationAware: 'ស្គាល់ទីតាំង',
+    tagPrivateByDefault: 'ឯកជនតាមលំនាំដើម',
+    badgeVerifiedEmail: 'អ៊ីមែលបានផ្ទៀងផ្ទាត់',
+    badgeTwoFactor: 'ណែនាំឱ្យបើក 2FA',
     fullName: 'ឈ្មោះពេញ',
     fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
     email: 'អ៊ីមែល',
@@ -51,10 +79,31 @@ const copyByLanguage = {
     logout: 'ចេញពីប្រព័ន្ធ',
     reset: 'កំណត់ឡើងវិញ',
     saveProfile: 'រក្សាទុកព័ត៌មាន',
+    saving: 'កំពុងរក្សាទុក...',
+    profileImageAlt: 'រូបភាពប្រវត្តិរូប',
+    yourProfile: 'ប្រវត្តិរូបរបស់អ្នក',
+    noEmailYet: 'មិនទាន់មានអ៊ីមែល',
+    profileCompleteness: 'ភាពពេញលេញនៃប្រវត្តិរូប',
+    uploadPhoto: 'បង្ហោះរូបភាព',
+    removePhoto: 'លុបរូបភាព',
+    account: 'គណនី',
+    helperNote: 'គន្លឹះ៖ ប្រើឈ្មោះពិត និងលេខទូរស័ព្ទដែលអាចទាក់ទងបាន ដើម្បីមិនឱ្យខកខានការបញ្ជាក់ការកក់។',
+    tips: 'គន្លឹះ',
+    tipPhoto: 'ប្រើរូបថតច្បាស់ ស្ថិតនៅកណ្ដាល ដើម្បីឱ្យមើលឃើញបានល្អ។',
+    tipPhone: 'រក្សាទូរស័ព្ទឱ្យអាចទាក់ទងបានសម្រាប់ការបញ្ជាក់ការកក់។',
+    tipLocation: 'បើកទីតាំង ដើម្បីឱ្យអ្នកផ្គត់ផ្គង់ណែនាំជម្រើសនៅជិតអ្នកបាន។',
+    tipSave: 'រក្សាទុកការផ្លាស់ប្តូរមុនចាកចេញ ដើម្បីឱ្យទិន្នន័យសមកាលកម្មជានិច្ច។',
   },
   zh: {
     breadcrumbs: '仪表盘 > 我的资料',
     title: '编辑我的资料',
+    heroEyebrow: '资料 · 安全',
+    heroSubtitle: '将头像、联系方式和位置集中在一个地方，让您的预订资料保持清晰完整。',
+    tagRealtimeSync: '实时同步',
+    tagLocationAware: '位置感知',
+    tagPrivateByDefault: '默认私密',
+    badgeVerifiedEmail: '邮箱已验证',
+    badgeTwoFactor: '建议启用 2FA',
     fullName: '姓名',
     fullNamePlaceholder: '您的姓名',
     email: '邮箱',
@@ -68,6 +117,20 @@ const copyByLanguage = {
     logout: '退出登录',
     reset: '重置',
     saveProfile: '保存资料',
+    saving: '保存中...',
+    profileImageAlt: '资料头像',
+    yourProfile: '您的资料',
+    noEmailYet: '暂无邮箱',
+    profileCompleteness: '资料完整度',
+    uploadPhoto: '上传头像',
+    removePhoto: '移除头像',
+    account: '账户',
+    helperNote: '提示：请使用真实姓名和可联系的电话号码，避免错过预订确认。',
+    tips: '提示',
+    tipPhoto: '使用明亮、居中的头像照片，显示效果更清晰。',
+    tipPhone: '请保持电话畅通，以便接收预订确认。',
+    tipLocation: '开启定位后，商家可以推荐附近的选项。',
+    tipSave: '离开页面前请先保存更改，确保资料保持同步。',
   },
 }
 
@@ -80,19 +143,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
     <section class="card profile-hero">
       <div class="hero-copy">
-        <p class="eyebrow">Profile · Secure</p>
+        <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
         <h1>{{ uiText.title }}</h1>
-        <p class="hero-sub">
-          Keep your booking profile crisp: photo, contact, and location in one place.
-        </p>
+        <p class="hero-sub">{{ uiText.heroSubtitle }}</p>
         <div class="hero-tags">
-          <span>Realtime sync</span>
-          <span>Location aware</span>
-          <span>Private by default</span>
+          <span>{{ uiText.tagRealtimeSync }}</span>
+          <span>{{ uiText.tagLocationAware }}</span>
+          <span>{{ uiText.tagPrivateByDefault }}</span>
         </div>
         <div class="hero-badges">
-          <span class="pill success">Verified email</span>
-          <span class="pill neutral">2FA recommended</span>
+          <span class="pill success">{{ uiText.badgeVerifiedEmail }}</span>
+          <span class="pill neutral">{{ uiText.badgeTwoFactor }}</span>
         </div>
         <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
       </div>
@@ -106,17 +167,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
               <img
                 v-if="props.bindings.userProfileDraft.value.profile_image_url"
                 :src="props.bindings.userProfileDraft.value.profile_image_url"
-                alt="Profile image"
+                :alt="uiText.profileImageAlt"
               />
               <span v-else>
                 {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
               </span>
             </div>
             <div class="profile-avatar-copy">
-              <strong>{{ props.bindings.userProfileDraft.value.name || 'Your Profile' }}</strong>
-              <small>{{ props.bindings.userProfileDraft.value.email || 'No email yet' }}</small>
+              <strong>{{ props.bindings.userProfileDraft.value.name || uiText.yourProfile }}</strong>
+              <small>{{ props.bindings.userProfileDraft.value.email || uiText.noEmailYet }}</small>
               <div class="profile-progress">
-                <span>Profile completeness</span>
+                <span>{{ uiText.profileCompleteness }}</span>
                 <div class="progress-track">
                   <span class="progress-bar" style="width: 82%"></span>
                 </div>
@@ -132,7 +193,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
                 </svg>
               </span>
-              Upload Photo
+              {{ uiText.uploadPhoto }}
               <input
                 type="file"
                 accept="image/*"
@@ -147,14 +208,14 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   <path d="M19 6l-1 14H6L5 6" />
                 </svg>
               </span>
-              Remove Photo
+              {{ uiText.removePhoto }}
             </button>
           </div>
         </div>
 
         <div class="section-head">
           <div>
-            <p class="eyebrow">Account</p>
+            <p class="eyebrow">{{ uiText.account }}</p>
             <h3 class="profile-section-title">{{ uiText.fullName }}</h3>
           </div>
           <button type="button" class="btn-ghost subtle" @click="props.resetUserProfile">{{ uiText.reset }}</button>
@@ -198,7 +259,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             />
           </label>
         </div>
-        <p class="helper-note">Tip: use your legal name and a reachable phone so confirmations never miss you.</p>
+        <p class="helper-note">{{ uiText.helperNote }}</p>
 
         <div class="profile-actions">
           <button type="button" class="btn-logout" @click="props.logoutUser">{{ uiText.logout }}</button>
@@ -208,7 +269,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             :disabled="props.isSavingProfile"
             @click="props.saveUserProfile"
           >
-            {{ props.isSavingProfile ? 'Saving...' : uiText.saveProfile }}
+            {{ props.isSavingProfile ? uiText.saving : uiText.saveProfile }}
           </button>
         </div>
       </section>
@@ -216,7 +277,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       <aside class="card profile-side">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Location</p>
+            <p class="eyebrow">{{ uiText.location }}</p>
             <h3 class="profile-section-title">{{ uiText.location }}</h3>
           </div>
         </div>
@@ -252,12 +313,12 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </div>
 
         <div class="tips-card">
-          <p class="eyebrow">Tips</p>
+          <p class="eyebrow">{{ uiText.tips }}</p>
           <ul>
-            <li>Use a bright, centered headshot for best clarity.</li>
-            <li>Keep phone reachable for booking confirmations.</li>
-            <li>Turn on location so vendors can suggest nearby options.</li>
-            <li>Save changes before leaving to keep everything synced.</li>
+            <li>{{ uiText.tipPhoto }}</li>
+            <li>{{ uiText.tipPhone }}</li>
+            <li>{{ uiText.tipLocation }}</li>
+            <li>{{ uiText.tipSave }}</li>
           </ul>
         </div>
       </aside>

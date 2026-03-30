@@ -1,8 +1,10 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { eventTypeMap } from "../../features/appData";
 import { formatDateTime, summarizeBookedServices } from "../../features/bookingMappers";
 import { apiGet } from "../../features/apiClient";
+import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: { type: String, default: "" },
@@ -11,18 +13,339 @@ const props = defineProps({
   logoutUser: { type: Function, default: null },
 });
 
+const copyByLanguage = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      events: "Events",
+      bookings: "Bookings",
+      vendors: "Vendors",
+      customers: "Customers",
+      revenue: "Revenue",
+      settings: "Settings",
+    },
+    brandKicker: "Operations Console",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "Customer relationship workspace",
+    navigation: "Navigation",
+    adminModules: "Admin modules",
+    searchPlaceholder: "Search customer names, email, phone, or booked services...",
+    notifications: "Notifications",
+    heroEyebrow: "Customer Directory",
+    heroTitle: "All Customers and Their Bookings",
+    heroSubtitle: "Review registered customer accounts and inspect the services or packages they have booked across your system.",
+    totalCustomersText: "{count} total customers",
+    totalBookingsText: "{count} total bookings",
+    selectedCustomer: "Selected Customer",
+    customerSelectedSummary: "{count} booking(s) - {date}",
+    totalCustomers: "Total Customers",
+    shownHere: "{count} shown here",
+    activeBookers: "Active Bookers",
+    customersWithBookings: "Customers with bookings",
+    bookingsInSystem: "Bookings In System",
+    acrossServicesPackages: "Across services and packages",
+    confirmedRevenue: "Confirmed Revenue",
+    fromConfirmedBookings: "From confirmed bookings",
+    directoryEyebrow: "Customer Directory",
+    allCustomers: "All Customers",
+    results: "{count} results",
+    activity: "Activity",
+    allCustomersFilter: "All Customers",
+    withBookings: "With Bookings",
+    repeatCustomers: "Repeat Customers",
+    noBookingsYetFilter: "No Bookings Yet",
+    bookingStatus: "Booking Status",
+    anyStatus: "Any Status",
+    confirmed: "Confirmed",
+    pending: "Pending",
+    cancelled: "Cancelled",
+    loadingCustomerDirectory: "Loading customer directory...",
+    noCustomersMatch: "No customers match your filters.",
+    emailNotProvided: "Email not provided",
+    noCategoryYet: "No category yet",
+    bookingCount: "{count} booking(s)",
+    customerProfile: "Customer Profile",
+    confirmedCount: "{count} confirmed",
+    pendingCount: "{count} pending",
+    bookings: "Bookings",
+    totalSpend: "Total Spend",
+    email: "Email",
+    phone: "Phone",
+    location: "Location",
+    joined: "Joined",
+    preferredCategories: "Preferred Categories",
+    noBookingsYet: "No bookings yet",
+    bookingHistory: "Booking History",
+    customerBookings: "Customer Bookings",
+    noServicePackageYet: "This customer has not booked any service or package yet.",
+    qty: "Qty {count}",
+    selectCustomer: "Select a Customer",
+    selectCustomerSubtitle: "Choose a customer from the directory to inspect their profile and booking history here.",
+    notProvided: "Not provided",
+    timeTbd: "Time TBD",
+    allDay: "All day",
+    unknown: "Unknown",
+    customerFallback: "Customer",
+    vendorFallback: "Vendor",
+    serviceBooking: "Service Booking",
+    package: "Package",
+    service: "Service",
+    other: "Other",
+    locationMissing: "Location not added yet",
+    joinDateUnavailable: "Join date unavailable",
+    newMember: "New",
+    repeatMember: "Repeat",
+    activeMember: "Active",
+    unpaid: "Unpaid",
+    paid: "Paid",
+    refunded: "Refunded",
+    failed: "Failed",
+    adminMissing: "Admin account is missing. Please sign in again.",
+    noCustomerAccounts: "No customer accounts found yet.",
+    couldNotLoadCustomerDirectory: "Could not load customer directory.",
+    eventTypes: {
+      wedding: "Wedding",
+      monk_ceremony: "Monk Ceremony",
+      house_blessing: "House Blessing",
+      company_party: "Company Party",
+      birthday: "Birthday",
+      school_event: "School Event",
+      engagement: "Engagement",
+      anniversary: "Anniversary",
+      baby_shower: "Baby Shower",
+      graduation: "Graduation",
+      festival: "Festival",
+      other: "Other",
+    },
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      events: "活动",
+      bookings: "预订",
+      vendors: "商家",
+      customers: "客户",
+      revenue: "收入",
+      settings: "设置",
+    },
+    brandKicker: "运营控制台",
+    brandTitle: "Achar Admin",
+    brandSubtitle: "客户关系工作区",
+    navigation: "导航",
+    adminModules: "管理员模块",
+    searchPlaceholder: "搜索客户姓名、邮箱、电话或已预订服务...",
+    notifications: "通知",
+    heroEyebrow: "客户目录",
+    heroTitle: "所有客户及其预订",
+    heroSubtitle: "查看已注册客户账户，并检查他们在系统中预订的服务或套餐。",
+    totalCustomersText: "{count} 位客户",
+    totalBookingsText: "{count} 条预订",
+    selectedCustomer: "已选客户",
+    customerSelectedSummary: "{count} 条预订 - {date}",
+    totalCustomers: "客户总数",
+    shownHere: "当前显示 {count} 位",
+    activeBookers: "活跃预订客户",
+    customersWithBookings: "有预订的客户",
+    bookingsInSystem: "系统中的预订",
+    acrossServicesPackages: "涵盖服务与套餐",
+    confirmedRevenue: "已确认收入",
+    fromConfirmedBookings: "来自已确认预订",
+    directoryEyebrow: "客户目录",
+    allCustomers: "所有客户",
+    results: "{count} 条结果",
+    activity: "活跃度",
+    allCustomersFilter: "全部客户",
+    withBookings: "有预订",
+    repeatCustomers: "回头客",
+    noBookingsYetFilter: "尚无预订",
+    bookingStatus: "预订状态",
+    anyStatus: "任意状态",
+    confirmed: "已确认",
+    pending: "待处理",
+    cancelled: "已取消",
+    loadingCustomerDirectory: "正在加载客户目录...",
+    noCustomersMatch: "没有符合筛选条件的客户。",
+    emailNotProvided: "未提供邮箱",
+    noCategoryYet: "暂无分类",
+    bookingCount: "{count} 条预订",
+    customerProfile: "客户资料",
+    confirmedCount: "{count} 已确认",
+    pendingCount: "{count} 待处理",
+    bookings: "预订",
+    totalSpend: "总消费",
+    email: "邮箱",
+    phone: "电话",
+    location: "位置",
+    joined: "加入时间",
+    preferredCategories: "偏好分类",
+    noBookingsYet: "暂无预订",
+    bookingHistory: "预订记录",
+    customerBookings: "客户预订",
+    noServicePackageYet: "该客户尚未预订任何服务或套餐。",
+    qty: "数量 {count}",
+    selectCustomer: "选择客户",
+    selectCustomerSubtitle: "从目录中选择一位客户，以在此查看其资料和预订记录。",
+    notProvided: "未提供",
+    timeTbd: "时间待定",
+    allDay: "全天",
+    unknown: "未知",
+    customerFallback: "客户",
+    vendorFallback: "商家",
+    serviceBooking: "服务预订",
+    package: "套餐",
+    service: "服务",
+    other: "其他",
+    locationMissing: "位置尚未添加",
+    joinDateUnavailable: "加入日期不可用",
+    newMember: "新客户",
+    repeatMember: "回头客",
+    activeMember: "活跃",
+    unpaid: "未支付",
+    paid: "已支付",
+    refunded: "已退款",
+    failed: "失败",
+    adminMissing: "管理员账户缺失，请重新登录。",
+    noCustomerAccounts: "暂无客户账户。",
+    couldNotLoadCustomerDirectory: "无法加载客户目录。",
+    eventTypes: {
+      wedding: "婚礼",
+      monk_ceremony: "僧侣仪式",
+      house_blessing: "住宅祈福",
+      company_party: "公司派对",
+      birthday: "生日",
+      school_event: "学校活动",
+      engagement: "订婚",
+      anniversary: "周年纪念",
+      baby_shower: "迎婴派对",
+      graduation: "毕业典礼",
+      festival: "节庆",
+      other: "其他",
+    },
+  },
+};
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  nav: {
+    dashboard: "ផ្ទាំងគ្រប់គ្រង",
+    events: "ព្រឹត្តិការណ៍",
+    bookings: "ការកក់",
+    vendors: "អ្នកផ្គត់ផ្គង់",
+    customers: "អតិថិជន",
+    revenue: "ចំណូល",
+    settings: "ការកំណត់",
+  },
+  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandTitle: "Achar Admin",
+  brandSubtitle: "កន្លែងធ្វើការទំនាក់ទំនងអតិថិជន",
+  navigation: "ការរុករក",
+  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
+  searchPlaceholder: "ស្វែងរកឈ្មោះអតិថិជន អ៊ីមែល ទូរស័ព្ទ ឬសេវាដែលបានកក់...",
+  notifications: "ការជូនដំណឹង",
+  heroEyebrow: "បញ្ជីអតិថិជន",
+  heroTitle: "អតិថិជនទាំងអស់ និងការកក់របស់ពួកគេ",
+  heroSubtitle: "ពិនិត្យគណនីអតិថិជនដែលបានចុះឈ្មោះ និងសេវា ឬកញ្ចប់ដែលពួកគេបានកក់នៅក្នុងប្រព័ន្ធ។",
+  totalCustomersText: "អតិថិជនសរុប {count}",
+  totalBookingsText: "ការកក់សរុប {count}",
+  selectedCustomer: "អតិថិជនដែលបានជ្រើស",
+  customerSelectedSummary: "ការកក់ {count} - {date}",
+  totalCustomers: "អតិថិជនសរុប",
+  shownHere: "បង្ហាញនៅទីនេះ {count}",
+  activeBookers: "អតិថិជនដែលកំពុងកក់",
+  customersWithBookings: "អតិថិជនដែលមានការកក់",
+  bookingsInSystem: "ការកក់នៅក្នុងប្រព័ន្ធ",
+  acrossServicesPackages: "នៅទូទាំងសេវា និងកញ្ចប់",
+  confirmedRevenue: "ចំណូលដែលបានបញ្ជាក់",
+  fromConfirmedBookings: "ពីការកក់ដែលបានបញ្ជាក់",
+  directoryEyebrow: "បញ្ជីអតិថិជន",
+  allCustomers: "អតិថិជនទាំងអស់",
+  results: "លទ្ធផល {count}",
+  activity: "សកម្មភាព",
+  allCustomersFilter: "អតិថិជនទាំងអស់",
+  withBookings: "មានការកក់",
+  repeatCustomers: "អតិថិជនត្រឡប់មកវិញ",
+  noBookingsYetFilter: "មិនទាន់មានការកក់",
+  bookingStatus: "ស្ថានភាពការកក់",
+  anyStatus: "ស្ថានភាពណាមួយ",
+  confirmed: "បានបញ្ជាក់",
+  pending: "រង់ចាំ",
+  cancelled: "បានបោះបង់",
+  loadingCustomerDirectory: "កំពុងផ្ទុកបញ្ជីអតិថិជន...",
+  noCustomersMatch: "មិនមានអតិថិជនត្រូវនឹងតម្រងរបស់អ្នកទេ។",
+  emailNotProvided: "មិនបានផ្តល់អ៊ីមែល",
+  noCategoryYet: "មិនទាន់មានប្រភេទ",
+  bookingCount: "ការកក់ {count}",
+  customerProfile: "ប្រវត្តិរូបអតិថិជន",
+  confirmedCount: "{count} បានបញ្ជាក់",
+  pendingCount: "{count} រង់ចាំ",
+  bookings: "ការកក់",
+  totalSpend: "ចំណាយសរុប",
+  email: "អ៊ីមែល",
+  phone: "ទូរស័ព្ទ",
+  location: "ទីតាំង",
+  joined: "បានចូល",
+  preferredCategories: "ប្រភេទដែលពេញចិត្ត",
+  noBookingsYet: "មិនទាន់មានការកក់",
+  bookingHistory: "ប្រវត្តិការកក់",
+  customerBookings: "ការកក់របស់អតិថិជន",
+  noServicePackageYet: "អតិថិជននេះមិនទាន់បានកក់សេវា ឬកញ្ចប់ណាមួយទេ។",
+  qty: "ចំនួន {count}",
+  selectCustomer: "ជ្រើសអតិថិជន",
+  selectCustomerSubtitle: "ជ្រើសអតិថិជនម្នាក់ពីបញ្ជី ដើម្បីពិនិត្យប្រវត្តិរូប និងប្រវត្តិការកក់របស់ពួកគេនៅទីនេះ។",
+  notProvided: "មិនបានផ្តល់",
+  timeTbd: "ម៉ោងមិនទាន់កំណត់",
+  allDay: "ពេញមួយថ្ងៃ",
+  unknown: "មិនស្គាល់",
+  customerFallback: "អតិថិជន",
+  vendorFallback: "អ្នកផ្គត់ផ្គង់",
+  serviceBooking: "ការកក់សេវា",
+  package: "កញ្ចប់",
+  service: "សេវា",
+  other: "ផ្សេងៗ",
+  locationMissing: "មិនទាន់បន្ថែមទីតាំង",
+  joinDateUnavailable: "មិនមានកាលបរិច្ឆេទចូល",
+  newMember: "ថ្មី",
+  repeatMember: "ត្រឡប់មកវិញ",
+  activeMember: "សកម្ម",
+  unpaid: "មិនទាន់បង់",
+  paid: "បានបង់",
+  refunded: "បានសងប្រាក់វិញ",
+  failed: "បរាជ័យ",
+  adminMissing: "មិនមានគណនីអ្នកគ្រប់គ្រង សូមចូលម្តងទៀត។",
+  noCustomerAccounts: "មិនទាន់មានគណនីអតិថិជន។",
+  couldNotLoadCustomerDirectory: "មិនអាចផ្ទុកបញ្ជីអតិថិជនបានទេ។",
+  eventTypes: {
+    wedding: "អាពាហ៍ពិពាហ៍",
+    monk_ceremony: "ពិធីព្រះសង្ឃ",
+    house_blessing: "ពិធីឡើងផ្ទះ",
+    company_party: "ពិធីជប់លៀងក្រុមហ៊ុន",
+    birthday: "ខួបកំណើត",
+    school_event: "ព្រឹត្តិការណ៍សាលា",
+    engagement: "ពិធីភ្ជាប់ពាក្យ",
+    anniversary: "ខួបអនុស្សាវរីយ៍",
+    baby_shower: "ពិធីស្វាគមន៍ទារក",
+    graduation: "ពិធីបញ្ចប់ការសិក្សា",
+    festival: "ពិធីបុណ្យ",
+    other: "ផ្សេងៗ",
+  },
+};
+
+const { language, uiText } = useLanguageCopy(copyByLanguage);
+const activeLocale = computed(() => (language.value === "zh" ? "zh-CN" : language.value === "km" ? "km-KH" : "en-US"));
+const interpolate = (template, values = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
 const router = useRouter();
 const route = useRoute();
 
-const navItems = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "events", label: "Events", icon: "events" },
-  { key: "admin-bookings", label: "Bookings", icon: "bookings" },
-  { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "customers", label: "Customers", icon: "users" },
-  { key: "revenue", label: "Revenue", icon: "revenue" },
-  { key: "settings", label: "Settings", icon: "settings" },
-];
+const navItems = computed(() => [
+  { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
+  { key: "events", label: uiText.value.nav.events, icon: "events" },
+  { key: "admin-bookings", label: uiText.value.nav.bookings, icon: "bookings" },
+  { key: "vendors", label: uiText.value.nav.vendors, icon: "vendors" },
+  { key: "customers", label: uiText.value.nav.customers, icon: "users" },
+  { key: "revenue", label: uiText.value.nav.revenue, icon: "revenue" },
+  { key: "settings", label: uiText.value.nav.settings, icon: "settings" },
+]);
 
 const activeKey = ref("customers");
 const searchQuery = ref("");
@@ -36,15 +359,20 @@ const selectedCustomerKey = ref("");
 const failedCustomerImages = ref(new Set());
 
 function count(value) {
-  return Number(value || 0).toLocaleString();
+  return Number(value || 0).toLocaleString(activeLocale.value);
 }
 
 function money(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  return new Intl.NumberFormat(activeLocale.value, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
 }
 
 function shortName(value) {
-  return String(value || "Customer")
+  return String(value || uiText.value.customerFallback)
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -60,19 +388,19 @@ function stamp(value) {
 
 function formatTimeLabel(dateString) {
   const raw = String(dateString || "").trim();
-  if (!raw) return "Time TBD";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "All day";
+  if (!raw) return uiText.value.timeTbd;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return uiText.value.allDay;
 
   const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "Time TBD";
+  if (Number.isNaN(date.getTime())) return uiText.value.timeTbd;
 
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString(activeLocale.value, {
     hour: "numeric",
     minute: "2-digit",
   });
 }
 
-function formatBadgeLabel(value, fallback = "Unknown") {
+function formatBadgeLabel(value, fallback = uiText.value.unknown) {
   const normalized = String(value || "")
     .replace(/[_-]+/g, " ")
     .trim();
@@ -90,6 +418,34 @@ function setNotice(message, tone = "info") {
   noticeTone.value = tone;
 }
 
+function bookingStatusLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "confirmed") return uiText.value.confirmed;
+  if (normalized === "cancelled" || normalized === "canceled") return uiText.value.cancelled;
+  return uiText.value.pending;
+}
+
+function paymentStatusLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const known = {
+    unpaid: uiText.value.unpaid,
+    paid: uiText.value.paid,
+    pending: uiText.value.pending,
+    refunded: uiText.value.refunded,
+    failed: uiText.value.failed,
+    cancelled: uiText.value.cancelled,
+    canceled: uiText.value.cancelled,
+    confirmed: uiText.value.confirmed,
+  };
+
+  return known[normalized] || formatBadgeLabel(value, uiText.value.unknown);
+}
+
+function eventTypeLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return uiText.value.eventTypes?.[normalized] || eventTypeMap[normalized] || uiText.value.other;
+}
+
 const initials = computed(() => {
   const parts = String(props.adminDisplayName || "Admin").split(" ").filter(Boolean);
   return `${parts[0]?.[0] || "A"}${parts[1]?.[0] || ""}`.toUpperCase();
@@ -98,7 +454,7 @@ const initials = computed(() => {
 const customerRows = computed(() =>
   customers.value
     .map((customer) => {
-      const customerName = String(customer?.name || "Customer").trim() || "Customer";
+      const customerName = String(customer?.name || uiText.value.customerFallback).trim() || uiText.value.customerFallback;
       const bookingHistory = (Array.isArray(customer?.bookings) ? customer.bookings : [])
         .map((booking) => {
           const event = booking?.event || {};
@@ -113,22 +469,22 @@ const customerRows = computed(() =>
           return {
             id: Number(booking?.id || 0),
             bookingCode: `#BK-${String(booking?.id || 0).padStart(4, "0")}`,
-            vendorName: String(vendor?.name || "Vendor").trim() || "Vendor",
+            vendorName: String(vendor?.name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback,
             vendorEmail: String(vendor?.email || "").trim(),
             serviceLabel: summarizeBookedServices(
               bookedItems,
-              String(booking?.service_name || event?.title || "Service Booking").trim() || "Service Booking",
+              String(booking?.service_name || event?.title || uiText.value.serviceBooking).trim() || uiText.value.serviceBooking,
             ),
             bookingKind:
               String(event?.service_mode || "").trim().toLowerCase() === "package" || bookedItems.length > 1
-                ? "Package"
-                : "Service",
-            eventTypeLabel: formatBadgeLabel(event?.event_type, "Other"),
+                ? uiText.value.package
+                : uiText.value.service,
+            eventTypeLabel: eventTypeLabel(event?.event_type),
             quantity: Number(booking?.quantity || 1),
-            location: String(event?.location || "").trim() || "Location not added yet",
+            location: String(event?.location || "").trim() || uiText.value.locationMissing,
             status,
-            statusLabel: status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending",
-            paymentStatusLabel: formatBadgeLabel(booking?.payment_status, "Unpaid"),
+            statusLabel: bookingStatusLabel(status),
+            paymentStatusLabel: paymentStatusLabel(booking?.payment_status),
             totalAmount,
             totalLabel: money(totalAmount),
             dateLabel: formatDateTime(bookingDate),
@@ -154,10 +510,10 @@ const customerRows = computed(() =>
         initials: shortName(customerName),
         email: String(customer?.email || "").trim(),
         phone: String(customer?.phone || "").trim(),
-        location: String(customer?.location || "").trim() || "Location not added yet",
+        location: String(customer?.location || "").trim() || uiText.value.locationMissing,
         profileImageUrl: String(customer?.profile_image_url || "").trim(),
         customerImageKey: customer?.id ? `customer:${customer.id}` : `customer:${customerName.toLowerCase()}`,
-        joinedLabel: customer?.created_at ? formatDateTime(customer.created_at) : "Join date unavailable",
+        joinedLabel: customer?.created_at ? formatDateTime(customer.created_at) : uiText.value.joinDateUnavailable,
         bookingsCount,
         confirmedCount,
         pendingCount,
@@ -166,9 +522,9 @@ const customerRows = computed(() =>
         confirmedSpendLabel: money(confirmedSpend),
         preferredTypes,
         bookingHistory,
-        memberState: bookingsCount === 0 ? "New" : bookingsCount > 1 ? "Repeat" : "Active",
-        lastBookingLabel: bookingHistory[0]?.dateLabel || "No bookings yet",
-        lastBookingService: bookingHistory[0]?.serviceLabel || "No bookings yet",
+        memberState: bookingsCount === 0 ? uiText.value.newMember : bookingsCount > 1 ? uiText.value.repeatMember : uiText.value.activeMember,
+        lastBookingLabel: bookingHistory[0]?.dateLabel || uiText.value.noBookingsYet,
+        lastBookingService: bookingHistory[0]?.serviceLabel || uiText.value.noBookingsYet,
       };
     })
     .sort((left, right) => {
@@ -209,10 +565,26 @@ const selectedCustomer = computed(
 const selectedBookings = computed(() => selectedCustomer.value?.bookingHistory || []);
 
 const highlightCards = computed(() => [
-  { label: "Total Customers", value: count(customerRows.value.length), note: `${count(filteredCustomers.value.length)} shown here` },
-  { label: "Active Bookers", value: count(customerRows.value.filter((item) => item.bookingsCount > 0).length), note: "Customers with bookings" },
-  { label: "Bookings In System", value: count(customerRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)), note: "Across services and packages" },
-  { label: "Confirmed Revenue", value: money(customerRows.value.reduce((sum, item) => sum + item.confirmedSpend, 0)), note: "From confirmed bookings" },
+  {
+    label: uiText.value.totalCustomers,
+    value: count(customerRows.value.length),
+    note: interpolate(uiText.value.shownHere, { count: count(filteredCustomers.value.length) }),
+  },
+  {
+    label: uiText.value.activeBookers,
+    value: count(customerRows.value.filter((item) => item.bookingsCount > 0).length),
+    note: uiText.value.customersWithBookings,
+  },
+  {
+    label: uiText.value.bookingsInSystem,
+    value: count(customerRows.value.reduce((sum, item) => sum + item.bookingsCount, 0)),
+    note: uiText.value.acrossServicesPackages,
+  },
+  {
+    label: uiText.value.confirmedRevenue,
+    value: money(customerRows.value.reduce((sum, item) => sum + item.confirmedSpend, 0)),
+    note: uiText.value.fromConfirmedBookings,
+  },
 ]);
 
 const totalBookingsCount = computed(() => customerRows.value.reduce((sum, item) => sum + item.bookingsCount, 0));
@@ -240,7 +612,7 @@ function navigateTo(key) {
 async function loadCustomerDirectory() {
   if (!props.adminUserId) {
     customers.value = [];
-    return setNotice("Admin account is missing. Please sign in again.", "error");
+    return setNotice(uiText.value.adminMissing, "error");
   }
 
   isLoading.value = true;
@@ -255,10 +627,10 @@ async function loadCustomerDirectory() {
 
     customers.value = Array.isArray(result?.data) ? result.data : [];
     failedCustomerImages.value = new Set();
-    if (!customers.value.length) notice.value = "No customer accounts found yet.";
+    if (!customers.value.length) notice.value = uiText.value.noCustomerAccounts;
   } catch (error) {
     customers.value = [];
-    setNotice(error?.message || "Could not load customer directory.", "error");
+    setNotice(error?.message || uiText.value.couldNotLoadCustomerDirectory, "error");
   } finally {
     isLoading.value = false;
   }
@@ -288,17 +660,17 @@ onMounted(() => void loadCustomerDirectory());
             <div v-else class="brand-mark">A</div>
           </div>
           <div>
-            <p class="brand-kicker">Operations Console</p>
-            <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Customer relationship workspace</p>
+            <p class="brand-kicker">{{ uiText.brandKicker }}</p>
+            <p class="brand-title">{{ uiText.brandTitle }}</p>
+            <p class="brand-subtitle">{{ uiText.brandSubtitle }}</p>
           </div>
         </div>
       </div>
 
       <section class="sidebar-block">
         <div class="sidebar-block-head">
-          <span class="sidebar-section-label">Navigation</span>
-          <span class="sidebar-section-caption">Admin modules</span>
+          <span class="sidebar-section-label">{{ uiText.navigation }}</span>
+          <span class="sidebar-section-caption">{{ uiText.adminModules }}</span>
         </div>
 
         <nav class="admin-nav">
@@ -341,10 +713,10 @@ onMounted(() => void loadCustomerDirectory());
               <path d="M11 19a8 8 0 1 1 5.292-14.001A8 8 0 0 1 11 19Zm0-14a6 6 0 1 0 3.964 10.5A6 6 0 0 0 11 5Zm9.707 15.293-4.35-4.35 1.414-1.414 4.35 4.35-1.414 1.414Z" />
             </svg>
           </span>
-          <input v-model="searchQuery" class="search-input" type="search" placeholder="Search customer names, email, phone, or booked services..." />
+          <input v-model="searchQuery" class="search-input" type="search" :placeholder="uiText.searchPlaceholder" />
         </label>
         <div class="topbar-actions">
-          <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+          <button class="icon-btn" type="button" :title="uiText.notifications" :aria-label="uiText.notifications">
             <svg viewBox="0 0 24 24">
               <path d="M12 22a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 22Zm7-6v-5a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
             </svg>
@@ -355,19 +727,19 @@ onMounted(() => void loadCustomerDirectory());
 
       <section class="customers-hero">
         <div class="hero-copy">
-          <p class="eyebrow">Customer Directory</p>
-          <h1>All Customers and Their Bookings</h1>
-          <p>Review registered customer accounts and inspect the services or packages they have booked across your system.</p>
+          <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
+          <h1>{{ uiText.heroTitle }}</h1>
+          <p>{{ uiText.heroSubtitle }}</p>
           <div class="hero-meta">
-            <span class="hero-pill">{{ count(customerRows.length) }} total customers</span>
-            <span class="hero-pill soft">{{ count(totalBookingsCount) }} total bookings</span>
+            <span class="hero-pill">{{ interpolate(uiText.totalCustomersText, { count: count(customerRows.length) }) }}</span>
+            <span class="hero-pill soft">{{ interpolate(uiText.totalBookingsText, { count: count(totalBookingsCount) }) }}</span>
           </div>
         </div>
         <div class="hero-aside">
           <div v-if="selectedCustomer" class="hero-selected">
-            <span class="hero-selected-label">Selected Customer</span>
+            <span class="hero-selected-label">{{ uiText.selectedCustomer }}</span>
             <strong>{{ selectedCustomer.name }}</strong>
-            <small>{{ count(selectedCustomer.bookingsCount) }} booking(s) - {{ selectedCustomer.joinedLabel }}</small>
+            <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
           </div>
         </div>
       </section>
@@ -386,34 +758,34 @@ onMounted(() => void loadCustomerDirectory());
         <article class="card directory-card">
           <header class="card-head">
             <div>
-              <p class="card-eyebrow">Customer Directory</p>
-              <h3>All Customers</h3>
+              <p class="card-eyebrow">{{ uiText.directoryEyebrow }}</p>
+              <h3>{{ uiText.allCustomers }}</h3>
             </div>
-            <span class="card-meta">{{ count(filteredCustomers.length) }} results</span>
+            <span class="card-meta">{{ interpolate(uiText.results, { count: count(filteredCustomers.length) }) }}</span>
           </header>
           <div class="filters">
             <label class="filter-field">
-              <span>Activity</span>
+              <span>{{ uiText.activity }}</span>
               <select v-model="activityFilter">
-                <option value="all">All Customers</option>
-                <option value="booked">With Bookings</option>
-                <option value="repeat">Repeat Customers</option>
-                <option value="new">No Bookings Yet</option>
+                <option value="all">{{ uiText.allCustomersFilter }}</option>
+                <option value="booked">{{ uiText.withBookings }}</option>
+                <option value="repeat">{{ uiText.repeatCustomers }}</option>
+                <option value="new">{{ uiText.noBookingsYetFilter }}</option>
               </select>
             </label>
             <label class="filter-field">
-              <span>Booking Status</span>
+              <span>{{ uiText.bookingStatus }}</span>
               <select v-model="bookingStateFilter">
-                <option value="all">Any Status</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="all">{{ uiText.anyStatus }}</option>
+                <option value="confirmed">{{ uiText.confirmed }}</option>
+                <option value="pending">{{ uiText.pending }}</option>
+                <option value="cancelled">{{ uiText.cancelled }}</option>
               </select>
             </label>
           </div>
 
-          <div v-if="isLoading" class="empty">Loading customer directory...</div>
-          <div v-else-if="!filteredCustomers.length" class="empty">No customers match your filters.</div>
+          <div v-if="isLoading" class="empty">{{ uiText.loadingCustomerDirectory }}</div>
+          <div v-else-if="!filteredCustomers.length" class="empty">{{ uiText.noCustomersMatch }}</div>
           <div v-else class="customer-list">
             <button v-for="customer in filteredCustomers" :key="customer.key" type="button" class="customer-row" :class="{ selected: selectedCustomer?.key === customer.key }" @click="selectedCustomerKey = customer.key">
               <div class="customer-main">
@@ -431,11 +803,11 @@ onMounted(() => void loadCustomerDirectory());
                     <strong>{{ customer.name }}</strong>
                     <span class="chip muted">{{ customer.memberState }}</span>
                   </div>
-                  <p>{{ customer.email || "Email not provided" }}</p>
+                  <p>{{ customer.email || uiText.emailNotProvided }}</p>
                   <div class="chips">
-                    <span class="chip">{{ count(customer.bookingsCount) }} booking(s)</span>
+                    <span class="chip">{{ interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) }) }}</span>
                     <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
-                    <span class="chip muted">{{ customer.preferredTypes[0] || "No category yet" }}</span>
+                    <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
                   </div>
                 </div>
               </div>
@@ -451,7 +823,7 @@ onMounted(() => void loadCustomerDirectory());
           <article v-if="selectedCustomer" class="card spotlight-card">
             <div class="sidebar-head">
               <div>
-                <p class="card-eyebrow">Customer Profile</p>
+                <p class="card-eyebrow">{{ uiText.customerProfile }}</p>
                 <h3>{{ selectedCustomer.name }}</h3>
                 <p>{{ selectedCustomer.location }}</p>
               </div>
@@ -471,37 +843,37 @@ onMounted(() => void loadCustomerDirectory());
                 <strong>{{ selectedCustomer.name }}</strong>
                 <small>{{ selectedCustomer.joinedLabel }}</small>
                 <div class="chips">
-                  <span class="chip muted">{{ count(selectedCustomer.confirmedCount) }} confirmed</span>
-                  <span class="chip muted">{{ count(selectedCustomer.pendingCount) }} pending</span>
+                  <span class="chip muted">{{ interpolate(uiText.confirmedCount, { count: count(selectedCustomer.confirmedCount) }) }}</span>
+                  <span class="chip muted">{{ interpolate(uiText.pendingCount, { count: count(selectedCustomer.pendingCount) }) }}</span>
                 </div>
               </div>
             </div>
             <div class="stats-grid">
-              <div><span>Bookings</span><strong>{{ count(selectedCustomer.bookingsCount) }}</strong></div>
-              <div><span>Confirmed</span><strong>{{ count(selectedCustomer.confirmedCount) }}</strong></div>
-              <div><span>Pending</span><strong>{{ count(selectedCustomer.pendingCount) }}</strong></div>
-              <div><span>Total Spend</span><strong>{{ selectedCustomer.confirmedSpendLabel }}</strong></div>
+              <div><span>{{ uiText.bookings }}</span><strong>{{ count(selectedCustomer.bookingsCount) }}</strong></div>
+              <div><span>{{ uiText.confirmed }}</span><strong>{{ count(selectedCustomer.confirmedCount) }}</strong></div>
+              <div><span>{{ uiText.pending }}</span><strong>{{ count(selectedCustomer.pendingCount) }}</strong></div>
+              <div><span>{{ uiText.totalSpend }}</span><strong>{{ selectedCustomer.confirmedSpendLabel }}</strong></div>
             </div>
             <div class="detail-grid">
               <div class="detail-block">
-                <span>Email</span>
-                <strong>{{ selectedCustomer.email || "Not provided" }}</strong>
+                <span>{{ uiText.email }}</span>
+                <strong>{{ selectedCustomer.email || uiText.notProvided }}</strong>
               </div>
               <div class="detail-block">
-                <span>Phone</span>
-                <strong>{{ selectedCustomer.phone || "Not provided" }}</strong>
+                <span>{{ uiText.phone }}</span>
+                <strong>{{ selectedCustomer.phone || uiText.notProvided }}</strong>
               </div>
               <div class="detail-block">
-                <span>Location</span>
+                <span>{{ uiText.location }}</span>
                 <strong>{{ selectedCustomer.location }}</strong>
               </div>
               <div class="detail-block">
-                <span>Joined</span>
+                <span>{{ uiText.joined }}</span>
                 <strong>{{ selectedCustomer.joinedLabel }}</strong>
               </div>
               <div class="detail-block detail-wide">
-                <span>Preferred Categories</span>
-                <strong>{{ selectedCustomer.preferredTypes.length ? selectedCustomer.preferredTypes.join(", ") : "No bookings yet" }}</strong>
+                <span>{{ uiText.preferredCategories }}</span>
+                <strong>{{ selectedCustomer.preferredTypes.length ? selectedCustomer.preferredTypes.join(", ") : uiText.noBookingsYet }}</strong>
               </div>
             </div>
           </article>
@@ -509,12 +881,12 @@ onMounted(() => void loadCustomerDirectory());
           <article v-if="selectedCustomer" class="card bookings-card">
             <header class="card-head">
               <div>
-                <p class="card-eyebrow">Booking History</p>
-                <h3>Customer Bookings</h3>
+                <p class="card-eyebrow">{{ uiText.bookingHistory }}</p>
+                <h3>{{ uiText.customerBookings }}</h3>
               </div>
               <span class="card-meta">{{ count(selectedBookings.length) }}</span>
             </header>
-            <div v-if="!selectedBookings.length" class="empty small">This customer has not booked any service or package yet.</div>
+            <div v-if="!selectedBookings.length" class="empty small">{{ uiText.noServicePackageYet }}</div>
             <div v-else class="booking-list">
               <div v-for="booking in selectedBookings" :key="booking.id" class="booking-row">
                 <div class="booking-copy">
@@ -526,7 +898,7 @@ onMounted(() => void loadCustomerDirectory());
                   <small>{{ booking.dateLabel }} - {{ booking.timeLabel }}</small>
                   <div class="booking-chip-row">
                     <span class="chip muted">{{ booking.totalLabel }}</span>
-                    <span class="chip muted">Qty {{ booking.quantity }}</span>
+                    <span class="chip muted">{{ interpolate(uiText.qty, { count: booking.quantity }) }}</span>
                     <span class="chip muted">{{ booking.paymentStatusLabel }}</span>
                     <span class="chip muted">{{ booking.eventTypeLabel }}</span>
                   </div>
@@ -536,9 +908,9 @@ onMounted(() => void loadCustomerDirectory());
           </article>
 
           <article v-else class="card empty-selection">
-            <p class="card-eyebrow">Customer Profile</p>
-            <h3>Select a Customer</h3>
-            <p>Choose a customer from the directory to inspect their profile and booking history here.</p>
+            <p class="card-eyebrow">{{ uiText.customerProfile }}</p>
+            <h3>{{ uiText.selectCustomer }}</h3>
+            <p>{{ uiText.selectCustomerSubtitle }}</p>
           </article>
         </aside>
       </section>
