@@ -1,4 +1,6 @@
 <script setup>
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
@@ -135,6 +137,64 @@ const copyByLanguage = {
 }
 
 const { uiText } = useLanguageCopy(copyByLanguage)
+const profileImageUrl = computed(() => String(props.bindings?.userProfileDraft?.value?.profile_image_url || '').trim())
+const viewerLabels = computed(() => ({
+  dialog: uiText.value.profileImageViewer || 'Profile image preview',
+  view: uiText.value.viewPhoto || 'View photo',
+  close: uiText.value.closePhoto || 'Close photo',
+}))
+const isProfileImageViewerOpen = ref(false)
+const previousBodyOverflow = ref('')
+
+function syncBodyScroll(isOpen) {
+  if (typeof document === 'undefined') return
+
+  if (isOpen) {
+    previousBodyOverflow.value = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = previousBodyOverflow.value || ''
+}
+
+function openProfileImageViewer() {
+  if (!profileImageUrl.value) return
+  isProfileImageViewerOpen.value = true
+}
+
+function closeProfileImageViewer() {
+  isProfileImageViewerOpen.value = false
+}
+
+function handleProfileImageViewerKeydown(event) {
+  if (event.key === 'Escape') closeProfileImageViewer()
+}
+
+watch(isProfileImageViewerOpen, (isOpen) => {
+  syncBodyScroll(isOpen)
+
+  if (typeof window === 'undefined') return
+
+  if (isOpen) {
+    window.addEventListener('keydown', handleProfileImageViewerKeydown)
+    return
+  }
+
+  window.removeEventListener('keydown', handleProfileImageViewerKeydown)
+})
+
+watch(profileImageUrl, (nextImageUrl) => {
+  if (!nextImageUrl) closeProfileImageViewer()
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', handleProfileImageViewerKeydown)
+  }
+
+  syncBodyScroll(false)
+})
 </script>
 
 <template>
@@ -163,13 +223,21 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       <section class="card profile-panel">
         <div class="profile-identity-card">
           <div class="profile-avatar-main">
-            <div class="profile-avatar-preview">
+            <button
+              v-if="profileImageUrl"
+              type="button"
+              class="profile-avatar-preview profile-avatar-preview-button"
+              :aria-label="viewerLabels.view"
+              @click="openProfileImageViewer"
+            >
               <img
-                v-if="props.bindings.userProfileDraft.value.profile_image_url"
-                :src="props.bindings.userProfileDraft.value.profile_image_url"
+                :src="profileImageUrl"
                 :alt="uiText.profileImageAlt"
               />
-              <span v-else>
+              <span class="profile-avatar-view-chip">{{ viewerLabels.view }}</span>
+            </button>
+            <div v-else class="profile-avatar-preview">
+              <span>
                 {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
               </span>
             </div>
@@ -323,6 +391,40 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </div>
       </aside>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="isProfileImageViewerOpen && profileImageUrl"
+        class="profile-image-viewer"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="viewerLabels.dialog"
+        @click="closeProfileImageViewer"
+      >
+        <div class="profile-image-viewer-panel" @click.stop>
+          <button
+            type="button"
+            class="profile-image-viewer-close"
+            :aria-label="viewerLabels.close"
+            @click="closeProfileImageViewer"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="m6 6 12 12" />
+              <path d="M18 6 6 18" />
+            </svg>
+          </button>
+          <img
+            class="profile-image-viewer-image"
+            :src="profileImageUrl"
+            :alt="uiText.profileImageAlt"
+          />
+          <div class="profile-image-viewer-meta">
+            <strong>{{ props.bindings.userProfileDraft.value.name || uiText.yourProfile }}</strong>
+            <small>{{ props.bindings.userProfileDraft.value.email || uiText.noEmailYet }}</small>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
 
@@ -461,6 +563,40 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-avatar-preview-button {
+  position: relative;
+  padding: 0;
+  cursor: zoom-in;
+  appearance: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar-preview-button:hover,
+.profile-avatar-preview-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(249, 115, 22, 0.2);
+}
+
+.profile-avatar-preview-button:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, 0.28);
+  outline-offset: 4px;
+}
+
+.profile-avatar-view-chip {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .profile-avatar-copy {
@@ -768,6 +904,78 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   gap: 6px;
 }
 
+.profile-image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top, rgba(249, 115, 22, 0.2), transparent 38%),
+    rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.profile-image-viewer-panel {
+  position: relative;
+  width: min(100%, 760px);
+  max-height: min(100%, 92vh);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.42);
+  display: grid;
+  gap: 14px;
+}
+
+.profile-image-viewer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.profile-image-viewer-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-image-viewer-image {
+  width: 100%;
+  max-height: min(72vh, 720px);
+  border-radius: 18px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.profile-image-viewer-meta {
+  display: grid;
+  gap: 4px;
+  color: #fff;
+}
+
+.profile-image-viewer-meta strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.profile-image-viewer-meta small {
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.94rem;
+}
+
 @media (max-width: 980px) {
   .profile-layout {
     grid-template-columns: 1fr;
@@ -794,6 +1002,20 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   .profile-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .profile-avatar-view-chip {
+    bottom: 6px;
+    font-size: 0.64rem;
+  }
+
+  .profile-image-viewer {
+    padding: 14px;
+  }
+
+  .profile-image-viewer-panel {
+    padding: 14px;
+    border-radius: 20px;
   }
 }
 </style>
