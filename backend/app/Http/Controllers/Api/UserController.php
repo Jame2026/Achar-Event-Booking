@@ -225,10 +225,62 @@ class UserController extends Controller
             return;
         }
 
-        $path = $this->extractLocalStoragePath($imageUrl);
-        if ($path) {
-            Storage::disk((string) config('media.profile_image_disk', 'public'))->delete($path);
+        try {
+            $disk = (string) config('media.profile_image_disk', 'public');
+            if ($disk === 'cloudinary' && str_contains($imageUrl, 'cloudinary.com')) {
+                $publicId = $this->extractCloudinaryPublicId($imageUrl);
+                if ($publicId !== null) {
+                    cloudinary()->uploadApi()->destroy($publicId, ['resource_type' => 'image']);
+                }
+
+                return;
+            }
+
+            $path = $this->extractLocalStoragePath($imageUrl);
+            if ($path) {
+                Storage::disk($disk)->delete($path);
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
+    }
+
+    private function extractCloudinaryPublicId(string $imageUrl): ?string
+    {
+        $path = (string) parse_url($imageUrl, PHP_URL_PATH);
+        $marker = '/image/upload/';
+        $position = strpos($path, $marker);
+
+        if ($position === false) {
+            return null;
+        }
+
+        $publicPath = substr($path, $position + strlen($marker));
+        $publicPath = ltrim($publicPath, '/');
+
+        if ($publicPath === '') {
+            return null;
+        }
+
+        $segments = array_values(array_filter(explode('/', $publicPath), fn (string $segment) => $segment !== ''));
+        if ($segments !== [] && preg_match('/^v\d+$/', $segments[0]) === 1) {
+            array_shift($segments);
+        }
+
+        if ($segments === []) {
+            return null;
+        }
+
+        $lastSegment = array_pop($segments);
+        $extension = pathinfo($lastSegment, PATHINFO_EXTENSION);
+
+        if ($extension !== '') {
+            $lastSegment = pathinfo($lastSegment, PATHINFO_FILENAME);
+        }
+
+        $segments[] = $lastSegment;
+
+        return implode('/', $segments);
     }
 
     private function extractLocalStoragePath(string $imageUrl): ?string
