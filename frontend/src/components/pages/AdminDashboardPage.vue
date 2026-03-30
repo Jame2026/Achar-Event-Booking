@@ -1576,7 +1576,8 @@ onMounted(() =>
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
 
 .admin-shell {
-  --ink: #0f172a;
+    --navbar-space: 90px;
+    --ink: #0f172a;
   --muted: #5f6b7a;
   --accent: #ff7a1a;
   --accent-strong: #f15b2a;
@@ -1597,7 +1598,8 @@ onMounted(() =>
     radial-gradient(circle at 12% 80%, rgba(59, 130, 246, 0.12), transparent 60%);
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
-  min-height: calc(100vh - 90px);
+    min-height: calc(100vh - var(--navbar-space));
+    padding-top: var(--navbar-space);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   background:
     radial-gradient(circle at 12% 12%, rgba(255, 122, 26, 0.18), transparent 45%),
