@@ -764,7 +764,7 @@ onMounted(() =>
           <div>
             <p class="brand-kicker">Operations Console</p>
             <p class="brand-title">Achar Admin</p>
-            <p class="brand-subtitle">Operations overview workspace</p>
+            <p class="brand-subtitle">Operations workspace</p>
           </div>
         </div>
       </div>
@@ -861,7 +861,7 @@ onMounted(() =>
 
       <section v-if="activeKey === 'dashboard'" class="admin-hero">
         <p class="eyebrow">Achar Event Admin</p>
-        <h1 class="hero-title">Dashboard Overview</h1>
+        <h1 class="hero-title">Admin Dashboard</h1>
         <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
         <div class="hero-actions">
           <button class="primary-btn" type="button">Export Report</button>

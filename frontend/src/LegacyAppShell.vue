@@ -330,6 +330,7 @@ function firstQueryValue(value) {
 
 function normalizePage(value) {
   const page = firstQueryValue(value)
+  if (page === 'overview') return 'dashboard'
   if (page === 'users') return 'customers'
   if (adminLegacyPages.includes(page) && !isAdminAccount.value) return defaultLegacyPage.value
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
@@ -355,6 +356,7 @@ function normalizeVendorDashboardTab(value) {
 }
 
 function applyRouteStateFromQuery(query) {
+  const requestedPage = firstQueryValue(query.page)
   const nextPage = normalizePage(query.page)
   currentPage.value = nextPage
   if (!loggedInUser.value) {
@@ -364,6 +366,17 @@ function applyRouteStateFromQuery(query) {
   if (nextPage === 'vendor') activeVendorTab.value = normalizeVendorTab(query.tab)
   if (isVendorAccount.value && nextPage === 'dashboard') {
     vendorDashboardTab.value = normalizeVendorDashboardTab(query.vtab)
+  }
+
+  if (loggedInUser.value && requestedPage === 'overview') {
+    const nextQuery = { ...route.query }
+    delete nextQuery.page
+    if (!isAdminAccount.value && isVendorAccount.value) {
+      nextQuery.vtab = 'overview'
+    } else {
+      delete nextQuery.vtab
+    }
+    router.replace({ path: '/legacy-app', query: nextQuery }).catch(() => {})
   }
 }
 
