@@ -13,6 +13,8 @@ const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
 const navSearch = ref('')
+const isSearchOpen = ref(false)
+const searchInputRef = ref(null)
 const favoriteCount = ref(0)
 const isLoadingNotifications = ref(false)
 const notificationsError = ref('')
@@ -175,6 +177,17 @@ function runSearch() {
     path: targetPath,
     query: query ? { q: query } : {},
   }).catch(() => {})
+}
+
+function toggleSearch() {
+  isSearchOpen.value = !isSearchOpen.value
+  if (isSearchOpen.value) {
+    nextTick(() => searchInputRef.value?.focus())
+  }
+}
+
+function closeSearch() {
+  isSearchOpen.value = false
 }
 
 function notificationRole(role) {
@@ -395,6 +408,18 @@ const navSearchPlaceholder = computed(() =>
 )
 
 watch(
+  () => navSearch.value,
+  (value, prev) => {
+    const nextValue = String(value || '').trim()
+    const prevValue = String(prev || '').trim()
+    if (prevValue && !nextValue) {
+      runSearch()
+      closeSearch()
+    }
+  },
+)
+
+watch(
   [() => route.fullPath, isLoggedIn, () => currentUser.value?.email || ''],
   () => {
     syncSearchFieldValue()
@@ -493,24 +518,44 @@ const bookingLink = computed(() => {
             <option value="zh">中文</option>
           </select>
         </label>
-        <input
-          v-if="isLoggedIn"
-          v-model="navSearch"
-          type="search"
-          class="nav-search"
-          name="global-service-search"
-          :placeholder="navSearchPlaceholder"
-          autocomplete="new-password"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-          inputmode="search"
-          enterkeyhint="search"
-          data-lpignore="true"
-          @focus="clearAutofilledSearchValue"
-          @input="guardSearchAutofill"
-          @keyup.enter="runSearch"
-        />
+        <div v-if="isLoggedIn" class="nav-search-wrap">
+          <button
+            type="button"
+            class="nav-search-btn"
+            :aria-label="navSearchPlaceholder"
+            :title="navSearchPlaceholder"
+            @click="toggleSearch"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" />
+              <path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </button>
+          <div v-if="isSearchOpen" class="nav-search-popover">
+            <input
+              ref="searchInputRef"
+              v-model="navSearch"
+              type="search"
+              class="nav-search-input"
+              name="global-service-search"
+              :placeholder="navSearchPlaceholder"
+              autocomplete="new-password"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              inputmode="search"
+              enterkeyhint="search"
+              data-lpignore="true"
+              @focus="clearAutofilledSearchValue"
+              @input="guardSearchAutofill"
+              @keyup.enter="runSearch"
+            />
+            <button type="button" class="nav-search-go" @click="runSearch">Search</button>
+            <button type="button" class="nav-search-close" aria-label="Close search" @click="closeSearch">
+              ×
+            </button>
+          </div>
+        </div>
         <div v-if="isLoggedIn" ref="notificationMenuRef" class="notification-wrap">
           <button
             type="button"
@@ -768,6 +813,12 @@ const bookingLink = computed(() => {
   gap: 8px;
 }
 
+.nav-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .lang-switch {
   display: inline-flex;
 }
@@ -784,17 +835,84 @@ const bookingLink = computed(() => {
   cursor: pointer;
 }
 
-.nav-search {
-  width: clamp(120px, 24vw, 160px);
-  min-width: 220px;
-  max-width: 100%;
+.nav-search-btn {
+  width: 42px;
+  height: 42px;
   border: 1px solid #d6dde9;
   border-radius: 14px;
   background: #f9fafc;
-  color: #111827;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.nav-search-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-search-btn:hover {
+  color: #475569;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.nav-search-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: min(360px, 88vw);
+  padding: 10px;
+  border: 1px solid #f1d0b5;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+  z-index: 20;
+}
+
+.nav-search-input {
+  height: 36px;
+  border: 1px solid #d6dde9;
+  border-radius: 12px;
+  padding: 0 0.7rem 0 2.1rem;
   font: inherit;
-  font-size: 1rem;
-  padding: 0.62rem 0.9rem;
+  font-size: 0.95rem;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-4-4'/></svg>")
+      no-repeat 0.65rem 50%,
+    #f9fafc;
+  background-size: 14px 14px;
+  color: #111827;
+}
+
+.nav-search-go {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #f1c9a8;
+  background: linear-gradient(145deg, #fff7ef 0%, #ffeeda 100%);
+  color: #b45309;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nav-search-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid #d6dde9;
+  background: #fff;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .notification-wrap {

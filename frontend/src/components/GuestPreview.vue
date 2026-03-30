@@ -2355,7 +2355,7 @@ function noop() {}
               <label class="filter-field">
                 <span>{{ uiText.search }}</span>
                 <input
-                  class="customization-search"
+                  class="customization-search search-input-icon"
                   type="search"
                   :placeholder="uiText.searchPackages"
                   :value="packageSearch"
@@ -2625,7 +2625,7 @@ function noop() {}
               <label class="filter-field">
                 <span>Search</span>
                 <input
-                  class="customization-search"
+                  class="customization-search search-input-icon"
                   type="search"
                   placeholder="Search services..."
                   :value="customizationSearch.value"
@@ -3654,6 +3654,15 @@ function noop() {}
   color: #64748b;
 }
 
+.search-input-icon {
+  padding-left: 2.4rem;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-4-4'/></svg>")
+      no-repeat 0.75rem 50%,
+    #fff;
+  background-size: 14px 14px;
+}
+
 .customization-summary {
   padding: 14px 16px;
   border-radius: 18px;
@@ -3766,7 +3775,11 @@ function noop() {}
   color: #1e293b;
   font-size: 14px;
   font-weight: 800;
-  padding: 13px 12px;
+  height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
