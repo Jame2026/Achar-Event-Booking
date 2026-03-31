@@ -21,11 +21,7 @@ class AdminController extends Controller
         $customersTotal = User::where('role', 'user')->count();
 
         $confirmedBookingsQuery = Booking::query()
-            ->where(function ($query) {
-                $query
-                    ->where('status', 'confirmed')
-                    ->orWhere('payment_status', 'confirmed');
-            });
+            ->where('status', 'confirmed');
 
         $confirmedBookingsTotal = (clone $confirmedBookingsQuery)->count();
         $grossRevenueTotal = round((float) ((clone $confirmedBookingsQuery)->sum('total_amount') ?: 0), 2);

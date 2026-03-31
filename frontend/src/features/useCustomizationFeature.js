@@ -14,10 +14,7 @@ export function useCustomizationFeature({
   notice,
   bookingSubmittingEventId,
   checkEventAvailability,
-  createBooking,
-  loadBookings,
-  goToBookings,
-  bookingFilter,
+  openCheckout,
 }) {
   const customizationSearch = ref('')
   const customizationEventType = ref('all')
@@ -251,22 +248,20 @@ export function useCustomizationFeature({
         }),
       ]
 
-      await createBooking({
+      openCheckout({
         event_id: backingEvent.id,
         quantity: qty,
-        customer_name: name,
-        customer_email: email,
-        customer_phone: phone || undefined,
         service_name: selectedCustomizationPackage.value.title,
         requested_event_type: selectedCustomizationPackage.value.eventType,
-        total_amount: Number(customizationTotal.value.toFixed(2)),
+        requested_event_date: backingEvent.startsAt || '',
+        vendor_name: selectedCustomizationPackage.value.vendorName || backingEvent.vendorName || 'Vendor',
+        vendor_email: selectedCustomizationPackage.value.vendorEmail || backingEvent.vendorEmail || '',
+        qr_code_url: selectedCustomizationPackage.value.qrCodeUrl || backingEvent.qrCodeUrl || '',
+        image_url: selectedCustomizationPackage.value.image || backingEvent.image || '',
+        location: backingEvent.location || selectedCustomizationPackage.value.location || '',
+        total_amount: Number((customizationPackageSubtotal.value + selectedServicesSubtotal.value).toFixed(2)),
         booked_items: bookedItems,
       })
-
-      notice.value = `Package booked successfully. Total estimate: $${customizationTotal.value.toLocaleString()}.`
-      await loadBookings()
-      bookingFilter.value = 'Upcoming'
-      goToBookings()
     } catch (error) {
       notice.value = error.message || 'Could not confirm this package.'
     } finally {

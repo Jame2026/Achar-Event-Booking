@@ -10,7 +10,10 @@ use App\Models\Event;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
@@ -228,7 +231,8 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'vendor_user_id' => ['required', 'integer', 'exists:users,id'],
-            'body' => ['required', 'string', 'max:4000'],
+            'body' => ['nullable', 'string', 'max:4000', 'required_without:image'],
+            'image' => ['nullable', 'file', 'required_without:body'],
         ]);
 
         $vendor = User::query()->select(['id', 'name', 'role'])->findOrFail((int) $validated['vendor_user_id']);
@@ -241,17 +245,25 @@ class ChatController extends Controller
         }
 
         $body = trim((string) ($validated['body'] ?? ''));
-        if ($body === '') {
+        $image = $request->file('image');
+        if ($image instanceof UploadedFile) {
+            $imageValidationError = $this->validateUploadedImage($image);
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+        }
+        if ($body === '' && ! ($image instanceof UploadedFile)) {
             return response()->json(['message' => 'Message cannot be empty.'], 422);
         }
 
-        $message = ChatMessage::create([
-            'conversation_id' => $conversation->id,
-            'sender_user_id' => $vendor->id,
-            'sender_role' => 'vendor',
-            'sender_name' => $vendor->name,
-            'body' => $body,
-        ]);
+        $message = $this->createConversationMessage(
+            $conversation,
+            $vendor->id,
+            'vendor',
+            $vendor->name,
+            $body,
+            $image instanceof UploadedFile ? $image : null,
+        );
 
         $conversation->update([
             'last_message_at' => $message->created_at,
@@ -266,7 +278,8 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'customer_email' => ['required', 'email'],
-            'body' => ['required', 'string', 'max:4000'],
+            'body' => ['nullable', 'string', 'max:4000', 'required_without:image'],
+            'image' => ['nullable', 'file', 'required_without:body'],
         ]);
 
         $email = $this->normalizeEmail((string) $validated['customer_email']);
@@ -279,7 +292,14 @@ class ChatController extends Controller
         }
 
         $body = trim((string) ($validated['body'] ?? ''));
-        if ($body === '') {
+        $image = $request->file('image');
+        if ($image instanceof UploadedFile) {
+            $imageValidationError = $this->validateUploadedImage($image);
+            if ($imageValidationError !== null) {
+                return response()->json(['message' => $imageValidationError], 422);
+            }
+        }
+        if ($body === '' && ! ($image instanceof UploadedFile)) {
             return response()->json(['message' => 'Message cannot be empty.'], 422);
         }
 
@@ -288,13 +308,14 @@ class ChatController extends Controller
             ?: $this->filledValue($conversation->customer_name)
             ?: 'Customer';
 
-        $message = ChatMessage::create([
-            'conversation_id' => $conversation->id,
-            'sender_user_id' => $conversation->customer_user_id,
-            'sender_role' => 'customer',
-            'sender_name' => $senderName,
-            'body' => $body,
-        ]);
+        $message = $this->createConversationMessage(
+            $conversation,
+            $conversation->customer_user_id,
+            'customer',
+            $senderName,
+            $body,
+            $image instanceof UploadedFile ? $image : null,
+        );
 
         $conversation->update([
             'last_message_at' => $message->created_at,
@@ -381,7 +402,7 @@ class ChatController extends Controller
             ?: $this->filledValue($conversation->booking?->customer_location);
         $preview = $latestMessage?->body;
         if (! is_string($preview) || trim($preview) === '') {
-            $preview = '';
+            $preview = $latestMessage?->image_url ? 'Shared an image' : '';
         }
 
         return [
@@ -413,9 +434,40 @@ class ChatController extends Controller
             'sender_role' => $message->sender_role,
             'sender_name' => $message->sender_name,
             'body' => $message->body,
+            'image_url' => $message->image_url,
             'created_at' => $message->created_at?->toIso8601String(),
             'time_label' => $this->timeLabel($message->created_at),
         ];
+    }
+
+    private function createConversationMessage(
+        ChatConversation $conversation,
+        ?int $senderUserId,
+        string $senderRole,
+        ?string $senderName,
+        string $body,
+        ?UploadedFile $image = null
+    ): ChatMessage {
+        $imageUrl = null;
+        $imageMime = null;
+        $imageSize = null;
+
+        if ($image instanceof UploadedFile) {
+            $imageUrl = $this->storeChatImage($image);
+            $imageMime = $image->getMimeType();
+            $imageSize = $image->getSize();
+        }
+
+        return ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_user_id' => $senderUserId,
+            'sender_role' => $senderRole,
+            'sender_name' => $senderName,
+            'body' => $body,
+            'image_url' => $imageUrl,
+            'image_mime' => $imageMime,
+            'image_size' => $imageSize,
+        ]);
     }
 
     private function timeLabel(?Carbon $at): string
@@ -444,6 +496,41 @@ class ChatController extends Controller
     private function normalizeEmail(string $email): string
     {
         return strtolower(trim($email));
+    }
+
+    private function validateUploadedImage(UploadedFile $image): ?string
+    {
+        if (! $image->isValid()) {
+            return 'The selected image upload is invalid.';
+        }
+
+        if ($image->getSize() > 5 * 1024 * 1024) {
+            return 'Chat images must not be larger than 5 MB.';
+        }
+
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: ''));
+
+        if (! in_array($extension, $allowedExtensions, true)) {
+            return 'Chat images must be JPG, PNG, GIF, or WEBP.';
+        }
+
+        return null;
+    }
+
+    private function storeChatImage(UploadedFile $image): string
+    {
+        $disk = (string) config('media.chat_image_disk', 'public');
+        $directory = trim((string) config('media.chat_image_directory', 'chat-images'), '/');
+        $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
+
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException('Failed to store chat image.');
+        }
+
+        return Storage::disk($disk)->url($path);
     }
 
     private function filledValue(?string $value): ?string

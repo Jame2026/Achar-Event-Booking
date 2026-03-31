@@ -16,7 +16,17 @@ class ChatMessage extends Model
         'sender_role',
         'sender_name',
         'body',
+        'image_url',
+        'image_mime',
+        'image_size',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'image_size' => 'integer',
+        ];
+    }
 
     public function conversation(): BelongsTo
     {

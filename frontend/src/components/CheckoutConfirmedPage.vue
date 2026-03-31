@@ -20,20 +20,26 @@ const receipt = (() => {
     return null;
   }
 })();
-
 const booking = receipt?.booking || {};
 const items = Array.isArray(receipt?.items) ? receipt.items : [];
 const bookingTotal = Number(receipt?.bookingTotal || 0);
 const processingFee = Number(receipt?.processingFee || 0);
 const deposit = Number(receipt?.deposit || 0);
 const remaining = Number(receipt?.remaining || 0);
-const paidDateLabel = computed(() => {
-  const value = receipt?.paidAt ? new Date(receipt.paidAt) : new Date();
-  return value.toLocaleString();
-});
+const amountPaidToday = computed(() => Number((deposit + processingFee).toFixed(2)));
 const bookingId = computed(() => {
   const base = Date.now().toString().slice(-6);
   return `#AC-${new Date().getFullYear()}-${base}`;
+});
+const pageTitle = computed(() => "Deposit Paid and Booking Sent!");
+const pageSubtitle = computed(
+  () => "Your 30% deposit and service fee were received. The vendor can now approve or cancel this booking.",
+);
+const badgeLabel = computed(() => "Awaiting Vendor Approval");
+const issuedLabel = computed(() => {
+  const value = receipt?.paidAt || receipt?.requestedAt;
+  const date = value ? new Date(value) : new Date();
+  return date.toLocaleString();
 });
 
 function goDashboard() {
@@ -46,8 +52,8 @@ function goReceipt() {
 
 const copyByLanguage = {
   en: {
-    title: "Your Celebration is Set!",
-    subtitle: "Your booking has been confirmed. A copy of the receipt has been sent to your email.",
+    title: "Deposit Paid and Booking Sent!",
+    subtitle: "Your 30% deposit and service fee were received. The vendor can now review this booking.",
     digitalReceipt: "Digital Receipt",
     bookingId: "Booking ID",
     eventDate: "Event Date",
@@ -105,8 +111,8 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
       <div class="status-wrap">
         <div class="status-icon">&#10003;</div>
       </div>
-      <h1>{{ uiText.title }}</h1>
-      <p class="subtitle">{{ uiText.subtitle }}</p>
+      <h1>{{ pageTitle }}</h1>
+      <p class="subtitle">{{ pageSubtitle }}</p>
 
       <section class="receipt-card">
         <div class="receipt-head">
@@ -126,7 +132,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               <small>{{ uiText.eventDate }}</small>
               <strong>{{ booking.eventDate || "TBD" }}</strong>
             </div>
-            <div class="paid-pill">{{ uiText.depositPaid }}</div>
+            <div class="paid-pill pending">{{ badgeLabel }}</div>
           </div>
 
           <div class="service-list">
@@ -143,13 +149,14 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             <div><span>{{ uiText.totalBooking }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
             <div><span>{{ uiText.processingFees }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
             <div class="deposit-row"><span>{{ uiText.deposit30 }}</span><strong>${{ deposit.toLocaleString() }}</strong></div>
+            <div><span>Paid Today</span><strong>${{ amountPaidToday.toLocaleString() }}</strong></div>
             <div><small>{{ uiText.remaining }}</small><strong>${{ remaining.toLocaleString() }}</strong></div>
           </div>
         </div>
 
         <footer class="receipt-foot">
           <span>{{ uiText.secured }}</span>
-          <span>{{ uiText.issuedOn }} {{ paidDateLabel }}</span>
+          <span>{{ uiText.issuedOn }} {{ issuedLabel }}</span>
         </footer>
       </section>
 
@@ -290,6 +297,11 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
   color: #166534;
   font-weight: 700;
   font-size: 11px;
+}
+
+.paid-pill.pending {
+  background: #ffedd5;
+  color: #c2410c;
 }
 
 .service-list {

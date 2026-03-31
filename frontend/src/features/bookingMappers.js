@@ -118,14 +118,76 @@ export function mapBooking(apiBooking, options) {
   const fallbackServiceName = apiBooking.service_name || event.title || 'Service Booking'
   const bookingDate = apiBooking.requested_event_date || event.starts_at
   const status = (apiBooking.status || 'pending').toLowerCase()
+  const paymentStatus = (apiBooking.payment_status || 'pending').toLowerCase()
+  const qrCodeUrl = event.qr_code_url || event.qrCodeUrl || ''
+  const depositAmount = Number(apiBooking.deposit_amount || 0)
+  const serviceFeeAmount = Number(apiBooking.service_fee_amount || 0)
+  const balanceDueAmount = Number(apiBooking.balance_due_amount || 0)
+  const refundAmount = Number(apiBooking.refund_amount || 0)
+  const customerCompensationAmount = Number(apiBooking.customer_compensation_amount || 0)
+  const isCancelled = status === 'cancelled'
+  const isApproved = status === 'confirmed'
+  const isPaid = paymentStatus === 'confirmed'
+  const isRefunded = paymentStatus === 'refunded'
+  const isAwaitingApproval = status === 'pending' && isPaid
+  const isApprovedWithoutDeposit = isApproved && !isPaid && !isRefunded
+  const needsDepositPayment = !isCancelled && !isPaid && !isRefunded
+  const cancellationDeadlineAt = apiBooking.vendor_cancellation_deadline_at || null
+  const cancellationDeadline = cancellationDeadlineAt ? new Date(cancellationDeadlineAt) : null
+  const isWithinFreeCancellationWindow =
+    cancellationDeadline instanceof Date && !Number.isNaN(cancellationDeadline.getTime())
+      ? cancellationDeadline.getTime() >= Date.now()
+      : false
+  const initialPaymentAmount = Number((depositAmount + serviceFeeAmount).toFixed(2))
+  const lateCancellationRefundAmount = Number((initialPaymentAmount * 0.15).toFixed(2))
 
-  const statusText =
-    status === 'confirmed' ? 'Confirmed' : status === 'cancelled' ? 'Cancelled' : 'Pending Approval'
+  let statusText = 'Deposit Payment Required'
+  let statusClass = 'pending'
+  let note = qrCodeUrl
+    ? 'Pay the 30% deposit plus service fee to submit this booking to the vendor.'
+    : 'This vendor must add a payment QR code before you can complete the booking deposit.'
+  let primaryBtn = qrCodeUrl ? 'Pay Deposit' : 'Message Vendor'
+  let primaryAction = qrCodeUrl ? 'pay' : 'message'
 
-  const statusClass =
-    status === 'confirmed' ? 'confirmed' : status === 'cancelled' ? 'done' : 'pending'
+  if (isCancelled) {
+    statusText = 'Cancelled'
+    statusClass = 'done'
+    note = refundAmount > 0
+      ? `Refund due: $${refundAmount.toLocaleString()}.`
+      : 'This booking request was cancelled.'
+    if (customerCompensationAmount > 0) {
+      note += ` Additional customer compensation due: $${customerCompensationAmount.toLocaleString()}.`
+    }
+    primaryBtn = 'View Details'
+    primaryAction = 'view'
+  } else if (isAwaitingApproval) {
+    statusText = 'Deposit Paid - Awaiting Approval'
+    statusClass = 'pending'
+    note = isWithinFreeCancellationWindow
+      ? 'Your deposit was received. The vendor can now review this booking, and you can still cancel within the first 3 days for a full refund.'
+      : `Your deposit was received. If you cancel now, only 15% of your first payment ($${lateCancellationRefundAmount.toLocaleString()}) will be refunded.`
+    primaryBtn = 'View Details'
+    primaryAction = 'view'
+  } else if (isApprovedWithoutDeposit) {
+    statusText = 'Approved - Deposit Pending'
+    statusClass = 'pending'
+    note = qrCodeUrl
+      ? 'Vendor approved your booking, but the deposit is still unpaid. Pay now to secure it.'
+      : 'Vendor approved your booking, but the deposit is still unpaid. Ask the vendor to add a payment QR code.'
+    primaryBtn = qrCodeUrl ? 'Pay Deposit' : 'Message Vendor'
+    primaryAction = qrCodeUrl ? 'pay' : 'message'
+  } else if (isApproved && isPaid) {
+    statusText = 'Approved by Vendor'
+    statusClass = 'confirmed'
+    note = isWithinFreeCancellationWindow
+      ? `Vendor approved your booking. Remaining balance due later: $${balanceDueAmount.toLocaleString()}. You can still cancel within the first 3 days for a full refund of your first payment.`
+      : `Vendor approved your booking. Remaining balance due later: $${balanceDueAmount.toLocaleString()}. If you cancel now, only 15% of your first payment ($${lateCancellationRefundAmount.toLocaleString()}) will be refunded.`
+    primaryBtn = 'View Details'
+    primaryAction = 'view'
+  }
 
   const type = deriveBookingType(status, bookingDate)
+  const canCancel = !isCancelled && type === 'Upcoming' && (status === 'pending' || status === 'confirmed')
 
   return {
     id: apiBooking.id,
@@ -141,6 +203,23 @@ export function mapBooking(apiBooking, options) {
     status: statusText,
     statusClass,
     type,
+    bookingStatus: status,
+    paymentStatus,
+    primaryAction,
+    paymentReady: needsDepositPayment && Boolean(qrCodeUrl),
+    isPaid,
+    canCancel,
+    isWithinFreeCancellationWindow,
+    initialPaymentAmount,
+    lateCancellationRefundAmount,
+    depositAmount,
+    serviceFeeAmount,
+    balanceDueAmount,
+    refundAmount,
+    customerCompensationAmount,
+    vendorCancellationDeadlineAt: apiBooking.vendor_cancellation_deadline_at || null,
+    qrCodeUrl,
+    requestedEventDate: apiBooking.requested_event_date || null,
     eventType: resolvedEventType,
     eventId: event.id,
     vendorId: event.vendor_id || vendor.id || null,
@@ -150,11 +229,9 @@ export function mapBooking(apiBooking, options) {
       'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
     bookedItems,
     canDelete: type === 'Completed',
-    primaryBtn: status === 'pending' ? 'Message Vendor' : 'View Details',
+    primaryBtn,
     secondaryBtn: 'Reschedule',
-    note: [apiBooking.customer_name, apiBooking.customer_email || apiBooking.customer_phone]
-      .filter(Boolean)
-      .join(' | '),
+    note,
   }
 }
 

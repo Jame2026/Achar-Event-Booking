@@ -339,8 +339,9 @@ const normalizeStatus = (row) => {
   const status = String(row?.status || "").toLowerCase();
   const paymentStatus = String(row?.payment_status || "").toLowerCase();
   if (status === "cancelled") return "failed";
-  if (status === "confirmed" || paymentStatus === "confirmed") return "completed";
-  if (status === "pending" || paymentStatus === "pending") return "pending";
+  if (status === "confirmed") return "completed";
+  if (paymentStatus === "refunded") return "failed";
+  if (status === "pending" || paymentStatus === "pending" || paymentStatus === "confirmed") return "pending";
   return "pending";
 };
 

@@ -1207,6 +1207,20 @@ function formatCurrency(value) {
   return `$${Number(value || 0).toLocaleString()}`;
 }
 
+function formatDateTimeLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "No data";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 const hasServiceTitle = computed(() =>
   Boolean(String(props.vendorServiceForm?.title || "").trim()),
 );
@@ -1709,6 +1723,51 @@ function bookingStatusClass(status) {
   const value = String(status || "").toLowerCase();
   if (value === "confirmed") return "ok";
   if (value === "cancelled") return "bad";
+  return "wait";
+}
+
+function bookingStatusLabel(item) {
+  const status = String(item?.status || "").trim();
+  if (!status) return uiText.value.noData || "N/A";
+
+  if (status.toLowerCase() !== "cancelled") {
+    return status;
+  }
+
+  const actor = String(item?.cancellation_actor || "").toLowerCase();
+  if (actor === "customer") {
+    return `${uiText.value.cancelled} (${uiText.value.clientLabel})`;
+  }
+
+  if (actor === "vendor") {
+    return `${uiText.value.cancelled} (${uiText.value.vendor})`;
+  }
+
+  return uiText.value.cancelled || status;
+}
+
+function bookingPaymentLabel(item) {
+  const bookingStatus = String(item?.status || "").toLowerCase();
+  const paymentStatus = String(item?.payment_status || "").toLowerCase();
+
+  if (paymentStatus === "refunded") {
+    return Number(item?.customer_compensation_amount || 0) > 0
+      ? "Refund + Vendor Penalty Due"
+      : "Refund Due";
+  }
+
+  if (paymentStatus === "confirmed") {
+    return bookingStatus === "confirmed" ? "Deposit Received" : "Deposit Paid";
+  }
+
+  if (bookingStatus === "pending") return "Deposit Pending";
+  return "";
+}
+
+function bookingPaymentClass(item) {
+  const paymentStatus = String(item?.payment_status || "").toLowerCase();
+  if (paymentStatus === "confirmed") return "ok";
+  if (paymentStatus === "refunded") return "bad";
   return "wait";
 }
 
@@ -3130,8 +3189,15 @@ watch(
                   class="status-chip"
                   :class="bookingStatusClass(item.status)"
                 >
-                  {{ item.status }}
+                  {{ bookingStatusLabel(item) }}
                 </span>
+                <small
+                  v-if="bookingPaymentLabel(item)"
+                  class="payment-state"
+                  :class="bookingPaymentClass(item)"
+                >
+                  {{ bookingPaymentLabel(item) }}
+                </small>
               </td>
               <td class="row-actions booking-actions">
                 <button
@@ -3142,6 +3208,7 @@ watch(
                   {{ uiText.viewDetails }}
                 </button>
                 <button
+                  v-if="String(item.status || '').toLowerCase() !== 'cancelled'"
                   type="button"
                   class="action-confirm"
                   @click="props.updateVendorBookingStatus(item, 'confirmed')"
@@ -3149,6 +3216,7 @@ watch(
                   {{ uiText.confirm }}
                 </button>
                 <button
+                  v-if="String(item.status || '').toLowerCase() !== 'cancelled'"
                   type="button"
                   class="action-cancel"
                   @click="props.updateVendorBookingStatus(item, 'cancelled')"
@@ -3251,9 +3319,16 @@ watch(
                         class="status-chip"
                         :class="bookingStatusClass(bookingDetail.status)"
                       >
-                        {{ bookingDetail.status || uiText.noData }}
+                        {{ bookingStatusLabel(bookingDetail) }}
                       </span>
                     </strong>
+                    <small
+                      v-if="bookingPaymentLabel(bookingDetail)"
+                      class="payment-state"
+                      :class="bookingPaymentClass(bookingDetail)"
+                    >
+                      {{ bookingPaymentLabel(bookingDetail) }}
+                    </small>
                   </div>
                   <div>
                     <span>{{ uiText.quantityLabel }}</span>
@@ -3262,6 +3337,34 @@ watch(
                   <div>
                     <span>{{ uiText.totalLabel }}</span>
                     <strong>{{ formatCurrency(bookingDetail.total_amount) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.deposit_amount || 0) > 0">
+                    <span>Deposit Paid</span>
+                    <strong>{{ formatCurrency(bookingDetail.deposit_amount) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.service_fee_amount || 0) > 0">
+                    <span>Service Fee</span>
+                    <strong>{{ formatCurrency(bookingDetail.service_fee_amount) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.balance_due_amount || 0) > 0">
+                    <span>Balance Due Later</span>
+                    <strong>{{ formatCurrency(bookingDetail.balance_due_amount) }}</strong>
+                  </div>
+                  <div v-if="bookingDetail.vendor_cancellation_deadline_at">
+                    <span>Penalty-free Cancel Until</span>
+                    <strong>{{ formatDateTimeLabel(bookingDetail.vendor_cancellation_deadline_at) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.refund_amount || 0) > 0">
+                    <span>Customer Refund Due</span>
+                    <strong>{{ formatCurrency(bookingDetail.refund_amount) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.customer_compensation_amount || 0) > 0">
+                    <span>Late Cancel Penalty</span>
+                    <strong>{{ formatCurrency(bookingDetail.customer_compensation_amount) }}</strong>
+                  </div>
+                  <div v-if="Number(bookingDetail.admin_compensation_amount || 0) > 0">
+                    <span>Admin Fee Coverage</span>
+                    <strong>{{ formatCurrency(bookingDetail.admin_compensation_amount) }}</strong>
                   </div>
                 </div>
               </section>
@@ -7226,6 +7329,23 @@ watch(
 .status-chip.bad {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.payment-state {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.payment-state.wait {
+  color: #c2410c;
+}
+
+.payment-state.ok {
+  color: #15803d;
 }
 
 .modal-backdrop {

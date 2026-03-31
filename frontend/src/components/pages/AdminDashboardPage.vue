@@ -1219,9 +1219,8 @@ const selectedUserActivities = computed(() => {
 
 const normalizeBookingStatus = (row) => {
   const status = String(row?.status || "").toLowerCase();
-  const payment = String(row?.payment_status || "").toLowerCase();
   if (status === "cancelled") return "cancelled";
-  if (status === "confirmed" || payment === "confirmed") return "confirmed";
+  if (status === "confirmed") return "confirmed";
   return "pending";
 };
 

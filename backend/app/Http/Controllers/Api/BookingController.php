@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BookingNotification;
+use App\Models\ChatConversation;
+use App\Models\ChatMessage;
 use App\Models\Event;
 use App\Models\User;
 use App\Support\NotificationCache;
@@ -19,6 +21,11 @@ use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
+    private const SERVICE_FEE_RATE = 0.035;
+    private const DEPOSIT_PERCENT = 30.0;
+    private const VENDOR_CANCELLATION_GRACE_DAYS = 3;
+    private const LATE_CUSTOMER_CANCELLATION_REFUND_RATE = 0.15;
+
     public function publicIndex(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -39,7 +46,7 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event:id,title,event_type,image_url,qr_code_url,starts_at,location,vendor_id,service_mode',
                 'event.vendor:id,name,email,profile_image_url',
                 'user:id,name,email,phone,location,profile_image_url',
             ])
@@ -92,7 +99,7 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event:id,title,event_type,image_url,qr_code_url,starts_at,location,vendor_id,service_mode',
                 'event.vendor:id,name,email,profile_image_url',
                 'user:id,name,email,phone,location,profile_image_url',
             ])
@@ -283,12 +290,22 @@ class BookingController extends Controller
         }
 
         $paymentToken = Str::uuid()->toString();
+        $financials = $this->resolveBookingFinancials($totalAmount);
         $booking = Booking::create([
             ...$validated,
             'user_id' => $request->user() ? $request->user()->id : null,
             'status' => 'pending',
             'payment_status' => 'pending',
+            'deposit_percent' => $financials['deposit_percent'],
+            'deposit_amount' => $financials['deposit_amount'],
+            'service_fee_amount' => $financials['service_fee_amount'],
+            'balance_due_amount' => $financials['balance_due_amount'],
+            'refund_amount' => 0,
+            'vendor_penalty_amount' => 0,
+            'customer_compensation_amount' => 0,
+            'admin_compensation_amount' => 0,
             'payment_token' => $paymentToken,
+            'vendor_cancellation_deadline_at' => now()->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS),
             'service_name' => $validated['service_name'] ?? ($event?->title ?? 'Custom Booking'),
             'requested_event_date' => $requestedDate,
             'total_amount' => $totalAmount,
@@ -297,7 +314,6 @@ class BookingController extends Controller
 
         $booking->setRelation('event', $event);
         $this->flushVendorCacheForBooking($booking);
-        $this->createBookingCreatedNotifications($booking);
 
         return response()->json(
             $booking
@@ -353,17 +369,24 @@ class BookingController extends Controller
             ? (float) $validated['total_amount']
             : null;
 
+        $resolvedTotalAmount = $event
+            ? $this->resolveEventBookingTotal(
+                $event,
+                (int) $newQuantity,
+                $requestedTotalAmount,
+                $booking,
+                (int) $booking->quantity
+            )
+            : ($requestedTotalAmount !== null ? round($requestedTotalAmount, 2) : $booking->total_amount);
+        $financials = $this->resolveBookingFinancials((float) $resolvedTotalAmount);
+
         $booking->update([
             ...$validated,
-            'total_amount' => $event
-                ? $this->resolveEventBookingTotal(
-                    $event,
-                    (int) $newQuantity,
-                    $requestedTotalAmount,
-                    $booking,
-                    (int) $booking->quantity
-                )
-                : ($requestedTotalAmount !== null ? round($requestedTotalAmount, 2) : $booking->total_amount),
+            'total_amount' => $resolvedTotalAmount,
+            'deposit_percent' => $financials['deposit_percent'],
+            'deposit_amount' => $financials['deposit_amount'],
+            'service_fee_amount' => $financials['service_fee_amount'],
+            'balance_due_amount' => $financials['balance_due_amount'],
         ]);
         $this->flushVendorCacheForBooking($booking);
 
@@ -379,34 +402,83 @@ class BookingController extends Controller
     public function confirmPayment(Request $request, Booking $booking): JsonResponse
     {
         $validated = $request->validate([
-            'payment_token' => ['required', 'string', 'max:120'],
+            'payment_token' => ['nullable', 'string', 'max:120'],
             'payment_method' => ['nullable', 'string', 'max:40'],
             'payment_reference' => ['nullable', 'string', 'max:120'],
+            'user_id' => ['nullable', 'integer', 'min:1'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:20'],
         ]);
 
-        $providedToken = (string) $validated['payment_token'];
+        $booking->loadMissing([
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone',
+        ]);
+
+        $providedToken = trim((string) ($validated['payment_token'] ?? ''));
         $storedToken = (string) ($booking->payment_token ?? '');
-        if ($storedToken === '' || ! hash_equals($storedToken, $providedToken)) {
-            return response()->json(['message' => 'Invalid payment token.'], 403);
+
+        if ($providedToken !== '') {
+            if ($storedToken === '' || ! hash_equals($storedToken, $providedToken)) {
+                return response()->json(['message' => 'Invalid payment token.'], 403);
+            }
+        } else {
+            /** @var \App\Models\User|null $user */
+            $user = $request->user();
+
+            $canAccess = false;
+            if ($user instanceof User) {
+                $canAccess = $this->canUserAccessBooking($user, $booking);
+            } else {
+                $customerEmail = isset($validated['customer_email'])
+                    ? strtolower(trim((string) $validated['customer_email']))
+                    : null;
+                $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+                $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+
+                if (! $userId && ! $customerEmail && ! $customerPhoneVariants) {
+                    return response()->json(['message' => 'Unauthenticated.'], 401);
+                }
+
+                $canAccess = $this->canIdentityAccessBooking(
+                    $booking,
+                    $userId,
+                    $customerEmail,
+                    $customerPhoneVariants,
+                );
+            }
+
+            if (! $canAccess) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
         }
 
-        $previousStatus = (string) ($booking->status ?? 'pending');
-        $nextStatus = 'confirmed';
+        if ((string) ($booking->status ?? 'pending') === 'cancelled') {
+            return response()->json([
+                'message' => 'Cancelled bookings cannot be paid.',
+            ], 422);
+        }
 
-        if ($booking->status !== $nextStatus || $booking->payment_status !== 'confirmed') {
+        $wasUnpaid = $booking->payment_status !== 'confirmed';
+
+        if ($booking->payment_status !== 'confirmed') {
             $booking->update([
-                'status' => $nextStatus,
                 'payment_status' => 'confirmed',
                 'payment_method' => $validated['payment_method'] ?? $booking->payment_method,
                 'payment_reference' => $validated['payment_reference'] ?? $booking->payment_reference,
                 'paid_at' => now(),
+                'vendor_cancellation_deadline_at' => $booking->vendor_cancellation_deadline_at
+                    ?: ($booking->created_at
+                        ? $booking->created_at->copy()->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS)
+                        : now()->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS)),
             ]);
         }
 
         $updatedBooking = $booking->fresh()->load('event.vendor:id,name,email');
 
-        if ($previousStatus !== $nextStatus) {
-            $this->createBookingStatusNotifications($updatedBooking, $nextStatus);
+        if ($wasUnpaid && $updatedBooking->payment_status === 'confirmed') {
+            $this->createBookingCreatedNotifications($updatedBooking);
+            $this->flushVendorCacheForBooking($updatedBooking);
         }
 
         return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));
@@ -474,6 +546,52 @@ class BookingController extends Controller
         $booking->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function cancelForUser(Request $request, Booking $booking): JsonResponse
+    {
+        $booking->loadMissing([
+            'event:id,title,starts_at,location,vendor_id',
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone',
+        ]);
+
+        [$canAccess, $identityError] = $this->resolveCustomerBookingAccess($request, $booking);
+
+        if ($identityError instanceof JsonResponse) {
+            return $identityError;
+        }
+
+        if (! $canAccess) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ((string) ($booking->status ?? 'pending') === 'cancelled') {
+            return response()->json(['message' => 'This booking is already cancelled.'], 422);
+        }
+
+        if (! $this->canCustomerCancelBooking($booking)) {
+            return response()->json(['message' => 'Only active upcoming bookings can be cancelled.'], 422);
+        }
+
+        $cancelledAt = now();
+        $booking->update([
+            'status' => 'cancelled',
+            ...$this->resolveCustomerCancellationSettlement($booking, $cancelledAt),
+            'cancelled_at' => $cancelledAt,
+            'cancellation_actor' => 'customer',
+        ]);
+
+        $this->flushVendorCacheForBooking($booking);
+        $updatedBooking = $booking->fresh()->load([
+            'event:id,title,starts_at,location,vendor_id',
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone',
+        ]);
+        $this->createBookingStatusNotifications($updatedBooking, 'cancelled');
+        $this->createCustomerCancellationChatMessage($updatedBooking);
+
+        return response()->json($updatedBooking);
     }
 
     private function hasCapacity(Event $event, int $requestedQuantity, ?int $ignoreBookingId = null, ?string $requestedDate = null): bool
@@ -578,6 +696,42 @@ class BookingController extends Controller
         );
     }
 
+    private function resolveCustomerBookingAccess(Request $request, Booking $booking): array
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        if ($user instanceof User) {
+            return [$this->canUserAccessBooking($user, $booking), null];
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['nullable', 'integer', 'min:1'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $customerEmail = isset($validated['customer_email'])
+            ? strtolower(trim((string) $validated['customer_email']))
+            : null;
+        $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+        $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+
+        if (! $userId && ! $customerEmail && ! $customerPhoneVariants) {
+            return [false, response()->json(['message' => 'Unauthenticated.'], 401)];
+        }
+
+        return [
+            $this->canIdentityAccessBooking(
+                $booking,
+                $userId,
+                $customerEmail,
+                $customerPhoneVariants,
+            ),
+            null,
+        ];
+    }
+
     private function canIdentityAccessBooking(
         Booking $booking,
         ?int $userId = null,
@@ -618,6 +772,28 @@ class BookingController extends Controller
         return false;
     }
 
+    private function canCustomerCancelBooking(Booking $booking): bool
+    {
+        $status = strtolower((string) ($booking->status ?? 'pending'));
+        if (! in_array($status, ['pending', 'confirmed'], true)) {
+            return false;
+        }
+
+        if ($booking->requested_event_date) {
+            return Carbon::parse($booking->requested_event_date)->startOfDay()->gt(Carbon::today());
+        }
+
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->select(['id', 'starts_at'])->first();
+
+        if ($event?->starts_at) {
+            return Carbon::parse($event->starts_at)->gt(now());
+        }
+
+        return true;
+    }
+
     private function vendorHasAnotherBookedEvent(Event $event, ?string $requestedDate = null): bool
     {
         if (! $event->vendor_id) {
@@ -630,8 +806,8 @@ class BookingController extends Controller
                 ->where('id', '!=', $event->id)
                 ->whereHas(
                     'bookings',
-                    fn ($query) => $query
-                        ->whereIn('status', ['pending', 'confirmed'])
+                    fn ($query) => $this
+                        ->applyCommittedBookingScope($query)
                         ->where(function ($dateQuery) use ($requestedDate) {
                             $dateQuery
                                 ->whereDate('requested_event_date', $requestedDate)
@@ -657,7 +833,7 @@ class BookingController extends Controller
             ->where('id', '!=', $event->id)
             ->whereHas(
                 'bookings',
-                fn ($query) => $query->whereIn('status', ['pending', 'confirmed'])
+                fn ($query) => $this->applyCommittedBookingScope($query)
             )
             ->whereRaw(
                 'starts_at <= ? AND COALESCE(ends_at, starts_at) >= ?',
@@ -703,10 +879,13 @@ class BookingController extends Controller
 
     private function reservedQuantityForDate(Event $event, ?string $requestedDate = null, ?int $ignoreBookingId = null): int
     {
-        return (int) Booking::query()
+        $query = Booking::query()
             ->where('event_id', $event->id)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->when($ignoreBookingId, fn ($query) => $query->where('id', '!=', $ignoreBookingId))
+            ->when($ignoreBookingId, fn ($builder) => $builder->where('id', '!=', $ignoreBookingId));
+
+        $this->applyCommittedBookingScope($query);
+
+        return (int) $query
             ->when(
                 $requestedDate,
                 function ($query, $requestedDate) {
@@ -726,10 +905,13 @@ class BookingController extends Controller
 
     private function hasBookingOnDate(Event $event, ?string $requestedDate = null, ?int $ignoreBookingId = null): bool
     {
-        return Booking::query()
+        $query = Booking::query()
             ->where('event_id', $event->id)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->when($ignoreBookingId, fn ($query) => $query->where('id', '!=', $ignoreBookingId))
+            ->when($ignoreBookingId, fn ($builder) => $builder->where('id', '!=', $ignoreBookingId));
+
+        $this->applyCommittedBookingScope($query);
+
+        return $query
             ->when(
                 $requestedDate,
                 function ($query, $requestedDate) {
@@ -747,6 +929,19 @@ class BookingController extends Controller
             ->exists();
     }
 
+    private function applyCommittedBookingScope($query)
+    {
+        return $query->where(function ($committedQuery) {
+            $committedQuery
+                ->where('status', 'confirmed')
+                ->orWhere(function ($pendingPaidQuery) {
+                    $pendingPaidQuery
+                        ->where('status', 'pending')
+                        ->where('payment_status', 'confirmed');
+                });
+        });
+    }
+
     private function createBookingCreatedNotifications(Booking $booking): void
     {
         $event = $booking->event;
@@ -758,6 +953,8 @@ class BookingController extends Controller
         $eventDate = $booking->requested_event_date
             ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
             : ($event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date');
+        $depositAmount = $this->formatCurrency($booking->deposit_amount);
+        $serviceFeeAmount = $this->formatCurrency($booking->service_fee_amount);
 
         BookingNotification::create([
             'booking_id' => $booking->id,
@@ -766,7 +963,7 @@ class BookingController extends Controller
             'recipient_email' => strtolower((string) $booking->customer_email),
             'kind' => 'booking_created',
             'title' => 'Booking request received',
-            'message' => "Your booking for {$serviceName} on {$eventDate} is pending approval.",
+            'message' => "Your booking for {$serviceName} on {$eventDate} was sent to the vendor after your {$depositAmount} deposit and {$serviceFeeAmount} service fee payment.",
         ]);
         $this->flushNotificationCache('user', $booking->user_id, strtolower((string) $booking->customer_email));
 
@@ -780,8 +977,8 @@ class BookingController extends Controller
             'recipient_user_id' => $event->vendor_id,
             'recipient_email' => $event->vendor ? strtolower((string) $event->vendor->email) : null,
             'kind' => 'booking_created',
-            'title' => 'New booking request',
-            'message' => "{$booking->customer_name} requested {$booking->quantity} seat(s) for {$serviceName}.",
+            'title' => 'New paid booking request',
+            'message' => "{$booking->customer_name} booked {$booking->quantity} seat(s) for {$serviceName} and paid the 30% deposit plus service fee.",
         ]);
         $this->flushNotificationCache(
             'vendor',
@@ -802,6 +999,32 @@ class BookingController extends Controller
         $eventDate = $booking->requested_event_date
             ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
             : ($event->starts_at ? $event->starts_at->format('M d, Y g:i A') : 'the scheduled date');
+        $userMessage = "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.";
+        $vendorMessage = "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.";
+
+        if ($nextStatus === 'confirmed') {
+            $remainingBalance = $this->formatCurrency($booking->balance_due_amount);
+            $userMessage = "Your booking for {$serviceName} on {$eventDate} has been approved by the vendor. Remaining balance due on service day: {$remainingBalance}.";
+            $vendorMessage = "Booking #{$booking->id} for {$serviceName} has been approved.";
+        } elseif ($nextStatus === 'cancelled' && (float) $booking->refund_amount > 0) {
+            $refundAmount = $this->formatCurrency($booking->refund_amount);
+            $customerCompensation = (float) $booking->customer_compensation_amount > 0
+                ? $this->formatCurrency($booking->customer_compensation_amount)
+                : null;
+            $cancelledByCustomer = strtolower((string) ($booking->cancellation_actor ?? '')) === 'customer';
+
+            $userMessage = $cancelledByCustomer
+                ? "Your booking for {$serviceName} on {$eventDate} was cancelled by you. Refund due: {$refundAmount}."
+                : "Your booking for {$serviceName} on {$eventDate} was cancelled. Refund due: {$refundAmount}.";
+
+            if ($customerCompensation !== null) {
+                $userMessage .= " Additional customer compensation due: {$customerCompensation}.";
+            }
+
+            $vendorMessage = $cancelledByCustomer
+                ? "Booking #{$booking->id} for {$serviceName} was cancelled by the customer."
+                : $vendorMessage;
+        }
 
         BookingNotification::create([
             'booking_id' => $booking->id,
@@ -810,7 +1033,7 @@ class BookingController extends Controller
             'recipient_email' => strtolower((string) $booking->customer_email),
             'kind' => 'booking_status_changed',
             'title' => "Booking {$statusLabel}",
-            'message' => "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.",
+            'message' => $userMessage,
         ]);
         $this->flushNotificationCache('user', $booking->user_id, strtolower((string) $booking->customer_email));
 
@@ -825,13 +1048,111 @@ class BookingController extends Controller
             'recipient_email' => $event->vendor ? strtolower((string) $event->vendor->email) : null,
             'kind' => 'booking_status_changed',
             'title' => "Booking {$statusLabel}",
-            'message' => "Booking #{$booking->id} for {$serviceName} is now {$statusLabel}.",
+            'message' => $vendorMessage,
         ]);
         $this->flushNotificationCache(
             'vendor',
             $event->vendor_id,
             $event->vendor ? strtolower((string) $event->vendor->email) : null
         );
+    }
+
+    private function resolveBookingFinancials(float $totalAmount): array
+    {
+        $depositPercent = round(self::DEPOSIT_PERCENT, 2);
+        $depositAmount = round($totalAmount * ($depositPercent / 100), 2);
+        $serviceFeeAmount = round($totalAmount * self::SERVICE_FEE_RATE, 2);
+        $balanceDueAmount = round(max($totalAmount - $depositAmount, 0), 2);
+
+        return [
+            'deposit_percent' => $depositPercent,
+            'deposit_amount' => $depositAmount,
+            'service_fee_amount' => $serviceFeeAmount,
+            'balance_due_amount' => $balanceDueAmount,
+        ];
+    }
+
+    private function resolveCustomerCancellationSettlement(Booking $booking, Carbon $cancelledAt): array
+    {
+        $initialPaymentAmount = round((float) $booking->deposit_amount + (float) $booking->service_fee_amount, 2);
+        $deadline = $booking->vendor_cancellation_deadline_at
+            ? Carbon::parse($booking->vendor_cancellation_deadline_at)
+            : ($booking->paid_at
+                ? Carbon::parse($booking->paid_at)->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS)
+                : ($booking->created_at
+                    ? Carbon::parse($booking->created_at)->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS)
+                    : null));
+        $isLateCancellation = $initialPaymentAmount > 0 && $deadline instanceof Carbon && $cancelledAt->gt($deadline);
+        $refundAmount = $isLateCancellation
+            ? round($initialPaymentAmount * self::LATE_CUSTOMER_CANCELLATION_REFUND_RATE, 2)
+            : $initialPaymentAmount;
+
+        return [
+            'refund_amount' => $refundAmount,
+            'vendor_penalty_amount' => 0,
+            'customer_compensation_amount' => 0,
+            'admin_compensation_amount' => 0,
+            'payment_status' => $initialPaymentAmount > 0 ? 'refunded' : $booking->payment_status,
+        ];
+    }
+
+    private function createCustomerCancellationChatMessage(Booking $booking): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->with('vendor:id,name,email')->select(['id', 'vendor_id', 'title', 'starts_at'])->first();
+
+        if (! $event?->vendor_id || ! $booking->customer_email) {
+            return;
+        }
+
+        $email = strtolower(trim((string) $booking->customer_email));
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $conversation = ChatConversation::query()->firstOrCreate(
+            [
+                'vendor_user_id' => (int) $event->vendor_id,
+                'customer_email' => $email,
+                'booking_id' => null,
+            ],
+            [
+                'customer_user_id' => $booking->user_id,
+                'customer_name' => $booking->customer_name,
+                'service_name' => $serviceName,
+            ],
+        );
+
+        $conversation->fill([
+            'customer_user_id' => $booking->user_id ?: $conversation->customer_user_id,
+            'customer_name' => $booking->customer_name ?: $conversation->customer_name,
+            'service_name' => $serviceName,
+        ]);
+
+        if ($conversation->isDirty()) {
+            $conversation->save();
+        }
+
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? Carbon::parse($event->starts_at)->format('M d, Y g:i A') : 'the scheduled date');
+        $refundAmount = $this->formatCurrency($booking->refund_amount);
+        $body = "Cancellation request sent for {$serviceName} on {$eventDate}. Booking #{$booking->id}. Refund due to customer: {$refundAmount}.";
+
+        ChatMessage::query()->create([
+            'conversation_id' => $conversation->id,
+            'sender_user_id' => $booking->user_id,
+            'sender_role' => 'customer',
+            'sender_name' => $booking->customer_name ?: 'Customer',
+            'body' => $body,
+        ]);
+
+        $conversation->update([
+            'last_message_at' => now(),
+        ]);
+    }
+
+    private function formatCurrency($value): string
+    {
+        return '$'.number_format((float) $value, 2);
     }
 
     private function flushVendorCacheForBooking(Booking $booking): void

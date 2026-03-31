@@ -28,6 +28,7 @@ const bookingTotal = Number(receipt?.bookingTotal || 0);
 const processingFee = Number(receipt?.processingFee || 0);
 const deposit = Number(receipt?.deposit || 0);
 const remaining = Number(receipt?.remaining || 0);
+const amountPaid = computed(() => Number((deposit + processingFee).toFixed(2)));
 const grandTotal = computed(() => Number((bookingTotal + processingFee).toFixed(2)));
 const issuedDate = computed(() => {
   const value = receipt?.paidAt ? new Date(receipt.paidAt) : new Date();
@@ -81,8 +82,8 @@ const copyByLanguage = {
     unitPrice: "Unit Price",
     amount: "Amount",
     serviceItem: "Service item",
-    processingFee: "Processing Fee",
-    feeText: "Secure platform and coordination fee (2%)",
+    processingFee: "Service Fee",
+    feeText: "Platform service fee paid during deposit checkout.",
     authenticity: "Authenticity",
     authenticityText: "Scan this QR code to verify this official receipt on the Achar network.",
     grandTotal: "Grand Total",
@@ -264,7 +265,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
         <div class="totals-panel">
           <p><span>{{ uiText.grandTotal }}</span><strong>${{ grandTotal.toLocaleString() }}</strong></p>
-          <p class="paid"><span>{{ uiText.amountPaid }}</span><strong>-${{ deposit.toLocaleString() }}</strong></p>
+          <p class="paid"><span>{{ uiText.amountPaid }}</span><strong>-${{ amountPaid.toLocaleString() }}</strong></p>
           <p class="due"><span>{{ uiText.balanceDue }}</span><strong>${{ remaining.toLocaleString() }}</strong></p>
         </div>
       </footer>

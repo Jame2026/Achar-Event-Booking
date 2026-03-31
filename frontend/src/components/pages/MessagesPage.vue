@@ -171,7 +171,13 @@ const contactLine = computed(() => buildContactLine(props.activeConversation))
           >
             <div class="bubble" :class="msg.from === 'me' ? 'accent' : ''">
               <span v-if="msg.text">{{ msg.text }}</span>
-              <img v-if="msg.image" :src="msg.image" alt="Shared attachment" />
+              <img
+                v-if="msg.image"
+                class="chat-image"
+                :src="msg.image"
+                alt="Shared attachment"
+                loading="lazy"
+              />
               <div v-if="msg.documentUrl" class="attachment-card doc-attachment">
                 <a
                   class="doc-link"
@@ -211,7 +217,7 @@ const contactLine = computed(() => buildContactLine(props.activeConversation))
             <input
               type="file"
               class="composer-file-input"
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+              accept="image/*"
               @change="props.sendFiles"
             />
           </label>

@@ -537,6 +537,8 @@ const isBootstrappingAuth = ref(false)
 let notificationPollTimer = null
 let latestCustomerBookingStatusNotificationId = null
 let hasInitializedCustomerBookingStatusNotifications = false
+let latestVendorCustomerCancellationNotificationId = null
+let hasInitializedVendorCancellationAlerts = false
 const {
   customerName,
   customerEmail,
@@ -640,10 +642,7 @@ const {
   notice,
   bookingSubmittingEventId,
   checkEventAvailability,
-  createBooking: (payload) => apiPost('bookings', normalizeBookingRequestPayload(payload)),
-  loadBookings,
-  goToBookings,
-  bookingFilter,
+  openCheckout: openServiceCheckout,
 })
 const vendorBindings = { activeVendorTab, customerName, customerEmail, selectedEventType }
 const customizationBindings = {
@@ -954,11 +953,13 @@ function formatBookingIdentityNote(row, fallbackEmail = '', fallbackPhone = '') 
 
 function decorateCustomerBookingActions(row) {
   const canDelete = Boolean(row?.canDelete)
+  const canCancel = Boolean(row?.canCancel)
 
   return {
     ...row,
     canDelete,
-    secondaryBtn: canDelete ? uiText.value.deleteBooking : row?.secondaryBtn || 'Reschedule',
+    canCancel,
+    secondaryBtn: canCancel ? 'Cancel Booking' : (canDelete ? uiText.value.deleteBooking : row?.secondaryBtn || 'Reschedule'),
   }
 }
 
@@ -997,6 +998,7 @@ function getLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
         const bookingStatus = String(row?.status || 'confirmed').trim().toLowerCase()
         const type = deriveBookingType(bookingStatus, bookingDate)
         const canDelete = type === 'Completed'
+        const canCancel = type === 'Upcoming' && ['pending', 'confirmed'].includes(bookingStatus)
 
         return decorateCustomerBookingActions({
           id: row.id || `local-${index}`,
@@ -1017,6 +1019,7 @@ function getLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
             'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80',
           bookedItems,
           canDelete,
+          canCancel,
           primaryBtn: 'View Details',
           secondaryBtn: 'Reschedule',
           note: formatBookingIdentityNote(row, normalizedEmail, phone),
@@ -1059,6 +1062,118 @@ function deleteLocalBookingEntry(target) {
   } catch {
     // Ignore local-storage cleanup failures.
   }
+}
+
+function buildCheckoutItemsFromBooking(item) {
+  const bookedItems = Array.isArray(item?.bookedItems) ? item.bookedItems : []
+  if (bookedItems.length) {
+    return bookedItems.map((entry) => ({
+      type: entry?.type || 'service',
+      name: entry?.name || item?.service || uiText.value.serviceBooking,
+      description: entry?.description || '',
+      qty: Math.max(1, Number(entry?.qty || item?.quantity || 1)),
+      unitPrice: Number(entry?.unitPrice || 0),
+      totalPrice: Number(entry?.totalPrice || 0),
+    }))
+  }
+
+  const quantity = Math.max(1, Number(item?.quantity || 1))
+  const totalPrice = Number(item?.servicePrice || 0)
+
+  return [
+    {
+      type: 'service',
+      name: item?.service || uiText.value.serviceBooking,
+      description: '',
+      qty: quantity,
+      unitPrice: quantity > 0 ? Number((totalPrice / quantity).toFixed(2)) : totalPrice,
+      totalPrice,
+    },
+  ]
+}
+
+function openServiceCheckout(selection = {}) {
+  const quantity = Math.max(1, Number(selection.quantity || 1))
+  const bookedItems = Array.isArray(selection.booked_items) ? selection.booked_items : []
+  const items = bookedItems.length
+    ? bookedItems.map((entry) => ({
+        type: entry?.type || 'service',
+        name: entry?.name || selection.service_name || selection.vendorTitle || uiText.value.serviceBooking,
+        description: entry?.description || '',
+        qty: Math.max(1, Number(entry?.qty || quantity)),
+        unitPrice: Number(entry?.unitPrice || entry?.price || 0),
+        totalPrice: Number(entry?.totalPrice || 0),
+      }))
+    : buildCheckoutItemsFromBooking({
+        service: selection.service_name || selection.vendorTitle || uiText.value.serviceBooking,
+        quantity,
+        servicePrice: Number(selection.total_amount || 0),
+      })
+  const requestedEventDate = String(
+    selection.requested_event_date || selection.eventDate || selection.startsAt || '',
+  )
+    .trim()
+    .slice(0, 10)
+  const payload = {
+    bookingId: selection.booking_id || selection.bookingId || null,
+    vendorTitle: selection.service_name || selection.vendorTitle || uiText.value.serviceBooking,
+    vendorName: selection.vendor_name || selection.vendorName || vendorProfile.name,
+    vendorEmail: selection.vendor_email || selection.vendorEmail || '',
+    eventId: selection.event_id || selection.eventId || null,
+    image: selection.image_url || selection.image || '',
+    fullName: customerName.value || loggedInUser.value?.name || '',
+    email: customerEmail.value || loggedInUser.value?.email || '',
+    phone: userPhone.value || loggedInUser.value?.phone || '',
+    location: userLocation.value || loggedInUser.value?.location || selection.location || '',
+    eventDate: requestedEventDate,
+    guests: quantity,
+    notes: selection.notes || '',
+    requestedEventType: selection.requested_event_type || selection.eventType || 'other',
+    items,
+    qrCodeUrl: selection.qr_code_url || selection.qrCodeUrl || '',
+    existingBookingStatus: selection.existingBookingStatus || selection.status || 'pending',
+    existingPaymentStatus: selection.existingPaymentStatus || selection.payment_status || 'pending',
+    paymentToken: selection.payment_token || selection.paymentToken || '',
+    totalAmount:
+      Number(selection.total_amount || 0) ||
+      Number(items.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0).toFixed(2)),
+    depositAmount: Number(selection.deposit_amount || 0),
+    serviceFeeAmount: Number(selection.service_fee_amount || 0),
+    balanceDueAmount: Number(selection.balance_due_amount || 0),
+    vendorCancellationDeadlineAt: selection.vendor_cancellation_deadline_at || null,
+    refundAmount: Number(selection.refund_amount || 0),
+    customerCompensationAmount: Number(selection.customer_compensation_amount || 0),
+  }
+
+  sessionStorage.setItem('achar_prebook_checkout', JSON.stringify(payload))
+  router.push('/checkout').catch(() => {})
+}
+
+function openApprovedBookingPayment(item) {
+  if (!item?.id) return
+
+  openServiceCheckout({
+    booking_id: item.id,
+    service_name: item.service || uiText.value.serviceBooking,
+    vendor_name: item.vendor || vendorProfile.name,
+    vendor_email: item.vendorEmail || '',
+    event_id: item.eventId || null,
+    image_url: item.image || '',
+    requested_event_date: item.requestedEventDate || '',
+    quantity: Math.max(1, Number(item.quantity || 1)),
+    requested_event_type: item.eventType || 'other',
+    booked_items: buildCheckoutItemsFromBooking(item),
+    qr_code_url: item.qrCodeUrl || '',
+    status: item.bookingStatus || 'pending',
+    payment_status: item.paymentStatus || 'pending',
+    total_amount: Number(item.servicePrice || 0),
+    deposit_amount: Number(item.depositAmount || 0),
+    service_fee_amount: Number(item.serviceFeeAmount || 0),
+    balance_due_amount: Number(item.balanceDueAmount || 0),
+    refund_amount: Number(item.refundAmount || 0),
+    customer_compensation_amount: Number(item.customerCompensationAmount || 0),
+    vendor_cancellation_deadline_at: item.vendorCancellationDeadlineAt || null,
+  })
 }
 
 function clearLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
@@ -1220,6 +1335,24 @@ function getLatestCustomerBookingStatusNotificationId(rows = []) {
   return Number(match?.id || 0) || null
 }
 
+function getLatestVendorCustomerCancellationNotification(rows = []) {
+  if (!isVendorAccount.value || !Array.isArray(rows)) return null
+
+  return (
+    rows.find((item) => {
+      const kind = String(item?.kind || '').trim().toLowerCase()
+      const recipientType = String(item?.recipient_type || '').trim().toLowerCase()
+      const message = String(item?.message || '').trim().toLowerCase()
+
+      return (
+        kind === 'booking_status_changed' &&
+        recipientType === 'vendor' &&
+        message.includes('cancelled by the customer')
+      )
+    }) || null
+  )
+}
+
 async function syncCustomerBookingsFromNotifications(rows) {
   if (isVendorAccount.value || !resolveBookingLookup().hasIdentity) return
 
@@ -1237,6 +1370,39 @@ async function syncCustomerBookingsFromNotifications(rows) {
 
   latestCustomerBookingStatusNotificationId = latestNotificationId
   await loadBookings({ silent: true })
+}
+
+async function syncVendorCancellationAlertsFromNotifications(rows) {
+  if (!isVendorAccount.value) return
+
+  const latestNotification = getLatestVendorCustomerCancellationNotification(rows)
+  const latestNotificationId = Number(latestNotification?.id || 0) || null
+
+  if (!hasInitializedVendorCancellationAlerts) {
+    latestVendorCustomerCancellationNotificationId = latestNotificationId
+    hasInitializedVendorCancellationAlerts = true
+    return
+  }
+
+  if (
+    !latestNotificationId ||
+    latestNotificationId === latestVendorCustomerCancellationNotificationId
+  ) {
+    return
+  }
+
+  latestVendorCustomerCancellationNotificationId = latestNotificationId
+  await loadVendorBookings()
+
+  const warningMessage =
+    String(latestNotification?.message || '').trim() ||
+    'Warning: a customer cancelled their booking.'
+
+  vendorServiceNotice.value = warningMessage
+
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(`Warning: Customer cancelled a booking.\n\n${warningMessage}`)
+  }
 }
 
 function closeNotificationDropdown() {
@@ -1270,6 +1436,7 @@ async function loadNotifications(options = {}) {
     notifications.value = rows
     notificationsUnreadCount.value = Number(result.unread_count || 0)
     await syncCustomerBookingsFromNotifications(rows)
+    await syncVendorCancellationAlertsFromNotifications(rows)
   } catch (error) {
     notificationsError.value = 'Could not load notifications right now.'
   } finally {
@@ -1724,7 +1891,17 @@ function mapVendorBookingRow(row) {
         })
       : uiText.value.dateTbd,
     status: String(row.status || 'pending'),
+    payment_status: String(row.payment_status || 'pending'),
+    cancellation_actor: String(row.cancellation_actor || ''),
     total_amount: Number(row.total_amount || 0),
+    deposit_amount: Number(row.deposit_amount || 0),
+    service_fee_amount: Number(row.service_fee_amount || 0),
+    balance_due_amount: Number(row.balance_due_amount || 0),
+    refund_amount: Number(row.refund_amount || 0),
+    customer_compensation_amount: Number(row.customer_compensation_amount || 0),
+    admin_compensation_amount: Number(row.admin_compensation_amount || 0),
+    vendor_penalty_amount: Number(row.vendor_penalty_amount || 0),
+    vendor_cancellation_deadline_at: row.vendor_cancellation_deadline_at || null,
     income_date: row.requested_event_date || row.created_at || event.starts_at || row.updated_at || null,
   }
 }
@@ -2003,19 +2180,30 @@ async function bookPackage(item) {
 
   bookingSubmittingEventId.value = item.id
   try {
-    await apiPost('bookings', normalizeBookingRequestPayload({
+    const totalAmount = Number((Number(item.price || 0) * quantity).toFixed(2))
+    openServiceCheckout({
       event_id: item.id,
       quantity,
-      customer_name: name,
-      customer_email: email || customerEmail.value.trim(),
-      customer_phone: phone || undefined,
-    }))
-
-    notice.value = `${uiText.value.bookingCreatedFor} ${item.title}.`
-    await loadBookings()
-    await loadNotifications({ silent: true })
-    goToBookings()
-    bookingFilter.value = 'Upcoming'
+      service_name: item.title,
+      requested_event_type: item.eventType || 'other',
+      requested_event_date: item.startsAt || '',
+      vendor_name: item.vendorName || vendorProfile.name,
+      vendor_email: item.vendorEmail || '',
+      qr_code_url: item.qrCodeUrl || '',
+      image_url: item.image || '',
+      location: item.location || '',
+      total_amount: totalAmount,
+      booked_items: [
+        {
+          type: item.serviceMode === 'package' ? 'package' : 'service',
+          name: item.title,
+          description: item.description || '',
+          qty: quantity,
+          unitPrice: Number(item.price || 0),
+          totalPrice: totalAmount,
+        },
+      ],
+    })
   } catch (error) {
     notice.value = error.message || uiText.value.bookingFailed
   } finally {
@@ -2024,6 +2212,11 @@ async function bookPackage(item) {
 }
 
 function bookingPrimaryAction(item) {
+  if (item?.primaryAction === 'pay') {
+    openApprovedBookingPayment(item)
+    return
+  }
+
   if (item.primaryBtn === 'Message Vendor') {
     goToMessages({
       vendorId: item.vendorId,
@@ -2039,12 +2232,76 @@ function bookingPrimaryAction(item) {
 }
 
 function bookingSecondaryAction(item) {
+  if (item?.canCancel) {
+    void cancelCustomerBooking(item)
+    return
+  }
+
   if (item?.canDelete) {
     void deleteCustomerBooking(item)
     return
   }
 
   item.note = uiText.value.rescheduleRequested
+}
+
+function buildCustomerCancellationConfirmMessage(item) {
+  const serviceName = item?.service || uiText.value.serviceBooking
+  const fullRefund = Number(item?.initialPaymentAmount || 0)
+  const lateRefund = Number(item?.lateCancellationRefundAmount || 0)
+
+  if (item?.isWithinFreeCancellationWindow) {
+    return `Cancel ${serviceName}? You are still within the first 3 days, so your first payment will be fully refunded ($${fullRefund.toLocaleString()}). This cancellation will also be sent directly to the vendor chat.`
+  }
+
+  return `Cancel ${serviceName}? The 3-day refund window has passed, so you will receive only 15% of your first payment ($${lateRefund.toLocaleString()}). This cancellation will also be sent directly to the vendor chat.`
+}
+
+async function cancelCustomerBooking(item) {
+  if (!item) return
+
+  const shouldCancel =
+    typeof window === 'undefined'
+      ? true
+      : window.confirm(buildCustomerCancellationConfirmMessage(item))
+
+  if (!shouldCancel) return
+
+  const bookingId = Number(item.id || 0)
+  const lookup = resolveBookingLookup()
+
+  try {
+    if (!Number.isFinite(bookingId) || bookingId < 1) {
+      notice.value = uiText.value.bookingFailed
+      return
+    }
+
+    if (!lookup.hasIdentity) {
+      notice.value = uiText.value.signInToContinue
+      return
+    }
+
+    const updatedBooking = await apiPatch(`user/bookings/${bookingId}/cancel`, {
+      user_id: lookup.userId || undefined,
+      customer_email: lookup.email || lookup.fallbackEmail || undefined,
+      customer_phone: lookup.phone || undefined,
+    })
+
+    await loadBookings()
+    await loadNotifications({ silent: true })
+    await goToMessages({
+      vendorId: item.vendorId,
+      vendorName: item.vendor,
+      vendorEmail: item.vendorEmail,
+      serviceName: item.service,
+      eventId: item.eventId,
+    })
+
+    const refundAmount = Number(updatedBooking?.refund_amount || 0)
+    notice.value = `Booking cancelled. Refund due: $${refundAmount.toLocaleString()}. Cancellation details were sent to vendor chat.`
+  } catch (error) {
+    notice.value = error?.message || 'Could not cancel this booking.'
+  }
 }
 
 async function deleteCustomerBooking(item) {
@@ -2126,6 +2383,8 @@ watch(loggedInUser, (user) => {
   notificationDropdownOpen.value = false
   latestCustomerBookingStatusNotificationId = null
   hasInitializedCustomerBookingStatusNotifications = false
+  latestVendorCustomerCancellationNotificationId = null
+  hasInitializedVendorCancellationAlerts = false
   window.dispatchEvent(new Event('achar:auth-updated'))
 })
 watch(

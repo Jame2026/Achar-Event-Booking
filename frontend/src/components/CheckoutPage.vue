@@ -1,8 +1,7 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { apiPost } from "../features/apiClient";
-import { formatDateTime } from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
 
 const router = useRouter();
@@ -12,9 +11,9 @@ const POST_AUTH_REDIRECT_KEY = "achar_post_auth_redirect";
 const POST_AUTH_REDIRECT_AT_KEY = "achar_post_auth_redirect_at";
 const POST_AUTH_OPEN_QR_KEY = "achar_checkout_open_qr";
 const PAYMENT_METHOD_SESSION_KEY = "achar_checkout_method";
-const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
 const PENDING_BOOKING_STORAGE_KEY = "achar_pending_booking";
 const CHECKOUT_FLOW_FLAG_KEY = "achar_checkout_flow_active";
+const SERVICE_FEE_RATE = 0.035;
 const appLogoSrc = ref(localStorage.getItem("achar_brand_logo") || "/achar-logo.png");
 
 const fallback = {
@@ -29,15 +28,15 @@ const fallback = {
   items: [],
 };
 
-const booking = (() => {
+const booking = reactive((() => {
   try {
     const raw = sessionStorage.getItem("achar_prebook_checkout");
-    if (!raw) return fallback;
+    if (!raw) return { ...fallback };
     return { ...fallback, ...JSON.parse(raw) };
   } catch {
-    return fallback;
+    return { ...fallback };
   }
-})();
+})());
 
 const bookingItems = computed(() => {
   if (Array.isArray(booking.items) && booking.items.length) return booking.items;
@@ -64,12 +63,21 @@ const itemsSubtotal = computed(() =>
   bookingItems.value.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0),
 );
 const bookingTotal = computed(() =>
-  itemsSubtotal.value > 0 ? Number(itemsSubtotal.value.toFixed(2)) : Number((booking.guests * 35 + 380).toFixed(2)),
+  itemsSubtotal.value > 0
+    ? Number(itemsSubtotal.value.toFixed(2))
+    : Number(booking.totalAmount || (booking.guests * 35 + 380).toFixed(2)),
 );
-const processingFee = computed(() => Number((bookingTotal.value * 0.02).toFixed(2)));
-const deposit = computed(() => Number((bookingTotal.value * 0.3).toFixed(2)));
+const processingFee = computed(() =>
+  Number((Number(booking.serviceFeeAmount || 0) || bookingTotal.value * SERVICE_FEE_RATE).toFixed(2)),
+);
+const deposit = computed(() =>
+  Number((Number(booking.depositAmount || 0) || bookingTotal.value * 0.3).toFixed(2)),
+);
 const remaining = computed(() =>
-  Number((bookingTotal.value + processingFee.value - deposit.value).toFixed(2)),
+  Number((Number(booking.balanceDueAmount || 0) || Math.max(bookingTotal.value - deposit.value, 0)).toFixed(2)),
+);
+const amountDueToday = computed(() =>
+  Number((deposit.value + processingFee.value).toFixed(2)),
 );
 const selectedMethod = ref("aba");
 const agreedTerms = ref(false);
@@ -82,6 +90,45 @@ const cardForm = ref({
   expiry: "",
   cvv: "",
 });
+const hasBookingId = computed(() => {
+  const bookingId = Number(booking.bookingId || 0);
+  return Number.isFinite(bookingId) && bookingId > 0;
+});
+const hasPaidDeposit = computed(() =>
+  String(booking.existingPaymentStatus || booking.paymentStatus || "").trim().toLowerCase() === "confirmed",
+);
+const isApprovedBooking = computed(() =>
+  String(booking.existingBookingStatus || "").trim().toLowerCase() === "confirmed",
+);
+const isApprovedPaymentFlow = computed(() => !hasPaidDeposit.value);
+const requestFlowTitle = computed(() =>
+  hasPaidDeposit.value ? "Deposit Submitted" : "Pay Deposit to Submit Booking",
+);
+const requestFlowSubtitle = computed(() =>
+  hasPaidDeposit.value
+    ? "Your deposit is already on file. The vendor can now approve or cancel this booking."
+    : "Review your service details, then pay the 30% deposit plus service fee to send this booking to the vendor.",
+);
+const sidePanelTitle = computed(() =>
+  hasPaidDeposit.value ? "Deposit Summary" : uiText.value.paymentSummary,
+);
+const sidePanelSubtitle = computed(() =>
+  hasPaidDeposit.value
+    ? "The vendor will now review your paid booking request."
+    : "Your booking is only sent to the vendor after the 30% deposit and service fee are paid.",
+);
+const primaryActionLabel = computed(() => {
+  if (isVerifyingPayment.value) {
+    return uiText.value.verifyingPaymentLabel;
+  }
+
+  return hasPaidDeposit.value ? "Deposit Paid" : uiText.value.confirmPay;
+});
+const secureNoteLabel = computed(() =>
+  hasPaidDeposit.value
+    ? "Deposit already submitted to vendor review."
+    : "Pay the 30% deposit plus service fee to submit this booking.",
+);
 
 function goBack() {
   router.back();
@@ -114,50 +161,6 @@ function onLogoError() {
   appLogoSrc.value = "/favicon.ico";
 }
 
-function saveLocalBooking(user) {
-  try {
-    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
-    const existing = raw ? JSON.parse(raw) : [];
-    const rows = Array.isArray(existing) ? existing : [];
-    const email = String(booking.email || user?.email || "").trim().toLowerCase();
-    const phone = String(booking.phone || user?.phone || "").trim();
-    if (!email && !phone) return;
-    const firstItem = bookingItems.value[0] || {};
-    rows.unshift({
-      id: `local-${Date.now()}`,
-      eventId: booking.eventId || null,
-      customerEmail: email,
-      customerPhone: phone,
-      customerName: booking.fullName || user?.name || "Guest User",
-      vendor: booking.vendorName || booking.vendorTitle || "Selected Vendor",
-      service: firstItem.name || booking.vendorTitle || "Service Booking",
-      image: booking.image || "",
-      dateLabel: formatDateTime(booking.eventDate),
-      requestedEventDate: booking.eventDate || null,
-      eventType: booking.requestedEventType || "other",
-      requestedEventType: booking.requestedEventType || "other",
-      total: Number(bookingTotal.value || 0),
-      booked_items: bookingItems.value.map((item) => ({
-        type: item.type || "service",
-        name: item.name || "",
-        description: item.description || "",
-        qty: Math.max(1, Number(item.qty || 1)),
-        unitPrice: Number(item.unitPrice || 0),
-        totalPrice: Number(item.totalPrice || 0),
-      })),
-      status: "Confirmed",
-      statusClass: "confirmed",
-      type: "Upcoming",
-      createdAt: new Date().toISOString(),
-    });
-    if (email) localStorage.setItem("achar_last_booking_email", email);
-    if (phone) localStorage.setItem("achar_last_booking_phone", phone);
-    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(rows.slice(0, 100)));
-  } catch {
-    // Ignore local-storage issues and continue checkout flow.
-  }
-}
-
 function getStoredUser() {
   const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!stored) return null;
@@ -174,7 +177,7 @@ function startAuthFlow() {
   sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, "/checkout");
   sessionStorage.setItem(POST_AUTH_REDIRECT_AT_KEY, String(Date.now()));
   sessionStorage.setItem(PAYMENT_METHOD_SESSION_KEY, selectedMethod.value);
-  if (selectedMethod.value !== "card") {
+  if (hasBookingId.value && isApprovedPaymentFlow.value && selectedMethod.value !== "card") {
     sessionStorage.setItem(POST_AUTH_OPEN_QR_KEY, "1");
   }
   router.push({ path: "/legacy-app", query: { view: "register" } });
@@ -186,36 +189,6 @@ function resolveEventId() {
     bookingItems.value.find((item) => item?.eventId)?.eventId ||
     null
   );
-}
-
-function buildPendingBookingKey() {
-  const user = getStoredUser();
-  const customerEmail = String(booking.email || user?.email || "").trim().toLowerCase();
-  const customerPhone = String(booking.phone || user?.phone || "").trim();
-  const firstItem = bookingItems.value[0] || {};
-  const eventId = resolveEventId();
-  const qty = Math.max(1, Number(firstItem.qty || 1));
-  return [
-    customerEmail || customerPhone,
-    String(eventId || ""),
-    String(firstItem.name || ""),
-    String(qty),
-    String(bookingTotal.value || 0),
-    String(selectedMethod.value || ""),
-  ].join("|");
-}
-
-function readPendingBooking() {
-  try {
-    const raw = sessionStorage.getItem(PENDING_BOOKING_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.id || !parsed?.paymentToken || !parsed?.key) return null;
-    if (parsed.method && parsed.method !== selectedMethod.value) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
 }
 
 function clearPendingBooking() {
@@ -248,7 +221,6 @@ async function createPendingBooking() {
     requested_event_type: booking.requestedEventType || "other",
     requested_event_date: booking.eventDate || null,
     total_amount: bookingTotal.value,
-    payment_method: selectedMethod.value,
     booked_items: bookingItems.value.map((item) => ({
       type: item.type || "service",
       name: item.name || "",
@@ -258,30 +230,44 @@ async function createPendingBooking() {
       totalPrice: Number(item.totalPrice || 0),
     })),
   });
-  const createdBooking = result?.data?.id ? result.data : result;
-  const paymentToken =
-    result?.payment_token ||
-    result?.data?.payment_token ||
-    createdBooking?.payment_token ||
-    "";
+  return result?.data?.id ? result.data : result;
+}
 
-  if (!createdBooking?.id || !paymentToken) {
-    paymentNotice.value = uiText.value.paymentTokenMissing;
+function syncBookingState(apiBooking = {}) {
+  if (!apiBooking || typeof apiBooking !== "object") return;
+
+  booking.bookingId = apiBooking.id || booking.bookingId || null;
+  booking.paymentToken = apiBooking.payment_token || booking.paymentToken || "";
+  booking.existingBookingStatus = apiBooking.status || booking.existingBookingStatus || "pending";
+  booking.existingPaymentStatus = apiBooking.payment_status || booking.existingPaymentStatus || "pending";
+  booking.paymentStatus = apiBooking.payment_status || booking.paymentStatus || "pending";
+  booking.totalAmount = Number(apiBooking.total_amount || booking.totalAmount || bookingTotal.value);
+  booking.depositAmount = Number(apiBooking.deposit_amount || booking.depositAmount || deposit.value);
+  booking.serviceFeeAmount = Number(apiBooking.service_fee_amount || booking.serviceFeeAmount || processingFee.value);
+  booking.balanceDueAmount = Number(apiBooking.balance_due_amount || booking.balanceDueAmount || remaining.value);
+  booking.vendorCancellationDeadlineAt =
+    apiBooking.vendor_cancellation_deadline_at || booking.vendorCancellationDeadlineAt || null;
+}
+
+async function ensureCheckoutBooking() {
+  const bookingId = Number(booking.bookingId || 0);
+  if (Number.isFinite(bookingId) && bookingId > 0) {
+    return bookingId;
+  }
+
+  paymentNotice.value = "Creating booking and preparing deposit payment...";
+  const createdBooking = await createPendingBooking();
+  if (!createdBooking?.id) {
     return null;
   }
 
-  const pending = {
-    id: createdBooking.id,
-    paymentToken,
-    key: buildPendingBookingKey(),
-    method: selectedMethod.value,
-    createdAt: Date.now(),
-  };
-  sessionStorage.setItem(PENDING_BOOKING_STORAGE_KEY, JSON.stringify(pending));
-  return pending;
+  syncBookingState(createdBooking);
+  return Number(createdBooking.id || 0) || null;
 }
 
 function tryOpenQrAfterAuth() {
+  if (!isApprovedPaymentFlow.value) return;
+  if (!hasBookingId.value) return;
   if (selectedMethod.value === "card") return;
   const storedUser = getStoredUser();
   if (!storedUser) return;
@@ -302,22 +288,41 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
     startAuthFlow();
     return;
   }
+
+  if (hasPaidDeposit.value) {
+    paymentNotice.value = "This booking deposit has already been paid.";
+    return;
+  }
+
+  const user = getStoredUser();
+  const customerEmail = String(booking.email || user?.email || "").trim();
+  const customerPhone = String(booking.phone || user?.phone || "").trim();
+  if (!customerEmail && !customerPhone) {
+    paymentNotice.value = uiText.value.addEmailBeforePayment;
+    return;
+  }
+
+  let bookingId = Number(booking.bookingId || 0);
+  if (!Number.isFinite(bookingId) || bookingId < 1) {
+    isVerifyingPayment.value = true;
+    try {
+      bookingId = Number(await ensureCheckoutBooking() || 0);
+    } catch (error) {
+      paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
+    } finally {
+      isVerifyingPayment.value = false;
+    }
+
+    if (!Number.isFinite(bookingId) || bookingId < 1) {
+      paymentNotice.value = paymentNotice.value || uiText.value.unableSaveBooking;
+      return;
+    }
+  }
+
   if (selectedMethod.value !== "card" && !isAwaitingPayment.value) {
     if (!qrCodeImageSrc.value) {
       paymentNotice.value = uiText.value.noQrProvided;
       return;
-    }
-    const key = buildPendingBookingKey();
-    const pending = readPendingBooking();
-    if (!pending || pending.key !== key) {
-      try {
-        paymentNotice.value = uiText.value.verifyingPayment;
-        const created = await createPendingBooking();
-        if (!created) return;
-      } catch (error) {
-        paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
-        return;
-      }
     }
     isAwaitingPayment.value = true;
     paymentNotice.value = uiText.value.scanQrNotice;
@@ -346,77 +351,16 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
       return;
     }
   }
-  const user = getStoredUser();
-  const customerEmail = String(booking.email || user?.email || "").trim();
-  const customerPhone = String(booking.phone || user?.phone || "").trim();
-  const customerName = String(booking.fullName || user?.name || uiText.value.guestUser).trim();
-  if (!customerEmail && !customerPhone) {
-    paymentNotice.value = uiText.value.addEmailBeforePayment;
-    return;
-  }
-  const eventId = resolveEventId();
-  if (!eventId) {
-    paymentNotice.value = "Please go back and select a service before completing payment.";
-    return;
-  }
-  const firstItem = bookingItems.value[0] || {};
-  const quantity = Math.max(1, Number(firstItem.qty || 1));
-  let createdBooking = null;
-  let paymentToken = "";
-  const pending = selectedMethod.value !== "card" ? readPendingBooking() : null;
-  if (pending && pending.key === buildPendingBookingKey()) {
-    createdBooking = { id: pending.id };
-    paymentToken = pending.paymentToken;
-  } else {
-    try {
-      const result = await apiPost("bookings", {
-        event_id: resolveEventId(),
-        quantity,
-        customer_name: customerName,
-        customer_email: customerEmail || undefined,
-        customer_phone: customerPhone || undefined,
-        service_name: firstItem.name || booking.vendorTitle || uiText.value.serviceBooking,
-        requested_event_type: booking.requestedEventType || "other",
-        requested_event_date: booking.eventDate || null,
-        total_amount: bookingTotal.value,
-        payment_method: selectedMethod.value,
-        booked_items: bookingItems.value.map((item) => ({
-          type: item.type || "service",
-          name: item.name || "",
-          description: item.description || "",
-          qty: Math.max(1, Number(item.qty || 1)),
-          unitPrice: Number(item.unitPrice || 0),
-          totalPrice: Number(item.totalPrice || 0),
-        })),
-      });
-      createdBooking = result?.data?.id ? result.data : result;
-      paymentToken =
-        result?.payment_token ||
-        result?.data?.payment_token ||
-        createdBooking?.payment_token ||
-        "";
-    } catch (error) {
-      paymentNotice.value = error?.message || uiText.value.unableSaveBooking;
-      return;
-    }
-  }
-
-  if (!createdBooking?.id) {
-    paymentNotice.value = uiText.value.unableSaveBooking;
-    return;
-  }
-
-  if (!paymentToken) {
-    paymentNotice.value = uiText.value.paymentTokenMissing;
-    return;
-  }
-
   isVerifyingPayment.value = true;
   paymentNotice.value = uiText.value.verifyingPayment;
+  let updatedBooking = null;
   try {
-    await apiPost(`bookings/${createdBooking.id}/confirm-payment`, {
-      payment_token: paymentToken,
+    updatedBooking = await apiPost(`bookings/${bookingId}/confirm-payment`, {
+      payment_token: booking.paymentToken || undefined,
       payment_method: selectedMethod.value,
+      user_id: user?.id || undefined,
+      customer_email: customerEmail || undefined,
+      customer_phone: customerPhone || undefined,
     });
   } catch (error) {
     paymentNotice.value = error?.message || uiText.value.paymentVerificationFailed;
@@ -425,9 +369,10 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
   } finally {
     isVerifyingPayment.value = false;
   }
+  syncBookingState(updatedBooking);
   clearPendingBooking();
   const receiptPayload = {
-    booking,
+    booking: { ...booking },
     items: bookingItems.value,
     bookingTotal: bookingTotal.value,
     processingFee: processingFee.value,
@@ -435,8 +380,8 @@ async function handleConfirmAndPay(redirectToReceipt = false) {
     remaining: remaining.value,
     paidMethod: selectedMethod.value,
     paidAt: new Date().toISOString(),
+    mode: "paid",
   };
-  saveLocalBooking(user);
   sessionStorage.setItem("achar_checkout_receipt", JSON.stringify(receiptPayload));
   router.push(redirectToReceipt ? "/checkout/receipt" : "/checkout/confirmed");
 }
@@ -462,7 +407,7 @@ const copyByLanguage = {
     servicesStep: "1 Services",
     reviewStep: "2 Review & Payment",
     bookingSummary: "Booking Summary",
-    bookingSubtitle: "Review selected items and customer details before payment.",
+    bookingSubtitle: "Review selected items and customer details before paying the booking deposit.",
     dateNotSelected: "Date not selected",
     package: "Package",
     service: "Service",
@@ -477,10 +422,11 @@ const copyByLanguage = {
     secureEscrow: "Secure Escrow",
     escrowText: "Your payment is held until service completion.",
     paymentSummary: "Payment Summary",
-    paymentSubtitle: "Choose a payment method and confirm your deposit securely.",
+    paymentSubtitle: "Choose a payment method and pay the deposit that submits this booking to the vendor.",
     bookingTotal: "Booking Total",
-    processingFee: "Processing Fee (2%)",
+    processingFee: "Service Fee (3.5%)",
     depositRequired: "Deposit Required (30%)",
+    amountDueToday: "Pay Now",
     remainingBalance: "Remaining Balance",
     selectPaymentMethod: "Select Payment Method",
     cardholderName: "Cardholder Name",
@@ -488,12 +434,12 @@ const copyByLanguage = {
     expiry: "Expiry (MM/YY)",
     cardSecure: "Your card details are encrypted and processed securely.",
     agreeTerms: "I agree to the Terms of Service, Cancellation Policy and Privacy Policy of Achar.",
-    confirmPay: "Confirm and Pay Deposit",
+    confirmPay: "Pay Deposit & Submit Booking",
     securePayment: "Encrypted and secure payment processing",
-    qrText: "Scan this QR code with your banking app to pay the deposit.",
+    qrText: "Scan this QR code with your banking app to pay the deposit and service fee.",
     back: "Back",
     completePayment: "Complete Payment",
-    scanQrNotice: "Please scan the QR code and complete payment, then click Complete Payment.",
+    scanQrNotice: "Please scan the QR code, pay the deposit and service fee, then click Complete Payment.",
     noQrProvided: "This vendor has not provided a payment QR code yet.",
     verifyingPayment: "Verifying payment...",
     verifyingPaymentLabel: "Verifying...",
@@ -624,7 +570,7 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
       </div>
       <div class="checkout-steps">
         <button type="button" class="step-link" @click="goToServices">🧩 {{ uiText.servicesStep }}</button>
-        <span class="active">💳 {{ uiText.reviewStep }}</span>
+        <span class="active">{{ uiText.reviewStep }}</span>
       </div>
       <button type="button" class="close-btn" @click="goBack">x</button>
     </header>
@@ -632,8 +578,8 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
     <main class="checkout-shell">
       <section class="checkout-main paper-canvas">
         <div class="section-head">
-          <h1>📘 {{ uiText.bookingSummary }}</h1>
-          <p class="section-subtitle">{{ uiText.bookingSubtitle }}</p>
+          <h1>{{ requestFlowTitle }}</h1>
+          <p class="section-subtitle">{{ requestFlowSubtitle }}</p>
         </div>
 
         <article
@@ -670,22 +616,33 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
 
       <aside class="checkout-side">
         <article class="payment-card">
-          <h2>{{ uiText.paymentSummary }}</h2>
-          <p class="payment-subtitle">{{ uiText.paymentSubtitle }}</p>
+          <h2>{{ sidePanelTitle }}</h2>
+          <p class="payment-subtitle">{{ sidePanelSubtitle }}</p>
           <div class="row"><span>{{ uiText.bookingTotal }}</span><strong>${{ bookingTotal.toLocaleString() }}</strong></div>
-          <div class="row"><span>{{ uiText.processingFee }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
-          <div class="deposit-box">
-            <p>{{ uiText.depositRequired }}</p>
+          <template v-if="isApprovedPaymentFlow">
+            <div class="row"><span>{{ uiText.processingFee }}</span><strong>${{ processingFee.toLocaleString() }}</strong></div>
+            <div class="deposit-box">
+              <p>{{ uiText.depositRequired }}</p>
+              <div class="deposit-row">
+                <strong>${{ deposit.toLocaleString() }}</strong>
+                <span class="deposit-icon" aria-hidden="true">$</span>
+              </div>
+            </div>
+            <div class="row"><span>{{ uiText.amountDueToday }}</span><strong>${{ amountDueToday.toLocaleString() }}</strong></div>
+            <div class="row"><span>{{ uiText.remainingBalance }}</span><strong>${{ remaining.toLocaleString() }}</strong></div>
+          </template>
+          <div v-else class="deposit-box">
+            <p>Deposit Status</p>
             <div class="deposit-row">
-              <strong>${{ deposit.toLocaleString() }}</strong>
+              <strong>Deposit Paid</strong>
               <span class="deposit-icon" aria-hidden="true">$</span>
             </div>
           </div>
-          <div class="row"><span>{{ uiText.remainingBalance }}</span><strong>${{ remaining.toLocaleString() }}</strong></div>
           <hr class="payment-divider" />
 
-          <p class="payment-method-label">{{ uiText.selectPaymentMethod }}</p>
-          <div class="method-stack" role="list">
+          <template v-if="isApprovedPaymentFlow">
+            <p class="payment-method-label">{{ uiText.selectPaymentMethod }}</p>
+            <div class="method-stack" role="list">
             <button
               type="button"
               class="method-card"
@@ -745,9 +702,9 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               </span>
               <span class="method-radio" aria-hidden="true"></span>
             </button>
-          </div>
+            </div>
 
-          <div v-if="selectedMethod === 'card'" class="card-panel">
+            <div v-if="selectedMethod === 'card'" class="card-panel">
               <label class="card-field">
                 <span>{{ uiText.cardholderName }}</span>
               <input
@@ -793,7 +750,8 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
               </label>
             </div>
             <p class="card-help">{{ uiText.cardSecure }}</p>
-          </div>
+            </div>
+          </template>
 
           <label class="terms-row">
             <input v-model="agreedTerms" type="checkbox" />
@@ -805,13 +763,13 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
           <button
             type="button"
             class="pay-btn"
-            :disabled="!agreedTerms || isVerifyingPayment"
+            :disabled="!agreedTerms || isVerifyingPayment || hasPaidDeposit"
             @click="handleConfirmAndPay"
           >
-            {{ isVerifyingPayment ? uiText.verifyingPaymentLabel : uiText.confirmPay }}
+            {{ primaryActionLabel }}
           </button>
           <button
-            v-if="selectedMethod !== 'card'"
+            v-if="isApprovedPaymentFlow && selectedMethod !== 'card'"
             type="button"
             class="pay-btn"
             :disabled="!agreedTerms || isVerifyingPayment"
@@ -820,13 +778,13 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
             {{ uiText.completePayment }}
           </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
-          <p class="secure-note">{{ uiText.securePayment }}</p>
+          <p class="secure-note">{{ secureNoteLabel }}</p>
         </article>
       </aside>
     </main>
 
     <div
-      v-if="selectedMethod !== 'card' && isAwaitingPayment"
+      v-if="isApprovedPaymentFlow && selectedMethod !== 'card' && isAwaitingPayment"
       class="qr-fullscreen-overlay"
       role="dialog"
       aria-modal="true"

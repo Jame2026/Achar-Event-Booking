@@ -100,6 +100,7 @@ Route::prefix('user')->group(function () {
     Route::post('/chats', [ChatController::class, 'userCreate']);
     Route::get('/chats', [ChatController::class, 'userIndex']);
     Route::post('/chats/{conversation}/messages', [ChatController::class, 'userSendMessage']);
+    Route::patch('/bookings/{booking}/cancel', [BookingController::class, 'cancelForUser']);
     Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
 });
 

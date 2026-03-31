@@ -133,22 +133,36 @@ export function useVendorMessagesFeature(currentPage, loggedInUser, notice, vend
     return null
   }
 
+  function mapApiMessage(message, roleForSelf) {
+    const senderRole = String(message?.sender_role || '').trim().toLowerCase()
+    return {
+      id: message?.id || Date.now(),
+      from: senderRole === roleForSelf ? 'me' : 'them',
+      text: String(message?.body || ''),
+      image: String(message?.image_url || '').trim(),
+      time: String(message?.time_label || 'Just now'),
+    }
+  }
+
+  function apiMessagePreview(message) {
+    if (!message) return ''
+    const body = String(message?.body || '').trim()
+    if (body) return body
+    if (String(message?.image_url || '').trim()) return 'Shared an image'
+    return ''
+  }
+
   function mapVendorConversation(chat) {
     const rows = Array.isArray(chat?.messages) ? chat.messages : []
     const lastRow = rows[rows.length - 1]
     return {
       id: chat.id,
       name: String(chat.customer_name || chat.customer_email || `Customer #${chat.id}`),
-      preview: rows.length ? String(lastRow?.body || '') : '',
+      preview: rows.length ? apiMessagePreview(lastRow) : '',
       time: rows.length ? String(lastRow?.time_label || '') : '',
       online: false,
       image: String(chat.customer_image_url || DEFAULT_AVATAR),
-      messages: rows.map((message) => ({
-        id: message.id,
-        from: message.sender_role === 'vendor' ? 'me' : 'them',
-        text: String(message.body || ''),
-        time: String(message.time_label || 'Just now'),
-      })),
+      messages: rows.map((message) => mapApiMessage(message, 'vendor')),
       serviceName: String(chat.service_name || 'Service Booking'),
       bookingId: chat.booking_id,
       bookingStatus: String(chat.booking_status || ''),
@@ -164,16 +178,11 @@ export function useVendorMessagesFeature(currentPage, loggedInUser, notice, vend
     return {
       id: chat.id,
       name: String(chat.vendor_name || chat.vendor_email || `Vendor #${chat.id}`),
-      preview: rows.length ? String(lastRow?.body || '') : '',
+      preview: rows.length ? apiMessagePreview(lastRow) : '',
       time: rows.length ? String(lastRow?.time_label || '') : '',
       online: false,
       image: String(chat.vendor_image_url || DEFAULT_AVATAR),
-      messages: rows.map((message) => ({
-        id: message.id,
-        from: message.sender_role === 'customer' ? 'me' : 'them',
-        text: String(message.body || ''),
-        time: String(message.time_label || 'Just now'),
-      })),
+      messages: rows.map((message) => mapApiMessage(message, 'customer')),
       serviceName: String(chat.service_name || 'Service Booking'),
       bookingId: chat.booking_id,
       bookingStatus: String(chat.booking_status || ''),
@@ -388,20 +397,95 @@ export function useVendorMessagesFeature(currentPage, loggedInUser, notice, vend
   }
 
   function sendFiles(event) {
-    if (vendorMode.value || userMode.value) {
-      if (notice && 'value' in notice) notice.value = 'Attachment upload is not enabled yet for chat.'
-      if (event?.target) event.target.value = ''
-      return
-    }
-
     const input = event?.target
     const file = input?.files?.[0]
     if (!file) return
-    const objectUrl = URL.createObjectURL(file)
     const isImage = file.type.startsWith('image/')
+    if (!isImage) {
+      if (notice && 'value' in notice) notice.value = 'Only image attachments are enabled in chat right now.'
+      input.value = ''
+      return
+    }
 
-    if (isImage) pushOutgoingMessage({ text: file.name, image: objectUrl, objectUrl })
-    else pushOutgoingMessage({ text: 'Shared a document', documentName: file.name, documentUrl: objectUrl, objectUrl })
+    if (vendorMode.value || userMode.value) {
+      const conversation = getSelectedConversation()
+      if (!conversation) {
+        if (notice && 'value' in notice) notice.value = 'Please select a conversation before sending an image.'
+        input.value = ''
+        return
+      }
+
+      const payload = new FormData()
+      payload.append('image', file)
+
+      if (vendorMode.value) {
+        const vendorId = vendorUserId()
+        if (!vendorId) {
+          if (notice && 'value' in notice) notice.value = 'Vendor account id is missing.'
+          input.value = ''
+          return
+        }
+
+        payload.append('vendor_user_id', String(vendorId))
+
+        apiPost(`vendor/chats/${conversation.id}/messages`, payload)
+          .then((result) => {
+            const created = result?.data || {}
+            conversation.messages.push({
+              id: created.id || Date.now(),
+              from: 'me',
+              text: String(created.body || ''),
+              image: String(created.image_url || ''),
+              time: String(created.time_label || 'Just now'),
+            })
+            conversation.preview = created.body || (created.image_url ? 'Shared an image' : file.name)
+            conversation.time = String(created.time_label || 'Just now')
+            bumpConversation(conversation.id)
+          })
+          .catch((error) => {
+            messagesError.value = error?.message || 'Could not send image.'
+            if (notice && 'value' in notice) notice.value = 'Could not send image in vendor chat.'
+          })
+          .finally(() => {
+            input.value = ''
+          })
+        return
+      }
+
+      const email = customerEmail()
+      if (!email) {
+        if (notice && 'value' in notice) notice.value = 'Customer email is missing.'
+        input.value = ''
+        return
+      }
+
+      payload.append('customer_email', email)
+      apiPost(`user/chats/${conversation.id}/messages`, payload)
+        .then((result) => {
+          const created = result?.data || {}
+          conversation.messages.push({
+            id: created.id || Date.now(),
+            from: 'me',
+            text: String(created.body || ''),
+            image: String(created.image_url || ''),
+            time: String(created.time_label || 'Just now'),
+          })
+          conversation.preview = created.body || (created.image_url ? 'Shared an image' : file.name)
+          conversation.time = String(created.time_label || 'Just now')
+          bumpConversation(conversation.id)
+        })
+        .catch((error) => {
+          messagesError.value = error?.message || 'Could not send image.'
+          if (notice && 'value' in notice) notice.value = 'Could not send image in customer chat.'
+        })
+        .finally(() => {
+          input.value = ''
+        })
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    pushOutgoingMessage({ text: file.name, image: objectUrl, objectUrl })
     input.value = ''
   }
 

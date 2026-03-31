@@ -21,6 +21,10 @@ use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
+    private const SERVICE_FEE_RATE = 0.035;
+    private const VENDOR_CANCELLATION_GRACE_DAYS = 3;
+    private const LATE_VENDOR_CANCELLATION_PERCENT = 15.0;
+
     public function directory(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -237,6 +241,11 @@ class VendorController extends Controller
             return Booking::query()
                 ->with(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url'])
                 ->whereHas('event', fn ($query) => $query->where('vendor_id', $vendor->id))
+                ->where(function ($query) {
+                    $query
+                        ->where('payment_status', 'confirmed')
+                        ->orWhere('status', '!=', 'pending');
+                })
                 ->latest()
                 ->get();
         });
@@ -264,11 +273,32 @@ class VendorController extends Controller
 
         $previousStatus = (string) ($booking->status ?? 'pending');
         $nextStatus = (string) $validated['status'];
+        $updatePayload = [
+            'status' => $nextStatus,
+        ];
 
         if ($previousStatus !== $nextStatus) {
-            $booking->update([
-                'status' => $nextStatus,
-            ]);
+            if ($nextStatus === 'cancelled') {
+                $cancelledAt = now();
+                $updatePayload = [
+                    ...$updatePayload,
+                    ...$this->resolveVendorCancellationSettlement($booking, $cancelledAt),
+                    'cancelled_at' => $cancelledAt,
+                    'cancellation_actor' => 'vendor',
+                ];
+            } elseif ($nextStatus === 'confirmed') {
+                $updatePayload = [
+                    ...$updatePayload,
+                    'cancelled_at' => null,
+                    'cancellation_actor' => null,
+                    'refund_amount' => 0,
+                    'vendor_penalty_amount' => 0,
+                    'customer_compensation_amount' => 0,
+                    'admin_compensation_amount' => 0,
+                ];
+            }
+
+            $booking->update($updatePayload);
         }
 
         VendorCache::flushVendor($vendor->id);
@@ -523,7 +553,7 @@ class VendorController extends Controller
             ? $booking->event
             : $booking->event()
                 ->with('vendor:id,name,email')
-                ->select(['id', 'title', 'starts_at', 'vendor_id'])
+                ->select(['id', 'title', 'starts_at', 'vendor_id', 'qr_code_url'])
                 ->first();
 
         if (! $event || (! $booking->user_id && ! $booking->customer_email)) {
@@ -536,8 +566,21 @@ class VendorController extends Controller
             ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
             : ($event->starts_at ? Carbon::parse($event->starts_at)->format('M d, Y g:i A') : 'the scheduled date');
         $message = $nextStatus === 'confirmed'
-            ? "Your booking for {$serviceName} on {$eventDate} has been confirmed by the vendor."
+            ? "Your booking for {$serviceName} on {$eventDate} has been approved by the vendor. Your 30% deposit remains secured and the remaining balance can be settled later."
             : "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.";
+
+        if ($nextStatus === 'confirmed' && $booking->vendor_cancellation_deadline_at) {
+            $deadlineLabel = Carbon::parse($booking->vendor_cancellation_deadline_at)->format('M d, Y g:i A');
+            $message .= " Vendor cancellation without penalty is only available until {$deadlineLabel}.";
+        }
+
+        if ($nextStatus === 'cancelled' && (float) $booking->refund_amount > 0) {
+            $message = "Your booking for {$serviceName} on {$eventDate} was cancelled by the vendor. Refund due: {$this->formatCurrency($booking->refund_amount)}.";
+
+            if ((float) $booking->customer_compensation_amount > 0) {
+                $message .= " Additional customer compensation due: {$this->formatCurrency($booking->customer_compensation_amount)}.";
+            }
+        }
 
         BookingNotification::create([
             'booking_id' => $booking->id,
@@ -554,6 +597,40 @@ class VendorController extends Controller
             $booking->user_id ? (int) $booking->user_id : null,
             $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null
         );
+    }
+
+    private function resolveVendorCancellationSettlement(Booking $booking, Carbon $cancelledAt): array
+    {
+        $paymentStatus = strtolower((string) ($booking->payment_status ?? 'pending'));
+        $hasPaidDeposit = $paymentStatus === 'confirmed' || $booking->paid_at !== null;
+        $refundAmount = $hasPaidDeposit
+            ? round((float) $booking->deposit_amount + (float) $booking->service_fee_amount, 2)
+            : 0.0;
+
+        $deadline = $booking->vendor_cancellation_deadline_at
+            ? Carbon::parse($booking->vendor_cancellation_deadline_at)
+            : ($booking->created_at
+                ? $booking->created_at->copy()->addDays(self::VENDOR_CANCELLATION_GRACE_DAYS)
+                : null);
+        $isLateCancellation = $hasPaidDeposit && $deadline instanceof Carbon && $cancelledAt->gt($deadline);
+        $vendorPenaltyAmount = $isLateCancellation
+            ? round((float) $booking->total_amount * (self::LATE_VENDOR_CANCELLATION_PERCENT / 100), 2)
+            : 0.0;
+        $serviceFeeAmount = round((float) ($booking->service_fee_amount ?: ((float) $booking->total_amount * self::SERVICE_FEE_RATE)), 2);
+        $adminCompensationAmount = $isLateCancellation ? $serviceFeeAmount : 0.0;
+
+        return [
+            'refund_amount' => $refundAmount,
+            'vendor_penalty_amount' => $vendorPenaltyAmount,
+            'customer_compensation_amount' => $vendorPenaltyAmount,
+            'admin_compensation_amount' => $adminCompensationAmount,
+            'payment_status' => $hasPaidDeposit ? 'refunded' : $booking->payment_status,
+        ];
+    }
+
+    private function formatCurrency($value): string
+    {
+        return '$'.number_format((float) $value, 2);
     }
 
     private function flushNotificationCacheForBooking(Booking $booking, ?Event $event = null): void
