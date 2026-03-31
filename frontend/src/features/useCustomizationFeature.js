@@ -1,13 +1,16 @@
 import { computed, ref, watch } from 'vue'
 import {
+  buildPackageServiceDescriptions,
   eventTypeMap,
   serviceFeeRate,
 } from './appData'
+import { mapPackageServicesForDisplay } from './packagePricing'
 
 export function useCustomizationFeature({
   vendorEvents,
   customerName,
   customerEmail,
+  userPhone,
   notice,
   bookingSubmittingEventId,
   checkEventAvailability,
@@ -34,7 +37,9 @@ export function useCustomizationFeature({
         description: event.description || 'Professional vendor service ready for booking.',
         price: Number(event.price || 0),
         image: event.image,
-        services: [],
+        services: Array.isArray(event.packages) && event.packages.length
+          ? mapPackageServicesForDisplay(event.packages)
+          : buildPackageServiceDescriptions(event.eventType, event.title),
         eventType: event.eventType,
         eventTypeLabel: event.eventTypeLabel || eventTypeMap[event.eventType] || 'Other',
         location: event.location || 'Location TBD',
@@ -85,6 +90,7 @@ export function useCustomizationFeature({
         name: event.title,
         description: event.description || 'Professional vendor service ready for booking.',
         price: Number(event.price || 0),
+        image: event.image || '',
         eventTypes: [event.eventType || 'other'],
         backingEventId: event.id || null,
         vendorId: event.vendorId || null,
@@ -97,8 +103,11 @@ export function useCustomizationFeature({
   const selectedMatchingServices = computed(() =>
     filteredMatchingServices.value.filter((service) => selectedServiceIds.value.includes(service.id)),
   )
+  const selectedServicesUnitSubtotal = computed(() =>
+    selectedMatchingServices.value.reduce((sum, service) => sum + Number(service.price || 0), 0),
+  )
   const selectedServicesSubtotal = computed(() =>
-    selectedMatchingServices.value.reduce((sum, service) => sum + service.price, 0),
+    selectedServicesUnitSubtotal.value * Math.max(1, Number(customizationQuantity.value || 1)),
   )
   const customizationPackageSubtotal = computed(() => {
     if (!selectedCustomizationPackage.value) return 0
@@ -179,9 +188,10 @@ export function useCustomizationFeature({
   async function confirmCustomization(getAvailability) {
     const name = customerName.value.trim()
     const email = customerEmail.value.trim()
+    const phone = userPhone?.value?.trim?.() || ''
 
-    if (!name || !email) {
-      notice.value = 'Please enter your name and email before confirming package.'
+    if (!name || (!email && !phone)) {
+      notice.value = 'Please enter your name and email or phone before confirming package.'
       return
     }
 
@@ -217,13 +227,40 @@ export function useCustomizationFeature({
 
     bookingSubmittingEventId.value = backingEvent.id
     try {
+      const packageUnitPrice = Number(selectedCustomizationPackage.value.price || 0)
+      const bookedItems = [
+        {
+          type: 'package',
+          name: selectedCustomizationPackage.value.title,
+          description: selectedCustomizationPackage.value.description || '',
+          qty,
+          unitPrice: packageUnitPrice,
+          totalPrice: Number((packageUnitPrice * qty).toFixed(2)),
+        },
+        ...selectedMatchingServices.value.map((service) => {
+          const unitPrice = Number(service.price || 0)
+
+          return {
+            type: 'service',
+            name: service.name,
+            description: service.description || '',
+            qty,
+            unitPrice,
+            totalPrice: Number((unitPrice * qty).toFixed(2)),
+          }
+        }),
+      ]
+
       await createBooking({
         event_id: backingEvent.id,
         quantity: qty,
         customer_name: name,
         customer_email: email,
+        customer_phone: phone || undefined,
         service_name: selectedCustomizationPackage.value.title,
         requested_event_type: selectedCustomizationPackage.value.eventType,
+        total_amount: Number(customizationTotal.value.toFixed(2)),
+        booked_items: bookedItems,
       })
 
       notice.value = `Package booked successfully. Total estimate: $${customizationTotal.value.toLocaleString()}.`

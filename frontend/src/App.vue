@@ -12,7 +12,12 @@ function refreshAuthUserState() {
 }
 
 const hideFooter = computed(() => {
-  if (route.path === '/reset-password' || route.path === '/forgot-password') return true
+  if (
+    route.path === '/reset-password' ||
+    route.path === '/forgot-password' ||
+    route.path === '/auth/callback' ||
+    route.path === '/auth/google/callback'
+  ) return true
   if (route.path === '/legacy-app') return true
   return false
 })

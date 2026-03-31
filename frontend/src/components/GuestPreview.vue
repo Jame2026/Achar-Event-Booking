@@ -7,8 +7,21 @@ import ServiceCard from "./customization/ServiceCard.vue";
 import BookingsPage from "./pages/BookingsPage.vue";
 import PublicNavbar from "./PublicNavbar.vue";
 import { apiGet } from "../features/apiClient";
-import { mapBooking as mapApiBooking } from "../features/bookingMappers";
+import {
+  formatDateTime,
+  getBookingMatchKey,
+  mapBooking as mapApiBooking,
+  normalizeBookingEventTypeKey,
+  summarizeBookedServices,
+} from "../features/bookingMappers";
 import { useLanguage } from "../features/language";
+import {
+  formatEventPriceLabel,
+  mapPackageServicesForDisplay,
+  normalizePackageServices,
+  resolveEventPrice,
+} from "../features/packagePricing";
+import { fallbackPublicEvents } from "../features/publicEventFallbacks";
 import {
   buildPackageServiceDescriptions,
   eventTypeMap,
@@ -261,57 +274,112 @@ const copyByLanguage = {
 };
 const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.en);
 
-// Demo seed for when API returns no events (keeps services list visible in preview)
-const fallbackDemoEvents = [
-  {
-    id: 9001,
-    title: "Signature Wedding Floral & Styling",
-    description: "Full-venue floral design, aisle & backdrop styling tailored for intimate to mid-size weddings.",
-    price: 1800,
-    event_type: "wedding",
-    location: "Phnom Penh, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.wedding,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9002,
-    title: "Monk Ceremony Setup",
-    description: "Respectful altar layout, seating, sound, and offering coordination with flexible timing.",
-    price: 650,
-    event_type: "monk_ceremony",
-    location: "Kandal Province",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.monk_ceremony,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9003,
-    title: "Corporate Gala Décor",
-    description: "Stage styling, centerpieces, brand color palette execution, and guest flow support.",
-    price: 2400,
-    event_type: "company_party",
-    location: "Phnom Penh, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.company_party,
-    vendor: { name: vendorProfile.name },
-  },
-  {
-    id: 9004,
-    title: "Birthday Backdrop & Balloon Bar",
-    description: "Photo-ready backdrop, themed props, and balloon bar for kids or adult celebrations.",
-    price: 520,
-    event_type: "birthday",
-    location: "Siem Reap, Cambodia",
-    starts_at: new Date().toISOString(),
-    image_url: packageImageByEventType.birthday,
-    vendor: { name: vendorProfile.name },
-  },
-];
-
 const DEMO_BOOKINGS_STORAGE_KEY = "achar_demo_bookings";
 const LOCAL_BOOKINGS_STORAGE_KEY = "achar_local_bookings";
 const LAST_BOOKING_EMAIL_KEY = "achar_last_booking_email";
+const LAST_BOOKING_PHONE_KEY = "achar_last_booking_phone";
+
+function normalizeBookingEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeBookingPhone(value) {
+  return String(value || "").replace(/\D+/g, "");
+}
+
+function splitBookingContact(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return { email: "", phone: "" };
+  }
+
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  return {
+    email: looksLikeEmail ? trimmed.toLowerCase() : "",
+    phone: looksLikeEmail ? "" : trimmed,
+  };
+}
+
+function getLocalBookingsByIdentity({ email = "", phone = "" } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email);
+  const normalizedPhone = normalizeBookingPhone(phone);
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return [];
+    if (!normalizedEmail && !normalizedPhone) return rows;
+    return rows.filter((row) => {
+      const matchesEmail =
+        normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail;
+      const matchesPhone =
+        normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone;
+      return matchesEmail || matchesPhone;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function clearLocalBookingsByIdentity({ email = "", phone = "" } = {}) {
+  const normalizedEmail = normalizeBookingEmail(email);
+  const normalizedPhone = normalizeBookingPhone(phone);
+  if (!normalizedEmail && !normalizedPhone) return;
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
+    if (!raw) return;
+
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return;
+
+    const remainingRows = rows.filter(
+      (row) =>
+        !(
+          (normalizedEmail && normalizeBookingEmail(row?.customerEmail) === normalizedEmail) ||
+          (normalizedPhone && normalizeBookingPhone(row?.customerPhone) === normalizedPhone)
+        ),
+    );
+
+    if (remainingRows.length === rows.length) return;
+
+    if (remainingRows.length === 0) {
+      localStorage.removeItem(LOCAL_BOOKINGS_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(LOCAL_BOOKINGS_STORAGE_KEY, JSON.stringify(remainingRows));
+  } catch {
+    // Ignore local-storage cleanup failures.
+  }
+}
+
+function resolveBookingLookup(authUser = null) {
+  const userId = Number(authUser?.id || 0);
+  const typedContact = splitBookingContact(localStorage.getItem("achar_customer_email") || "");
+  const typedEmail = normalizeBookingEmail(typedContact.email);
+  const loggedEmail = normalizeBookingEmail(authUser?.email || "");
+  const lastEmail = normalizeBookingEmail(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "");
+  const email = typedEmail || loggedEmail || lastEmail;
+  const fallbackEmail = lastEmail && lastEmail !== email ? lastEmail : "";
+  const phone = String(
+    typedContact.phone ||
+      authUser?.phone ||
+      localStorage.getItem("achar_user_phone") ||
+      localStorage.getItem(LAST_BOOKING_PHONE_KEY) ||
+      "",
+  ).trim();
+
+  return {
+    userId: userId > 0 ? userId : null,
+    email,
+    fallbackEmail,
+    phone,
+    hasIdentity: Boolean(userId > 0 || email || phone),
+  };
+}
+
 function shouldShowDemoBookings() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -455,50 +523,43 @@ const fallbackDemoBookings = [
   },
 ];
 
-function getLocalBookingsByEmail(email) {
-  try {
-    const raw = localStorage.getItem(LOCAL_BOOKINGS_STORAGE_KEY);
-    if (!raw) return [];
-    const rows = JSON.parse(raw);
-    if (!Array.isArray(rows)) return [];
-    if (!email) return rows;
-    return rows.filter(
-      (row) => String(row?.customerEmail || "").trim().toLowerCase() === email.trim().toLowerCase(),
-    );
-  } catch {
-    return [];
-  }
-}
-
 function mapLocalBookingRow(row) {
   const status = String(row?.status || "pending").toLowerCase();
   const statusText =
     status === "confirmed" ? "Confirmed" : status === "cancelled" ? "Cancelled" : "Pending Approval";
   const statusClass =
     status === "confirmed" ? "confirmed" : status === "cancelled" ? "done" : "pending";
+  const bookingDate =
+    row?.requestedEventDate || row?.requested_event_date || row?.dateLabel || row?.eventDate || "";
+  const eventType = normalizeBookingEventTypeKey(
+    row?.eventType,
+    row?.requestedEventType,
+    row?.requested_event_type,
+  );
+  const bookedItems = Array.isArray(row?.booked_items) ? row.booked_items : [];
   return {
     id: row?.id || `local-${Date.now()}`,
     vendor: row?.vendor || "Selected Vendor",
-    service: row?.service || "Service Booking",
+    service: summarizeBookedServices(bookedItems, row?.service || "Service Booking"),
     servicePrice: Number(row?.total || row?.total_amount || 0),
     quantity: Number(row?.quantity || 1),
-    date: row?.dateLabel || row?.eventDate || "Date TBD",
+    date: formatDateTime(bookingDate),
     metaLabel: "Event Type",
-    metaValue: eventTypeMap[row?.eventType] || "Other",
+    metaValue: eventTypeMap[eventType] || "Other",
     placeLabel: "Total",
     placeValue: `$${Number(row?.total || row?.total_amount || 0).toLocaleString()}`,
     status: statusText,
     statusClass,
     type: row?.type || "Upcoming",
-    eventType: row?.eventType || "other",
+    eventType,
     eventId: row?.eventId || null,
     image:
       row?.image ||
       "https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=760&q=80",
-    bookedItems: Array.isArray(row?.booked_items) ? row.booked_items : [],
+    bookedItems,
     primaryBtn: "View Details",
     secondaryBtn: statusClass === "pending" ? "Message Vendor" : "Reschedule",
-    note: [row?.customerName, row?.customerEmail].filter(Boolean).join(" | "),
+    note: [row?.customerName, row?.customerEmail || row?.customerPhone].filter(Boolean).join(" | "),
     rawBooking: row,
   };
 }
@@ -725,10 +786,16 @@ function formatEventDateLabel(value) {
 function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
   const serviceMode = String(item.service_mode || "overall");
-  const price = Number(item.price || 0);
+  const packages = normalizePackageServices(item.packages);
+  const price = resolveEventPrice({
+    packages,
+    serviceMode,
+    fallbackPrice: item.price,
+  });
   const vendorName = String(item.vendor?.name || "Verified Vendor");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
+  const isPreview = Boolean(item.is_demo);
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -738,15 +805,18 @@ function mapEventToGuestPackage(item) {
     location: item.location || "Location TBD",
     date: formatEventDateLabel(item.starts_at),
     price,
-    priceLabel: `From $${price.toLocaleString()}`,
+    priceLabel: formatEventPriceLabel(price, serviceMode),
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
-    services: buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
-    isPreview: false,
-    backingEventId: Number(item.id || 0) || null,
+    services: packages.length
+      ? mapPackageServicesForDisplay(packages)
+      : buildPackageServiceDescriptions(eventType, String(item.title || "Service Booking")),
+    isPreview,
+    backingEventId: isPreview ? null : Number(item.id || 0) || null,
     vendorName,
     vendorImage,
     vendorId,
     vendor: item.vendor || null,
+    packages,
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
   };
@@ -757,6 +827,7 @@ function mapEventToGuestService(item) {
   const serviceMode = String(item.service_mode || "overall");
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
+  const isPreview = Boolean(item.is_demo);
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -764,7 +835,7 @@ function mapEventToGuestService(item) {
     price: Number(item.price || 0),
     eventType,
     eventTypes: [eventType],
-    backingEventId: Number(item.id || 0) || null,
+    backingEventId: isPreview ? null : Number(item.id || 0) || null,
     vendorName: String(item.vendor?.name || "Verified Vendor"),
     location: item.location || "Location TBD",
     image: item.image_url || packageImageByEventType[eventType] || packageImageByEventType.other,
@@ -773,11 +844,11 @@ function mapEventToGuestService(item) {
     vendor: item.vendor || null,
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
+    isPreview,
   };
 }
 
 async function loadLiveVendorEvents() {
-  // Use session cache for fast paint, but still fetch fresh data.
   let cachedRows = [];
   try {
     const cached = sessionStorage.getItem(EVENTS_CACHE_KEY);
@@ -801,7 +872,6 @@ async function loadLiveVendorEvents() {
   try {
     const result = await apiGet("events", {
       per_page: 100,
-      include_inactive: 1,
       ts: Date.now(),
     });
     rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
@@ -811,7 +881,7 @@ async function loadLiveVendorEvents() {
 
   if (!rows.length) {
     try {
-      const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      const fallbackResponse = await fetch("/api/events?per_page=100", {
         headers: {
           Accept: "application/json",
         },
@@ -837,10 +907,43 @@ async function loadLiveVendorEvents() {
       EVENTS_CACHE_KEY,
       JSON.stringify({ data: rows, cachedAt: Date.now() }),
     );
+    return;
+  }
+  try {
+    const result = await apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() });
+    const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+    if (rows.length) {
+      liveVendorEvents.value = rows;
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(rows));
+      return;
+    }
+
+    const fallbackResponse = await fetch("/api/events?per_page=100&include_inactive=1", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`Guest preview events request failed (${fallbackResponse.status})`);
+    }
+
+    const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+    liveVendorEvents.value = Array.isArray(fallbackJson?.data)
+      ? fallbackJson.data
+      : Array.isArray(fallbackJson)
+        ? fallbackJson
+        : [];
+    if (liveVendorEvents.value.length) {
+      sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(liveVendorEvents.value));
+    }
+  } catch (error) {
+    console.error(error);
+    liveVendorEvents.value = [];
   }
 
   if (!liveVendorEvents.value.length) {
-    liveVendorEvents.value = fallbackDemoEvents;
+    sessionStorage.removeItem(EVENTS_CACHE_KEY);
+    liveVendorEvents.value = fallbackPublicEvents;
   }
 }
 
@@ -856,11 +959,10 @@ async function loadGuestBookings() {
     }
   }
 
+  const lookup = resolveBookingLookup(authUser);
+
   if (!authUser) {
-    const fallbackEmail =
-      String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim() ||
-      String(localStorage.getItem("achar_customer_email") || "").trim();
-    const localRows = getLocalBookingsByEmail(fallbackEmail);
+    const localRows = getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone });
     if (localRows.length) {
       guestBookings.value = mapRowsToGuestBookings(localRows);
       bookingPageNotice.value = "";
@@ -876,13 +978,7 @@ async function loadGuestBookings() {
     return;
   }
 
-  const typedEmail = String(localStorage.getItem("achar_customer_email") || "").trim();
-  const loggedEmail = String(authUser?.email || "").trim();
-  const lastEmail = String(localStorage.getItem(LAST_BOOKING_EMAIL_KEY) || "").trim();
-  const primaryEmail = typedEmail || loggedEmail || lastEmail;
-  const fallbackEmail = lastEmail && lastEmail !== primaryEmail ? lastEmail : "";
-  const customerEmail = primaryEmail.trim().toLowerCase();
-  if (!customerEmail) {
+  if (!lookup.hasIdentity) {
     guestBookings.value = [];
     bookingPageNotice.value = uiText.value.bookingText;
     return;
@@ -890,20 +986,40 @@ async function loadGuestBookings() {
 
   isLoadingGuestBookings.value = true;
   try {
-    const result = await apiGet("bookings", { customer_email: customerEmail });
+    const result = await apiGet("bookings", {
+      user_id: lookup.userId || undefined,
+      customer_email: lookup.email || undefined,
+      customer_phone: lookup.phone || undefined,
+    });
     let rows = Array.isArray(result?.data) ? result.data : [];
-    if (!rows.length && fallbackEmail) {
-      const fallbackResult = await apiGet("bookings", { customer_email: fallbackEmail });
+    if (!rows.length && lookup.fallbackEmail) {
+      const fallbackResult = await apiGet("bookings", {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.fallbackEmail,
+        customer_phone: lookup.phone || undefined,
+      });
       rows = Array.isArray(fallbackResult?.data) ? fallbackResult.data : [];
     }
     const localRows = [
-      ...getLocalBookingsByEmail(customerEmail),
-      ...(fallbackEmail ? getLocalBookingsByEmail(fallbackEmail) : []),
+      ...getLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone }),
+      ...(lookup.fallbackEmail
+        ? getLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone })
+        : []),
     ];
+    const uniqueLocalRows = localRows.filter(
+      (row, index, items) =>
+        index === items.findIndex((candidate) => getBookingMatchKey(candidate) === getBookingMatchKey(row)),
+    );
     const apiMapped = mapRowsToGuestBookings(rows);
-    const apiKeys = new Set(apiMapped.map((row) => row.id));
-    const extraLocal = localRows.filter((row) => !apiKeys.has(row.id));
+    const apiKeys = new Set(apiMapped.map((row) => getBookingMatchKey(row)));
+    const extraLocal = uniqueLocalRows.filter((row) => !apiKeys.has(getBookingMatchKey(row)));
     guestBookings.value = [...apiMapped, ...mapRowsToGuestBookings(extraLocal)];
+    if (extraLocal.length === 0) {
+      clearLocalBookingsByIdentity({ email: lookup.email, phone: lookup.phone });
+      if (lookup.fallbackEmail) {
+        clearLocalBookingsByIdentity({ email: lookup.fallbackEmail, phone: lookup.phone });
+      }
+    }
     bookingPageNotice.value = "";
   } catch (error) {
     guestBookings.value = [];
@@ -993,6 +1109,11 @@ const prebookSummaryQuantity = computed(() => {
 const prebookSummaryPackage = computed(() => {
   const byTarget = guestPreviewPackages.value.find((item) => item.id === prebookTargetPackageId.value) || null;
   return byTarget || selectedPackage.value || null;
+});
+
+const isPreviewPrebookTarget = computed(() => {
+  if (prebookSummaryPackage.value?.isPreview) return true;
+  return Boolean(section.value === "services-overall" && primarySelectedService.value?.isPreview);
 });
 
 const prebookSummaryPackageSubtotal = computed(() => {
@@ -1219,8 +1340,18 @@ function scheduleTypedPrebookLocationResolve() {
 }
 
 async function submitPrebookForm() {
+  if (isPreviewPrebookTarget.value) {
+    prebookSuccess.value = prebookAvailabilityLabel.value;
+    return;
+  }
+
   if (activePrebookEventId.value && !canSubmitPrebook.value) {
     prebookSuccess.value = prebookAvailabilityLabel.value;
+    return;
+  }
+
+  if (!String(prebookForm.value.email || "").trim() && !String(prebookForm.value.phone || "").trim()) {
+    prebookSuccess.value = "Please enter email or phone number.";
     return;
   }
 
@@ -1270,27 +1401,44 @@ async function submitPrebookForm() {
     targetPackage?.qrCodeUrl ||
     primaryService?.qrCodeUrl ||
     "";
-
-  const payload = {
-    vendorTitle: prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor",
-    vendorName:
+  const requestedEventType = normalizeBookingEventTypeKey(
+    usingOverallFlow ? primaryService?.eventType || primaryService?.eventTypes?.[0] : targetPackage?.eventType,
+    targetPackage?.eventType,
+    usingOverallFlow && customizationEventType.value !== "all" ? customizationEventType.value : "",
+  );
+  const checkoutDisplayTitle = usingOverallFlow
+    ? primaryService?.name || prebookTargetTitle.value || targetPackage?.title || "Selected Vendor"
+    : prebookTargetTitle.value || targetPackage?.title || primaryService?.name || "Selected Vendor";
+  const checkoutVendorName = usingOverallFlow
+    ? primaryService?.vendorName ||
       selectedPackage.value?.vendorName ||
       activePackage.value?.vendorName ||
+      "Selected Vendor"
+    : selectedPackage.value?.vendorName ||
+      activePackage.value?.vendorName ||
       primaryService?.vendorName ||
-      "Selected Vendor",
-    eventId:
+      "Selected Vendor";
+  const checkoutEventId = usingOverallFlow
+    ? primaryService?.backingEventId ||
       selectedPackage.value?.backingEventId ||
       activePackage.value?.backingEventId ||
+      null
+    : selectedPackage.value?.backingEventId ||
+      activePackage.value?.backingEventId ||
       primaryService?.backingEventId ||
-      null,
-    image:
-      selectedPackage.value?.image ||
-      activePackage.value?.image ||
-      primaryService?.image ||
-      packageImageByEventType[
-        selectedPackage.value?.eventType || activePackage.value?.eventType || primaryService?.eventType || "other"
-      ] ||
-      packageImageByEventType.other,
+      null;
+  const checkoutImage =
+    (usingOverallFlow
+      ? primaryService?.image || selectedPackage.value?.image || activePackage.value?.image
+      : selectedPackage.value?.image || activePackage.value?.image || primaryService?.image) ||
+    packageImageByEventType[requestedEventType] ||
+    packageImageByEventType.other;
+
+  const payload = {
+    vendorTitle: checkoutDisplayTitle,
+    vendorName: checkoutVendorName,
+    eventId: checkoutEventId,
+    image: checkoutImage,
     fullName: prebookForm.value.fullName,
     email: prebookForm.value.email,
     phone: prebookForm.value.phone,
@@ -1300,9 +1448,7 @@ async function submitPrebookForm() {
     eventDate: prebookForm.value.eventDate,
     guests: Number(prebookForm.value.guests || 1),
     notes: prebookForm.value.notes,
-    requestedEventType: usingOverallFlow
-      ? customizationEventType.value
-      : targetPackage?.eventType || "other",
+    requestedEventType,
     items: checkoutItems,
     qrCodeUrl: paymentQrCodeUrl,
   };
@@ -1396,6 +1542,7 @@ const activePrebookEventId = computed(
 );
 
 const prebookAvailabilityTone = computed(() => {
+  if (isPreviewPrebookTarget.value) return "neutral";
   if (!activePrebookEventId.value || !prebookForm.value.eventDate) return "neutral";
   if (isCheckingPrebookAvailability.value) return "neutral";
   if (!prebookAvailability.value) return "neutral";
@@ -1405,6 +1552,9 @@ const prebookAvailabilityTone = computed(() => {
 });
 
 const prebookAvailabilityLabel = computed(() => {
+  if (isPreviewPrebookTarget.value) {
+    return "Preview service only. Add a live vendor service to allow booking.";
+  }
   if (!activePrebookEventId.value) return "Select a live vendor service to check date availability.";
   if (!prebookForm.value.eventDate) return "Choose your event date to check if this vendor is free.";
   if (isCheckingPrebookAvailability.value) return "Checking selected date...";
@@ -1412,6 +1562,7 @@ const prebookAvailabilityLabel = computed(() => {
 });
 
 const canSubmitPrebook = computed(() => {
+  if (isPreviewPrebookTarget.value) return false;
   if (!activePrebookEventId.value) return true;
   if (isCheckingPrebookAvailability.value || !prebookForm.value.eventDate || !prebookAvailability.value) {
     return false;
@@ -1419,6 +1570,14 @@ const canSubmitPrebook = computed(() => {
 
   return Boolean(prebookAvailability.value.service_available && prebookAvailability.value.vendor_available);
 });
+
+function toFriendlyPrebookErrorMessage(error) {
+  const message = String(error?.message || "").trim();
+  if (/No query results for model \[App\\Models\\Event\]/.test(message)) {
+    return "This service is no longer available. Please choose another one.";
+  }
+  return message || "Could not check availability for the selected date.";
+}
 
 async function checkPrebookAvailability() {
   if (!activePrebookEventId.value || !prebookForm.value.eventDate) {
@@ -1437,7 +1596,7 @@ async function checkPrebookAvailability() {
       service_available: false,
       vendor_available: false,
       is_active: true,
-      message: error?.message || "Could not check availability for the selected date.",
+      message: toFriendlyPrebookErrorMessage(error),
     };
   } finally {
     isCheckingPrebookAvailability.value = false;
@@ -2020,7 +2179,12 @@ watch(
     if (lastHandledPrebookEventId.value === eventId) return;
 
     const targetPackage = packages.find((item) => Number(item.backingEventId || 0) === eventId);
-    if (!targetPackage) return;
+    if (!targetPackage) {
+      const nextQuery = { ...route.query };
+      delete nextQuery.prebookEventId;
+      router.replace({ path: route.path, query: nextQuery }).catch(() => {});
+      return;
+    }
 
     selectedPackageId.value = targetPackage.id;
     packageQuantity.value = 1;
@@ -2118,7 +2282,11 @@ function noop() {}
 
     <main class="shell guest-content">
       <section
-        v-if="section !== 'services-overall' && section !== 'services-packages' && section !== 'bookings'"
+        v-if="
+          section !== 'services-overall' &&
+          section !== 'services-packages' &&
+          section !== 'bookings'
+        "
         class="guest-panel"
       >
         <h1>{{ pageContent.title }}</h1>
@@ -2140,34 +2308,38 @@ function noop() {}
         :open-upcoming-bookings="() => goToSection('bookings')"
       />
 
-	      <section
-	        v-else-if="section === 'services-packages'"
-	        class="overall-service-page packages-service-page"
-	      >
-	        <section class="overall-head card">
-	          <div class="overall-head-main">
-	            <div class="flow-head-row">
-	              <h1>{{ uiText.packagePageTitle }}</h1>
-	              <div v-if="isFromCheckout" class="checkout-flow-steps">
-	                <RouterLink
-	                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+      <section
+        v-else-if="section === 'services-packages'"
+        class="overall-service-page packages-service-page"
+      >
+        <section class="overall-head card">
+          <div class="overall-head-main">
+            <div class="flow-head-row">
+              <h1>{{ uiText.packagePageTitle }}</h1>
+              <div v-if="isFromCheckout" class="checkout-flow-steps">
+                <RouterLink
+                  :to="
+                    section === 'services-overall'
+                      ? '/services/overall'
+                      : '/services/packages'
+                  "
                   class="step-link active"
                 >
-                  {{ uiText.servicesStep || '1 Services' }}
+                  {{ uiText.servicesStep || "1 Services" }}
                 </RouterLink>
                 <RouterLink to="/checkout" class="step-link">
-                  {{ uiText.reviewStep || '2 Review & Payment' }}
+                  {{ uiText.reviewStep || "2 Review & Payment" }}
                 </RouterLink>
               </div>
             </div>
-	            <p>
-	              {{ uiText.packagePageText }}
-	            </p>
-	            <div class="overall-toolbar">
-	              <label class="filter-field">
-	                <span>{{ uiText.eventType }}</span>
-	                <select
-	                  class="event-type-select"
+            <p>
+              {{ uiText.packagePageText }}
+            </p>
+            <div class="overall-toolbar">
+              <label class="filter-field">
+                <span>{{ uiText.eventType }}</span>
+                <select
+                  class="event-type-select"
                   :value="packageEventType"
                   @change="packageEventType = $event.target.value"
                 >
@@ -2183,164 +2355,193 @@ function noop() {}
               <label class="filter-field">
                 <span>{{ uiText.search }}</span>
                 <input
-                  class="customization-search"
+                  class="customization-search search-input-icon"
                   type="search"
                   :placeholder="uiText.searchPackages"
                   :value="packageSearch"
                   @input="packageSearch = $event.target.value"
                 />
-	              </label>
-	              <div class="overall-count">
-	                {{ guestPreviewPackagesFiltered.length }}
-	                {{ guestPreviewPackagesFiltered.length === 1 ? uiText.packageCountSingle : uiText.packageCount }}
-	              </div>
-	            </div>
-	          </div>
-	        </section>
-
-	        <section class="overall-layout">
-	          <div class="overall-list">
-	            <article class="customization-section">
-	              <div class="customization-section-head">
-	                <span>P</span>
-	                <h2>{{ uiText.packageCatalog }}</h2>
-	              </div>
-
-	              <div
-	                v-if="guestPreviewPackagesFiltered.length === 0"
-	                class="card empty-state"
-	              >
-	                {{ uiText.noPackagesForEvent }}
-	              </div>
-
-	              <div v-else class="package-grid">
-	                <article
-	                  v-for="item in guestPreviewPackagesFiltered"
-	                  :key="item.id"
-	                  class="package-product-card"
-	                  :id="`package-card-${item.id}`"
-	                  :class="{ 'focused-target-card': focusedCardKey === `package-card-${item.id}` }"
-	                  role="button"
-	                  tabindex="0"
-	                  @click="openPackageDetails(item.id)"
-	                  @keyup.enter="openPackageDetails(item.id)"
-	                >
-	                  <div class="package-card-image-wrap">
-	                    <img class="package-card-image" :src="item.image" :alt="item.title" />
-	                    <span class="package-card-pill">{{ item.eventTypeLabel || 'Event' }}</span>
-	                    <button
-	                      type="button"
-	                      class="package-fav-badge"
-	                      :class="{ active: isPackageFavorite(item.id) }"
-	                      @click.stop="toggleFavoritePackage(item.id)"
-	                      :aria-label="isPackageFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'"
-	                    >
-	                      {{ isPackageFavorite(item.id) ? '♥' : '♡' }}
-	                    </button>
-	                  </div>
-
-	                  <div class="package-product-body">
-	                    <h3>{{ item.title }}</h3>
-	                    <p class="package-vendor">{{ item.vendorName || 'Verified Vendor' }}</p>
-	                    <div class="package-rating">
-	                      <span class="star">★</span>
-	                      <strong>{{ (item.rating || 4.7).toFixed ? (item.rating || 4.7).toFixed(1) : '4.7' }}</strong>
-	                      <small>{{ uiText.reviewsLabel || '0 reviews' }}</small>
-	                    </div>
-
-	                    <div class="package-bottom">
-	                      <div class="package-price-stack">
-	                        <small>{{ uiText.startsFrom || 'Starts from' }}</small>
-	                        <strong class="package-price">{{ item.priceLabel }}</strong>
-	                      </div>
-	                      <button
-	                        type="button"
-	                        class="choice-indicator package-book-btn"
-	                        :class="{ selected: selectedPackageId === item.id }"
-	                        @click.stop="selectPackage(item.id)"
-	                      >
-	                        {{
-	                          selectedPackageId === item.id
-	                            ? uiText.selected
-	                            : uiText.selectPackage
-	                        }}
-	                      </button>
-	                    </div>
-	                  </div>
-	                </article>
-	              </div>
-	            </article>
-	          </div>
-
-	          <aside class="card customization-summary overall-summary package-summary">
-	            <h2>{{ uiText.bookingSummary }}</h2>
-	          <div class="summary-items">
-	            <h3>{{ uiText.selectedPackage }}</h3>
-	            <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
-	            <div v-else class="summary-package">
-              <strong>{{ selectedPackage.title }}</strong>
-              <p>
-                {{ selectedPackage.eventTypeLabel }} |
-                {{ selectedPackage.location }}
-              </p>
-            </div>
-          </div>
-
-          <div class="summary-row">
-            <span>{{ uiText.quantity }}</span>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              :value="packageQuantity"
-              @input="packageQtyChanged"
-            />
-          </div>
-          <div class="summary-row">
-            <span>{{ uiText.packagePrice }}</span>
-            <strong>${{ packagePrice.toLocaleString() }}</strong>
-          </div>
-          <div class="summary-items">
-            <h3>{{ uiText.selectedServices }}</h3>
-            <p v-if="selectedServices.length === 0">
-              {{ uiText.noAdditionalServices }}
-            </p>
-            <div v-else>
-              <div
-                v-for="svc in selectedServices"
-                :key="svc.id"
-                class="summary-row"
-              >
-                <span>{{ svc.name }}</span>
-                <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+              </label>
+              <div class="overall-count">
+                {{ guestPreviewPackagesFiltered.length }}
+                {{
+                  guestPreviewPackagesFiltered.length === 1
+                    ? uiText.packageCountSingle
+                    : uiText.packageCount
+                }}
               </div>
             </div>
           </div>
-          <div class="summary-row">
-            <span>{{ uiText.servicesSubtotal }}</span>
-            <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
-          </div>
-          <div class="summary-row muted">
-            <span>{{ uiText.serviceFee }}</span>
-            <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+        </section>
+
+        <section class="overall-layout">
+          <div class="overall-list">
+            <article class="customization-section">
+              <div class="customization-section-head">
+                <span>P</span>
+                <h2>{{ uiText.packageCatalog }}</h2>
+              </div>
+
+              <div
+                v-if="guestPreviewPackagesFiltered.length === 0"
+                class="card empty-state"
+              >
+                {{ uiText.noPackagesForEvent }}
+              </div>
+
+              <div v-else class="package-grid">
+                <article
+                  v-for="item in guestPreviewPackagesFiltered"
+                  :key="item.id"
+                  class="package-product-card"
+                  :id="`package-card-${item.id}`"
+                  :class="{
+                    'focused-target-card':
+                      focusedCardKey === `package-card-${item.id}`,
+                  }"
+                  role="button"
+                  tabindex="0"
+                  @click="openPackageDetails(item.id)"
+                  @keyup.enter="openPackageDetails(item.id)"
+                >
+                  <div class="package-card-image-wrap">
+                    <img
+                      class="package-card-image"
+                      :src="item.image"
+                      :alt="item.title"
+                    />
+                    <span class="package-card-pill">{{
+                      item.eventTypeLabel || "Event"
+                    }}</span>
+                    <button
+                      type="button"
+                      class="package-fav-badge"
+                      :class="{ active: isPackageFavorite(item.id) }"
+                      @click.stop="toggleFavoritePackage(item.id)"
+                      :aria-label="
+                        isPackageFavorite(item.id)
+                          ? 'Remove from favorites'
+                          : 'Add to favorites'
+                      "
+                    >
+                      {{ isPackageFavorite(item.id) ? "♥" : "♡" }}
+                    </button>
+                  </div>
+
+                  <div class="package-product-body">
+                    <h3>{{ item.title }}</h3>
+                    <p class="package-vendor">
+                      {{ item.vendorName || "Verified Vendor" }}
+                    </p>
+                    <div class="package-rating">
+                      <span class="star">★</span>
+                      <strong>{{
+                        (item.rating || 4.7).toFixed
+                          ? (item.rating || 4.7).toFixed(1)
+                          : "4.7"
+                      }}</strong>
+                      <small>{{ uiText.reviewsLabel || "0 reviews" }}</small>
+                    </div>
+
+                    <div class="package-bottom">
+                      <div class="package-price-stack">
+                        <small>{{ uiText.startsFrom || "Starts from" }}</small>
+                        <strong class="package-price">{{
+                          item.priceLabel
+                        }}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        class="choice-indicator package-book-btn"
+                        :class="{ selected: selectedPackageId === item.id }"
+                        @click.stop="selectPackage(item.id)"
+                      >
+                        {{
+                          selectedPackageId === item.id
+                            ? uiText.selected
+                            : uiText.selectPackage
+                        }}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </article>
           </div>
 
-          <div class="summary-total">
-            <span>{{ uiText.totalPrice }}</span>
-            <strong>${{ totalPrice.toLocaleString() }}</strong>
-          </div>
-
-          <button
-            type="button"
-            class="confirm-selection"
-            :disabled="!selectedPackage && selectedServices.length === 0"
-            @click="openPrebookForm"
+          <aside
+            class="card customization-summary overall-summary package-summary"
           >
-	            {{ uiText.prebookNow }}
-	          </button>
-	        </aside>
-	        </section>
-	      </section>
+            <h2>{{ uiText.bookingSummary }}</h2>
+            <div class="summary-items">
+              <h3>{{ uiText.selectedPackage }}</h3>
+              <p v-if="!selectedPackage">{{ uiText.choosePackage }}</p>
+              <div v-else class="summary-package">
+                <strong>{{ selectedPackage.title }}</strong>
+                <p>
+                  {{ selectedPackage.eventTypeLabel }} |
+                  {{ selectedPackage.location }}
+                </p>
+              </div>
+            </div>
+
+            <div class="summary-row">
+              <span>{{ uiText.quantity }}</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                :value="packageQuantity"
+                @input="packageQtyChanged"
+              />
+            </div>
+            <div class="summary-row">
+              <span>{{ uiText.packagePrice }}</span>
+              <strong>${{ packagePrice.toLocaleString() }}</strong>
+            </div>
+            <div class="summary-items">
+              <h3>{{ uiText.selectedServices }}</h3>
+              <p v-if="selectedServices.length === 0">
+                {{ uiText.noAdditionalServices }}
+              </p>
+              <div v-else>
+                <div
+                  v-for="svc in selectedServices"
+                  :key="svc.id"
+                  class="summary-row"
+                >
+                  <span>{{ svc.name }}</span>
+                  <strong
+                    >+${{ Number(svc.price || 0).toLocaleString() }}</strong
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="summary-row">
+              <span>{{ uiText.servicesSubtotal }}</span>
+              <strong>${{ servicesSubtotal.toLocaleString() }}</strong>
+            </div>
+            <div class="summary-row muted">
+              <span>{{ uiText.serviceFee }}</span>
+              <strong>${{ serviceFeeAmount.toLocaleString() }}</strong>
+            </div>
+
+            <div class="summary-total">
+              <span>{{ uiText.totalPrice }}</span>
+              <strong>${{ totalPrice.toLocaleString() }}</strong>
+            </div>
+
+            <button
+              type="button"
+              class="confirm-selection"
+              :disabled="!selectedPackage && selectedServices.length === 0"
+              @click="openPrebookForm"
+            >
+              {{ uiText.prebookNow }}
+            </button>
+          </aside>
+        </section>
+      </section>
 
       <CustomizationPage
         v-else-if="section === 'customization'"
@@ -2386,7 +2587,11 @@ function noop() {}
               <h1>General Services</h1>
               <div v-if="isFromCheckout" class="checkout-flow-steps">
                 <RouterLink
-                  :to="section === 'services-overall' ? '/services/overall' : '/services/packages'"
+                  :to="
+                    section === 'services-overall'
+                      ? '/services/overall'
+                      : '/services/packages'
+                  "
                   class="step-link active"
                 >
                   1 Services
@@ -2420,18 +2625,17 @@ function noop() {}
               <label class="filter-field">
                 <span>Search</span>
                 <input
-                  class="customization-search"
+                  class="customization-search search-input-icon"
                   type="search"
                   placeholder="Search services..."
                   :value="customizationSearch.value"
                   @input="customizationSearch.value = $event.target.value"
                 />
               </label>
-                <div class="overall-count">
+              <div class="overall-count">
                 {{ matchingServicesFiltered.length }} services
-                
-                </div>
               </div>
+            </div>
           </div>
         </section>
 
@@ -2456,7 +2660,10 @@ function noop() {}
                   :key="service.id"
                   :id="`service-card-${service.id}`"
                   class="service-card-anchor"
-                  :class="{ 'focused-target-card': focusedCardKey === `service-card-${service.id}` }"
+                  :class="{
+                    'focused-target-card':
+                      focusedCardKey === `service-card-${service.id}`,
+                  }"
                 >
                   <ServiceCard
                     :service="service"
@@ -2508,7 +2715,9 @@ function noop() {}
                   class="summary-row"
                 >
                   <span>{{ svc.name }}</span>
-                  <strong>+${{ Number(svc.price || 0).toLocaleString() }}</strong>
+                  <strong
+                    >+${{ Number(svc.price || 0).toLocaleString() }}</strong
+                  >
                 </div>
               </div>
             </div>
@@ -2521,15 +2730,19 @@ function noop() {}
               <strong>${{ overallServiceFeeAmount.toLocaleString() }}</strong>
             </div>
 
-          <div class="summary-total">
-            <span>{{ uiText.totalPrice }}</span>
-            <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
-          </div>
+            <div class="summary-total">
+              <span>{{ uiText.totalPrice }}</span>
+              <strong>${{ overallTotalPrice.toLocaleString() }}</strong>
+            </div>
 
-          <button type="button" class="confirm-selection" @click="openPrebookForm">
-            {{ uiText.prebookNow }}
-          </button>
-        </aside>
+            <button
+              type="button"
+              class="confirm-selection"
+              @click="openPrebookForm"
+            >
+              {{ uiText.prebookNow }}
+            </button>
+          </aside>
         </section>
       </section>
 
@@ -2545,7 +2758,12 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="item in favoritePackages" :key="item.id">
-                <img class="favorite-thumb" :src="item.image" :alt="item.title" loading="lazy" />
+                <img
+                  class="favorite-thumb"
+                  :src="item.image"
+                  :alt="item.title"
+                  loading="lazy"
+                />
                 <div class="favorite-text">
                   <strong>{{ item.title }}</strong>
                   <small
@@ -2570,7 +2788,12 @@ function noop() {}
             </p>
             <ul v-else class="favorite-list">
               <li v-for="service in favoriteServices" :key="service.id">
-                <img class="favorite-thumb" :src="service.image" :alt="service.name" loading="lazy" />
+                <img
+                  class="favorite-thumb"
+                  :src="service.image"
+                  :alt="service.name"
+                  loading="lazy"
+                />
                 <div class="favorite-text">
                   <strong>{{ service.name }}</strong>
                   <small
@@ -2647,7 +2870,9 @@ function noop() {}
           <button
             type="button"
             class="confirm-selection"
-            :disabled="!favoriteSelectedPackage && favoriteServices.length === 0"
+            :disabled="
+              !favoriteSelectedPackage && favoriteServices.length === 0
+            "
             @click="openFavoritePrebookForm"
           >
             {{ uiText.prebookFavoriteItems }}
@@ -2680,7 +2905,9 @@ function noop() {}
       <div class="package-modal booking-details-modal" @click.stop>
         <div class="package-modal-head">
           <div>
-            <p class="package-product-type">{{ selectedBookingDetails.status }}</p>
+            <p class="package-product-type">
+              {{ selectedBookingDetails.status }}
+            </p>
             <h3>{{ selectedBookingDetails.service }}</h3>
           </div>
           <button
@@ -2697,31 +2924,87 @@ function noop() {}
           :alt="selectedBookingDetails.service"
         />
         <div class="booking-detail-grid">
-          <p><strong>Vendor</strong><span>{{ selectedBookingDetails.vendor }}</span></p>
-          <p><strong>Date</strong><span>{{ selectedBookingDetails.date }}</span></p>
-          <p><strong>Event Type</strong><span>{{ selectedBookingDetails.metaValue }}</span></p>
-          <p><strong>Total</strong><span>{{ selectedBookingDetails.placeValue }}</span></p>
-          <p><strong>Quantity</strong><span>{{ selectedBookingDetails.quantity }}</span></p>
-          <p><strong>Service Price</strong><span>${{ Number(selectedBookingDetails.servicePrice || 0).toLocaleString() }}</span></p>
-          <p><strong>Status</strong><span>{{ selectedBookingDetails.status }}</span></p>
-          <p><strong>Booking ID</strong><span>#{{ selectedBookingDetails.id }}</span></p>
+          <p>
+            <strong>Vendor</strong
+            ><span>{{ selectedBookingDetails.vendor }}</span>
+          </p>
+          <p>
+            <strong>Date</strong><span>{{ selectedBookingDetails.date }}</span>
+          </p>
+          <p>
+            <strong>Event Type</strong
+            ><span>{{ selectedBookingDetails.metaValue }}</span>
+          </p>
+          <p>
+            <strong>Total</strong
+            ><span>{{ selectedBookingDetails.placeValue }}</span>
+          </p>
+          <p>
+            <strong>Quantity</strong
+            ><span>{{ selectedBookingDetails.quantity }}</span>
+          </p>
+          <p>
+            <strong>Service Price</strong
+            ><span
+              >${{
+                Number(
+                  selectedBookingDetails.servicePrice || 0,
+                ).toLocaleString()
+              }}</span
+            >
+          </p>
+          <p>
+            <strong>Status</strong
+            ><span>{{ selectedBookingDetails.status }}</span>
+          </p>
+          <p>
+            <strong>Booking ID</strong
+            ><span>#{{ selectedBookingDetails.id }}</span>
+          </p>
         </div>
         <div class="booking-items-panel">
           <h4>Booked Services</h4>
-          <ul v-if="selectedBookingDetails.bookedItems?.length" class="booking-items-list">
-            <li v-for="(item, index) in selectedBookingDetails.bookedItems" :key="`${selectedBookingDetails.id}-${index}`">
+          <ul
+            v-if="selectedBookingDetails.bookedItems?.length"
+            class="booking-items-list"
+          >
+            <li
+              v-for="(item, index) in selectedBookingDetails.bookedItems"
+              :key="`${selectedBookingDetails.id}-${index}`"
+            >
               <div>
-                <strong>{{ item.name || selectedBookingDetails.service }}</strong>
-                <small>{{ item.type || "service" }} | Qty {{ Number(item.qty || 1) }}</small>
-                <small v-if="item.description" class="booking-item-description">{{ item.description }}</small>
+                <strong>{{
+                  item.name || selectedBookingDetails.service
+                }}</strong>
+                <small
+                  >{{ item.type || "service" }} | Qty
+                  {{ Number(item.qty || 1) }}</small
+                >
+                <small
+                  v-if="item.description"
+                  class="booking-item-description"
+                  >{{ item.description }}</small
+                >
               </div>
               <div class="booking-item-prices">
-                <span>${{ Number(item.totalPrice || item.unitPrice || 0).toLocaleString() }}</span>
-                <small v-if="item.unitPrice">Unit ${{ Number(item.unitPrice || 0).toLocaleString() }}</small>
+                <span
+                  >${{
+                    Number(
+                      item.totalPrice || item.unitPrice || 0,
+                    ).toLocaleString()
+                  }}</span
+                >
+                <small v-if="item.unitPrice"
+                  >Unit ${{
+                    Number(item.unitPrice || 0).toLocaleString()
+                  }}</small
+                >
               </div>
             </li>
           </ul>
-          <p v-else class="booking-detail-empty">{{ selectedBookingDetails.service }}</p>
+          <p v-else class="booking-detail-empty">
+            {{ selectedBookingDetails.service }}
+          </p>
         </div>
         <p class="booking-detail-note">{{ selectedBookingDetails.note }}</p>
       </div>
@@ -2819,7 +3102,9 @@ function noop() {}
               {{ activeVendorProfile.eventTypeLabel }}
             </p>
             <h3>{{ activeVendorProfile.name }}</h3>
-            <small class="vendor-subtitle">{{ activeVendorProfile.subtitle }}</small>
+            <small class="vendor-subtitle">{{
+              activeVendorProfile.subtitle
+            }}</small>
           </div>
           <button
             type="button"
@@ -2835,13 +3120,31 @@ function noop() {}
           :alt="activeVendorProfile.name"
         />
         <div class="vendor-meta">
-          <p><strong>Service</strong><span>{{ activeVendorProfile.serviceName }}</span></p>
-          <p><strong>Price</strong><span>{{ activeVendorProfile.servicePriceLabel }}</span></p>
-          <p><strong>Event</strong><span>{{ activeVendorProfile.eventTypeLabel }}</span></p>
-          <p><strong>Rating</strong><span>{{ activeVendorProfile.rating }}</span></p>
-          <p><strong>Location</strong><span>{{ activeVendorProfile.location }}</span></p>
-          <p v-if="activeVendorProfile.phone"><strong>Phone</strong><span>{{ activeVendorProfile.phone }}</span></p>
-          <p v-if="activeVendorProfile.email"><strong>Email</strong><span>{{ activeVendorProfile.email }}</span></p>
+          <p>
+            <strong>Service</strong
+            ><span>{{ activeVendorProfile.serviceName }}</span>
+          </p>
+          <p>
+            <strong>Price</strong
+            ><span>{{ activeVendorProfile.servicePriceLabel }}</span>
+          </p>
+          <p>
+            <strong>Event</strong
+            ><span>{{ activeVendorProfile.eventTypeLabel }}</span>
+          </p>
+          <p>
+            <strong>Rating</strong><span>{{ activeVendorProfile.rating }}</span>
+          </p>
+          <p>
+            <strong>Location</strong
+            ><span>{{ activeVendorProfile.location }}</span>
+          </p>
+          <p v-if="activeVendorProfile.phone">
+            <strong>Phone</strong><span>{{ activeVendorProfile.phone }}</span>
+          </p>
+          <p v-if="activeVendorProfile.email">
+            <strong>Email</strong><span>{{ activeVendorProfile.email }}</span>
+          </p>
           <p v-if="activeVendorProfile.website">
             <strong>Website</strong>
             <span>{{ activeVendorProfile.website }}</span>
@@ -2849,10 +3152,18 @@ function noop() {}
         </div>
         <p class="package-modal-desc">{{ activeVendorProfile.description }}</p>
         <div class="package-modal-actions">
-          <button type="button" class="modal-action-btn modal-action-neutral" @click="closeVendorProfile">
+          <button
+            type="button"
+            class="modal-action-btn modal-action-neutral"
+            @click="closeVendorProfile"
+          >
             Close
           </button>
-          <button type="button" class="modal-action-btn modal-action-primary" @click="messageVendorFromProfile">
+          <button
+            type="button"
+            class="modal-action-btn modal-action-primary"
+            @click="messageVendorFromProfile"
+          >
             {{ uiText.messageVendor || "Message Vendor" }}
           </button>
         </div>
@@ -2879,7 +3190,9 @@ function noop() {}
             </span>
             <div class="prebook-head-copy">
               <h3>Book {{ prebookTargetTitle }}</h3>
-              <p>Fill in the details below—then review everything at checkout.</p>
+              <p>
+                Fill in the details below—then review everything at checkout.
+              </p>
               <div class="prebook-steps" aria-hidden="true">
                 <span class="prebook-step prebook-step-active">1 Details</span>
                 <span class="prebook-step">2 Location</span>
@@ -2893,8 +3206,18 @@ function noop() {}
             @click="closePrebookModal"
             aria-label="Close booking form"
           >
-            <svg class="prebook-close-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <svg
+              class="prebook-close-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.5 6.5l11 11M17.5 6.5l-11 11"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -2910,12 +3233,22 @@ function noop() {}
                 <div class="prebook-grid">
                   <label class="prebook-field">
                     <span>Full name</span>
-                    <input v-model.trim="prebookForm.fullName" type="text" placeholder="Your name" required />
+                    <input
+                      v-model.trim="prebookForm.fullName"
+                      type="text"
+                      placeholder="Your name"
+                      required
+                    />
                   </label>
 
                   <label class="prebook-field">
                     <span>Email</span>
-                    <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" required />
+                    <input
+                      v-model.trim="prebookForm.email"
+                      type="email"
+                      placeholder="you@example.com"
+                      autocomplete="email"
+                    />
                   </label>
 
                   <label class="prebook-field prebook-span-2">
@@ -2923,7 +3256,6 @@ function noop() {}
                     <input
                       v-model.trim="prebookForm.phone"
                       type="tel"
-                      required
                       placeholder="+1 555 234 5678"
                     />
                   </label>
@@ -2939,8 +3271,14 @@ function noop() {}
                   <label class="prebook-field prebook-span-2">
                     <span>Event date</span>
                     <div class="prebook-date-picker">
-                      <button type="button" class="prebook-date-trigger" @click="openPrebookCalendar">
-                        <span>{{ prebookForm.eventDate || "Select event date" }}</span>
+                      <button
+                        type="button"
+                        class="prebook-date-trigger"
+                        @click="openPrebookCalendar"
+                      >
+                        <span>{{
+                          prebookForm.eventDate || "Select event date"
+                        }}</span>
                         <span class="prebook-date-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24" fill="none">
                             <path
@@ -2960,10 +3298,18 @@ function noop() {}
                             <small>{{ prebookCalendarSelectedLabel }}</small>
                           </div>
                           <div class="prebook-calendar-nav">
-                            <button type="button" @click="previousPrebookCalendarMonth" aria-label="Previous month">
+                            <button
+                              type="button"
+                              @click="previousPrebookCalendarMonth"
+                              aria-label="Previous month"
+                            >
                               &lt;
                             </button>
-                            <button type="button" @click="nextPrebookCalendarMonth" aria-label="Next month">
+                            <button
+                              type="button"
+                              @click="nextPrebookCalendarMonth"
+                              aria-label="Next month"
+                            >
                               &gt;
                             </button>
                             <button
@@ -2972,7 +3318,11 @@ function noop() {}
                               @click="closePrebookCalendar"
                               aria-label="Close calendar"
                             >
-                              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                              >
                                 <path
                                   d="M6.5 6.5l11 11M17.5 6.5l-11 11"
                                   stroke="currentColor"
@@ -2985,7 +3335,18 @@ function noop() {}
                         </div>
 
                         <div class="prebook-calendar-weekdays">
-                          <span v-for="label in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="label">
+                          <span
+                            v-for="label in [
+                              'Sun',
+                              'Mon',
+                              'Tue',
+                              'Wed',
+                              'Thu',
+                              'Fri',
+                              'Sat',
+                            ]"
+                            :key="label"
+                          >
                             {{ label }}
                           </span>
                         </div>
@@ -3003,7 +3364,9 @@ function noop() {}
                               available: cell.available && cell.inMonth,
                               selected: isPrebookCalendarCellSelected(cell),
                             }"
-                            :disabled="!cell.inMonth || cell.disabled || cell.booked"
+                            :disabled="
+                              !cell.inMonth || cell.disabled || cell.booked
+                            "
                             @click="selectPrebookCalendarDate(cell)"
                           >
                             {{ cell.day || "" }}
@@ -3015,7 +3378,12 @@ function noop() {}
                           <span><i class="dot booked"></i> Already Booked</span>
                           <span><i class="dot selected"></i> Selected</span>
                         </div>
-                        <p v-if="isLoadingPrebookCalendar" class="prebook-calendar-loading">Loading date availability...</p>
+                        <p
+                          v-if="isLoadingPrebookCalendar"
+                          class="prebook-calendar-loading"
+                        >
+                          Loading date availability...
+                        </p>
                       </div>
                     </div>
                   </label>
@@ -3032,7 +3400,12 @@ function noop() {}
 
                   <label class="prebook-field">
                     <span>Guests</span>
-                    <input v-model.number="prebookForm.guests" type="number" min="1" required />
+                    <input
+                      v-model.number="prebookForm.guests"
+                      type="number"
+                      min="1"
+                      required
+                    />
                   </label>
 
                   <label class="prebook-field prebook-span-2">
@@ -3046,35 +3419,65 @@ function noop() {}
                 </div>
               </section>
 
-              <p v-if="prebookSuccess" class="prebook-success">{{ prebookSuccess }}</p>
+              <p v-if="prebookSuccess" class="prebook-success">
+                {{ prebookSuccess }}
+              </p>
             </div>
 
             <div class="prebook-col prebook-col-aside">
               <div class="prebook-summary" aria-label="Booking summary">
                 <div class="prebook-summary-top">
-                  <div class="prebook-summary-title">{{ prebookTargetTitle }}</div>
-                  <div class="prebook-summary-pill">Qty {{ prebookSummaryQuantity }}</div>
+                  <div class="prebook-summary-title">
+                    {{ prebookTargetTitle }}
+                  </div>
+                  <div class="prebook-summary-pill">
+                    Qty {{ prebookSummaryQuantity }}
+                  </div>
                 </div>
                 <div class="prebook-summary-lines">
-                  <div v-if="prebookSummaryPackage" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryPackage"
+                    class="prebook-summary-line"
+                  >
                     <span>Package</span>
                     <strong>{{ prebookSummaryPackage.title }}</strong>
                   </div>
-                  <div v-if="prebookSummaryPackageSubtotal > 0" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryPackageSubtotal > 0"
+                    class="prebook-summary-line"
+                  >
                     <span>Package subtotal</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryPackageSubtotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryPackageSubtotal)
+                    }}</strong>
                   </div>
-                  <div v-if="prebookSummaryServicesSubtotal > 0" class="prebook-summary-line">
+                  <div
+                    v-if="prebookSummaryServicesSubtotal > 0"
+                    class="prebook-summary-line"
+                  >
                     <span>{{ prebookSummaryServicesLabel }}</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryServicesSubtotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryServicesSubtotal)
+                    }}</strong>
                   </div>
-                  <div v-if="prebookSummaryServiceFee > 0" class="prebook-summary-line prebook-summary-muted">
-                    <span>Service fee ({{ Math.round(serviceFeeRate * 100) }}%)</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryServiceFee) }}</strong>
+                  <div
+                    v-if="prebookSummaryServiceFee > 0"
+                    class="prebook-summary-line prebook-summary-muted"
+                  >
+                    <span
+                      >Service fee ({{
+                        Math.round(serviceFeeRate * 100)
+                      }}%)</span
+                    >
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryServiceFee)
+                    }}</strong>
                   </div>
                   <div class="prebook-summary-total">
                     <span>Estimated total</span>
-                    <strong>{{ formatPrebookMoney(prebookSummaryTotal) }}</strong>
+                    <strong>{{
+                      formatPrebookMoney(prebookSummaryTotal)
+                    }}</strong>
                   </div>
                 </div>
               </div>
@@ -3101,10 +3504,17 @@ function noop() {}
                       <button
                         type="button"
                         class="modal-action-btn modal-action-neutral"
-                        :disabled="isDetectingPrebookLocation || isResolvingTypedPrebookLocation"
+                        :disabled="
+                          isDetectingPrebookLocation ||
+                          isResolvingTypedPrebookLocation
+                        "
                         @click="detectPrebookLocation"
                       >
-                        {{ isDetectingPrebookLocation ? "Detecting location..." : "Use Current Location" }}
+                        {{
+                          isDetectingPrebookLocation
+                            ? "Detecting location..."
+                            : "Use Current Location"
+                        }}
                       </button>
 
                       <a
@@ -3118,12 +3528,21 @@ function noop() {}
                       </a>
                     </div>
 
-                    <p v-if="prebookLocationNotice" class="prebook-location-notice">{{ prebookLocationNotice }}</p>
                     <p
-                      v-if="prebookForm.latitude !== null && prebookForm.longitude !== null"
+                      v-if="prebookLocationNotice"
+                      class="prebook-location-notice"
+                    >
+                      {{ prebookLocationNotice }}
+                    </p>
+                    <p
+                      v-if="
+                        prebookForm.latitude !== null &&
+                        prebookForm.longitude !== null
+                      "
                       class="prebook-location-coords"
                     >
-                      Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng: {{ Number(prebookForm.longitude).toFixed(6) }}
+                      Lat: {{ Number(prebookForm.latitude).toFixed(6) }}, Lng:
+                      {{ Number(prebookForm.longitude).toFixed(6) }}
                     </p>
                     <iframe
                       v-if="prebookLocationMapEmbedUrl"
@@ -3142,13 +3561,21 @@ function noop() {}
           </div>
 
           <div class="prebook-actions">
-            <p class="prebook-actions-hint">You’ll review details before placing your order.</p>
+            <p class="prebook-actions-hint">
+              You’ll review details before placing your order.
+            </p>
             <button
               type="submit"
               class="modal-action-btn modal-action-primary"
-              :disabled="activePrebookEventId && !canSubmitPrebook"
+              :disabled="isPreviewPrebookTarget || (activePrebookEventId && !canSubmitPrebook)"
             >
-              {{ isCheckingPrebookAvailability ? "Checking..." : "Continue to Checkout" }}
+              {{
+                isPreviewPrebookTarget
+                  ? "Preview Only"
+                  : isCheckingPrebookAvailability
+                    ? "Checking..."
+                    : "Continue to Checkout"
+              }}
             </button>
           </div>
         </form>
@@ -3177,7 +3604,11 @@ function noop() {}
   border: 1px solid #dbe4f2;
   border-radius: 24px;
   background:
-    radial-gradient(circle at 95% 12%, rgba(255, 106, 0, 0.12), transparent 35%),
+    radial-gradient(
+      circle at 95% 12%,
+      rgba(255, 106, 0, 0.12),
+      transparent 35%
+    ),
     linear-gradient(180deg, #ffffff, #fbfdff);
   padding: 22px 24px;
 }
@@ -3221,6 +3652,15 @@ function noop() {}
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #64748b;
+}
+
+.search-input-icon {
+  padding-left: 2.4rem;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-4-4'/></svg>")
+      no-repeat 0.75rem 50%,
+    #fff;
+  background-size: 14px 14px;
 }
 
 .customization-summary {
@@ -3335,7 +3775,11 @@ function noop() {}
   color: #1e293b;
   font-size: 14px;
   font-weight: 800;
-  padding: 13px 12px;
+  height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
@@ -3717,7 +4161,11 @@ function noop() {}
   border-radius: 14px;
   background:
     radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 58%),
-    radial-gradient(circle at 100% 0%, rgba(255, 106, 0, 0.12), transparent 52%),
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(255, 106, 0, 0.12),
+      transparent 52%
+    ),
     #ffffff;
 }
 
@@ -3939,8 +4387,16 @@ function noop() {}
   flex-direction: column;
   background:
     radial-gradient(circle at 92% 0%, rgba(255, 107, 0, 0.14), transparent 46%),
-    radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.1), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
+    radial-gradient(
+      circle at 0% 100%,
+      rgba(59, 130, 246, 0.1),
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 255, 255, 0.92)
+    );
   border-radius: 24px;
   border: 1px solid rgba(229, 231, 235, 0.9);
   box-shadow:
@@ -4094,7 +4550,11 @@ function noop() {}
   border: 1px solid rgba(229, 231, 235, 0.9);
   background:
     radial-gradient(circle at 0% 0%, rgba(255, 106, 0, 0.08), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.06), transparent 46%),
+    radial-gradient(
+      circle at 100% 100%,
+      rgba(37, 99, 235, 0.06),
+      transparent 46%
+    ),
     rgba(255, 255, 255, 0.72);
   box-shadow:
     0 18px 48px rgba(15, 23, 42, 0.06),
@@ -4133,7 +4593,11 @@ function noop() {}
   padding: 14px;
   background:
     radial-gradient(circle at 10% 0%, rgba(255, 107, 0, 0.22), transparent 56%),
-    radial-gradient(circle at 100% 90%, rgba(59, 130, 246, 0.16), transparent 52%),
+    radial-gradient(
+      circle at 100% 90%,
+      rgba(59, 130, 246, 0.16),
+      transparent 52%
+    ),
     rgba(255, 255, 255, 0.74);
   box-shadow:
     0 22px 56px rgba(15, 23, 42, 0.08),
@@ -4152,7 +4616,8 @@ function noop() {}
 }
 
 .prebook-summary-title {
-  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family:
+    "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -4221,7 +4686,8 @@ function noop() {}
 }
 
 .prebook-summary-total strong {
-  font-family: "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family:
+    "Sora", "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--accent-dark);
   font-size: 18px;
   font-weight: 700;
@@ -4525,8 +4991,16 @@ function noop() {}
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 20% 10%, rgba(234, 88, 12, 0.08), transparent 55%),
-    radial-gradient(circle at 90% 90%, rgba(37, 99, 235, 0.06), transparent 55%),
+    radial-gradient(
+      circle at 20% 10%,
+      rgba(234, 88, 12, 0.08),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 90% 90%,
+      rgba(37, 99, 235, 0.06),
+      transparent 55%
+    ),
     rgba(226, 232, 240, 0.45);
   color: rgba(75, 85, 99, 0.86);
   font-size: 13px;
@@ -4629,7 +5103,8 @@ function noop() {}
   letter-spacing: 0.01em;
   box-shadow: 0 18px 44px rgba(255, 107, 0, 0.28);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)) padding-box,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0))
+      padding-box,
     linear-gradient(90deg, #ff6b00 0%, #ff7a1f 45%, #ff6b00 100%) border-box;
   border: 1px solid transparent;
 }
@@ -4873,8 +5348,16 @@ function noop() {}
   border-radius: 18px;
   padding: 16px;
   background:
-    radial-gradient(circle at 8% 12%, rgba(255, 195, 113, 0.14), transparent 42%),
-    radial-gradient(circle at 90% 0%, rgba(99, 179, 237, 0.14), transparent 42%),
+    radial-gradient(
+      circle at 8% 12%,
+      rgba(255, 195, 113, 0.14),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(99, 179, 237, 0.14),
+      transparent 42%
+    ),
     #ffffff;
   box-shadow:
     0 12px 30px rgba(15, 23, 42, 0.1),
@@ -4883,7 +5366,9 @@ function noop() {}
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 14px;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .favorite-list li:hover {
@@ -4928,7 +5413,10 @@ function noop() {}
   font-weight: 800;
   padding: 10px 16px;
   cursor: pointer;
-  transition: background 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
   flex-shrink: 0;
   box-shadow: 0 10px 22px rgba(234, 88, 12, 0.12);
 }

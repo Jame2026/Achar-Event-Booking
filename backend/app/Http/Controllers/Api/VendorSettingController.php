@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\User;
 use App\Models\VendorSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,11 @@ class VendorSettingController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveVendorFromRequest($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
         $eventId = $request->integer('event_id') ?: null;
 
         if ($eventId) {
@@ -72,10 +77,14 @@ class VendorSettingController extends Controller
 
     public function update(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveVendorFromRequest($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
 
         $data = $request->validate([
             'event_id' => ['nullable', 'integer', 'exists:events,id'],
+            'vendor_user_id' => ['nullable', 'integer', 'min:1'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'weekly_schedule' => ['nullable', 'array'],
             'weekly_schedule.*.day' => ['required', 'string', Rule::in(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])],
@@ -213,6 +222,32 @@ class VendorSettingController extends Controller
                 'event_id',
             ]),
         ]);
+    }
+
+    private function resolveVendorFromRequest(Request $request): User|JsonResponse
+    {
+        $authenticatedUser = $request->user();
+        if ($authenticatedUser instanceof User && in_array($authenticatedUser->role, ['vendor', 'admin'], true)) {
+            return $authenticatedUser;
+        }
+
+        $validated = $request->validate([
+            'vendor_user_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $vendor = User::query()
+            ->select(['id', 'role'])
+            ->find((int) $validated['vendor_user_id']);
+
+        if (! $vendor) {
+            return response()->json(['message' => 'Selected vendor account does not exist.'], 422);
+        }
+
+        if (! in_array($vendor->role, ['vendor', 'admin'], true)) {
+            return response()->json(['message' => 'Selected user is not a vendor account.'], 422);
+        }
+
+        return $vendor;
     }
 
     private function defaultWeeklySchedule(): array

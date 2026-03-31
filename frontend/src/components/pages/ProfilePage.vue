@@ -1,4 +1,6 @@
 <script setup>
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
@@ -21,6 +23,13 @@ const copyByLanguage = {
   en: {
     breadcrumbs: 'Dashboard > My Profile',
     title: 'Edit My Profile',
+    heroEyebrow: 'Profile · Secure',
+    heroSubtitle: 'Keep your booking profile crisp: photo, contact, and location in one place.',
+    tagRealtimeSync: 'Realtime sync',
+    tagLocationAware: 'Location aware',
+    tagPrivateByDefault: 'Private by default',
+    badgeVerifiedEmail: 'Verified email',
+    badgeTwoFactor: '2FA recommended',
     fullName: 'Full Name',
     fullNamePlaceholder: 'Your full name',
     email: 'Email',
@@ -34,10 +43,31 @@ const copyByLanguage = {
     logout: 'Logout',
     reset: 'Reset',
     saveProfile: 'Save Profile',
+    saving: 'Saving...',
+    profileImageAlt: 'Profile image',
+    yourProfile: 'Your Profile',
+    noEmailYet: 'No email yet',
+    profileCompleteness: 'Profile completeness',
+    uploadPhoto: 'Upload Photo',
+    removePhoto: 'Remove Photo',
+    account: 'Account',
+    helperNote: 'Tip: use your legal name and a reachable phone so confirmations never miss you.',
+    tips: 'Tips',
+    tipPhoto: 'Use a bright, centered headshot for best clarity.',
+    tipPhone: 'Keep phone reachable for booking confirmations.',
+    tipLocation: 'Turn on location so vendors can suggest nearby options.',
+    tipSave: 'Save changes before leaving to keep everything synced.',
   },
   km: {
     breadcrumbs: 'ក្ដារត្រួតពិនិត្យ > ព័ត៌មានផ្ទាល់ខ្លួន',
     title: 'កែព័ត៌មានផ្ទាល់ខ្លួន',
+    heroEyebrow: 'ប្រវត្តិរូប · សុវត្ថិភាព',
+    heroSubtitle: 'រក្សាព័ត៌មានប្រវត្តិរូបសម្រាប់ការកក់របស់អ្នកឱ្យច្បាស់លាស់ ដោយដាក់រូបភាព ទំនាក់ទំនង និងទីតាំងនៅកន្លែងតែមួយ។',
+    tagRealtimeSync: 'ធ្វើសមកាលកម្មភ្លាមៗ',
+    tagLocationAware: 'ស្គាល់ទីតាំង',
+    tagPrivateByDefault: 'ឯកជនតាមលំនាំដើម',
+    badgeVerifiedEmail: 'អ៊ីមែលបានផ្ទៀងផ្ទាត់',
+    badgeTwoFactor: 'ណែនាំឱ្យបើក 2FA',
     fullName: 'ឈ្មោះពេញ',
     fullNamePlaceholder: 'ឈ្មោះពេញរបស់អ្នក',
     email: 'អ៊ីមែល',
@@ -51,10 +81,31 @@ const copyByLanguage = {
     logout: 'ចេញពីប្រព័ន្ធ',
     reset: 'កំណត់ឡើងវិញ',
     saveProfile: 'រក្សាទុកព័ត៌មាន',
+    saving: 'កំពុងរក្សាទុក...',
+    profileImageAlt: 'រូបភាពប្រវត្តិរូប',
+    yourProfile: 'ប្រវត្តិរូបរបស់អ្នក',
+    noEmailYet: 'មិនទាន់មានអ៊ីមែល',
+    profileCompleteness: 'ភាពពេញលេញនៃប្រវត្តិរូប',
+    uploadPhoto: 'បង្ហោះរូបភាព',
+    removePhoto: 'លុបរូបភាព',
+    account: 'គណនី',
+    helperNote: 'គន្លឹះ៖ ប្រើឈ្មោះពិត និងលេខទូរស័ព្ទដែលអាចទាក់ទងបាន ដើម្បីមិនឱ្យខកខានការបញ្ជាក់ការកក់។',
+    tips: 'គន្លឹះ',
+    tipPhoto: 'ប្រើរូបថតច្បាស់ ស្ថិតនៅកណ្ដាល ដើម្បីឱ្យមើលឃើញបានល្អ។',
+    tipPhone: 'រក្សាទូរស័ព្ទឱ្យអាចទាក់ទងបានសម្រាប់ការបញ្ជាក់ការកក់។',
+    tipLocation: 'បើកទីតាំង ដើម្បីឱ្យអ្នកផ្គត់ផ្គង់ណែនាំជម្រើសនៅជិតអ្នកបាន។',
+    tipSave: 'រក្សាទុកការផ្លាស់ប្តូរមុនចាកចេញ ដើម្បីឱ្យទិន្នន័យសមកាលកម្មជានិច្ច។',
   },
   zh: {
     breadcrumbs: '仪表盘 > 我的资料',
     title: '编辑我的资料',
+    heroEyebrow: '资料 · 安全',
+    heroSubtitle: '将头像、联系方式和位置集中在一个地方，让您的预订资料保持清晰完整。',
+    tagRealtimeSync: '实时同步',
+    tagLocationAware: '位置感知',
+    tagPrivateByDefault: '默认私密',
+    badgeVerifiedEmail: '邮箱已验证',
+    badgeTwoFactor: '建议启用 2FA',
     fullName: '姓名',
     fullNamePlaceholder: '您的姓名',
     email: '邮箱',
@@ -68,10 +119,82 @@ const copyByLanguage = {
     logout: '退出登录',
     reset: '重置',
     saveProfile: '保存资料',
+    saving: '保存中...',
+    profileImageAlt: '资料头像',
+    yourProfile: '您的资料',
+    noEmailYet: '暂无邮箱',
+    profileCompleteness: '资料完整度',
+    uploadPhoto: '上传头像',
+    removePhoto: '移除头像',
+    account: '账户',
+    helperNote: '提示：请使用真实姓名和可联系的电话号码，避免错过预订确认。',
+    tips: '提示',
+    tipPhoto: '使用明亮、居中的头像照片，显示效果更清晰。',
+    tipPhone: '请保持电话畅通，以便接收预订确认。',
+    tipLocation: '开启定位后，商家可以推荐附近的选项。',
+    tipSave: '离开页面前请先保存更改，确保资料保持同步。',
   },
 }
 
 const { uiText } = useLanguageCopy(copyByLanguage)
+const profileImageUrl = computed(() => String(props.bindings?.userProfileDraft?.value?.profile_image_url || '').trim())
+const viewerLabels = computed(() => ({
+  dialog: uiText.value.profileImageViewer || 'Profile image preview',
+  view: uiText.value.viewPhoto || 'View photo',
+  close: uiText.value.closePhoto || 'Close photo',
+}))
+const isProfileImageViewerOpen = ref(false)
+const previousBodyOverflow = ref('')
+
+function syncBodyScroll(isOpen) {
+  if (typeof document === 'undefined') return
+
+  if (isOpen) {
+    previousBodyOverflow.value = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = previousBodyOverflow.value || ''
+}
+
+function openProfileImageViewer() {
+  if (!profileImageUrl.value) return
+  isProfileImageViewerOpen.value = true
+}
+
+function closeProfileImageViewer() {
+  isProfileImageViewerOpen.value = false
+}
+
+function handleProfileImageViewerKeydown(event) {
+  if (event.key === 'Escape') closeProfileImageViewer()
+}
+
+watch(isProfileImageViewerOpen, (isOpen) => {
+  syncBodyScroll(isOpen)
+
+  if (typeof window === 'undefined') return
+
+  if (isOpen) {
+    window.addEventListener('keydown', handleProfileImageViewerKeydown)
+    return
+  }
+
+  window.removeEventListener('keydown', handleProfileImageViewerKeydown)
+})
+
+watch(profileImageUrl, (nextImageUrl) => {
+  if (!nextImageUrl) closeProfileImageViewer()
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', handleProfileImageViewerKeydown)
+  }
+
+  syncBodyScroll(false)
+})
 </script>
 
 <template>
@@ -80,19 +203,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 
     <section class="card profile-hero">
       <div class="hero-copy">
-        <p class="eyebrow">Profile · Secure</p>
+        <p class="eyebrow">{{ uiText.heroEyebrow }}</p>
         <h1>{{ uiText.title }}</h1>
-        <p class="hero-sub">
-          Keep your booking profile crisp: photo, contact, and location in one place.
-        </p>
+        <p class="hero-sub">{{ uiText.heroSubtitle }}</p>
         <div class="hero-tags">
-          <span>Realtime sync</span>
-          <span>Location aware</span>
-          <span>Private by default</span>
+          <span>{{ uiText.tagRealtimeSync }}</span>
+          <span>{{ uiText.tagLocationAware }}</span>
+          <span>{{ uiText.tagPrivateByDefault }}</span>
         </div>
         <div class="hero-badges">
-          <span class="pill success">Verified email</span>
-          <span class="pill neutral">2FA recommended</span>
+          <span class="pill success">{{ uiText.badgeVerifiedEmail }}</span>
+          <span class="pill neutral">{{ uiText.badgeTwoFactor }}</span>
         </div>
         <p v-if="props.userProfileNotice" class="notice">{{ props.userProfileNotice }}</p>
       </div>
@@ -102,21 +223,29 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       <section class="card profile-panel">
         <div class="profile-identity-card">
           <div class="profile-avatar-main">
-            <div class="profile-avatar-preview">
+            <button
+              v-if="profileImageUrl"
+              type="button"
+              class="profile-avatar-preview profile-avatar-preview-button"
+              :aria-label="viewerLabels.view"
+              @click="openProfileImageViewer"
+            >
               <img
-                v-if="props.bindings.userProfileDraft.value.profile_image_url"
-                :src="props.bindings.userProfileDraft.value.profile_image_url"
-                alt="Profile image"
+                :src="profileImageUrl"
+                :alt="uiText.profileImageAlt"
               />
-              <span v-else>
+              <span class="profile-avatar-view-chip">{{ viewerLabels.view }}</span>
+            </button>
+            <div v-else class="profile-avatar-preview">
+              <span>
                 {{ (props.bindings.userProfileDraft.value.name || 'U').trim().charAt(0).toUpperCase() || 'U' }}
               </span>
             </div>
             <div class="profile-avatar-copy">
-              <strong>{{ props.bindings.userProfileDraft.value.name || 'Your Profile' }}</strong>
-              <small>{{ props.bindings.userProfileDraft.value.email || 'No email yet' }}</small>
+              <strong>{{ props.bindings.userProfileDraft.value.name || uiText.yourProfile }}</strong>
+              <small>{{ props.bindings.userProfileDraft.value.email || uiText.noEmailYet }}</small>
               <div class="profile-progress">
-                <span>Profile completeness</span>
+                <span>{{ uiText.profileCompleteness }}</span>
                 <div class="progress-track">
                   <span class="progress-bar" style="width: 82%"></span>
                 </div>
@@ -132,7 +261,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
                 </svg>
               </span>
-              Upload Photo
+              {{ uiText.uploadPhoto }}
               <input
                 type="file"
                 accept="image/*"
@@ -147,14 +276,14 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                   <path d="M19 6l-1 14H6L5 6" />
                 </svg>
               </span>
-              Remove Photo
+              {{ uiText.removePhoto }}
             </button>
           </div>
         </div>
 
         <div class="section-head">
           <div>
-            <p class="eyebrow">Account</p>
+            <p class="eyebrow">{{ uiText.account }}</p>
             <h3 class="profile-section-title">{{ uiText.fullName }}</h3>
           </div>
           <button type="button" class="btn-ghost subtle" @click="props.resetUserProfile">{{ uiText.reset }}</button>
@@ -198,7 +327,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             />
           </label>
         </div>
-        <p class="helper-note">Tip: use your legal name and a reachable phone so confirmations never miss you.</p>
+        <p class="helper-note">{{ uiText.helperNote }}</p>
 
         <div class="profile-actions">
           <button type="button" class="btn-logout" @click="props.logoutUser">{{ uiText.logout }}</button>
@@ -208,7 +337,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             :disabled="props.isSavingProfile"
             @click="props.saveUserProfile"
           >
-            {{ props.isSavingProfile ? 'Saving...' : uiText.saveProfile }}
+            {{ props.isSavingProfile ? uiText.saving : uiText.saveProfile }}
           </button>
         </div>
       </section>
@@ -216,7 +345,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
       <aside class="card profile-side">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Location</p>
+            <p class="eyebrow">{{ uiText.location }}</p>
             <h3 class="profile-section-title">{{ uiText.location }}</h3>
           </div>
         </div>
@@ -252,16 +381,50 @@ const { uiText } = useLanguageCopy(copyByLanguage)
         </div>
 
         <div class="tips-card">
-          <p class="eyebrow">Tips</p>
+          <p class="eyebrow">{{ uiText.tips }}</p>
           <ul>
-            <li>Use a bright, centered headshot for best clarity.</li>
-            <li>Keep phone reachable for booking confirmations.</li>
-            <li>Turn on location so vendors can suggest nearby options.</li>
-            <li>Save changes before leaving to keep everything synced.</li>
+            <li>{{ uiText.tipPhoto }}</li>
+            <li>{{ uiText.tipPhone }}</li>
+            <li>{{ uiText.tipLocation }}</li>
+            <li>{{ uiText.tipSave }}</li>
           </ul>
         </div>
       </aside>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="isProfileImageViewerOpen && profileImageUrl"
+        class="profile-image-viewer"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="viewerLabels.dialog"
+        @click="closeProfileImageViewer"
+      >
+        <div class="profile-image-viewer-panel" @click.stop>
+          <button
+            type="button"
+            class="profile-image-viewer-close"
+            :aria-label="viewerLabels.close"
+            @click="closeProfileImageViewer"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="m6 6 12 12" />
+              <path d="M18 6 6 18" />
+            </svg>
+          </button>
+          <img
+            class="profile-image-viewer-image"
+            :src="profileImageUrl"
+            :alt="uiText.profileImageAlt"
+          />
+          <div class="profile-image-viewer-meta">
+            <strong>{{ props.bindings.userProfileDraft.value.name || uiText.yourProfile }}</strong>
+            <small>{{ props.bindings.userProfileDraft.value.email || uiText.noEmailYet }}</small>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
 
@@ -400,6 +563,40 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-avatar-preview-button {
+  position: relative;
+  padding: 0;
+  cursor: zoom-in;
+  appearance: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar-preview-button:hover,
+.profile-avatar-preview-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(249, 115, 22, 0.2);
+}
+
+.profile-avatar-preview-button:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, 0.28);
+  outline-offset: 4px;
+}
+
+.profile-avatar-view-chip {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .profile-avatar-copy {
@@ -707,6 +904,78 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   gap: 6px;
 }
 
+.profile-image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top, rgba(249, 115, 22, 0.2), transparent 38%),
+    rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.profile-image-viewer-panel {
+  position: relative;
+  width: min(100%, 760px);
+  max-height: min(100%, 92vh);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.42);
+  display: grid;
+  gap: 14px;
+}
+
+.profile-image-viewer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.profile-image-viewer-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-image-viewer-image {
+  width: 100%;
+  max-height: min(72vh, 720px);
+  border-radius: 18px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.profile-image-viewer-meta {
+  display: grid;
+  gap: 4px;
+  color: #fff;
+}
+
+.profile-image-viewer-meta strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.profile-image-viewer-meta small {
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.94rem;
+}
+
 @media (max-width: 980px) {
   .profile-layout {
     grid-template-columns: 1fr;
@@ -733,6 +1002,20 @@ const { uiText } = useLanguageCopy(copyByLanguage)
   .profile-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .profile-avatar-view-chip {
+    bottom: 6px;
+    font-size: 0.64rem;
+  }
+
+  .profile-image-viewer {
+    padding: 14px;
+  }
+
+  .profile-image-viewer-panel {
+    padding: 14px;
+    border-radius: 20px;
   }
 }
 </style>

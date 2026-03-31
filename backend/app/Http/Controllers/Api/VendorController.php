@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
+use App\Models\VendorSetting;
+use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use App\Support\PublicEventCache;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +21,24 @@ use Illuminate\Validation\Rule;
 
 class VendorController extends Controller
 {
+    public function directory(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
+
+        $vendors = User::query()
+            ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at'])
+            ->where('role', 'vendor')
+            ->withCount('events')
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json($vendors);
+    }
+
     public function servicesByVendorId(Request $request): JsonResponse
     {
         $vendor = $this->resolveVendorFromRequest($request);
@@ -77,6 +98,7 @@ class VendorController extends Controller
             'capacity' => ['required', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         $vendor = $this->resolveVendorFromRequest($request);
         if ($vendor instanceof JsonResponse) {
@@ -146,6 +168,7 @@ class VendorController extends Controller
             'capacity' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+        $validated = $this->syncPackagePrice($validated);
 
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
@@ -197,10 +220,8 @@ class VendorController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $this->deleteStoredEventImage($event->image_url);
-        $event->delete();
+        $this->deleteManagedEvent($event);
         VendorCache::flushVendor($vendor->id);
-        PublicEventCache::invalidate();
 
         return response()->json(null, 204);
     }
@@ -241,12 +262,57 @@ class VendorController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $booking->update([
-            'status' => $validated['status'],
-        ]);
+        $previousStatus = (string) ($booking->status ?? 'pending');
+        $nextStatus = (string) $validated['status'];
+
+        if ($previousStatus !== $nextStatus) {
+            $booking->update([
+                'status' => $nextStatus,
+            ]);
+        }
+
         VendorCache::flushVendor($vendor->id);
 
-        return response()->json($booking->fresh()->load(['event:id,title,event_type,image_url,starts_at,location,vendor_id', 'user:id,name,email,phone,location,profile_image_url']));
+        $updatedBooking = $booking->fresh()->load([
+            'event:id,title,event_type,image_url,starts_at,location,vendor_id',
+            'event.vendor:id,name,email',
+            'user:id,name,email,phone,location,profile_image_url',
+        ]);
+
+        if ($previousStatus !== $nextStatus) {
+            $this->createCustomerBookingStatusNotification($updatedBooking, $nextStatus);
+        }
+
+        return response()->json($updatedBooking);
+    }
+
+    public function destroyBookingByVendorId(Request $request, Booking $booking): JsonResponse
+    {
+        $vendor = $this->resolveVendorFromRequest($request);
+        if ($vendor instanceof JsonResponse) {
+            return $vendor;
+        }
+
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()
+                ->with('vendor:id,email')
+                ->select(['id', 'vendor_id', 'starts_at'])
+                ->first();
+
+        if (! $event || (int) $event->vendor_id !== (int) $vendor->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if (! $this->bookingHasPassed($booking, $event)) {
+            return response()->json(['message' => 'Only past bookings can be deleted.'], 422);
+        }
+
+        $this->flushNotificationCacheForBooking($booking, $event);
+        $booking->delete();
+        VendorCache::flushVendor($vendor->id);
+
+        return response()->json(null, 204);
     }
 
     public function dashboard(Request $request): JsonResponse
@@ -337,11 +403,24 @@ class VendorController extends Controller
         }
 
         $vendorId = (int) $event->vendor_id;
-        $this->deleteStoredEventImage($event->image_url);
-        $event->delete();
+        $this->deleteManagedEvent($event);
         VendorCache::flushVendor($vendorId);
+        PublicEventCache::invalidate();
 
         return response()->json(null, 204);
+    }
+
+    private function deleteManagedEvent(Event $event): void
+    {
+        // Clear event-specific setting rows so past services can always be removed cleanly.
+        VendorSetting::query()
+            ->where('event_id', $event->id)
+            ->delete();
+
+        $this->deleteStoredEventImage($event->image_url);
+        $this->deleteStoredEventImage($event->qr_code_url);
+        $event->delete();
+        PublicEventCache::invalidate();
     }
 
     private function canManageEvent(Request $request, Event $event): bool
@@ -384,6 +463,26 @@ class VendorController extends Controller
         $request->merge(['packages' => $decoded]);
     }
 
+    private function syncPackagePrice(array $validated): array
+    {
+        if (($validated['service_mode'] ?? null) !== 'package') {
+            return $validated;
+        }
+
+        $packages = $validated['packages'] ?? [];
+        if (! is_array($packages)) {
+            $validated['price'] = 0;
+
+            return $validated;
+        }
+
+        $validated['price'] = round(array_reduce($packages, function ($sum, $package) {
+            return $sum + (float) ($package['price'] ?? 0);
+        }, 0), 2);
+
+        return $validated;
+    }
+
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
     {
         $validated = $request->validate([
@@ -403,6 +502,98 @@ class VendorController extends Controller
         }
 
         return $vendor;
+    }
+
+    private function bookingHasPassed(Booking $booking, ?Event $event = null): bool
+    {
+        $bookingDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->startOfDay()
+            : ($event?->starts_at ? Carbon::parse($event->starts_at)->startOfDay() : null);
+
+        if (! $bookingDate) {
+            return false;
+        }
+
+        return $bookingDate->lt(Carbon::today());
+    }
+
+    private function createCustomerBookingStatusNotification(Booking $booking, string $nextStatus): void
+    {
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()
+                ->with('vendor:id,name,email')
+                ->select(['id', 'title', 'starts_at', 'vendor_id'])
+                ->first();
+
+        if (! $event || (! $booking->user_id && ! $booking->customer_email)) {
+            return;
+        }
+
+        $statusLabel = ucfirst($nextStatus);
+        $serviceName = $booking->service_name ?: ($event->title ?: 'Service Booking');
+        $eventDate = $booking->requested_event_date
+            ? Carbon::parse($booking->requested_event_date)->format('M d, Y')
+            : ($event->starts_at ? Carbon::parse($event->starts_at)->format('M d, Y g:i A') : 'the scheduled date');
+        $message = $nextStatus === 'confirmed'
+            ? "Your booking for {$serviceName} on {$eventDate} has been confirmed by the vendor."
+            : "Your booking for {$serviceName} on {$eventDate} is now {$statusLabel}.";
+
+        BookingNotification::create([
+            'booking_id' => $booking->id,
+            'recipient_type' => 'user',
+            'recipient_user_id' => $booking->user_id ? (int) $booking->user_id : null,
+            'recipient_email' => $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null,
+            'kind' => 'booking_status_changed',
+            'title' => "Booking {$statusLabel}",
+            'message' => $message,
+        ]);
+
+        $this->flushNotificationCache(
+            'user',
+            $booking->user_id ? (int) $booking->user_id : null,
+            $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null
+        );
+    }
+
+    private function flushNotificationCacheForBooking(Booking $booking, ?Event $event = null): void
+    {
+        $bookingEvent = $event;
+        if (! $bookingEvent) {
+            $bookingEvent = $booking->relationLoaded('event')
+                ? $booking->event
+                : $booking->event()
+                    ->with('vendor:id,email')
+                    ->select(['id', 'vendor_id'])
+                    ->first();
+        } elseif (! $bookingEvent->relationLoaded('vendor')) {
+            $bookingEvent->loadMissing('vendor:id,email');
+        }
+
+        $this->flushNotificationCache(
+            'user',
+            $booking->user_id ? (int) $booking->user_id : null,
+            $booking->customer_email ? strtolower(trim((string) $booking->customer_email)) : null
+        );
+
+        $this->flushNotificationCache(
+            'vendor',
+            $bookingEvent?->vendor_id ? (int) $bookingEvent->vendor_id : null,
+            $bookingEvent?->vendor?->email ? strtolower(trim((string) $bookingEvent->vendor->email)) : null
+        );
+    }
+
+    private function flushNotificationCache(string $role, ?int $userId, ?string $email): void
+    {
+        NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, $email));
+
+        if ($userId) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, null));
+        }
+
+        if ($email) {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, null, $email));
+        }
     }
 
     private function storeEventImage(UploadedFile $image): string

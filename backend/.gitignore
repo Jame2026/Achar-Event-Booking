@@ -3,10 +3,13 @@
 /public/build
 /public/hot
 /public/storage
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
 /storage/*.key
 /storage/pail
 /vendor
 .env
+.env.testing
 .env.backup
 .env.production
 .phpactor.json

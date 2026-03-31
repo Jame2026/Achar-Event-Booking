@@ -13,6 +13,8 @@ const FAVORITES_STORAGE_KEY = 'achar_guest_favorites'
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
 const navSearch = ref('')
+const isSearchOpen = ref(false)
+const searchInputRef = ref(null)
 const favoriteCount = ref(0)
 const isLoadingNotifications = ref(false)
 const notificationsError = ref('')
@@ -34,6 +36,7 @@ const copyByLanguage = {
     packages: 'Packages',
     overallService: 'Overall Service',
     dashboard: 'Dashboard',
+    adminDashboard: 'Admin Dashboard',
     myBooking: 'My Bookings',
     favorite: 'Favorite',
     contact: 'Contact',
@@ -119,11 +122,19 @@ function refreshAuthState() {
   }
 }
 
-function clearAutofilledSearchValue() {
-  const searchValue = String(navSearch.value || '').trim().toLowerCase()
+function normalizeSearchCandidate(value) {
+  const nextValue = typeof value === 'string' ? value : ''
   const signedInEmail = String(currentUser.value?.email || '').trim().toLowerCase()
-  if (searchValue && signedInEmail && searchValue === signedInEmail) {
-    navSearch.value = ''
+  if (signedInEmail && nextValue.trim().toLowerCase() === signedInEmail) {
+    return ''
+  }
+  return nextValue
+}
+
+function clearAutofilledSearchValue() {
+  const nextValue = normalizeSearchCandidate(navSearch.value)
+  if (nextValue !== navSearch.value) {
+    navSearch.value = nextValue
   }
 }
 
@@ -139,12 +150,14 @@ function guardSearchAutofill() {
 function syncSearchFieldValue() {
   if (route.path === '/legacy-app') {
     const storedSearch = sessionStorage.getItem(GLOBAL_SEARCH_SESSION_KEY)
-    navSearch.value = typeof storedSearch === 'string' ? storedSearch : ''
-  } else {
-    const routeQuery = route.query?.q
-    navSearch.value = typeof routeQuery === 'string' ? routeQuery : ''
+    const nextValue = normalizeSearchCandidate(storedSearch)
+    navSearch.value = nextValue
+    if (!nextValue) sessionStorage.removeItem(GLOBAL_SEARCH_SESSION_KEY)
+    return
   }
-  clearAutofilledSearchValue()
+
+  const routeQuery = route.query?.q
+  navSearch.value = normalizeSearchCandidate(typeof routeQuery === 'string' ? routeQuery : '')
 }
 
 function runSearch() {
@@ -164,6 +177,17 @@ function runSearch() {
     path: targetPath,
     query: query ? { q: query } : {},
   }).catch(() => {})
+}
+
+function toggleSearch() {
+  isSearchOpen.value = !isSearchOpen.value
+  if (isSearchOpen.value) {
+    nextTick(() => searchInputRef.value?.focus())
+  }
+}
+
+function closeSearch() {
+  isSearchOpen.value = false
 }
 
 function notificationRole(role) {
@@ -346,8 +370,7 @@ function refreshNotifications() {
 async function openNotification(notification) {
   await markNotificationAsRead(notification, { silent: true })
   closeNotificationDropdown()
-  const role = String(currentUser.value?.role || '').trim().toLowerCase()
-  router.push(role === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
+  router.push(isDashboardRole.value ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings').catch(() => {})
 }
 
 const isHomeActive = computed(() => route.path === '/' || route.path === '/home')
@@ -355,13 +378,23 @@ const isAboutActive = computed(() => route.path === '/about')
 const isServiceActive = computed(() => route.path.startsWith('/services'))
 const isServicePackagesActive = computed(() => route.path === '/services/packages')
 const isServiceOverallActive = computed(() => route.path === '/services/overall')
-const isVendorRole = computed(() => String(currentUser.value?.role || '').trim().toLowerCase() === 'vendor')
+const currentRole = computed(() => String(currentUser.value?.role || '').trim().toLowerCase())
+const isVendorRole = computed(() => currentRole.value === 'vendor')
+const isAdminRole = computed(() => currentRole.value === 'admin')
+const isDashboardRole = computed(() => isVendorRole.value || isAdminRole.value)
+const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'customers', 'revenue', 'settings']
 const legacyPage = computed(() => {
-  const page = route.query?.page
-  return typeof page === 'string' ? page : 'bookings'
+  const rawPage = route.query?.page
+  const page = Array.isArray(rawPage) ? rawPage[0] : rawPage
+  if (typeof page === 'string' && page.trim()) return page
+  return isDashboardRole.value ? 'dashboard' : 'bookings'
 })
-const isVendorDashboardActive = computed(
-  () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isVendorRole.value,
+const isDashboardActive = computed(
+  () => {
+    if (route.path !== '/legacy-app' || !isDashboardRole.value) return false
+    if (isAdminRole.value) return adminLegacyPages.includes(legacyPage.value)
+    return legacyPage.value === 'dashboard'
+  },
 )
 const isProfileActive = computed(() => route.path === '/legacy-app' && legacyPage.value === 'profile')
 const isBookingSearchContext = computed(() => route.path === '/legacy-app' && legacyPage.value === 'bookings')
@@ -374,6 +407,18 @@ const isFavoriteActive = computed(() => route.path === '/favorite')
 const isContactActive = computed(() => route.path === '/contact')
 const navSearchPlaceholder = computed(() =>
   isBookingSearchContext.value ? uiText.value.searchBookings : uiText.value.searchServices,
+)
+
+watch(
+  () => navSearch.value,
+  (value, prev) => {
+    const nextValue = String(value || '').trim()
+    const prevValue = String(prev || '').trim()
+    if (prevValue && !nextValue) {
+      runSearch()
+      closeSearch()
+    }
+  },
 )
 
 watch(
@@ -396,6 +441,7 @@ onMounted(() => {
   }
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('achar:auth-updated', refreshAuthState)
   window.addEventListener('storage', refreshFavoriteCount)
   window.addEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
@@ -405,13 +451,17 @@ onBeforeUnmount(() => {
   stopNotificationPolling()
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('achar:auth-updated', refreshAuthState)
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
+const dashboardLink = computed(() => '/legacy-app?page=dashboard')
+const dashboardNavLabel = computed(() =>
+  isAdminRole.value ? uiText.value.adminDashboard || uiText.value.dashboard : uiText.value.dashboard,
+)
 const bookingLink = computed(() => {
   if (!isLoggedIn.value) return '/booking'
-  const role = String(currentUser.value?.role || '').trim().toLowerCase()
-  return role === 'vendor' ? '/legacy-app?page=dashboard&vtab=bookings' : '/legacy-app?page=bookings'
+  return isDashboardRole.value ? dashboardLink.value : '/legacy-app?page=bookings'
 })
 </script>
 
@@ -441,13 +491,13 @@ const bookingLink = computed(() => {
         </div>
 
         <RouterLink
-          v-if="isLoggedIn && isVendorRole"
-          to="/legacy-app?page=dashboard"
-          :class="{ active: isVendorDashboardActive }"
+          v-if="isLoggedIn && isDashboardRole"
+          :to="dashboardLink"
+          :class="{ active: isDashboardActive }"
         >
-          {{ uiText.dashboard }}
+          {{ dashboardNavLabel }}
         </RouterLink>
-        <RouterLink v-if="!isVendorRole" :to="bookingLink" :class="{ active: isBookingActive }">{{ uiText.myBooking }}</RouterLink>
+        <RouterLink v-if="!isDashboardRole" :to="bookingLink" :class="{ active: isBookingActive }">{{ uiText.myBooking }}</RouterLink>
         <RouterLink to="/favorite" :class="{ active: isFavoriteActive }" class="favorite-link">
           <span>{{ uiText.favorite }}</span>
           <span v-if="favoriteCount > 0" class="fav-badge">
@@ -470,24 +520,44 @@ const bookingLink = computed(() => {
             <option value="zh">中文</option>
           </select>
         </label>
-        <input
-          v-if="isLoggedIn"
-          v-model="navSearch"
-          type="search"
-          class="nav-search"
-          name="global-service-search"
-          :placeholder="navSearchPlaceholder"
-          autocomplete="new-password"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-          inputmode="search"
-          enterkeyhint="search"
-          data-lpignore="true"
-          @focus="clearAutofilledSearchValue"
-          @input="guardSearchAutofill"
-          @keyup.enter="runSearch"
-        />
+        <div v-if="isLoggedIn" class="nav-search-wrap">
+          <button
+            type="button"
+            class="nav-search-btn"
+            :aria-label="navSearchPlaceholder"
+            :title="navSearchPlaceholder"
+            @click="toggleSearch"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" />
+              <path d="M20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </button>
+          <div v-if="isSearchOpen" class="nav-search-popover">
+            <input
+              ref="searchInputRef"
+              v-model="navSearch"
+              type="search"
+              class="nav-search-input"
+              name="global-service-search"
+              :placeholder="navSearchPlaceholder"
+              autocomplete="new-password"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              inputmode="search"
+              enterkeyhint="search"
+              data-lpignore="true"
+              @focus="clearAutofilledSearchValue"
+              @input="guardSearchAutofill"
+              @keyup.enter="runSearch"
+            />
+            <button type="button" class="nav-search-go" @click="runSearch">Search</button>
+            <button type="button" class="nav-search-close" aria-label="Close search" @click="closeSearch">
+              ×
+            </button>
+          </div>
+        </div>
         <div v-if="isLoggedIn" ref="notificationMenuRef" class="notification-wrap">
           <button
             type="button"
@@ -745,6 +815,12 @@ const bookingLink = computed(() => {
   gap: 8px;
 }
 
+.nav-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .lang-switch {
   display: inline-flex;
 }
@@ -761,17 +837,84 @@ const bookingLink = computed(() => {
   cursor: pointer;
 }
 
-.nav-search {
-  width: clamp(120px, 24vw, 160px);
-  min-width: 220px;
-  max-width: 100%;
+.nav-search-btn {
+  width: 42px;
+  height: 42px;
   border: 1px solid #d6dde9;
   border-radius: 14px;
   background: #f9fafc;
-  color: #111827;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.nav-search-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-search-btn:hover {
+  color: #475569;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.nav-search-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: min(360px, 88vw);
+  padding: 10px;
+  border: 1px solid #f1d0b5;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+  z-index: 20;
+}
+
+.nav-search-input {
+  height: 36px;
+  border: 1px solid #d6dde9;
+  border-radius: 12px;
+  padding: 0 0.7rem 0 2.1rem;
   font: inherit;
-  font-size: 1rem;
-  padding: 0.62rem 0.9rem;
+  font-size: 0.95rem;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-4-4'/></svg>")
+      no-repeat 0.65rem 50%,
+    #f9fafc;
+  background-size: 14px 14px;
+  color: #111827;
+}
+
+.nav-search-go {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #f1c9a8;
+  background: linear-gradient(145deg, #fff7ef 0%, #ffeeda 100%);
+  color: #b45309;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nav-search-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid #d6dde9;
+  background: #fff;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .notification-wrap {

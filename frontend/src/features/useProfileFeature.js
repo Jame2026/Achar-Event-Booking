@@ -3,6 +3,7 @@ import { apiGet, apiPost } from './apiClient'
 
 export function useProfileFeature(notice, loggedInUser) {
   const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+  const MISSING_PROFILE_MESSAGE = 'User profile not found.'
   const customerName = ref(localStorage.getItem('achar_customer_name') || '')
   const customerEmail = ref(localStorage.getItem('achar_customer_email') || '')
   const userPhone = ref(localStorage.getItem('achar_user_phone') || '')
@@ -94,9 +95,23 @@ export function useProfileFeature(notice, loggedInUser) {
     const user = loggedInUser?.value || {}
     const userId = Number(user.id || 0)
     const email = String(user.email || '').trim().toLowerCase()
+    const phone = String(user.phone || '').trim()
     if (userId > 0) return { user_id: userId }
     if (email) return { email }
+    if (phone) return { phone }
     return null
+  }
+
+  function normalizeProfilePhone(value) {
+    const trimmed = String(value || '').trim()
+    if (!trimmed) return ''
+    if (/[^0-9\s()+.-]/.test(trimmed)) return trimmed
+    if ((trimmed.match(/\+/g) || []).length > 1) return trimmed
+    if (trimmed.includes('+') && !trimmed.startsWith('+')) return trimmed
+
+    const digits = trimmed.replace(/\D+/g, '')
+    if (!digits) return ''
+    return trimmed.startsWith('+') ? `+${digits}` : digits
   }
 
   function syncLocalAuthUser(patch = {}) {
@@ -136,7 +151,11 @@ export function useProfileFeature(notice, loggedInUser) {
         role: String(user.role || loggedInUser?.value?.role || 'user'),
       })
     } catch (error) {
-      notice.value = error?.message || 'Could not load profile data.'
+      const message = String(error?.message || '').trim()
+      if (message === MISSING_PROFILE_MESSAGE) {
+        return
+      }
+      notice.value = message || 'Could not load profile data.'
     }
   }
 
@@ -165,13 +184,17 @@ export function useProfileFeature(notice, loggedInUser) {
       return
     }
 
+    const normalizedPhone = normalizeProfilePhone(userProfileDraft.value.phone)
+    const normalizedSavedPhone = normalizeProfilePhone(userPhone.value)
     const payload = new FormData()
     payload.append('name', userProfileDraft.value.name.trim())
-    payload.append('phone', userProfileDraft.value.phone.trim())
     payload.append('location', userProfileDraft.value.location.trim())
     payload.append('user_id', String(query.user_id || ''))
     payload.append('email', String(query.email || ''))
     payload.append('remove_image', userProfileDraft.value.profile_image_url ? '0' : '1')
+    if (normalizedPhone !== normalizedSavedPhone) {
+      payload.append('phone', normalizedPhone)
+    }
     if (profileImageFile.value instanceof File) payload.append('profile_image', profileImageFile.value)
 
     isSavingProfile.value = true

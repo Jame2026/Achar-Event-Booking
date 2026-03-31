@@ -10,6 +10,7 @@ import CheckoutReceiptPage from "../components/CheckoutReceiptPage.vue";
 import Home from "@/components/Home.vue";
 import ForgotPasswordForm from "../components/ForgotPasswordForm.vue";
 import ResetPasswordForm from "../components/ResetPasswordForm.vue";
+import GoogleCallback from "../views/GoogleCallback.vue";
 
 const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
 
@@ -24,8 +25,18 @@ function getStoredRole() {
   }
 }
 
+function isDashboardRole(role) {
+  return role === 'vendor' || role === 'admin'
+}
+
 function dashboardRedirect() {
-  return getStoredRole() === 'vendor' ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+  return isDashboardRole(getStoredRole()) ? '/legacy-app?page=dashboard' : '/legacy-app?page=bookings'
+}
+
+function adminLoginRedirect() {
+  return isDashboardRole(getStoredRole())
+    ? '/legacy-app?page=dashboard'
+    : '/legacy-app?view=login&page=dashboard'
 }
 
 const routes = [
@@ -84,6 +95,26 @@ const routes = [
     component: LegacyAppShell,
   },
   {
+    path: "/login",
+    redirect: "/legacy-app?view=login",
+  },
+  {
+    path: "/register",
+    redirect: "/legacy-app?view=register",
+  },
+  {
+    path: "/admin",
+    redirect: adminLoginRedirect,
+  },
+  {
+    path: "/admin/login",
+    redirect: adminLoginRedirect,
+  },
+  {
+    path: "/admin/dashboard",
+    redirect: adminLoginRedirect,
+  },
+  {
     path: "/forgot-password",
     name: "ForgotPassword",
     component: ForgotPasswordForm,
@@ -92,6 +123,12 @@ const routes = [
     path: "/reset-password",
     name: "ResetPassword",
     component: ResetPasswordForm,
+  },
+  {
+    path: "/auth/google/callback",
+    alias: "/auth/callback",
+    name: "GoogleCallback",
+    component: GoogleCallback,
   },
   {
     path: "/vendor",
@@ -158,6 +195,11 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.fullPath === from.fullPath) return undefined
+    return { top: 0, left: 0 }
+  },
 });
 
 export default router;

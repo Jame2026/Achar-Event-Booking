@@ -1,5 +1,6 @@
+import { API_BASE_URL } from './apiUrl'
+
 const DEFAULT_API_TIMEOUT_MS = 15000
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
 
 function buildApiPath(path, query = {}) {
   if (typeof path !== 'string' || !path.trim()) {
@@ -16,8 +17,7 @@ function buildApiPath(path, query = {}) {
   })
 
   const queryString = params.toString()
-  const apiRoot = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`
-  return `${apiRoot}/${normalizedPath}${queryString ? `?${queryString}` : ''}`
+  return `${API_BASE_URL}/${normalizedPath}${queryString ? `?${queryString}` : ''}`
 }
 
 async function readErrorMessage(response) {
@@ -78,20 +78,10 @@ async function requestApi(method, path, { payload, query } = {}) {
       headers,
       body: payload === undefined ? undefined : isFormData ? payload : JSON.stringify(payload),
       signal: controller.signal,
-      credentials: 'include', // send cookies for Sanctum/session auth
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error(
-        `The server did not respond within ${Math.floor(DEFAULT_API_TIMEOUT_MS / 1000)}s. ` +
-          `Please verify the API is running at ${API_BASE_URL} and the database is reachable.`,
-      )
-    }
-    // Network / CORS / refused connection
-    if (error?.name === 'TypeError' || error?.message === 'Failed to fetch') {
-      const hint =
-        'If you are opening the site from another device, replace 127.0.0.1 with your computer’s LAN IP in VITE_API_BASE_URL.'
-      throw new Error(`We couldn’t reach the API. Check your connection or start the backend at ${API_BASE_URL}. ${hint}`)
+      throw new Error(`Request timeout after ${Math.floor(DEFAULT_API_TIMEOUT_MS / 1000)}s for ${requestPath}.`)
     }
     throw error
   } finally {

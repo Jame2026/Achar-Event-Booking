@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useLanguageCopy } from '../features/language'
 
-const router = useRouter()
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
-const apiBaseUrl = `${apiOrigin}/api`
 const form = reactive({
   email: '',
 })
@@ -17,11 +13,11 @@ const copyByLanguage = {
   en: {
     backToSignIn: 'Back to Sign in',
     title: 'Forgot password',
-    subtitle: 'Enter your email or phone number to get a 6-digit verification code.',
-    email: 'Email or Phone',
-    emailPlaceholder: 'you@example.com or +85512345678',
+    subtitle: 'Enter your email and we will send you a password reset link.',
+    email: 'Email',
+    emailPlaceholder: 'you@example.com',
     sending: 'Sending...',
-    sendResetLink: 'Continue',
+    sendResetLink: 'Send Reset Link',
   },
   km: {
     backToSignIn: 'ត្រឡប់ទៅចូលគណនី',
@@ -56,13 +52,13 @@ async function submitForgotPassword() {
   errorMessage.value = ''
 
   try {
-    const response = await fetch(`${apiBaseUrl}/password-reset/request`, {
+    const response = await fetch('/api/forgot-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ login: form.email }),
+      body: JSON.stringify({ email: form.email }),
     })
 
     const data = await response.json().catch(() => ({}))
@@ -72,10 +68,9 @@ async function submitForgotPassword() {
       return
     }
 
-    successMessage.value = data?.message ?? 'Verification code sent.'
-    router.push({ path: '/reset-password', query: { login: form.email } }).catch(() => {})
-  } catch {
-    errorMessage.value = 'Unable to connect to server.'
+    successMessage.value = data?.message ?? 'Password reset link sent.'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
   } finally {
     submitting.value = false
   }

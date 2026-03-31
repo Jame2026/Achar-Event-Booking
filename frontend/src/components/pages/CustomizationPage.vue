@@ -251,7 +251,7 @@ const { uiText } = useLanguageCopy(copyByLanguage)
           <p v-if="props.selectedMatchingServices.length === 0">{{ uiText.noAdditionalServices }}</p>
           <div v-for="service in props.selectedMatchingServices" :key="service.id" class="summary-row">
             <span>{{ service.name }}</span>
-            <strong>+${{ service.price.toLocaleString() }}</strong>
+            <strong>+${{ (Number(service.price || 0) * Math.max(1, Number(props.bindings.customizationQuantity.value || 1))).toLocaleString() }}</strong>
           </div>
         </div>
         <div class="summary-row">

@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useLanguageCopy } from '../features/language'
+import { AUTH_PROXY_BASE } from '../features/apiUrl'
 
 const emit = defineEmits<{
   switch: []
-  success: [user: { id: number; name: string; email: string; role: string }]
+  success: [user: { id: number; name: string; email?: string | null; phone?: string | null; role: string }]
 }>()
 
 const showPassword = ref(false)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/api\/?$/, '')
-const apiBaseUrl = `${apiOrigin}/api`
-const authBaseUrl = apiOrigin
+const authBaseUrl = AUTH_PROXY_BASE
 const form = reactive({
   login: '',
   password: '',
@@ -78,7 +77,7 @@ function onAuthLogoError() {
 
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
-  window.location.href = `${authBaseUrl}/auth/${provider}/redirect?frontend_url=${frontendUrl}`
+  window.location.href = `${authBaseUrl}/${provider}/redirect?frontend_url=${frontendUrl}`
 }
 
 onMounted(() => {
@@ -96,7 +95,7 @@ const submitLogin = async () => {
 
   try {
     const response = await fetch(
-      `${apiBaseUrl}/login`,
+      '/api/login',
       {
         method: 'POST',
         headers: {
@@ -110,7 +109,7 @@ const submitLogin = async () => {
       },
     )
 
-    const data = await response.json()
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
       errorMessage.value = data?.message ?? 'Login failed.'
@@ -118,8 +117,8 @@ const submitLogin = async () => {
     }
 
     emit('success', data.user)
-  } catch {
-    errorMessage.value = 'Unable to connect to server.'
+  } catch (error) {
+    errorMessage.value = error instanceof Error && error.message ? error.message : 'Unable to connect to server.'
   } finally {
     submitting.value = false
   }

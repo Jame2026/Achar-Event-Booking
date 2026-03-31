@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: achar_app
+    volumes:
+      - .:/var/www
+    networks:
+      - achar_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: achar_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - achar_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: achar_mysql
+    environment:
+      MYSQL_DATABASE: achar_event_booking
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./docker/mysql/achar_event_booking.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - achar_net
+
+networks:
+  achar_net:
+
+volumes:
+  dbdata:
