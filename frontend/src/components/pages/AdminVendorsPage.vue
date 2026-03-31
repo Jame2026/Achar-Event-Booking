@@ -3,13 +3,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
-import { apiGet, apiPatch } from "../../features/apiClient";
+import { apiGet, apiPatch, apiPost } from "../../features/apiClient";
 import { useAdminDataStore } from "../../features/useAdminDataStore";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
   appLogoSrc: { type: String, default: "" },
   adminDisplayName: { type: String, default: "Admin" },
+  adminUserId: { type: [Number, String], default: null },
   logoutUser: { type: Function, default: null },
 });
 
@@ -332,6 +333,7 @@ const categoryFilter = ref("all");
 const adminStore = useAdminDataStore();
 const isLoading = ref(false);
 const isSaving = ref(false);
+const activatingVendorId = ref(null);
 const notice = ref("");
 const noticeTone = ref("info");
 const vendorUsers = ref([]);
@@ -399,6 +401,7 @@ const vendorRows = computed(() => {
   vendorUsers.value.forEach((vendor) => {
     const vendorId = Number(vendor?.id || 0) || null;
     const vendorName = String(vendor?.name || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback;
+    const vendorSetting = vendor?.vendor_setting || vendor?.vendorSetting || {};
     const key = vendorKey(vendorId, vendorName);
 
     groups.set(key, {
@@ -418,6 +421,9 @@ const vendorRows = computed(() => {
       packageCount: 0,
       lastActivity: "",
       joinedAt: vendor?.created_at || "",
+      subscriptionPlanName: String(vendorSetting?.subscription_plan_name || "").trim(),
+      subscriptionStatus: String(vendorSetting?.subscription_status || "inactive").trim().toLowerCase(),
+      subscriptionExpiresAt: vendorSetting?.subscription_expires_at || "",
       listings: [],
     });
   });
@@ -444,6 +450,9 @@ const vendorRows = computed(() => {
       packageCount: 0,
       lastActivity: "",
       joinedAt: "",
+      subscriptionPlanName: "",
+      subscriptionStatus: "inactive",
+      subscriptionExpiresAt: "",
       listings: [],
     };
 
@@ -489,6 +498,42 @@ const vendorRows = computed(() => {
         location: vendor.location || uiText.value.locationMissing,
         joinedLabel: vendor.joinedAt ? formatDateTime(vendor.joinedAt) : uiText.value.joinDateUnavailable,
         lastActivityLabel: vendor.lastActivity ? formatDateTime(vendor.lastActivity) : uiText.value.noListingActivityYet,
+        subscriptionPlanLabel: vendor.subscriptionPlanName || "No Active Plan",
+        subscriptionStatusLabel:
+          vendor.subscriptionStatus === "active"
+            ? "Active"
+            : vendor.subscriptionStatus === "pending_payment"
+              ? "Pending Payment"
+            : vendor.subscriptionStatus === "pending_approval"
+              ? "Awaiting Approval"
+            : vendor.subscriptionStatus === "expired"
+              ? "Expired"
+              : "Inactive",
+        subscriptionExpiryLabel: vendor.subscriptionExpiresAt
+          ? formatDateTime(vendor.subscriptionExpiresAt)
+          : vendor.subscriptionStatus === "pending_payment"
+            ? "Waiting for vendor payment confirmation"
+            : vendor.subscriptionStatus === "pending_approval"
+              ? "Waiting for admin bank approval"
+            : "Not scheduled",
+        showApprovalAction: Boolean(vendor.id && vendor.subscriptionPlanName),
+        canActivatePlan: Boolean(vendor.id && vendor.subscriptionPlanName && vendor.subscriptionStatus === "pending_approval"),
+        approvalActionLabel:
+          vendor.subscriptionStatus === "pending_approval"
+            ? "Approve Vendor"
+            : vendor.subscriptionStatus === "pending_payment"
+              ? "Waiting for Payment"
+              : vendor.subscriptionStatus === "active"
+                ? "Already Approved"
+                : "Approval Unavailable",
+        approvalActionHelp:
+          vendor.subscriptionStatus === "pending_approval"
+            ? "The vendor submitted payment. You can approve them to release services and packages now."
+            : vendor.subscriptionStatus === "pending_payment"
+              ? "The vendor account exists, but they must click Complete Payment before you can approve them."
+              : vendor.subscriptionStatus === "active"
+                ? "This vendor is already approved and can release services and packages."
+                : "This vendor must select a valid plan and submit payment before approval.",
       };
     })
     .sort((left, right) => {
@@ -632,6 +677,30 @@ async function setVendorVisibility(nextActive) {
     setNotice(error?.message || uiText.value.couldNotUpdateVendorVisibility, "error");
   } finally {
     isSaving.value = false;
+  }
+}
+
+async function activateVendorPlan() {
+  const vendorId = Number(selectedVendor.value?.id || 0);
+  if (!vendorId) return setNotice(uiText.value.missingVendorAccountId, "error");
+  if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
+
+  const confirmed = window.confirm(
+    `Approve ${selectedVendor.value?.name || "this vendor"} as a vendor and activate the ${selectedVendor.value?.subscriptionPlanLabel || "vendor"} plan now?`,
+  );
+  if (!confirmed) return;
+
+  activatingVendorId.value = vendorId;
+  try {
+    await apiPost(`admin/users/${vendorId}/activate-vendor-subscription`, {
+      admin_user_id: props.adminUserId,
+    });
+    await loadVendorDirectory();
+    setNotice("Vendor approved and listing plan activated.", "success");
+  } catch (error) {
+    setNotice(error?.message || "Could not approve the vendor plan.", "error");
+  } finally {
+    activatingVendorId.value = null;
   }
 }
 
@@ -869,9 +938,33 @@ onMounted(() => void loadVendorDirectory());
                 <span>{{ uiText.phone }}</span>
                 <strong>{{ selectedVendor.phone || uiText.notProvided }}</strong>
               </div>
+              <div class="detail-block">
+                <span>Vendor Plan</span>
+                <strong>{{ selectedVendor.subscriptionPlanLabel }}</strong>
+              </div>
+              <div class="detail-block">
+                <span>Plan Status</span>
+                <strong>{{ selectedVendor.subscriptionStatusLabel }}</strong>
+              </div>
+              <div class="detail-block detail-wide">
+                <span>Plan Expires</span>
+                <strong>{{ selectedVendor.subscriptionExpiryLabel }}</strong>
+              </div>
               <div class="detail-block detail-wide">
                 <span>{{ uiText.categories }}</span>
                 <strong>{{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : uiText.noCategoriesYet }}</strong>
+              </div>
+              <div v-if="selectedVendor.showApprovalAction" class="detail-block detail-wide">
+                <span>Vendor Plan Action</span>
+                <strong>{{ selectedVendor.approvalActionHelp }}</strong>
+                <button
+                  class="primary-btn"
+                  type="button"
+                  :disabled="activatingVendorId === selectedVendor.id || !selectedVendor.canActivatePlan"
+                  @click="activateVendorPlan"
+                >
+                  {{ activatingVendorId === selectedVendor.id ? "Approving..." : selectedVendor.approvalActionLabel }}
+                </button>
               </div>
             </div>
           </article>

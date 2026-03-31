@@ -515,6 +515,7 @@ const vendorSettings = ref(null)
 const vendorSettingsServiceId = ref('all')
 const isLoadingVendorSettings = ref(false)
 const isSavingVendorSettings = ref(false)
+const isSubmittingVendorSubscriptionPayment = ref(false)
 const vendorSettingsNotice = ref('')
 const bookings = ref([])
 const selectedQuantities = ref({})
@@ -1550,6 +1551,19 @@ function defaultVendorSettings() {
     })),
     blocked_dates: [],
     blocked_ranges: [],
+    subscription_plan_code: null,
+    subscription_plan_name: '',
+    subscription_price_amount: 0,
+    subscription_duration_months: null,
+    subscription_service_limit: null,
+    subscription_package_limit: null,
+    subscription_status: 'inactive',
+    subscription_started_at: null,
+    subscription_paid_at: null,
+    subscription_expires_at: null,
+    subscription_is_active: false,
+    subscription_payment_qr_url: '',
+    subscription_payment_note: '',
   }
 }
 
@@ -1574,6 +1588,28 @@ function normalizeVendorSettings(payload = {}) {
     weekly_schedule: normalizedSchedule,
     blocked_dates: blockedDates,
     blocked_ranges: blockedRanges,
+    subscription_plan_code: payload.subscription_plan_code || base.subscription_plan_code,
+    subscription_plan_name: payload.subscription_plan_name || base.subscription_plan_name,
+    subscription_price_amount: Number(payload.subscription_price_amount || 0),
+    subscription_duration_months:
+      payload.subscription_duration_months === null || payload.subscription_duration_months === undefined
+        ? base.subscription_duration_months
+        : Number(payload.subscription_duration_months),
+    subscription_service_limit:
+      payload.subscription_service_limit === null || payload.subscription_service_limit === undefined
+        ? base.subscription_service_limit
+        : Number(payload.subscription_service_limit),
+    subscription_package_limit:
+      payload.subscription_package_limit === null || payload.subscription_package_limit === undefined
+        ? base.subscription_package_limit
+        : Number(payload.subscription_package_limit),
+    subscription_status: payload.subscription_status || base.subscription_status,
+    subscription_started_at: payload.subscription_started_at || base.subscription_started_at,
+    subscription_paid_at: payload.subscription_paid_at || base.subscription_paid_at,
+    subscription_expires_at: payload.subscription_expires_at || base.subscription_expires_at,
+    subscription_is_active: Boolean(payload.subscription_is_active),
+    subscription_payment_qr_url: payload.subscription_payment_qr_url || base.subscription_payment_qr_url,
+    subscription_payment_note: payload.subscription_payment_note || base.subscription_payment_note,
   }
 }
 
@@ -1646,6 +1682,31 @@ async function saveVendorSettings(payload) {
   }
 }
 
+async function submitVendorSubscriptionPayment() {
+  if (!isVendorAccount.value) return
+  isSubmittingVendorSubscriptionPayment.value = true
+  vendorSettingsNotice.value = ''
+  try {
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+      throw new Error('Vendor account could not be identified.')
+    }
+
+    const result = await apiPost('vendor/settings/subscription/complete-payment', {
+      vendor_user_id: vendorUserId,
+    })
+    const settings = result?.settings || result?.data || result
+    vendorSettings.value = normalizeVendorSettings(settings)
+    vendorSettingsNotice.value =
+      result?.message || 'Payment submitted. An admin will verify the bank transfer and approve your vendor account soon.'
+  } catch (error) {
+    vendorSettingsNotice.value = error?.message || 'Could not submit your vendor payment confirmation.'
+    throw error
+  } finally {
+    isSubmittingVendorSubscriptionPayment.value = false
+  }
+}
+
 function resetVendorServiceForm() {
   vendorServiceForm.value = {
     id: null,
@@ -1683,6 +1744,17 @@ async function submitVendorService() {
   const vendorUserId = Number(loggedInUser.value?.id || 0)
   if (!Number.isFinite(vendorUserId) || vendorUserId < 1) {
     vendorServiceNotice.value = uiText.value.vendorAccountMissing
+    return
+  }
+
+  const subscriptionStatus = String(vendorSettings.value?.subscription_status || 'inactive').trim().toLowerCase()
+  if (subscriptionStatus !== 'active') {
+    vendorServiceNotice.value =
+      subscriptionStatus === 'pending_payment'
+        ? 'Your vendor account was created, but you cannot add services or packages until you complete the payment and the admin approves you.'
+        : subscriptionStatus === 'pending_approval'
+          ? 'Your payment was submitted. You still cannot add services or packages until the admin approves your vendor account.'
+          : 'Your vendor account cannot add services or packages until the admin approves your vendor plan.'
     return
   }
 
@@ -2488,6 +2560,7 @@ onBeforeUnmount(() => {
         v-else-if="isAdminAccount && resolvedCurrentPage === 'vendors'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :admin-user-id="loggedInUser?.id"
         :logout-user="logout"
       />
       <AdminCustomersPage
@@ -2536,6 +2609,8 @@ onBeforeUnmount(() => {
         :update-vendor-booking-status="updateVendorBookingStatus"
         :delete-vendor-booking="deleteVendorBooking"
         :save-vendor-settings="saveVendorSettings"
+        :submit-vendor-subscription-payment="submitVendorSubscriptionPayment"
+        :is-submitting-vendor-subscription-payment="isSubmittingVendorSubscriptionPayment"
         :refresh-vendor-settings="loadVendorSettings"
         :select-vendor-settings-service="selectVendorSettingsService"
         :logout-user="logout"
@@ -2562,6 +2637,7 @@ onBeforeUnmount(() => {
       :vendor-service-form="vendorServiceForm"
       :is-submitting-vendor-service="isSubmittingVendorService"
       :vendor-service-notice="vendorServiceNotice"
+      :vendor-settings="vendorSettings"
       :stats="stats"
       :reviews="reviews"
       :event-type-options="eventTypeOptions"

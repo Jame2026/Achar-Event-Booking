@@ -36,6 +36,9 @@ class VendorController extends Controller
         $vendors = User::query()
             ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at'])
             ->where('role', 'vendor')
+            ->with([
+                'vendorSetting:user_id,subscription_plan_code,subscription_plan_name,subscription_price_amount,subscription_duration_months,subscription_service_limit,subscription_package_limit,subscription_status,subscription_started_at,subscription_paid_at,subscription_expires_at',
+            ])
             ->withCount('events')
             ->latest()
             ->paginate($perPage);
@@ -109,6 +112,19 @@ class VendorController extends Controller
             return $vendor;
         }
 
+        $subscriptionError = $this->ensureVendorSubscriptionIsActive($vendor);
+        if ($subscriptionError instanceof JsonResponse) {
+            return $subscriptionError;
+        }
+
+        $listingLimitError = $this->ensureVendorListingWithinPlan(
+            $vendor,
+            (string) ($validated['service_mode'] ?? 'overall')
+        );
+        if ($listingLimitError instanceof JsonResponse) {
+            return $listingLimitError;
+        }
+
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
             if ($imageValidationError !== null) {
@@ -152,6 +168,11 @@ class VendorController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
+        $subscriptionError = $this->ensureVendorSubscriptionIsActive($vendor);
+        if ($subscriptionError instanceof JsonResponse) {
+            return $subscriptionError;
+        }
+
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'event_type' => ['sometimes', Rule::in($this->allowedEventTypes())],
@@ -173,6 +194,15 @@ class VendorController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $validated = $this->syncPackagePrice($validated);
+
+        $listingLimitError = $this->ensureVendorListingWithinPlan(
+            $vendor,
+            (string) ($validated['service_mode'] ?? $event->service_mode ?? 'overall'),
+            $event
+        );
+        if ($listingLimitError instanceof JsonResponse) {
+            return $listingLimitError;
+        }
 
         if ($request->hasFile('image')) {
             $imageValidationError = $this->validateUploadedImage($request->file('image'));
@@ -373,6 +403,11 @@ class VendorController extends Controller
 
     public function storeEvent(Request $request): JsonResponse
     {
+        $subscriptionError = $this->ensureVendorSubscriptionIsActive($request->user());
+        if ($subscriptionError instanceof JsonResponse) {
+            return $subscriptionError;
+        }
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'event_type' => ['required', Rule::in($this->allowedEventTypes())],
@@ -386,6 +421,14 @@ class VendorController extends Controller
             'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
         ]);
 
+        $listingLimitError = $this->ensureVendorListingWithinPlan(
+            $request->user(),
+            (string) ($validated['service_mode'] ?? 'overall')
+        );
+        if ($listingLimitError instanceof JsonResponse) {
+            return $listingLimitError;
+        }
+
         $event = $request->user()->events()->create($validated);
         VendorCache::flushVendor((int) $request->user()->id);
 
@@ -396,6 +439,11 @@ class VendorController extends Controller
     {
         if (! $this->canManageEvent($request, $event)) {
             return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $subscriptionError = $this->ensureVendorSubscriptionIsActive($request->user());
+        if ($subscriptionError instanceof JsonResponse) {
+            return $subscriptionError;
         }
 
         $validated = $request->validate([
@@ -410,6 +458,15 @@ class VendorController extends Controller
             'is_active' => ['sometimes', 'boolean'],
             'service_mode' => ['nullable', Rule::in(['overall', 'package'])],
         ]);
+
+        $listingLimitError = $this->ensureVendorListingWithinPlan(
+            $request->user(),
+            (string) ($validated['service_mode'] ?? $event->service_mode ?? 'overall'),
+            $event
+        );
+        if ($listingLimitError instanceof JsonResponse) {
+            return $listingLimitError;
+        }
 
         if (array_key_exists('ends_at', $validated) && $validated['ends_at'] !== null) {
             $startsAt = $validated['starts_at'] ?? $event->starts_at;
@@ -545,6 +602,96 @@ class VendorController extends Controller
         }
 
         return $bookingDate->lt(Carbon::today());
+    }
+
+    private function ensureVendorSubscriptionIsActive(User $vendor): ?JsonResponse
+    {
+        if ($vendor->isAdmin()) {
+            return null;
+        }
+
+        $settings = VendorSetting::query()->firstOrCreate(
+            [
+                'user_id' => $vendor->id,
+                'event_id' => null,
+            ],
+            VendorSetting::defaultGlobalAttributes(),
+        );
+
+        if ($settings->subscriptionIsActive()) {
+            return null;
+        }
+
+        $expiresAt = $settings->subscription_expires_at instanceof Carbon
+            ? $settings->subscription_expires_at->format('M d, Y g:i A')
+            : null;
+        $status = $settings->resolvedSubscriptionStatus();
+
+        $message = $status === 'expired'
+            ? 'Your vendor listing plan has expired. Renew it before publishing services again.'
+            : 'Choose and pay for a vendor listing plan before publishing services on Achar.';
+
+        if ($status === 'pending_payment') {
+            $message = 'Your vendor plan payment is still pending. Scan the registration QR and complete payment before publishing services.';
+        } elseif ($status === 'pending_approval') {
+            $message = 'Your vendor plan payment was submitted and is waiting for admin approval.';
+        }
+
+        if ($expiresAt !== null) {
+            $message = "Your vendor listing plan expired on {$expiresAt}. Renew it before publishing services again.";
+        }
+
+        return response()->json(['message' => $message], 422);
+    }
+
+    private function ensureVendorListingWithinPlan(User $vendor, string $serviceMode, ?Event $ignoreEvent = null): ?JsonResponse
+    {
+        if ($vendor->isAdmin()) {
+            return null;
+        }
+
+        $settings = VendorSetting::query()->firstOrCreate(
+            [
+                'user_id' => $vendor->id,
+                'event_id' => null,
+            ],
+            VendorSetting::defaultGlobalAttributes(),
+        );
+
+        $normalizedMode = strtolower(trim($serviceMode)) === 'package' ? 'package' : 'overall';
+        $serviceLimit = $settings->subscription_service_limit;
+        $packageLimit = $settings->subscription_package_limit;
+
+        if ($serviceLimit === null && $packageLimit === null) {
+            return null;
+        }
+
+        $counts = Event::query()
+            ->where('vendor_id', $vendor->id)
+            ->when(
+                $ignoreEvent instanceof Event,
+                fn ($query) => $query->where('id', '!=', $ignoreEvent->id)
+            )
+            ->selectRaw("SUM(CASE WHEN COALESCE(service_mode, 'overall') = 'package' THEN 1 ELSE 0 END) as package_count")
+            ->selectRaw("SUM(CASE WHEN COALESCE(service_mode, 'overall') <> 'package' THEN 1 ELSE 0 END) as service_count")
+            ->first();
+
+        $currentServiceCount = (int) ($counts?->service_count ?? 0);
+        $currentPackageCount = (int) ($counts?->package_count ?? 0);
+
+        if ($normalizedMode === 'package' && $packageLimit !== null && $currentPackageCount >= $packageLimit) {
+            return response()->json([
+                'message' => "Your current plan allows only {$packageLimit} package listing. Upgrade or remove an existing package before adding another one.",
+            ], 422);
+        }
+
+        if ($normalizedMode !== 'package' && $serviceLimit !== null && $currentServiceCount >= $serviceLimit) {
+            return response()->json([
+                'message' => "Your current plan allows only {$serviceLimit} service listings. Upgrade or remove an existing service before adding another one.",
+            ], 422);
+        }
+
+        return null;
     }
 
     private function createCustomerBookingStatusNotification(Booking $booking, string $nextStatus): void

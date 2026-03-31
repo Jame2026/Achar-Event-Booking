@@ -44,6 +44,8 @@ const props = defineProps([
   "updateVendorBookingStatus",
   "deleteVendorBooking",
   "saveVendorSettings",
+  "submitVendorSubscriptionPayment",
+  "isSubmittingVendorSubscriptionPayment",
   "refreshVendorSettings",
   "selectVendorSettingsService",
   "logoutUser",
@@ -821,6 +823,16 @@ async function submitVendorSettings() {
   }
 }
 
+async function handleVendorSubscriptionPayment() {
+  if (typeof props.submitVendorSubscriptionPayment !== "function") return;
+
+  try {
+    await props.submitVendorSubscriptionPayment();
+  } catch {
+    // Parent notice handles errors.
+  }
+}
+
 const serviceSelectValue = computed(() =>
   props.vendorSettingsServiceId === undefined
     ? "all"
@@ -897,6 +909,55 @@ const bookingCapacityLabel = computed(() => {
   if (Number.isFinite(max) && max > 0) return `${max} / day`;
   return "Open schedule";
 });
+const vendorSubscriptionPlanLabel = computed(() => {
+  const code = String(props.vendorSettings?.subscription_plan_code || "").trim().toLowerCase();
+  if (code === "quarterly") return "3 Months - $10";
+  if (code === "annual") return "1 Year - $100";
+  return "No Active Plan";
+});
+const vendorSubscriptionStatusLabel = computed(() => {
+  const status = String(props.vendorSettings?.subscription_status || "inactive").trim().toLowerCase();
+  if (status === "active") return "Active vendor listing plan";
+  if (status === "pending_payment") return "Payment pending admin activation";
+  if (status === "pending_approval") return "Waiting for admin bank verification";
+  if (status === "expired") return "Expired vendor listing plan";
+  return "Vendor listing plan required";
+});
+const vendorSubscriptionExpiryLabel = computed(() => {
+  const status = String(props.vendorSettings?.subscription_status || "inactive").trim().toLowerCase();
+  if (status === "pending_payment") return "Pay the Achar vendor QR and wait for admin activation.";
+  if (status === "pending_approval") return "Payment submitted. Admin will approve you after verifying the transfer.";
+  const expiresAt = props.vendorSettings?.subscription_expires_at;
+  if (!expiresAt) return "Select a plan during vendor registration.";
+  return `Expires ${formatDateTimeLabel(expiresAt)}`;
+});
+const vendorSubscriptionLimitsLabel = computed(() => {
+  const serviceLimit = props.vendorSettings?.subscription_service_limit;
+  const packageLimit = props.vendorSettings?.subscription_package_limit;
+  const serviceText =
+    serviceLimit === null || serviceLimit === undefined
+      ? "Unlimited services"
+      : `${serviceLimit} service${serviceLimit === 1 ? "" : "s"}`;
+  const packageText =
+    packageLimit === null || packageLimit === undefined
+      ? "unlimited packages"
+      : `${packageLimit} package${packageLimit === 1 ? "" : "s"}`;
+  return `${serviceText} and ${packageText}.`;
+});
+const vendorSubscriptionStatusKey = computed(() =>
+  String(props.vendorSettings?.subscription_status || "inactive").trim().toLowerCase(),
+);
+const vendorServiceCreationLockMessage = computed(() => {
+  if (vendorSubscriptionStatusKey.value === "active") return "";
+  if (vendorSubscriptionStatusKey.value === "pending_payment") {
+    return "Your vendor account exists, but you cannot create services or packages until you complete the payment and the admin approves you.";
+  }
+  if (vendorSubscriptionStatusKey.value === "pending_approval") {
+    return "Your payment is waiting for admin approval. You still cannot create services or packages yet.";
+  }
+  return "Your vendor account cannot create services or packages until the admin approves your vendor plan.";
+});
+const vendorServiceCreationLocked = computed(() => vendorServiceCreationLockMessage.value !== "");
 const bookingDetail = computed(() => activeBookingDetail.value || {});
 const bookingDetailLocation = computed(() => {
   const detail = bookingDetail.value;
@@ -1374,6 +1435,9 @@ function closeBookingDetail() {
 }
 
 function submitServiceForm() {
+  if (vendorServiceCreationLocked.value) {
+    return;
+  }
   if (props.vendorServiceForm) {
     props.vendorServiceForm.service_mode = serviceMode.value;
   }
@@ -2418,7 +2482,12 @@ watch(
             <span class="badge">Visible to users when active</span>
           </div>
 
+          <p v-if="vendorServiceCreationLocked" class="notice notice-error service-lock-notice">
+            {{ vendorServiceCreationLockMessage }}
+          </p>
+
           <form class="service-form service-form-template" @submit.prevent="submitServiceForm">
+            <fieldset class="service-form-fieldset" :disabled="vendorServiceCreationLocked">
             <div class="service-form-layout">
               <div class="service-form-main">
                 <section class="form-card mode-picker">
@@ -2859,6 +2928,7 @@ watch(
                 </section>
               </aside>
             </div>
+            </fieldset>
           </form>
 
           <div v-if="showPackageBuilder" class="package-modal" @click.self="closePackageBuilder">
@@ -3793,6 +3863,11 @@ watch(
         </div>
 
         <div class="settings-overview">
+          <article class="settings-stat-card plan">
+            <small>Vendor Plan</small>
+            <strong>{{ vendorSubscriptionPlanLabel }}</strong>
+            <span>{{ vendorSubscriptionExpiryLabel }}</span>
+          </article>
           <article class="settings-stat-card scope">
             <small>{{ uiText.applyToService }}</small>
             <strong>{{ selectedSettingsServiceLabel }}</strong>
@@ -3820,6 +3895,49 @@ watch(
         </div>
 
         <div class="settings-grid">
+          <article class="settings-card settings-card--warm">
+            <div class="settings-card-head">
+              <div>
+                <p class="eyebrow">Vendor Plan</p>
+                <h3>{{ vendorSubscriptionPlanLabel }}</h3>
+                <p class="panel-subtitle">{{ vendorSubscriptionStatusLabel }}</p>
+              </div>
+            </div>
+            <div class="settings-account-banner">
+              <strong>{{ vendorSubscriptionExpiryLabel }}</strong>
+              <span>{{ vendorSubscriptionLimitsLabel }}</span>
+              <span>
+                Your vendor plan controls how long your services stay live on the marketplace.
+              </span>
+            </div>
+            <div
+              v-if="
+                vendorSubscriptionStatusKey === 'pending_payment' &&
+                props.vendorSettings?.subscription_payment_qr_url
+              "
+              class="settings-plan-qr"
+            >
+              <img :src="props.vendorSettings.subscription_payment_qr_url" alt="Vendor plan payment QR" loading="lazy" />
+              <p>{{ props.vendorSettings?.subscription_payment_note || 'Scan this QR and pay your vendor plan to continue.' }}</p>
+              <div class="settings-plan-qr__actions">
+                <button
+                  type="button"
+                  class="primary-button"
+                  :disabled="props.isSubmittingVendorSubscriptionPayment"
+                  @click="handleVendorSubscriptionPayment"
+                >
+                  {{ props.isSubmittingVendorSubscriptionPayment ? 'Submitting...' : 'Complete Payment' }}
+                </button>
+              </div>
+            </div>
+            <div v-else-if="vendorSubscriptionStatusKey === 'pending_approval'" class="settings-plan-approval">
+              <strong>Payment submitted</strong>
+              <p>
+                Admin will review the ABA transfer and approve your vendor plan after the money arrives in the bank account.
+              </p>
+            </div>
+          </article>
+
           <article class="settings-card settings-card--warm vacation-card">
             <div class="settings-card-head vacation-head">
               <div>
@@ -4607,7 +4725,7 @@ watch(
 
 .settings-overview {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -4658,6 +4776,10 @@ watch(
 
 .settings-stat-card.scope::before {
   background: linear-gradient(90deg, rgba(234, 88, 12, 0.9), transparent);
+}
+
+.settings-stat-card.plan::before {
+  background: linear-gradient(90deg, rgba(14, 116, 144, 0.9), transparent);
 }
 
 .settings-stat-card.vacation::before {
@@ -4829,6 +4951,59 @@ watch(
   color: #64748b;
   font-size: 12.5px;
   line-height: 1.55;
+}
+
+.settings-plan-qr {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 247, 237, 0.74);
+  border: 1px dashed rgba(249, 115, 22, 0.32);
+}
+
+.settings-plan-qr img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 10px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.settings-plan-qr p {
+  margin: 0;
+  color: #7c2d12;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.settings-plan-qr__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.settings-plan-approval {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(239, 246, 255, 0.82);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+}
+
+.settings-plan-approval strong {
+  color: #1d4ed8;
+}
+
+.settings-plan-approval p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .settings-account-actions {
@@ -6581,6 +6756,17 @@ watch(
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
+}
+
+.service-form-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.service-lock-notice {
+  margin: 12px 0 0;
 }
 
 .service-form.service-form-template {

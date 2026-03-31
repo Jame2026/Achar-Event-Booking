@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\VendorSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -102,6 +103,16 @@ class SocialAuthController extends Controller
         }
 
         $user->save();
+
+        if ($user->role === 'vendor') {
+            VendorSetting::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'event_id' => null,
+                ],
+                VendorSetting::defaultGlobalAttributes(),
+            );
+        }
 
         return $this->redirectToFrontendSuccess($user, $preferredFrontendUrl);
     }

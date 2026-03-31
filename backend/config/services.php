@@ -34,6 +34,14 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'vendor_subscription' => [
+        'qr_url' => env('VENDOR_SUBSCRIPTION_QR_URL', '/ABAqr.png'),
+        'payment_note' => env(
+            'VENDOR_SUBSCRIPTION_PAYMENT_NOTE',
+            'Scan this QR code and pay the selected vendor listing plan to Achar before your account can go live.'
+        ),
+    ],
+
 
     'slack' => [
         'notifications' => [

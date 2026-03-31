@@ -82,6 +82,7 @@ Route::patch('notifications/bookings/{notification}/read', [NotificationControll
 Route::get('vendor/settings', [VendorSettingController::class, 'show']);
 Route::put('vendor/settings', [VendorSettingController::class, 'update']);
 Route::patch('vendor/settings', [VendorSettingController::class, 'update']);
+Route::post('vendor/settings/subscription/complete-payment', [VendorSettingController::class, 'submitSubscriptionPayment']);
 Route::get('admin/customer-directory', [AdminController::class, 'customerDirectory']);
 Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
 Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
@@ -90,6 +91,7 @@ Route::delete('vendor/services/{event}', [VendorController::class, 'destroyServi
 Route::get('vendor/bookings', [VendorController::class, 'bookingsByVendorId']);
 Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'updateBookingStatusByVendorId']);
 Route::delete('vendor/bookings/{booking}', [VendorController::class, 'destroyBookingByVendorId']);
+Route::post('admin/users/{user}/activate-vendor-subscription', [AdminController::class, 'activateVendorSubscription']);
 
 Route::prefix('vendor')->group(function () {
     Route::get('/chats', [ChatController::class, 'vendorIndex']);

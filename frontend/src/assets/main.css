@@ -3838,6 +3838,12 @@ a {
   color: rgba(51, 65, 85, 0.92);
 }
 
+.field-help {
+  color: #64748b;
+  font-size: 0.77rem;
+  line-height: 1.5;
+}
+
 .field input,
 .field select {
   width: 100%;
@@ -4327,7 +4333,7 @@ a {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 18px;
   padding: 12px 10px 10px;
-  min-height: 82px;
+  min-height: 96px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -4428,6 +4434,183 @@ a {
   font-weight: 800;
   color: #0f172a;
   font-size: 0.92rem;
+}
+
+.role-caption {
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.vendor-payment-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.vendor-payment-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.vendor-payment-sheet__card {
+  position: relative;
+  width: min(690px, 100%);
+  max-height: min(88vh, 760px);
+  border-radius: 28px;
+  padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background:
+    linear-gradient(145deg, rgba(255, 252, 246, 0.98), rgba(255, 255, 255, 0.96)),
+    rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 40px 90px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.vendor-payment-sheet__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.vendor-payment-sheet__head h3 {
+  margin: 8px 0 6px;
+  font-size: clamp(1.3rem, 1.8vw, 1.65rem);
+  color: #111827;
+}
+
+.vendor-payment-sheet__head p:last-child {
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+  font-size: 0.98rem;
+}
+
+.vendor-payment-sheet__close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #334155;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vendor-payment-sheet__content {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.vendor-payment-sheet__qr {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  padding: 14px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 247, 237, 0.98), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(249, 115, 22, 0.18);
+}
+
+.vendor-payment-sheet__qr img {
+  width: min(100%, 285px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 10px;
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.08);
+}
+
+.vendor-payment-sheet__qr-empty {
+  color: #64748b;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.vendor-payment-sheet__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.vendor-payment-sheet__stat {
+  display: grid;
+  gap: 5px;
+  padding: 14px 15px 13px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.vendor-payment-sheet__stat span {
+  font-size: 0.71rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.vendor-payment-sheet__stat strong {
+  font-size: 0.98rem;
+  color: #0f172a;
+}
+
+.vendor-payment-sheet__notes {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.vendor-payment-sheet__notes p {
+  margin: 0;
+}
+
+.vendor-payment-sheet__actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .vendor-payment-sheet {
+    padding: 16px;
+  }
+
+  .vendor-payment-sheet__card {
+    padding: 22px;
+    max-height: calc(100vh - 32px);
+  }
+
+  .vendor-payment-sheet__content {
+    grid-template-columns: 1fr;
+  }
+
+  .vendor-payment-sheet__summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-shell {

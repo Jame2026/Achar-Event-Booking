@@ -9,6 +9,7 @@ const props = defineProps([
   'vendorServiceForm',
   'isSubmittingVendorService',
   'vendorServiceNotice',
+  'vendorSettings',
   'stats',
   'reviews',
   'eventTypeOptions',
@@ -48,6 +49,23 @@ watch(
 const vendorServicePackages = computed(() =>
   Array.isArray(props.vendorServiceForm?.value?.packages) ? props.vendorServiceForm.value.packages : [],
 )
+
+const vendorServiceCreationStatus = computed(() =>
+  String(props.vendorSettings?.subscription_status || 'inactive').trim().toLowerCase(),
+)
+
+const vendorServiceCreationLockMessage = computed(() => {
+  if (vendorServiceCreationStatus.value === 'active') return ''
+  if (vendorServiceCreationStatus.value === 'pending_payment') {
+    return 'Your vendor account exists, but you cannot create services or packages until you complete the payment and the admin approves you.'
+  }
+  if (vendorServiceCreationStatus.value === 'pending_approval') {
+    return 'Your payment is waiting for admin approval. You still cannot create services or packages yet.'
+  }
+  return 'Your vendor account cannot create services or packages until the admin approves your vendor plan.'
+})
+
+const vendorServiceCreationLocked = computed(() => vendorServiceCreationLockMessage.value !== '')
 
 const showPackageBuilder = ref(false)
 const newPackageFeature = ref('')
@@ -178,6 +196,7 @@ function savePackageDraft() {
 }
 
 function submitServiceForm() {
+  if (vendorServiceCreationLocked.value) return
   if (props.vendorServiceForm?.value) {
     props.vendorServiceForm.value.service_mode = serviceMode.value
   }
@@ -429,6 +448,10 @@ const { uiText } = useLanguageCopy(copyByLanguage)
             class="vendor-service-form"
             @submit.prevent="submitServiceForm"
           >
+            <p v-if="vendorServiceCreationLocked" class="notice notice-warning vendor-service-lock-notice">
+              {{ vendorServiceCreationLockMessage }}
+            </p>
+            <fieldset class="vendor-service-fieldset" :disabled="vendorServiceCreationLocked">
             <div class="vendor-form-grid">
               <div class="vendor-form-main">
                 <section class="form-card">
@@ -679,12 +702,13 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                 </section>
 
                 <div class="form-actions">
-                  <button type="submit" class="primary-submit" :disabled="props.isSubmittingVendorService">
+                  <button type="submit" class="primary-submit" :disabled="props.isSubmittingVendorService || vendorServiceCreationLocked">
                     {{ props.isSubmittingVendorService ? uiText.savingService : uiText.addService }}
                   </button>
                 </div>
               </aside>
             </div>
+            </fieldset>
           </form>
 
           <p v-if="props.isVendorAccount && props.vendorServiceNotice" class="notice">
@@ -1031,6 +1055,17 @@ const { uiText } = useLanguageCopy(copyByLanguage)
 .vendor-service-form {
   margin-bottom: 18px;
   font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+}
+
+.vendor-service-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.vendor-service-lock-notice {
+  margin: 0 0 14px;
 }
 
 .layout.layout-full {

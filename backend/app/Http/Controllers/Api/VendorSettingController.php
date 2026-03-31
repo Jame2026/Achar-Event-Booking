@@ -33,45 +33,19 @@ class VendorSettingController extends Controller
 
         $settings = VendorSetting::firstOrCreate(
             ['user_id' => $user->id, 'event_id' => $eventId],
-            [
-                'timezone' => config('app.timezone', 'UTC'),
-                'weekly_schedule' => $this->defaultWeeklySchedule(),
-                'blocked_dates' => [],
-                'blocked_ranges' => [],
-                'auto_accept_bookings' => false,
-                'booking_lead_time_hours' => 24,
-                'buffer_minutes_between_bookings' => 30,
-                'max_bookings_per_day' => null,
-                'deposit_percent' => 20.0,
-                'cancellation_policy_hours' => 72,
-                'reschedule_policy_hours' => 48,
-                'notify_email' => true,
-                'notify_sms' => false,
-                'quiet_hours_start' => null,
-                'quiet_hours_end' => null,
-            ],
+            $eventId
+                ? VendorSetting::defaultAvailabilityAttributes()
+                : VendorSetting::defaultGlobalAttributes(),
         );
+        $globalSettings = $eventId
+            ? VendorSetting::firstOrCreate(
+                ['user_id' => $user->id, 'event_id' => null],
+                VendorSetting::defaultGlobalAttributes(),
+            )
+            : $settings;
 
         return response()->json([
-            'settings' => $settings->only([
-                'timezone',
-                'weekly_schedule',
-                'blocked_dates',
-                'blocked_ranges',
-                'auto_accept_bookings',
-                'booking_lead_time_hours',
-                'buffer_minutes_between_bookings',
-                'max_bookings_per_day',
-                'deposit_percent',
-                'cancellation_policy_hours',
-                'reschedule_policy_hours',
-                'notify_email',
-                'notify_sms',
-                'quiet_hours_start',
-                'quiet_hours_end',
-                'updated_at',
-                'event_id',
-            ]),
+            'settings' => $this->serializeSettings($settings, $globalSettings),
         ]);
     }
 
@@ -129,24 +103,16 @@ class VendorSettingController extends Controller
 
         $settings = VendorSetting::firstOrCreate(
             ['user_id' => $user->id, 'event_id' => $eventId],
-            [
-                'timezone' => config('app.timezone', 'UTC'),
-                'weekly_schedule' => $this->defaultWeeklySchedule(),
-                'blocked_dates' => [],
-                'blocked_ranges' => [],
-                'auto_accept_bookings' => false,
-                'booking_lead_time_hours' => 24,
-                'buffer_minutes_between_bookings' => 30,
-                'max_bookings_per_day' => null,
-                'deposit_percent' => 20.0,
-                'cancellation_policy_hours' => 72,
-                'reschedule_policy_hours' => 48,
-                'notify_email' => true,
-                'notify_sms' => false,
-                'quiet_hours_start' => null,
-                'quiet_hours_end' => null,
-            ],
+            $eventId
+                ? VendorSetting::defaultAvailabilityAttributes()
+                : VendorSetting::defaultGlobalAttributes(),
         );
+        $globalSettings = $eventId
+            ? VendorSetting::firstOrCreate(
+                ['user_id' => $user->id, 'event_id' => null],
+                VendorSetting::defaultGlobalAttributes(),
+            )
+            : $settings;
 
         $settings->timezone = (string) ($data['timezone'] ?? $settings->timezone ?? config('app.timezone', 'UTC'));
         $settings->weekly_schedule = $this->normalizeWeeklySchedule($data['weekly_schedule'] ?? $settings->weekly_schedule ?? []);
@@ -202,7 +168,58 @@ class VendorSettingController extends Controller
 
         return response()->json([
             'message' => 'Vendor settings saved.',
-            'settings' => $settings->only([
+            'settings' => $this->serializeSettings($settings, $globalSettings),
+        ]);
+    }
+
+    public function submitSubscriptionPayment(Request $request): JsonResponse
+    {
+        $user = $this->resolveVendorFromRequest($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $settings = VendorSetting::firstOrCreate(
+            ['user_id' => $user->id, 'event_id' => null],
+            VendorSetting::defaultGlobalAttributes(),
+        );
+
+        $plan = VendorSetting::resolveSubscriptionPlan((string) $settings->subscription_plan_code);
+        if (! $plan) {
+            return response()->json([
+                'message' => 'Choose a vendor listing plan first before submitting payment.',
+            ], 422);
+        }
+
+        $status = $settings->resolvedSubscriptionStatus();
+        if ($status === 'active') {
+            return response()->json([
+                'message' => 'Your vendor listing plan is already active.',
+                'settings' => $this->serializeSettings($settings, $settings),
+            ]);
+        }
+
+        if ($status === 'pending_approval') {
+            return response()->json([
+                'message' => 'Your payment has already been submitted. An admin will review it soon.',
+                'settings' => $this->serializeSettings($settings, $settings),
+            ]);
+        }
+
+        $settings->subscription_status = 'pending_approval';
+        $settings->subscription_paid_at = $settings->subscription_paid_at ?: now();
+        $settings->save();
+
+        return response()->json([
+            'message' => 'Payment submitted. An admin will verify the bank transfer and approve your vendor account soon.',
+            'settings' => $this->serializeSettings($settings, $settings),
+        ]);
+    }
+
+    private function serializeSettings(VendorSetting $settings, VendorSetting $globalSettings): array
+    {
+        return [
+            ...$settings->only([
                 'timezone',
                 'weekly_schedule',
                 'blocked_dates',
@@ -221,7 +238,23 @@ class VendorSettingController extends Controller
                 'updated_at',
                 'event_id',
             ]),
-        ]);
+            'subscription_plan_code' => $globalSettings->subscription_plan_code,
+            'subscription_plan_name' => $globalSettings->subscription_plan_name,
+            'subscription_price_amount' => $globalSettings->subscription_price_amount,
+            'subscription_duration_months' => $globalSettings->subscription_duration_months,
+            'subscription_service_limit' => $globalSettings->subscription_service_limit,
+            'subscription_package_limit' => $globalSettings->subscription_package_limit,
+            'subscription_status' => $globalSettings->resolvedSubscriptionStatus(),
+            'subscription_started_at' => $globalSettings->subscription_started_at,
+            'subscription_paid_at' => $globalSettings->subscription_paid_at,
+            'subscription_expires_at' => $globalSettings->subscription_expires_at,
+            'subscription_is_active' => $globalSettings->subscriptionIsActive(),
+            'subscription_payment_qr_url' => config('services.vendor_subscription.qr_url', '/ABAqr.png'),
+            'subscription_payment_note' => config(
+                'services.vendor_subscription.payment_note',
+                'Scan this QR code and pay the selected vendor listing plan to Achar before your account can go live.'
+            ),
+        ];
     }
 
     private function resolveVendorFromRequest(Request $request): User|JsonResponse
@@ -252,18 +285,7 @@ class VendorSettingController extends Controller
 
     private function defaultWeeklySchedule(): array
     {
-        $days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-
-        return array_map(
-            fn (string $day) => [
-                'day' => $day,
-                'closed' => false,
-                'slots' => [
-                    ['start' => '09:00', 'end' => '17:00'],
-                ],
-            ],
-            $days,
-        );
+        return VendorSetting::defaultWeeklySchedule();
     }
 
     private function normalizeWeeklySchedule(mixed $input): array

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\User;
+use App\Models\VendorSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,10 @@ class AdminController extends Controller
         $confirmedBookingsTotal = (clone $confirmedBookingsQuery)->count();
         $grossRevenueTotal = round((float) ((clone $confirmedBookingsQuery)->sum('total_amount') ?: 0), 2);
         $serviceFeeTotal = round($grossRevenueTotal * self::SERVICE_FEE_RATE, 2);
+        $vendorSubscriptionRevenueTotal = round((float) VendorSetting::query()
+            ->whereNull('event_id')
+            ->whereIn('subscription_status', ['active', 'expired'])
+            ->sum('subscription_price_amount'), 2);
 
         return response()->json([
             'users_total' => User::count(),
@@ -43,6 +48,7 @@ class AdminController extends Controller
             'confirmed_bookings_total' => $confirmedBookingsTotal,
             'gross_revenue_total' => $grossRevenueTotal,
             'service_fee_total' => $serviceFeeTotal,
+            'vendor_subscription_revenue_total' => $vendorSubscriptionRevenueTotal,
         ]);
     }
 
@@ -57,6 +63,9 @@ class AdminController extends Controller
 
         $users = User::query()
             ->select('id', 'name', 'email', 'role', 'phone', 'location', 'profile_image_url', 'created_at', 'updated_at')
+            ->with([
+                'vendorSetting:user_id,subscription_plan_code,subscription_plan_name,subscription_price_amount,subscription_duration_months,subscription_service_limit,subscription_package_limit,subscription_status,subscription_started_at,subscription_paid_at,subscription_expires_at',
+            ])
             ->withCount('events')
             ->when(
                 $validated['role'] ?? null,
@@ -117,6 +126,60 @@ class AdminController extends Controller
         return response()->json($customers);
     }
 
+    public function activateVendorSubscription(Request $request, User $user): JsonResponse
+    {
+        $authenticatedAdmin = $request->user();
+        if (! ($authenticatedAdmin instanceof User && $authenticatedAdmin->isAdmin())) {
+            $admin = $this->resolveAdminFromRequest($request);
+            if ($admin instanceof JsonResponse) {
+                return $admin;
+            }
+        }
+
+        if (! $user->isVendor()) {
+            return response()->json(['message' => 'This account is not a vendor.'], 422);
+        }
+
+        $settings = VendorSetting::query()->firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'event_id' => null,
+            ],
+            VendorSetting::defaultGlobalAttributes(),
+        );
+
+        $planCode = (string) ($settings->subscription_plan_code ?? '');
+        if (! VendorSetting::resolveSubscriptionPlan($planCode)) {
+            return response()->json(['message' => 'This vendor does not have a selected listing plan yet.'], 422);
+        }
+
+        $status = $settings->resolvedSubscriptionStatus();
+        if ($status === 'active') {
+            return response()->json(['message' => 'This vendor listing plan is already active.'], 422);
+        }
+
+        if ($status !== 'pending_approval') {
+            return response()->json([
+                'message' => 'This vendor has not clicked Complete Payment yet.',
+            ], 422);
+        }
+
+        $payload = VendorSetting::subscriptionPayloadForPlan($planCode);
+        if ($settings->subscription_paid_at) {
+            $payload['subscription_paid_at'] = $settings->subscription_paid_at;
+        }
+
+        $settings->fill($payload);
+        $settings->save();
+
+        return response()->json([
+            'message' => 'Vendor listing plan activated.',
+            'user' => $user->fresh()->load([
+                'vendorSetting:user_id,subscription_plan_code,subscription_plan_name,subscription_price_amount,subscription_duration_months,subscription_service_limit,subscription_package_limit,subscription_status,subscription_started_at,subscription_paid_at,subscription_expires_at',
+            ]),
+        ]);
+    }
+
     public function updateUserRole(Request $request, User $user): JsonResponse
     {
         $validated = $request->validate([
@@ -125,7 +188,21 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        return response()->json($user->only(['id', 'name', 'email', 'role']));
+        if ($user->isVendor()) {
+            VendorSetting::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'event_id' => null,
+                ],
+                VendorSetting::defaultGlobalAttributes(),
+            );
+        }
+
+        return response()->json(
+            $user->fresh()->load([
+                'vendorSetting:user_id,subscription_plan_code,subscription_plan_name,subscription_price_amount,subscription_duration_months,subscription_service_limit,subscription_package_limit,subscription_status,subscription_started_at,subscription_paid_at,subscription_expires_at',
+            ])
+        );
     }
 
     private function resolveAdminFromRequest(Request $request): User|JsonResponse

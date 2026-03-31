@@ -4,6 +4,16 @@ import { useLanguageCopy } from '../features/language'
 import { AUTH_PROXY_BASE } from '../features/apiUrl'
 
 type ValidationErrors = Record<string, string[]>
+type VendorSubscriptionCheckout = {
+  code: string
+  name: string
+  price: number
+  duration_months: number | null
+  service_limit: number | null
+  package_limit: number | null
+  payment_qr_url: string
+  payment_note: string
+}
 
 const emit = defineEmits<{
   switch: []
@@ -15,12 +25,18 @@ const form = reactive({
   email: '',
   phone: '',
   role: 'user',
+  vendor_plan: 'quarterly',
   password: '',
   password_confirmation: '',
 })
 const registerMethod = ref<'email' | 'phone'>('email')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const showVendorPaymentSheet = ref(false)
+const vendorCheckout = ref<VendorSubscriptionCheckout | null>(null)
+const createdVendorUserId = ref<number | null>(null)
+const completingVendorPayment = ref(false)
+const vendorPaymentError = ref('')
 
 const submitting = ref(false)
 const successMessage = ref('')
@@ -42,6 +58,26 @@ const copyByLanguage = {
     profession: 'Role',
     planner: 'User',
     vendor: 'Vendor',
+    vendorPlans: 'Vendor Plan',
+    vendorPlanHint: 'Choose your listing plan. After you create the vendor account, Achar will show the payment QR for this plan.',
+    vendorPlanQuarter: '3 Months',
+    vendorPlanQuarterNote: '$10 for 3 months, up to 3 services, and 1 package',
+    vendorPlanAnnual: '1 Year',
+    vendorPlanAnnualNote: '$100 for 1 year with unlimited services and packages',
+    vendorPaymentTitle: 'Vendor Plan Payment',
+    vendorPaymentSubtitle: 'Your vendor account is created. Scan this QR to pay Achar and wait for admin activation.',
+    vendorPaymentAmount: 'Amount due',
+    vendorPaymentDuration: 'Plan duration',
+    vendorPaymentServiceLimit: 'Service limit',
+    vendorPaymentPackageLimit: 'Package limit',
+    vendorPaymentPending: 'After you transfer the money, click Complete Payment so the admin can review your bank transfer.',
+    vendorPaymentAfterPay: 'Your vendor account stays pending until the admin sees the transfer and approves you as a vendor.',
+    vendorPaymentMissingQr: 'Payment QR is not available right now.',
+    vendorPaymentQrAlt: 'Achar vendor plan payment QR',
+    vendorPaymentUnlimited: 'Unlimited',
+    vendorPaymentComplete: 'Complete Payment',
+    vendorPaymentCompleting: 'Submitting...',
+    vendorPaymentCancel: 'Cancel',
     password: 'Password',
     passwordPlaceholder: 'At least 8 characters',
     confirmPassword: 'Confirm Password',
@@ -103,6 +139,14 @@ const copyByLanguage = {
     signIn: '登录',
   },
 }
+copyByLanguage.km = {
+  ...copyByLanguage.en,
+  ...copyByLanguage.km,
+}
+copyByLanguage.zh = {
+  ...copyByLanguage.en,
+  ...copyByLanguage.zh,
+}
 const { uiText } = useLanguageCopy(copyByLanguage)
 const authLogoSrc = ref(localStorage.getItem('achar_brand_logo') || '/achar-logo.png')
 const authBaseUrl = AUTH_PROXY_BASE
@@ -139,6 +183,70 @@ function autoFormatPhone(event) {
   }
 }
 
+function resetForm() {
+  form.name = ''
+  form.email = ''
+  form.phone = ''
+  form.role = 'user'
+  form.vendor_plan = 'quarterly'
+  form.password = ''
+  form.password_confirmation = ''
+}
+
+function closeVendorPaymentSheet(goToLogin = false) {
+  showVendorPaymentSheet.value = false
+  vendorPaymentError.value = ''
+  if (goToLogin) {
+    emit('switch')
+  }
+}
+
+async function completeVendorPayment() {
+  if (completingVendorPayment.value) return
+
+  const vendorUserId = Number(createdVendorUserId.value || 0)
+  if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+    vendorPaymentError.value = 'Vendor account could not be identified.'
+    return
+  }
+
+  completingVendorPayment.value = true
+  vendorPaymentError.value = ''
+
+  try {
+    const response = await fetch('/api/vendor/settings/subscription/complete-payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        vendor_user_id: vendorUserId,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      vendorPaymentError.value = data?.message ?? 'Could not submit your payment confirmation.'
+      return
+    }
+
+    successMessage.value = data?.message ?? 'Payment submitted. Admin will review your transfer soon.'
+    closeVendorPaymentSheet(false)
+    setTimeout(() => {
+      emit('switch')
+    }, 700)
+  } catch (error) {
+    vendorPaymentError.value =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Could not submit your payment confirmation.'
+  } finally {
+    completingVendorPayment.value = false
+  }
+}
+
 const startSocialAuth = (provider: 'google') => {
   const frontendUrl = encodeURIComponent(window.location.origin)
   const selectedRole = encodeURIComponent(String(form.role || 'user'))
@@ -164,6 +272,7 @@ const submitRegister = async () => {
     const payload = {
       name: form.name,
       role: form.role,
+      vendor_plan: form.role === 'vendor' ? form.vendor_plan : null,
       password: form.password,
       password_confirmation: form.password_confirmation,
       email: registerMethod.value === 'email' ? form.email : '',
@@ -193,6 +302,32 @@ const submitRegister = async () => {
       return
     }
 
+    if (form.role === 'vendor' && data?.subscription_checkout) {
+      createdVendorUserId.value = Number(data?.user?.id || 0) || null
+      vendorCheckout.value = {
+        code: String(data.subscription_checkout.code || ''),
+        name: String(data.subscription_checkout.name || ''),
+        price: Number(data.subscription_checkout.price || 0),
+        duration_months:
+          data.subscription_checkout.duration_months === null
+            ? null
+            : Number(data.subscription_checkout.duration_months || 0),
+        service_limit:
+          data.subscription_checkout.service_limit === null
+            ? null
+            : Number(data.subscription_checkout.service_limit || 0),
+        package_limit:
+          data.subscription_checkout.package_limit === null
+            ? null
+            : Number(data.subscription_checkout.package_limit || 0),
+        payment_qr_url: String(data.subscription_checkout.payment_qr_url || ''),
+        payment_note: String(data.subscription_checkout.payment_note || ''),
+      }
+      showVendorPaymentSheet.value = true
+      resetForm()
+      return
+    }
+
     successMessage.value = data?.message ?? 'Registration successful.'
 
     if (data?.user && data.user.name && (data.user.email || data.user.phone)) {
@@ -206,12 +341,7 @@ const submitRegister = async () => {
       return
     }
 
-    form.name = ''
-    form.email = ''
-    form.phone = ''
-    form.role = 'user'
-    form.password = ''
-    form.password_confirmation = ''
+    resetForm()
 
     setTimeout(() => {
       emit('switch')
@@ -294,6 +424,27 @@ const submitRegister = async () => {
               </label>
             </div>
             <small v-if="firstFieldError('role')" class="field-error">{{ firstFieldError('role') }}</small>
+          </label>
+
+          <label v-if="form.role === 'vendor'" class="field field-choice">
+            <span>{{ uiText.vendorPlans }}</span>
+            <div class="role-grid">
+              <label class="role-card" :class="{ active: form.vendor_plan === 'quarterly' }">
+                <input v-model="form.vendor_plan" type="radio" value="quarterly" name="vendor_plan" />
+                <span class="role-icon">$10</span>
+                <span class="role-name">{{ uiText.vendorPlanQuarter }}</span>
+                <small class="role-caption">{{ uiText.vendorPlanQuarterNote }}</small>
+              </label>
+
+              <label class="role-card" :class="{ active: form.vendor_plan === 'annual' }">
+                <input v-model="form.vendor_plan" type="radio" value="annual" name="vendor_plan" />
+                <span class="role-icon">$100</span>
+                <span class="role-name">{{ uiText.vendorPlanAnnual }}</span>
+                <small class="role-caption">{{ uiText.vendorPlanAnnualNote }}</small>
+              </label>
+            </div>
+            <small class="field-help">{{ uiText.vendorPlanHint }}</small>
+            <small v-if="firstFieldError('vendor_plan')" class="field-error">{{ firstFieldError('vendor_plan') }}</small>
           </label>
 
           <label class="field">
@@ -379,5 +530,70 @@ const submitRegister = async () => {
         </p>
       </section>
     </main>
+
+    <div v-if="showVendorPaymentSheet && vendorCheckout" class="vendor-payment-sheet" role="dialog" aria-modal="true">
+      <div class="vendor-payment-sheet__backdrop" @click="closeVendorPaymentSheet()"></div>
+      <div class="vendor-payment-sheet__card">
+        <div class="vendor-payment-sheet__head">
+          <div>
+            <p class="eyebrow">{{ uiText.vendorPaymentTitle }}</p>
+            <h3>{{ vendorCheckout.name || uiText.vendorPlans }}</h3>
+            <p>{{ uiText.vendorPaymentSubtitle }}</p>
+          </div>
+          <button type="button" class="vendor-payment-sheet__close" @click="closeVendorPaymentSheet()">
+            &times;
+          </button>
+        </div>
+
+        <div class="vendor-payment-sheet__content">
+          <div class="vendor-payment-sheet__qr">
+            <img
+              v-if="vendorCheckout.payment_qr_url"
+              :src="vendorCheckout.payment_qr_url"
+              :alt="uiText.vendorPaymentQrAlt"
+              loading="lazy"
+            />
+            <div v-else class="vendor-payment-sheet__qr-empty">{{ uiText.vendorPaymentMissingQr }}</div>
+          </div>
+
+          <div class="vendor-payment-sheet__summary">
+            <div class="vendor-payment-sheet__stat">
+              <span>{{ uiText.vendorPaymentAmount }}</span>
+              <strong>${{ Number(vendorCheckout.price || 0).toFixed(2) }}</strong>
+            </div>
+            <div class="vendor-payment-sheet__stat">
+              <span>{{ uiText.vendorPaymentDuration }}</span>
+              <strong>
+                {{ vendorCheckout.duration_months ? `${vendorCheckout.duration_months} month${vendorCheckout.duration_months > 1 ? 's' : ''}` : '--' }}
+              </strong>
+            </div>
+            <div class="vendor-payment-sheet__stat">
+              <span>{{ uiText.vendorPaymentServiceLimit }}</span>
+              <strong>{{ vendorCheckout.service_limit === null ? uiText.vendorPaymentUnlimited : vendorCheckout.service_limit }}</strong>
+            </div>
+            <div class="vendor-payment-sheet__stat">
+              <span>{{ uiText.vendorPaymentPackageLimit }}</span>
+              <strong>{{ vendorCheckout.package_limit === null ? uiText.vendorPaymentUnlimited : vendorCheckout.package_limit }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="vendor-payment-sheet__notes">
+          <p>{{ vendorCheckout.payment_note || uiText.vendorPaymentMissingQr }}</p>
+          <p>{{ uiText.vendorPaymentPending }}</p>
+          <p>{{ uiText.vendorPaymentAfterPay }}</p>
+          <p v-if="vendorPaymentError" class="field-error">{{ vendorPaymentError }}</p>
+        </div>
+
+        <div class="vendor-payment-sheet__actions">
+          <button type="button" class="secondary-button" @click="closeVendorPaymentSheet(true)">
+            {{ uiText.vendorPaymentCancel }}
+          </button>
+          <button type="button" class="submit-btn" :disabled="completingVendorPayment" @click="completeVendorPayment">
+            {{ completingVendorPayment ? uiText.vendorPaymentCompleting : uiText.vendorPaymentComplete }}
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>

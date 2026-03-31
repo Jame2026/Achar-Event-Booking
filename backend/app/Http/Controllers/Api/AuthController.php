@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\VendorSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use libphonenumber\PhoneNumberUtil;
 use libphonenumber\NumberParseException;
 
@@ -28,7 +30,7 @@ class AuthController extends Controller
             'email' => [
                 'nullable',
                 'string',
-                'email:rfc,dns',
+                'email:rfc',
                 'max:255',
                 'required_without:phone',
                 'unique:users,email',
@@ -46,6 +48,11 @@ class AuthController extends Controller
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', 'in:user,vendor'],
+            'vendor_plan' => [
+                'nullable',
+                'required_if:role,vendor',
+                Rule::in(array_keys(VendorSetting::availableSubscriptionPlans())),
+            ],
         ]);
 
         $userEmail = (string) ($validated['email'] ?? '');
@@ -60,10 +67,34 @@ class AuthController extends Controller
             'role'     => $validated['role'],
         ]);
 
-        return response()->json([
-            'message' => 'Registration successful.',
+        if ($user->isVendor()) {
+            $selectedPlan = (string) $validated['vendor_plan'];
+            VendorSetting::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'event_id' => null,
+                ],
+                [
+                    ...VendorSetting::defaultGlobalAttributes(),
+                    ...VendorSetting::pendingSubscriptionPayloadForPlan($selectedPlan),
+                ],
+            );
+        }
+
+        $responsePayload = [
+            'message' => $user->isVendor()
+                ? 'Vendor account created. Scan the QR code to pay your listing plan before publishing services.'
+                : 'Registration successful.',
             'user' => $user->only(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role']),
-        ], 201);
+        ];
+
+        if ($user->isVendor()) {
+            $responsePayload['subscription_checkout'] = VendorSetting::subscriptionCheckoutPayloadForPlan(
+                (string) $validated['vendor_plan']
+            );
+        }
+
+        return response()->json($responsePayload, 201);
     }
 
     public function login(Request $request): JsonResponse

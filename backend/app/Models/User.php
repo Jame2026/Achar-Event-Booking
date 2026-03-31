@@ -85,7 +85,7 @@ class User extends Authenticatable
 
     public function vendorSetting(): HasOne
     {
-        return $this->hasOne(VendorSetting::class);
+        return $this->hasOne(VendorSetting::class)->whereNull('event_id');
     }
 
     public function isAdmin(): bool

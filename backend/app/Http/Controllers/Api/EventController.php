@@ -71,6 +71,12 @@ class EventController extends Controller
                     'updated_at',
                 ])
                 ->where('is_active', true)
+                ->whereHas('vendor.vendorSetting', function ($query) {
+                    $query
+                        ->where('subscription_status', 'active')
+                        ->whereNotNull('subscription_expires_at')
+                        ->where('subscription_expires_at', '>=', now());
+                })
                 ->with('vendor:id,name,profile_image_url')
                 ->withCount('bookings')
                 ->latest('starts_at')
@@ -134,7 +140,23 @@ class EventController extends Controller
 
     public function show(Event $event): JsonResponse
     {
-        $event->load(['vendor:id,name,profile_image_url'])->loadCount('bookings');
+        $event
+            ->load([
+                'vendor:id,name,profile_image_url',
+                'vendor.vendorSetting:user_id,subscription_status,subscription_expires_at',
+            ])
+            ->loadCount('bookings');
+
+        $vendorSetting = $event->vendor?->vendorSetting;
+        $publiclyVisible = $event->is_active
+            && $vendorSetting
+            && strtolower((string) $vendorSetting->subscription_status) === 'active'
+            && $vendorSetting->subscription_expires_at
+            && $vendorSetting->subscription_expires_at->gte(now());
+
+        if (! $publiclyVisible) {
+            return response()->json(['message' => 'Service not found.'], 404);
+        }
 
         return response()->json($event);
     }
