@@ -768,15 +768,6 @@ const uiText = computed(() => copyByLanguage[language.value] || copyByLanguage.e
           >
             {{ primaryActionLabel }}
           </button>
-          <button
-            v-if="isApprovedPaymentFlow && selectedMethod !== 'card'"
-            type="button"
-            class="pay-btn"
-            :disabled="!agreedTerms || isVerifyingPayment"
-            @click="handleConfirmAndPay(true)"
-          >
-            {{ uiText.completePayment }}
-          </button>
           <p v-if="paymentNotice" class="payment-notice">{{ paymentNotice }}</p>
           <p class="secure-note">{{ secureNoteLabel }}</p>
         </article>
