@@ -2467,7 +2467,7 @@ watch(
   (query) => {
     applyRouteStateFromQuery(query)
   },
-  { deep: true },
+  { deep: true, immediate: true },
 )
 
 watch(
