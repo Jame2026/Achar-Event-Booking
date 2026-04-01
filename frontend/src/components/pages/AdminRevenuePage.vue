@@ -681,8 +681,7 @@ const setChartMetric = (metric) => {
   chartMetric.value = metric;
 };
 
-syncActiveKey();
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 onMounted(() => void adminStore.loadAll());
 </script>
 

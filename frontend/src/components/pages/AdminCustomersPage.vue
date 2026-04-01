@@ -636,7 +636,7 @@ async function loadCustomerDirectory() {
   }
 }
 
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 watch(
   filteredCustomers,
   (rows) => {
@@ -646,7 +646,6 @@ watch(
   { immediate: true },
 );
 
-syncActiveKey();
 onMounted(() => void loadCustomerDirectory());
 </script>
 

@@ -704,7 +704,7 @@ async function activateVendorPlan() {
   }
 }
 
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 watch(
   filteredVendors,
   (rows) => {
@@ -714,7 +714,6 @@ watch(
   { immediate: true },
 );
 
-syncActiveKey();
 onMounted(() => void loadVendorDirectory());
 </script>
 

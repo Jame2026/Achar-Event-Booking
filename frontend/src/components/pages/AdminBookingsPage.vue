@@ -544,8 +544,7 @@ const navigateTo = (key) => {
   router.replace({ path: "/legacy-app", query: { page: key } }).catch(() => {});
 };
 
-syncActiveKey();
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 watch(
   filteredBookings,
   (rows) => {
