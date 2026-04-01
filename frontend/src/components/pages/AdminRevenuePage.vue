@@ -280,9 +280,10 @@ const navItems = computed(() => [
 ]);
 const activeKey = ref("revenue");
 const adminStore = useAdminDataStore();
-const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
-const loadError = computed(() => adminStore.errors.bookings);
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings || adminStore.loading.users);
+const loadError = computed(() => adminStore.errors.bookings || adminStore.errors.users);
 const rawBookings = computed(() => adminStore.state.bookings);
+const rawUsers = computed(() => adminStore.state.users);
 const rangeKey = ref("30d");
 const chartMetric = ref("gross");
 const rangeOptions = computed(() => [
@@ -368,6 +369,9 @@ const getBookingDate = (row) => {
   return date;
 };
 
+const getStatusLabel = (status) =>
+  status === "completed" ? uiText.value.completed : status === "failed" ? uiText.value.failed : uiText.value.pending;
+
 const normalizeBooking = (row) => {
   const date = getBookingDate(row);
   const vendorName =
@@ -379,15 +383,57 @@ const normalizeBooking = (row) => {
     uiText.value.vendorFallback;
   const amount = Number(row?.total_amount || 0);
   const status = normalizeStatus(row);
+  const retainedAmount =
+    status === "completed"
+      ? Number(row?.service_fee_amount || amount * serviceFeeRate || 0)
+      : 0;
   return {
     id: row?.id ? `#TXN-${row.id}` : "#TXN",
     vendorName,
     amount,
+    grossAmount: amount,
+    retainedAmount,
     status,
-    statusLabel: status === "completed" ? uiText.value.completed : status === "failed" ? uiText.value.failed : uiText.value.pending,
+    statusLabel: getStatusLabel(status),
     date,
     dateLabel: date ? formatDateLabel(date) : uiText.value.dateTbd,
     paymentMethod: String(row?.payment_method || ""),
+    source: "booking",
+  };
+};
+
+const getVendorSetting = (user) => user?.vendor_setting || user?.vendorSetting || null;
+
+const getVendorSubscriptionDate = (user) => {
+  const setting = getVendorSetting(user);
+  const raw = setting?.subscription_paid_at || setting?.subscription_started_at || null;
+  const date = raw ? new Date(raw) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const normalizeVendorSubscriptionPayment = (user) => {
+  const setting = getVendorSetting(user);
+  const amount = Number(setting?.subscription_price_amount || 0);
+  const date = getVendorSubscriptionDate(user);
+  if (!setting?.subscription_paid_at || !date || !Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+
+  const vendorName = String(user?.name || user?.email || uiText.value.vendorFallback).trim() || uiText.value.vendorFallback;
+
+  return {
+    id: user?.id ? `#PLAN-${user.id}` : "#PLAN",
+    vendorName,
+    amount,
+    grossAmount: amount,
+    retainedAmount: amount,
+    status: "completed",
+    statusLabel: uiText.value.completed,
+    date,
+    dateLabel: formatDateLabel(date),
+    paymentMethod: "bank transfer",
+    source: "subscription",
   };
 };
 
@@ -403,46 +449,62 @@ const normalizeRangeDates = (days) => {
 };
 
 const normalizedBookings = computed(() => rawBookings.value.map(normalizeBooking));
+const normalizedVendorSubscriptions = computed(() =>
+  rawUsers.value
+    .map(normalizeVendorSubscriptionPayment)
+    .filter(Boolean),
+);
+const normalizedRevenueEntries = computed(() => [...normalizedBookings.value, ...normalizedVendorSubscriptions.value]);
 
-const rangeBookings = computed(() => {
+const rangeEntries = computed(() => {
   const { start, end } = normalizeRangeDates(selectedRange.value.days);
-  return normalizedBookings.value.filter((row) => row.date && row.date >= start && row.date <= end);
+  return normalizedRevenueEntries.value.filter((row) => row.date && row.date >= start && row.date <= end);
 });
 
-const previousRangeBookings = computed(() => {
+const previousRangeEntries = computed(() => {
   const { start } = normalizeRangeDates(selectedRange.value.days);
   const prevEnd = new Date(start);
   prevEnd.setMilliseconds(-1);
   const prevStart = new Date(prevEnd);
   prevStart.setDate(prevEnd.getDate() - Math.max(selectedRange.value.days - 1, 0));
   prevStart.setHours(0, 0, 0, 0);
-  return normalizedBookings.value.filter((row) => row.date && row.date >= prevStart && row.date <= prevEnd);
+  return normalizedRevenueEntries.value.filter((row) => row.date && row.date >= prevStart && row.date <= prevEnd);
 });
 
-const sumByStatus = (rows, status) =>
-  rows.reduce((sum, row) => (row.status === status ? sum + row.amount : sum), 0);
+const sumByStatus = (rows, status, field = "grossAmount") =>
+  rows.reduce((sum, row) => (row.status === status ? sum + Number(row?.[field] || 0) : sum), 0);
 
 const countByStatus = (rows, status) => rows.filter((row) => row.status === status).length;
 
 const revenueTotals = computed(() => {
-  const confirmed = sumByStatus(rangeBookings.value, "completed");
-  const pending = sumByStatus(rangeBookings.value, "pending");
-  const failed = sumByStatus(rangeBookings.value, "failed");
-  const fees = confirmed * serviceFeeRate;
-  const net = confirmed - fees;
+  const confirmed = sumByStatus(rangeEntries.value, "completed");
+  const pending = sumByStatus(rangeEntries.value, "pending");
+  const failed = sumByStatus(rangeEntries.value, "failed");
+  const bookingFees = sumByStatus(
+    rangeEntries.value.filter((row) => row.source === "booking"),
+    "completed",
+    "retainedAmount",
+  );
+  const vendorPlanRevenue = sumByStatus(
+    rangeEntries.value.filter((row) => row.source === "subscription"),
+    "completed",
+    "retainedAmount",
+  );
+  const net = bookingFees + vendorPlanRevenue;
   return {
     confirmed,
     pending,
     failed,
-    fees,
+    fees: bookingFees,
+    vendorPlanRevenue,
     net,
-    pendingCount: countByStatus(rangeBookings.value, "pending"),
+    pendingCount: countByStatus(rangeEntries.value, "pending"),
   };
 });
 
 const previousRevenueTotals = computed(() => ({
-  confirmed: sumByStatus(previousRangeBookings.value, "completed"),
-  net: sumByStatus(previousRangeBookings.value, "completed") * (1 - serviceFeeRate),
+  confirmed: sumByStatus(previousRangeEntries.value, "completed"),
+  net: sumByStatus(previousRangeEntries.value, "completed", "retainedAmount"),
 }));
 
 const formatDelta = (current, previous) => {
@@ -502,11 +564,11 @@ const chartSeries = computed(() => {
     };
   });
 
-  rangeBookings.value.forEach((row) => {
+  rangeEntries.value.forEach((row) => {
     if (!row.date) return;
     const target = buckets.find((bucket) => row.date >= bucket.start && row.date <= bucket.end);
     if (!target) return;
-    const value = chartMetric.value === "net" ? row.amount * (1 - serviceFeeRate) : row.amount;
+    const value = chartMetric.value === "net" ? Number(row.retainedAmount || 0) : Number(row.grossAmount || row.amount || 0);
     target.value += value;
   });
 
@@ -559,8 +621,8 @@ const chartFooter = computed(() => {
 });
 
 const projection = computed(() => {
-  const totalCount = rangeBookings.value.length;
-  const failedCount = countByStatus(rangeBookings.value, "failed");
+  const totalCount = rangeEntries.value.length;
+  const failedCount = countByStatus(rangeEntries.value, "failed");
   const failureRate = totalCount > 0 ? failedCount / totalCount : 0;
   const confidence = totalCount > 0 ? Math.round((1 - failureRate) * 100) : 0;
   let risk = uiText.value.low;
@@ -580,15 +642,15 @@ const payoutSummary = computed(() => {
   const pending = revenueTotals.value.pending;
   const total = confirmed + pending;
   const progress = total > 0 ? Math.round((confirmed / total) * 100) : 0;
-  const bankTransfers = rangeBookings.value
+  const bankTransfers = rangeEntries.value
     .filter((row) => row.status === "completed" && /bank|transfer/i.test(row.paymentMethod))
     .reduce((sum, row) => sum + row.amount, 0);
-  const cardRefunds = rangeBookings.value
+  const cardRefunds = rangeEntries.value
     .filter((row) => row.status === "failed")
     .reduce((sum, row) => sum + row.amount, 0);
   const platformFees = revenueTotals.value.fees;
   return {
-    available: formatCurrency(confirmed - platformFees),
+    available: formatCurrency(revenueTotals.value.net),
     progress,
     bankTransfers: formatCurrency(bankTransfers),
     cardRefunds: formatCurrency(cardRefunds),
@@ -598,7 +660,7 @@ const payoutSummary = computed(() => {
 
 const transactions = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
-  const rows = rangeBookings.value
+  const rows = rangeEntries.value
     .filter((row) => {
       if (!q) return true;
       return (

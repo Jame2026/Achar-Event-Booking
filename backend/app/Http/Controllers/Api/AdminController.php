@@ -13,8 +13,6 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
-    private const SERVICE_FEE_RATE = 0.035;
-
     public function dashboard(): JsonResponse
     {
         $adminsTotal = User::where('role', 'admin')->count();
@@ -26,10 +24,10 @@ class AdminController extends Controller
 
         $confirmedBookingsTotal = (clone $confirmedBookingsQuery)->count();
         $grossRevenueTotal = round((float) ((clone $confirmedBookingsQuery)->sum('total_amount') ?: 0), 2);
-        $serviceFeeTotal = round($grossRevenueTotal * self::SERVICE_FEE_RATE, 2);
+        $serviceFeeTotal = round((float) ((clone $confirmedBookingsQuery)->sum('service_fee_amount') ?: 0), 2);
         $vendorSubscriptionRevenueTotal = round((float) VendorSetting::query()
             ->whereNull('event_id')
-            ->whereIn('subscription_status', ['active', 'expired'])
+            ->whereNotNull('subscription_paid_at')
             ->sum('subscription_price_amount'), 2);
 
         return response()->json([

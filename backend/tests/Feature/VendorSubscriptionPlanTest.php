@@ -110,6 +110,38 @@ class VendorSubscriptionPlanTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_admin_dashboard_counts_paid_vendor_registration_revenue_before_activation(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-01 09:00:00'));
+
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+        $vendor = User::factory()->create([
+            'role' => 'vendor',
+            'email' => 'new-paid-vendor@example.com',
+        ]);
+
+        VendorSetting::query()->create([
+            'user_id' => $vendor->id,
+            'event_id' => null,
+            ...VendorSetting::defaultAvailabilityAttributes(),
+            ...VendorSetting::pendingSubscriptionPayloadForPlan(VendorSetting::PLAN_QUARTERLY),
+        ]);
+
+        $this->postJson('/api/vendor/settings/subscription/complete-payment', [
+            'vendor_user_id' => $vendor->id,
+        ])->assertOk()
+            ->assertJsonPath('settings.subscription_status', 'pending_approval');
+
+        $this->actingAs($admin)
+            ->getJson('/api/admin/dashboard')
+            ->assertOk()
+            ->assertJsonPath('vendor_subscription_revenue_total', 10);
+
+        Carbon::setTestNow();
+    }
+
     public function test_admin_cannot_activate_vendor_before_payment_is_completed(): void
     {
         $admin = User::factory()->create([

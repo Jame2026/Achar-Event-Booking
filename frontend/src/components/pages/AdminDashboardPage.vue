@@ -84,6 +84,11 @@ const copyByLanguage = {
     totalBookings: "Total Bookings",
     totalAccounts: "Total Accounts",
     serviceFeeTotal: "Service Fee Total",
+    vendorPlanProfit: "Vendor Profit",
+    vendorPlanProfitHint: "From {count} paid vendor plans",
+    vendorPlanProfitEmpty: "No vendor plan payments yet",
+    platformProfitTotal: "Platform Profit",
+    vendorPlanRevenueIncluded: "Includes {amount} from vendor plans",
     newBadge: "New",
     accountsBreakdown: "{vendors} vendors, {customers} customers",
     noAccounts: "No customer or vendor accounts",
@@ -258,6 +263,11 @@ const copyByLanguage = {
     totalBookings: "ការកក់សរុប",
     totalAccounts: "គណនីសរុប",
     serviceFeeTotal: "ថ្លៃសេវាសរុប",
+    vendorPlanProfit: "ប្រាក់ចំណេញពីអ្នកផ្គត់ផ្គង់",
+    vendorPlanProfitHint: "ពីគម្រោងអ្នកផ្គត់ផ្គង់បានបង់ {count}",
+    vendorPlanProfitEmpty: "មិនទាន់មានការបង់គម្រោងអ្នកផ្គត់ផ្គង់ទេ",
+    platformProfitTotal: "ប្រាក់ចំណេញវេទិកា",
+    vendorPlanRevenueIncluded: "រួមបញ្ចូល {amount} ពីគម្រោងអ្នកផ្គត់ផ្គង់",
     newBadge: "ថ្មី",
     accountsBreakdown: "{vendors} អ្នកផ្គត់ផ្គង់, {customers} អតិថិជន",
     noAccounts: "មិនទាន់មានគណនីអតិថិជន ឬអ្នកផ្គត់ផ្គង់ទេ",
@@ -432,6 +442,11 @@ const copyByLanguage = {
     totalBookings: "预订总数",
     totalAccounts: "账户总数",
     serviceFeeTotal: "服务费总额",
+    vendorPlanProfit: "商家利润",
+    vendorPlanProfitHint: "来自 {count} 个已付款商家套餐",
+    vendorPlanProfitEmpty: "暂无商家套餐收入",
+    platformProfitTotal: "平台利润",
+    vendorPlanRevenueIncluded: "含商家套餐收入 {amount}",
     newBadge: "新增",
     accountsBreakdown: "{vendors} 个商家，{customers} 位客户",
     noAccounts: "暂无客户或商家账户",
@@ -872,6 +887,18 @@ const normalizeUserStatus = (user) => {
 };
 
 const formatUserStatus = (value) => uiText.value.statusNames[value] || uiText.value.statusNames.active;
+const getVendorSetting = (user) => user?.vendor_setting || user?.vendorSetting || null;
+const sumVendorSubscriptionRevenue = (rows) =>
+  rows.reduce((sum, user) => {
+    const setting = getVendorSetting(user);
+    if (!setting?.subscription_paid_at) return sum;
+    return sum + Number(setting?.subscription_price_amount || 0);
+  }, 0);
+const countPaidVendorSubscriptions = (rows) =>
+  rows.reduce((count, user) => {
+    const setting = getVendorSetting(user);
+    return setting?.subscription_paid_at ? count + 1 : count;
+  }, 0);
 
 const bookingCountForUser = (user) => {
   const id = Number(user?.id || 0);
@@ -1247,6 +1274,11 @@ const getYearRange = (offset = 0) => {
 };
 
 const calculateServiceFee = (amount) => Number((Math.max(0, Number(amount || 0)) * serviceFeeRate).toFixed(2));
+const getBookingFeeAmount = (row) => {
+  const stored = Number(row?.service_fee_amount);
+  if (Number.isFinite(stored) && stored >= 0) return stored;
+  return calculateServiceFee(row?.total_amount || 0);
+};
 
 const sumServiceFees = (rows, range) =>
   rows.reduce((sum, row) => {
@@ -1254,7 +1286,7 @@ const sumServiceFees = (rows, range) =>
     if (status !== "confirmed") return sum;
     const date = getRowDate(row, row?.event?.starts_at);
     if (!date || (range && (date < range.start || date > range.end))) return sum;
-    return sum + calculateServiceFee(row?.total_amount || 0);
+    return sum + getBookingFeeAmount(row);
   }, 0);
 
 const getConfirmedBookingsInRange = (rows, range) =>
@@ -1294,6 +1326,9 @@ const dashboardStats = computed(() => {
   const totalVendors = adminSummary.value?.vendors_total || vendorAccountsTotal.value;
   const totalAccounts = adminSummary.value?.accounts_total || trackedAccountsTotal.value;
   const totalServiceFees = adminSummary.value?.service_fee_total || sumServiceFees(bookingRows.value);
+  const totalVendorPlanRevenue =
+    adminSummary.value?.vendor_subscription_revenue_total ?? sumVendorSubscriptionRevenue(userRows.value);
+  const paidVendorPlans = countPaidVendorSubscriptions(userRows.value);
 
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
@@ -1316,6 +1351,12 @@ const dashboardStats = computed(() => {
     sumServiceFees(bookingRows.value, currentMonth),
     sumServiceFees(bookingRows.value, previousMonth),
   );
+  const vendorPlanDelta =
+    paidVendorPlans > 0
+      ? interpolate(uiText.value.vendorPlanProfitHint, {
+          count: formatNumber(paidVendorPlans),
+        })
+      : uiText.value.vendorPlanProfitEmpty;
 
   return [
     { label: uiText.value.totalEvents, value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
@@ -1328,7 +1369,14 @@ const dashboardStats = computed(() => {
       icon: "users",
     },
     {
-      label: uiText.value.serviceFeeTotal,
+      label: uiText.value.vendorPlanProfit,
+      value: formatCurrency(totalVendorPlanRevenue),
+      delta: vendorPlanDelta,
+      tone: totalVendorPlanRevenue > 0 ? "up" : "neutral",
+      icon: "vendor-profit",
+    },
+    {
+      label: uiText.value.platformProfitTotal || uiText.value.serviceFeeTotal,
       value: formatCurrency(totalServiceFees),
       delta: serviceFeeDelta,
       tone: "solid",
@@ -1377,7 +1425,7 @@ const buildServiceFeeSummary = ({ key, title, range, previousRange, periodLabel 
     rows.reduce((sum, row) => sum + Number(row?.total_amount || 0), 0).toFixed(2),
   );
   const serviceFees = Number(
-    rows.reduce((sum, row) => sum + calculateServiceFee(row?.total_amount || 0), 0).toFixed(2),
+    rows.reduce((sum, row) => sum + getBookingFeeAmount(row), 0).toFixed(2),
   );
   const previousFees = Number(sumServiceFees(bookingRows.value, previousRange).toFixed(2));
   const averageFee = rows.length ? Number((serviceFees / rows.length).toFixed(2)) : 0;
@@ -1655,6 +1703,11 @@ onMounted(() =>
             <svg v-else-if="card.icon === 'users'" viewBox="0 0 24 24">
               <path
                 d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
+              />
+            </svg>
+            <svg v-else-if="card.icon === 'vendor-profit'" viewBox="0 0 24 24">
+              <path
+                d="M4 10.5 6 4h12l2 6.5V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm4 2.5v6h8v-6Zm-.53-7-1 3h12.06l-1-3Z"
               />
             </svg>
             <svg v-else viewBox="0 0 24 24">
@@ -2741,6 +2794,10 @@ onMounted(() =>
 }
 
 .stat-card:nth-child(4)::before {
+  background: linear-gradient(90deg, #8b5cf6, #c084fc);
+}
+
+.stat-card:nth-child(5)::before {
   background: linear-gradient(90deg, #f15b2a, #ff9a4d);
 }
 
@@ -2758,6 +2815,10 @@ onMounted(() =>
 
 .stat-card:nth-child(4) {
   animation-delay: 0.2s;
+}
+
+.stat-card:nth-child(5) {
+  animation-delay: 0.26s;
 }
 
 .stat-card.solid {

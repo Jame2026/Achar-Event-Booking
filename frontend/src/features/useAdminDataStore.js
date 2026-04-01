@@ -18,6 +18,7 @@ const emptySummary = () => ({
   confirmed_bookings_total: 0,
   gross_revenue_total: 0,
   service_fee_total: 0,
+  vendor_subscription_revenue_total: 0,
 });
 
 const state = reactive({
@@ -102,6 +103,17 @@ function normalizeBookingStatus(row) {
   return "pending";
 }
 
+function getVendorSetting(row) {
+  const setting = row?.vendor_setting || row?.vendorSetting || null;
+  return setting && typeof setting === "object" ? setting : null;
+}
+
+function getBookingFeeAmount(row) {
+  const stored = Number(row?.service_fee_amount);
+  if (Number.isFinite(stored) && stored >= 0) return stored;
+  return Number((Math.max(0, Number(row?.total_amount || 0)) * serviceFeeRate).toFixed(2));
+}
+
 function buildSummaryFromState() {
   const users = Array.isArray(state.users) ? state.users : [];
   const vendorsTotal = users.filter((row) => normalizeRole(row?.role) === "vendor").length;
@@ -110,6 +122,16 @@ function buildSummaryFromState() {
   const confirmedBookings = state.bookings.filter((row) => normalizeBookingStatus(row) === "confirmed");
   const grossRevenueTotal = Number(
     confirmedBookings.reduce((sum, row) => sum + Number(row?.total_amount || 0), 0).toFixed(2),
+  );
+  const serviceFeeTotal = Number(
+    confirmedBookings.reduce((sum, row) => sum + getBookingFeeAmount(row), 0).toFixed(2),
+  );
+  const vendorSubscriptionRevenueTotal = Number(
+    users.reduce((sum, row) => {
+      const setting = getVendorSetting(row);
+      if (!setting?.subscription_paid_at) return sum;
+      return sum + Number(setting?.subscription_price_amount || 0);
+    }, 0).toFixed(2),
   );
 
   return {
@@ -128,7 +150,8 @@ function buildSummaryFromState() {
     bookings_total: state.bookings.length,
     confirmed_bookings_total: confirmedBookings.length,
     gross_revenue_total: grossRevenueTotal,
-    service_fee_total: Number((grossRevenueTotal * serviceFeeRate).toFixed(2)),
+    service_fee_total: serviceFeeTotal,
+    vendor_subscription_revenue_total: vendorSubscriptionRevenueTotal,
   };
 }
 

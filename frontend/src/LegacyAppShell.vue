@@ -340,13 +340,16 @@ const isPlannerUser = computed(() => currentRole.value === 'user')
 const isAdminAccount = computed(
   () => currentRole.value === 'admin',
 )
+const hasDashboardAccount = computed(
+  () => ['vendor', 'admin'].includes(currentRole.value),
+)
 const isVendorDashboardAccount = computed(
   () => currentRole.value === 'vendor',
 )
 const isVendorAccount = computed(() =>
-  ['vendor', 'admin'].includes(currentRole.value),
+  currentRole.value === 'vendor',
 )
-const defaultLegacyPage = computed(() => (isVendorAccount.value ? 'dashboard' : 'bookings'))
+const defaultLegacyPage = computed(() => (hasDashboardAccount.value ? 'dashboard' : 'bookings'))
 const resolvedCurrentPage = computed(() => {
   const requestedPage = firstQueryValue(route.query.page)
   return normalizePage(requestedPage === undefined ? currentPage.value : requestedPage)
@@ -362,7 +365,7 @@ function normalizePage(value) {
   if (page === 'users') return 'customers'
   if (adminLegacyPages.includes(page) && !isAdminAccount.value) return defaultLegacyPage.value
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
-  if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
+  if (page === 'dashboard' && !hasDashboardAccount.value) return 'bookings'
   return page
 }
 
@@ -410,7 +413,7 @@ function applyRouteStateFromQuery(query) {
 
 function syncRouteQueryFromState() {
   const nextQuery = {}
-  if (currentPage.value !== defaultLegacyPage.value || (currentPage.value === 'dashboard' && isVendorAccount.value)) {
+  if (currentPage.value !== defaultLegacyPage.value || (currentPage.value === 'dashboard' && hasDashboardAccount.value)) {
     nextQuery.page = currentPage.value
   }
   if (currentPage.value === 'vendor') nextQuery.tab = activeVendorTab.value
@@ -1325,7 +1328,7 @@ function startNotificationPolling() {
 }
 
 function getLatestCustomerBookingStatusNotificationId(rows = []) {
-  if (isVendorAccount.value || !Array.isArray(rows)) return null
+  if (hasDashboardAccount.value || !Array.isArray(rows)) return null
 
   const match = rows.find(
     (item) =>
@@ -1355,7 +1358,7 @@ function getLatestVendorCustomerCancellationNotification(rows = []) {
 }
 
 async function syncCustomerBookingsFromNotifications(rows) {
-  if (isVendorAccount.value || !resolveBookingLookup().hasIdentity) return
+  if (hasDashboardAccount.value || !resolveBookingLookup().hasIdentity) return
 
   const latestNotificationId = getLatestCustomerBookingStatusNotificationId(rows)
 
@@ -2126,7 +2129,7 @@ async function bootstrapAuthenticatedShell() {
       tasks.push(loadVendorBookings())
       tasks.push(loadVendorSettings({ silent: true }))
     }
-    if (!isVendorAccount.value && resolveBookingLookup().hasIdentity) tasks.push(loadBookings())
+    if (!hasDashboardAccount.value && resolveBookingLookup().hasIdentity) tasks.push(loadBookings())
     await Promise.all(tasks)
     startNotificationPolling()
   } finally {
@@ -2135,7 +2138,7 @@ async function bootstrapAuthenticatedShell() {
 }
 
 function goToDashboard() {
-  currentPage.value = isVendorAccount.value ? 'dashboard' : 'bookings'
+  currentPage.value = hasDashboardAccount.value ? 'dashboard' : 'bookings'
 }
 
 function setVendorDashboardTab(tab) {
@@ -2189,7 +2192,7 @@ function goToProfile() {
 
 function goToBookings() {
   currentPage.value = 'bookings'
-  if (!isVendorAccount.value && resolveBookingLookup().hasIdentity) {
+  if (!hasDashboardAccount.value && resolveBookingLookup().hasIdentity) {
     loadBookings({ silent: true })
   }
 }
@@ -2435,7 +2438,7 @@ watch([customerName, customerEmail, userPhone, userLocation, userProfileImageUrl
 watch([customerEmail, userPhone], () => {
   if (!loggedInUser.value || isBootstrappingAuth.value) return
 
-  if (!isVendorAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
+  if (!hasDashboardAccount.value && (currentPage.value === 'bookings' || currentPage.value === 'dashboard')) {
     loadBookings()
   }
   loadNotifications({ silent: true })
@@ -2531,6 +2534,7 @@ onBeforeUnmount(() => {
       <PublicNavbar />
       <AdminDashboardPage
         v-if="isAdminAccount && (resolvedCurrentPage === 'dashboard' || resolvedCurrentPage === 'settings')"
+        :key="`admin-${resolvedCurrentPage}`"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
         :admin-user="loggedInUser"
