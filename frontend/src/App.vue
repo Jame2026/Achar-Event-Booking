@@ -34,6 +34,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <router-view />
+  <router-view :key="route.fullPath" />
   <SiteFooter v-if="!hideFooter" />
 </template>
