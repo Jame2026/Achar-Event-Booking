@@ -426,8 +426,7 @@ function selectEvent(eventId) {
   selectedEventId.value = Number(eventId || 0) || null;
 }
 
-syncActiveKey();
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 watch(
   filteredEvents,
   (rows) => {

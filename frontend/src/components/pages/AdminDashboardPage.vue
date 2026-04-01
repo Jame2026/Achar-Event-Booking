@@ -1539,9 +1539,8 @@ const systemStatus = computed(() => {
   };
 });
 
-syncActiveKey();
 watch(() => props.activePage, syncActiveKey);
-watch(() => route.query.page, syncActiveKey);
+watch(() => route.query.page, syncActiveKey, { immediate: true });
 watch(
   () => props.adminUser?.id,
   (adminUserId) => {
