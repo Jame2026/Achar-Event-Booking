@@ -522,6 +522,15 @@ class ChatController extends Controller
     {
         $disk = (string) config('media.chat_image_disk', 'public');
         $directory = trim((string) config('media.chat_image_directory', 'chat-images'), '/');
+
+        if (! config("filesystems.disks.{$disk}")) {
+            throw new \RuntimeException("Image storage disk [{$disk}] is not configured.");
+        }
+
+        if ($disk === 'cloudinary') {
+            return $this->storeCloudinaryChatImage($disk, $directory, $image);
+        }
+
         $extension = Str::lower((string) ($image->getClientOriginalExtension() ?: $image->guessExtension() ?: 'bin'));
         $filename = Str::uuid()->toString().'.'.$extension;
         $path = Storage::disk($disk)->putFileAs($directory, $image, $filename, ['visibility' => 'public']);
@@ -531,6 +540,30 @@ class ChatController extends Controller
         }
 
         return Storage::disk($disk)->url($path);
+    }
+
+    private function storeCloudinaryChatImage(string $disk, string $directory, UploadedFile $image): string
+    {
+        $prefix = trim((string) config("filesystems.disks.{$disk}.prefix", ''), '/');
+        $folder = ltrim(collect([$prefix, $directory])->filter()->implode('/'), '/');
+        $publicId = 'chat_'.Str::uuid()->toString();
+        $uploadOptions = [
+            'public_id' => $publicId,
+            'resource_type' => 'image',
+        ];
+
+        if ($folder !== '') {
+            $uploadOptions['folder'] = $folder;
+        }
+
+        $result = cloudinary()->uploadApi()->upload($image->getRealPath(), $uploadOptions);
+        $secureUrl = (string) data_get($result, 'secure_url', '');
+
+        if ($secureUrl === '') {
+            throw new \RuntimeException('Cloudinary did not return a secure URL for the uploaded chat image.');
+        }
+
+        return $secureUrl;
     }
 
     private function filledValue(?string $value): ?string
