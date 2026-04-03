@@ -876,11 +876,11 @@ onMounted(() => void loadCustomerDirectory());
 
           <div v-if="isLoading" class="empty">{{ uiText.loadingCustomerDirectory }}</div>
           <div v-else-if="!filteredCustomers.length" class="empty">{{ uiText.noCustomersMatch }}</div>
-          <div v-else class="customer-list">
+          <div v-else class="queue-list customer-list">
             <article
               v-for="customer in filteredCustomers"
               :key="customer.key"
-              class="customer-row"
+              class="queue-row customer-row"
               :class="{ selected: selectedCustomer?.key === customer.key }"
               role="button"
               tabindex="0"
@@ -889,42 +889,45 @@ onMounted(() => void loadCustomerDirectory());
               @keydown.enter.prevent="selectedCustomerKey = customer.key"
               @keydown.space.prevent="selectedCustomerKey = customer.key"
             >
-              <div class="customer-main">
-                <div class="customer-photo">
-                  <img
-                    v-if="hasCustomerProfileImage(customer)"
-                    :src="customer.profileImageUrl"
-                    :alt="`${customer.name} profile`"
-                    @error="handleCustomerImageError(customer.customerImageKey)"
-                  />
-                  <span v-else>{{ customer.initials }}</span>
-                </div>
-                <div class="customer-copy">
-                  <div class="customer-title-row">
-                    <strong>{{ customer.name }}</strong>
-                    <span class="chip muted">{{ customer.memberState }}</span>
-                  </div>
-                  <p>{{ customer.email || uiText.emailNotProvided }}</p>
-                  <div class="chips">
-                    <span class="chip">{{ interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) }) }}</span>
-                    <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
-                    <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
-                  </div>
-                </div>
+              <div class="customer-photo queue-badge">
+                <img
+                  v-if="hasCustomerProfileImage(customer)"
+                  :src="customer.profileImageUrl"
+                  :alt="`${customer.name} profile`"
+                  @error="handleCustomerImageError(customer.customerImageKey)"
+                />
+                <span v-else>{{ customer.initials }}</span>
               </div>
-              <div class="directory-summary">
-                <strong class="directory-metric">
+              <div class="queue-copy">
+                <p class="queue-title">{{ customer.name }}</p>
+                <p class="queue-meta">
+                  {{ customer.email || uiText.emailNotProvided }}
+                  <template v-if="customer.preferredTypes[0]"> | {{ customer.preferredTypes[0] }}</template>
+                </p>
+              </div>
+              <span class="queue-date">{{ customer.lastBookingLabel }}</span>
+              <span
+                class="status"
+                :class="{
+                  active: customer.bookingsCount === 1,
+                  mixed: customer.bookingsCount > 1,
+                  inactive: customer.bookingsCount === 0,
+                }"
+              >
+                {{ customer.memberState }}
+              </span>
+              <div class="row-actions customer-actions">
+                <span class="queue-stat">{{ customer.confirmedSpendLabel }}</span>
+                <span class="queue-stat muted">
                   {{
                     customer.bookingsCount
                       ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
                       : uiText.noBookingsYet
                   }}
-                </strong>
-                <small>{{ customer.lastBookingLabel }}</small>
-              </div>
-              <div class="directory-actions customer-actions">
+                </span>
                 <button
-                  class="ghost-btn listing-delete-btn"
+                  v-if="selectedCustomer?.key === customer.key"
+                  class="queue-delete-btn"
                   type="button"
                   :disabled="deletingCustomerId === customer.id"
                   @click.stop="deleteCustomerAndBlacklist(customer)"
@@ -937,17 +940,13 @@ onMounted(() => void loadCustomerDirectory());
         </article>
 
         <aside class="side-column">
-          <article v-if="selectedCustomer" class="card spotlight-card">
-            <div class="sidebar-head">
-              <div>
-                <p class="card-eyebrow">{{ uiText.customerProfile }}</p>
-                <h3>{{ selectedCustomer.name }}</h3>
-                <p>{{ selectedCustomer.location }}</p>
-              </div>
-              <span class="chip">{{ selectedCustomer.memberState }}</span>
-            </div>
-            <div class="customer-identity">
-              <div class="customer-photo large">
+          <article v-if="selectedCustomer" class="card detail-card spotlight-card">
+            <header class="detail-head">
+              <h3>{{ uiText.customerProfile }}</h3>
+              <button class="link-btn" type="button" @click="navigateTo('admin-bookings')">{{ uiText.nav.bookings }}</button>
+            </header>
+            <div class="vendor-block">
+              <div class="vendor-avatar">
                 <img
                   v-if="hasCustomerProfileImage(selectedCustomer)"
                   :src="selectedCustomer.profileImageUrl"
@@ -956,43 +955,46 @@ onMounted(() => void loadCustomerDirectory());
                 />
                 <span v-else>{{ selectedCustomer.initials }}</span>
               </div>
-              <div class="identity-copy">
-                <strong>{{ selectedCustomer.name }}</strong>
-                <small>{{ selectedCustomer.joinedLabel }}</small>
-                <div class="chips">
-                  <span class="chip muted">{{ interpolate(uiText.confirmedCount, { count: count(selectedCustomer.confirmedCount) }) }}</span>
-                  <span class="chip muted">{{ interpolate(uiText.pendingCount, { count: count(selectedCustomer.pendingCount) }) }}</span>
-                </div>
+              <div>
+                <p class="vendor-name">{{ selectedCustomer.name }}</p>
+                <p class="vendor-meta">{{ selectedCustomer.location }}</p>
               </div>
             </div>
-            <div class="stats-grid">
+            <div class="vendor-stats">
               <div><span>{{ uiText.bookings }}</span><strong>{{ count(selectedCustomer.bookingsCount) }}</strong></div>
               <div><span>{{ uiText.confirmed }}</span><strong>{{ count(selectedCustomer.confirmedCount) }}</strong></div>
-              <div><span>{{ uiText.pending }}</span><strong>{{ count(selectedCustomer.pendingCount) }}</strong></div>
-              <div><span>{{ uiText.totalSpend }}</span><strong>{{ selectedCustomer.confirmedSpendLabel }}</strong></div>
             </div>
-            <div class="detail-grid">
-              <div class="detail-block">
+            <div class="detail-card-grid">
+              <div>
                 <span>{{ uiText.email }}</span>
                 <strong>{{ selectedCustomer.email || uiText.notProvided }}</strong>
               </div>
-              <div class="detail-block">
+              <div>
                 <span>{{ uiText.phone }}</span>
                 <strong>{{ selectedCustomer.phone || uiText.notProvided }}</strong>
               </div>
-              <div class="detail-block">
-                <span>{{ uiText.location }}</span>
-                <strong>{{ selectedCustomer.location }}</strong>
+              <div>
+                <span>{{ uiText.pending }}</span>
+                <strong>{{ count(selectedCustomer.pendingCount) }}</strong>
               </div>
-              <div class="detail-block">
+              <div>
+                <span>{{ uiText.totalSpend }}</span>
+                <strong>{{ selectedCustomer.confirmedSpendLabel }}</strong>
+              </div>
+              <div>
                 <span>{{ uiText.joined }}</span>
                 <strong>{{ selectedCustomer.joinedLabel }}</strong>
               </div>
-              <div class="detail-block detail-wide">
-                <span>{{ uiText.preferredCategories }}</span>
-                <strong>{{ selectedCustomer.preferredTypes.length ? selectedCustomer.preferredTypes.join(", ") : uiText.noBookingsYet }}</strong>
+              <div>
+                <span>{{ uiText.location }}</span>
+                <strong>{{ selectedCustomer.location }}</strong>
               </div>
             </div>
+            <p class="detail-copy">
+              <strong>{{ uiText.preferredCategories }}:</strong>
+              {{ selectedCustomer.preferredTypes.length ? selectedCustomer.preferredTypes.join(", ") : uiText.noBookingsYet }}
+            </p>
+            <button class="primary-btn full" type="button" @click="navigateTo('admin-bookings')">{{ uiText.bookingHistory }}</button>
           </article>
 
           <article v-if="selectedCustomer" class="card bookings-card">
@@ -2170,6 +2172,337 @@ select {
     0 18px 28px rgba(220, 38, 38, 0.14);
 }
 
+.content-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+.directory-card,
+.spotlight-card,
+.bookings-card {
+  background: var(--surface-strong);
+}
+
+.card-meta {
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--muted);
+}
+
+.queue-list {
+  display: grid;
+  gap: 12px;
+}
+
+.customer-list {
+  gap: 12px;
+}
+
+.customer-row,
+.queue-row.customer-row {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1.4fr) minmax(90px, 0.8fr) auto minmax(150px, 180px);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible;
+}
+
+.customer-row::before {
+  display: none;
+}
+
+.customer-row:focus-visible {
+  outline: 3px solid rgba(255, 122, 26, 0.18);
+  outline-offset: 2px;
+}
+
+.customer-row:hover {
+  transform: translateX(4px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+.customer-row.selected {
+  border-color: rgba(255, 122, 26, 0.2);
+  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
+  box-shadow: 0 18px 36px rgba(255, 122, 26, 0.12);
+}
+
+.queue-badge,
+.customer-photo {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--accent);
+  background: #fff3e6;
+  border: 1px solid rgba(255, 122, 26, 0.15);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.queue-copy {
+  min-width: 0;
+}
+
+.queue-title {
+  margin: 0;
+  font-weight: 600;
+  color: #17263d;
+}
+
+.queue-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  justify-self: start;
+}
+
+.status.active {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.status.mixed {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status.inactive {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.row-actions,
+.customer-actions {
+  display: grid;
+  gap: 4px;
+  justify-self: end;
+  align-items: center;
+  min-width: 0;
+  text-align: right;
+}
+
+.queue-stat {
+  font-size: 13px;
+  font-weight: 700;
+  color: #18263d;
+}
+
+.queue-stat.muted {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.queue-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: none;
+}
+
+.queue-delete-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 244, 244, 0.96);
+}
+
+.detail-card {
+  background: var(--surface-strong);
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vendor-block {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vendor-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #fff3e6;
+  color: #f15b2a;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vendor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vendor-avatar span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.vendor-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.vendor-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vendor-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vendor-stats span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vendor-stats strong {
+  display: block;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.detail-card-grid div {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.detail-card-grid span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail-card-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: #16253b;
+}
+
+.detail-copy {
+  margin: 0 0 16px;
+  color: #5b6c84;
+  line-height: 1.6;
+}
+
+.link-btn {
+  border: none;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+
+.primary-btn {
+  border: none;
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.26);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn.full,
+.ghost-btn.full {
+  width: 100%;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(255, 122, 26, 0.3);
+  background: rgba(255, 255, 255, 0.85);
+  color: #c65300;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(241, 91, 42, 0.3);
+}
+
+.ghost-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
 .booking-row {
   display: grid;
   gap: 12px;
@@ -2340,22 +2673,27 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
-  .customer-row,
   .sidebar-head,
+  .detail-head,
   .blacklist-card {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .customer-row {
-    grid-template-columns: 1fr;
-    gap: 18px;
-    padding: 18px 16px;
+  .customer-row,
+  .queue-row.customer-row {
+    grid-template-columns: auto 1fr;
+    row-gap: 8px;
   }
 
-  .directory-summary,
-  .directory-actions {
-    justify-items: start;
+  .queue-date,
+  .status,
+  .row-actions {
+    grid-column: 1 / -1;
+  }
+
+  .row-actions {
+    justify-self: start;
     text-align: left;
   }
 }
@@ -2370,17 +2708,14 @@ button:disabled {
   }
 
   .stats-grid,
-  .detail-grid {
+  .detail-grid,
+  .vendor-stats,
+  .detail-card-grid {
     grid-template-columns: 1fr;
   }
 
   .hero-copy h1 {
     font-size: 34px;
-  }
-
-  .customer-row {
-    padding: 20px 18px;
-    border-radius: 20px;
   }
 
   .topbar-actions {

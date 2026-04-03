@@ -972,11 +972,11 @@ onMounted(() => void loadVendorDirectory());
 
           <div v-if="isLoading" class="empty">{{ uiText.loadingVendorDirectory }}</div>
           <div v-else-if="!filteredVendors.length" class="empty">{{ uiText.noVendorsMatch }}</div>
-          <div v-else class="vendor-list">
+          <div v-else class="queue-list vendor-list">
             <article
               v-for="vendor in filteredVendors"
               :key="vendor.key"
-              class="vendor-row"
+              class="queue-row vendor-row"
               :class="{ selected: selectedVendor?.key === vendor.key }"
               role="button"
               tabindex="0"
@@ -985,36 +985,39 @@ onMounted(() => void loadVendorDirectory());
               @keydown.enter.prevent="selectedVendorKey = vendor.key"
               @keydown.space.prevent="selectedVendorKey = vendor.key"
             >
-              <div class="vendor-main">
-                <div class="vendor-photo">
-                  <img
-                    v-if="hasVendorProfileImage(vendor)"
-                    :src="vendor.profileImageUrl"
-                    :alt="`${vendor.name} profile`"
-                    @error="handleVendorImageError(vendor.vendorImageKey)"
-                  />
-                  <span v-else>{{ vendor.initials }}</span>
-                </div>
-                <div class="vendor-copy">
-                  <div class="vendor-title-row">
-                    <strong>{{ vendor.name }}</strong>
-                  </div>
-                  <p>{{ vendor.location }}</p>
-                  <div class="chips">
-                    <span class="chip">{{ visibilityLabel(vendor.visibility) }}</span>
-                    <span class="chip muted">{{ interpolate(uiText.listingCount, { count: count(vendor.serviceCount) }) }}</span>
-                    <span class="chip muted">{{ interpolate(uiText.packageCount, { count: count(vendor.packageCount) }) }}</span>
-                  </div>
-                </div>
+              <div class="vendor-photo queue-badge">
+                <img
+                  v-if="hasVendorProfileImage(vendor)"
+                  :src="vendor.profileImageUrl"
+                  :alt="`${vendor.name} profile`"
+                  @error="handleVendorImageError(vendor.vendorImageKey)"
+                />
+                <span v-else>{{ vendor.initials }}</span>
               </div>
-              <div class="vendor-side">
-                <div class="directory-side-meta">
-                  <span>{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
-                  <small>{{ vendor.lastActivityLabel }}</small>
-                </div>
-                <div v-if="selectedVendor?.key === vendor.key" class="directory-actions vendor-actions">
+              <div class="queue-copy">
+                <p class="queue-title">{{ vendor.name }}</p>
+                <p class="queue-meta">
+                  {{ vendor.location }}
+                  <template v-if="vendor.categories.length"> | {{ vendor.categories[0] }}</template>
+                </p>
+              </div>
+              <span class="queue-date">{{ vendor.lastActivityLabel }}</span>
+              <span
+                class="status"
+                :class="{
+                  active: vendor.visibility === 'live',
+                  mixed: vendor.visibility === 'mixed',
+                  inactive: vendor.visibility === 'paused' || vendor.visibility === 'empty',
+                }"
+              >
+                {{ visibilityLabel(vendor.visibility) }}
+              </span>
+              <div class="row-actions vendor-actions">
+                <span class="queue-stat">{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
+                <span class="queue-stat muted">{{ interpolate(uiText.listingCount, { count: count(vendor.serviceCount) }) }}</span>
+                <template v-if="selectedVendor?.key === vendor.key">
                   <button
-                    class="ghost-btn listing-delete-btn"
+                    class="queue-delete-btn"
                     type="button"
                     :disabled="deletingVendorId === vendor.id"
                     @click.stop="deleteVendorAndBlacklist(vendor)"
@@ -1022,31 +1025,27 @@ onMounted(() => void loadVendorDirectory());
                     {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
                   </button>
                   <button
-                    class="ghost-btn directory-action-btn fixed-action-btn"
+                    class="ghost-btn row-action-btn"
                     type="button"
                     :disabled="!canToggleVendorVisibility(vendor) || isSaving"
                     @click.stop="setVendorVisibility(selectedVendorNextActive, vendor)"
                   >
                     {{ vendorActionLabel(vendor) }}
                   </button>
-                </div>
+                </template>
               </div>
             </article>
           </div>
         </article>
 
         <aside class="side-column">
-          <article v-if="selectedVendor" class="card spotlight-card">
-            <div class="sidebar-head">
-              <div>
-                <p class="card-eyebrow">{{ uiText.vendorProfile }}</p>
-                <h3>{{ selectedVendor.name }}</h3>
-                <p>{{ selectedVendor.location }}</p>
-              </div>
-              <span class="chip">{{ visibilityLabel(selectedVendor.visibility) }}</span>
-            </div>
-            <div class="vendor-identity">
-              <div class="vendor-photo large">
+          <article v-if="selectedVendor" class="card detail-card spotlight-card">
+            <header class="detail-head">
+              <h3>{{ uiText.vendorProfile }}</h3>
+              <button class="link-btn" type="button" @click="navigateTo('events')">{{ uiText.nav.events }}</button>
+            </header>
+            <div class="vendor-block">
+              <div class="vendor-avatar">
                 <img
                   v-if="hasVendorProfileImage(selectedVendor)"
                   :src="selectedVendor.profileImageUrl"
@@ -1055,59 +1054,64 @@ onMounted(() => void loadVendorDirectory());
                 />
                 <span v-else>{{ selectedVendor.initials }}</span>
               </div>
-              <div class="identity-copy">
-                <strong>{{ selectedVendor.name }}</strong>
-                <small>{{ selectedVendor.joinedLabel }}</small>
-                <div class="chips">
-                  <span class="chip muted">{{ interpolate(uiText.servicesCount, { count: count(selectedVendor.serviceOnlyCount) }) }}</span>
-                  <span class="chip muted">{{ interpolate(uiText.packagesCount, { count: count(selectedVendor.packageCount) }) }}</span>
-                </div>
+              <div>
+                <p class="vendor-name">{{ selectedVendor.name }}</p>
+                <p class="vendor-meta">{{ selectedVendor.location }}</p>
               </div>
             </div>
-            <div class="stats-grid">
-              <div><span>{{ uiText.live }}</span><strong>{{ selectedVendor.activeCount }}</strong></div>
-              <div><span>{{ uiText.total }}</span><strong>{{ selectedVendor.serviceCount }}</strong></div>
+            <div class="vendor-stats">
+              <div><span>{{ uiText.visibility }}</span><strong>{{ visibilityLabel(selectedVendor.visibility) }}</strong></div>
               <div><span>{{ uiText.bookings }}</span><strong>{{ count(selectedVendor.bookingsCount) }}</strong></div>
-              <div><span>{{ uiText.hidden }}</span><strong>{{ count(selectedVendor.inactiveCount) }}</strong></div>
             </div>
-            <div class="detail-grid">
-              <div class="detail-block">
+            <div class="detail-card-grid">
+              <div>
                 <span>{{ uiText.email }}</span>
                 <strong>{{ selectedVendor.email || uiText.notProvided }}</strong>
               </div>
-              <div class="detail-block">
+              <div>
                 <span>{{ uiText.phone }}</span>
                 <strong>{{ selectedVendor.phone || uiText.notProvided }}</strong>
               </div>
-              <div class="detail-block">
+              <div>
+                <span>{{ uiText.total }}</span>
+                <strong>{{ count(selectedVendor.serviceCount) }}</strong>
+              </div>
+              <div>
+                <span>{{ uiText.hidden }}</span>
+                <strong>{{ count(selectedVendor.inactiveCount) }}</strong>
+              </div>
+              <div>
+                <span>{{ uiText.live }}</span>
+                <strong>{{ count(selectedVendor.activeCount) }}</strong>
+              </div>
+              <div>
                 <span>Vendor Plan</span>
                 <strong>{{ selectedVendor.subscriptionPlanLabel }}</strong>
               </div>
-              <div class="detail-block">
+              <div>
                 <span>Plan Status</span>
                 <strong>{{ selectedVendor.subscriptionStatusLabel }}</strong>
               </div>
-              <div class="detail-block detail-wide">
+              <div>
                 <span>Plan Expires</span>
                 <strong>{{ selectedVendor.subscriptionExpiryLabel }}</strong>
               </div>
-              <div class="detail-block detail-wide">
-                <span>{{ uiText.categories }}</span>
-                <strong>{{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : uiText.noCategoriesYet }}</strong>
-              </div>
-              <div v-if="selectedVendor.showApprovalAction" class="detail-block detail-wide">
-                <span>Vendor Plan Action</span>
-                <strong>{{ selectedVendor.approvalActionHelp }}</strong>
-                <button
-                  class="primary-btn"
-                  type="button"
-                  :disabled="activatingVendorId === selectedVendor.id || !selectedVendor.canActivatePlan"
-                  @click="activateVendorPlan"
-                >
-                  {{ activatingVendorId === selectedVendor.id ? "Approving..." : selectedVendor.approvalActionLabel }}
-                </button>
-              </div>
             </div>
+            <p class="detail-copy">
+              <strong>{{ uiText.categories }}:</strong>
+              {{ selectedVendor.categories.length ? selectedVendor.categories.join(", ") : uiText.noCategoriesYet }}
+            </p>
+            <template v-if="selectedVendor.showApprovalAction">
+              <p class="detail-copy">{{ selectedVendor.approvalActionHelp }}</p>
+              <button
+                class="primary-btn full"
+                type="button"
+                :disabled="activatingVendorId === selectedVendor.id || !selectedVendor.canActivatePlan"
+                @click="activateVendorPlan"
+              >
+                {{ activatingVendorId === selectedVendor.id ? "Approving..." : selectedVendor.approvalActionLabel }}
+              </button>
+            </template>
           </article>
 
           <article v-if="selectedVendor" class="card services-card">
@@ -1150,34 +1154,30 @@ onMounted(() => void loadVendorDirectory());
             <div v-if="!vendorBlacklistRows.length" class="section-empty section-empty-compact">
               <span class="section-empty-label">Safety Watch</span>
               <strong>No vendors are blacklisted right now.</strong>
-              <p>The moderation list will appear here one by one when an account is removed for rule violations.</p>
+              <p>The moderation list will appear here once a vendor is removed for rule violations.</p>
             </div>
             <div v-else class="service-list">
               <div v-for="entry in vendorBlacklistRows" :key="entry.id" class="service-row blacklist-card">
-                <div class="blacklist-head">
-                  <div class="service-copy">
-                    <div class="service-title-row">
-                      <strong>{{ entry.name }}</strong>
-                      <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
-                    </div>
-                    <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> | {{ entry.phone }}</template></p>
+                <div class="service-copy blacklist-head">
+                  <div class="service-title-row">
+                    <strong>{{ entry.name }}</strong>
+                    <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
                   </div>
+                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> | {{ entry.phone }}</template></p>
                 </div>
                 <div class="blacklist-meta">
                   <span class="chip muted">Blacklisted {{ entry.blacklistedAtLabel }}</span>
                   <span v-if="entry.approvedAtLabel" class="chip muted">Approved {{ entry.approvedAtLabel }}</span>
                 </div>
                 <p class="service-description blacklist-reason">{{ entry.reason }}</p>
-                <div class="blacklist-actions">
-                  <button
-                    class="ghost-btn approve-btn"
-                    type="button"
-                    :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
-                    @click="approveBlacklistEntry(entry)"
-                  >
-                    {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Reuse Approved" }}
-                  </button>
-                </div>
+                <button
+                  class="ghost-btn approve-btn"
+                  type="button"
+                  :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
+                  @click="approveBlacklistEntry(entry)"
+                >
+                  {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Reuse Approved" }}
+                </button>
               </div>
             </div>
           </article>
@@ -2281,6 +2281,347 @@ select {
     0 18px 28px rgba(220, 38, 38, 0.14);
 }
 
+.content-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+.directory-card,
+.spotlight-card,
+.services-card {
+  background: var(--surface-strong);
+}
+
+.card-meta {
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--muted);
+}
+
+.queue-list {
+  display: grid;
+  gap: 12px;
+}
+
+.vendor-list {
+  gap: 12px;
+}
+
+.vendor-row,
+.queue-row.vendor-row {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1.4fr) minmax(90px, 0.8fr) auto minmax(160px, 200px);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible;
+}
+
+.vendor-row::before {
+  display: none;
+}
+
+.vendor-row:focus-visible {
+  outline: 3px solid rgba(255, 122, 26, 0.18);
+  outline-offset: 2px;
+}
+
+.vendor-row:hover {
+  transform: translateX(4px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+.vendor-row.selected {
+  border-color: rgba(255, 122, 26, 0.2);
+  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
+  box-shadow: 0 18px 36px rgba(255, 122, 26, 0.12);
+}
+
+.queue-badge,
+.vendor-photo {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--accent);
+  background: #fff3e6;
+  border: 1px solid rgba(255, 122, 26, 0.15);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.queue-copy {
+  min-width: 0;
+}
+
+.queue-title {
+  margin: 0;
+  font-weight: 600;
+  color: #17263d;
+}
+
+.queue-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  justify-self: start;
+}
+
+.status.active {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.status.mixed {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status.inactive {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.row-actions,
+.vendor-actions {
+  display: grid;
+  gap: 4px;
+  justify-self: end;
+  align-items: center;
+  min-width: 0;
+  text-align: right;
+}
+
+.queue-stat {
+  font-size: 13px;
+  font-weight: 700;
+  color: #18263d;
+}
+
+.queue-stat.muted {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.queue-delete-btn,
+.row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: none;
+}
+
+.queue-delete-btn {
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+}
+
+.row-action-btn {
+  border: 1px solid rgba(255, 122, 26, 0.3);
+  background: rgba(255, 255, 255, 0.85);
+  color: #c65300;
+}
+
+.queue-delete-btn:hover:not(:disabled),
+.row-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.detail-card {
+  background: var(--surface-strong);
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vendor-block {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vendor-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #fff3e6;
+  color: #f15b2a;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vendor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vendor-avatar span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.vendor-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.vendor-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vendor-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vendor-stats span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vendor-stats strong {
+  display: block;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.detail-card-grid div {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.detail-card-grid span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail-card-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: #16253b;
+}
+
+.detail-copy {
+  margin: 0 0 16px;
+  color: #5b6c84;
+  line-height: 1.6;
+}
+
+.link-btn {
+  border: none;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+
+.primary-btn {
+  border: none;
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(241, 91, 42, 0.26);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn.full,
+.ghost-btn.full {
+  width: 100%;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(255, 122, 26, 0.3);
+  background: rgba(255, 255, 255, 0.85);
+  color: #c65300;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(241, 91, 42, 0.3);
+}
+
+.ghost-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
 .service-row {
   display: grid;
   gap: 12px;
@@ -2461,33 +2802,28 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
-  .vendor-row,
   .sidebar-head,
+  .detail-head,
   .blacklist-card {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .vendor-row {
-    grid-template-columns: 1fr;
-    padding: 18px 16px;
+  .vendor-row,
+  .queue-row.vendor-row {
+    grid-template-columns: auto 1fr;
+    row-gap: 8px;
   }
 
-  .vendor-side {
-    justify-items: start;
+  .queue-date,
+  .status,
+  .row-actions {
+    grid-column: 1 / -1;
   }
 
-  .directory-side-meta {
-    justify-items: start;
-  }
-
-  .directory-actions {
-    justify-content: start;
-  }
-
-  .vendor-actions {
-    grid-template-columns: 1fr;
-    justify-content: start;
+  .row-actions {
+    justify-self: start;
+    text-align: left;
   }
 }
 
@@ -2506,7 +2842,9 @@ button:disabled {
   }
 
   .stats-grid,
-  .detail-grid {
+  .detail-grid,
+  .vendor-stats,
+  .detail-card-grid {
     grid-template-columns: 1fr;
   }
 
