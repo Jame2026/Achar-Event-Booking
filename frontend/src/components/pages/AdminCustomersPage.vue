@@ -828,9 +828,21 @@ onMounted(() => void loadCustomerDirectory());
         </div>
         <div class="hero-aside">
           <div v-if="selectedCustomer" class="hero-selected">
-            <span class="hero-selected-label">{{ uiText.selectedCustomer }}</span>
-            <strong>{{ selectedCustomer.name }}</strong>
-            <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
+            <div class="hero-selected-copy">
+              <span class="hero-selected-label">{{ uiText.selectedCustomer }}</span>
+              <strong>{{ selectedCustomer.name }}</strong>
+              <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
+            </div>
+          </div>
+          <div class="hero-header-actions">
+            <button
+              class="directory-action-btn fixed-action-btn hero-toolbar-btn"
+              type="button"
+              :aria-expanded="showCustomerBlacklist ? 'true' : 'false'"
+              @click="showCustomerBlacklist = !showCustomerBlacklist"
+            >
+              {{ showCustomerBlacklist ? "Hide Blacklist" : "See Blacklist" }}
+            </button>
           </div>
         </div>
       </section>
@@ -1029,22 +1041,6 @@ onMounted(() => void loadCustomerDirectory());
                 </div>
               </div>
             </div>
-          </article>
-
-          <article class="card blacklist-toggle-card">
-            <div class="blacklist-toggle-copy">
-              <p class="card-eyebrow">Safety Watch</p>
-              <h3>Customer Blacklist</h3>
-              <p>{{ count(customerBlacklistRows.length) }} hidden entr{{ customerBlacklistRows.length === 1 ? "y" : "ies" }}</p>
-            </div>
-            <button
-              class="ghost-btn full blacklist-toggle-btn"
-              type="button"
-              :aria-expanded="showCustomerBlacklist ? 'true' : 'false'"
-              @click="showCustomerBlacklist = !showCustomerBlacklist"
-            >
-              {{ showCustomerBlacklist ? "Hide Blacklisted Customers" : "See Blacklisted Customers" }}
-            </button>
           </article>
 
           <article v-if="showCustomerBlacklist" class="card bookings-card">
@@ -1628,29 +1624,39 @@ select {
 }
 
 .hero-aside {
-  display: grid;
-  grid-template-columns: minmax(260px, 340px);
-  gap: 14px;
-  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   justify-content: flex-end;
-  width: min(100%, 340px);
+  width: min(100%, 520px);
 }
 
 .hero-selected {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: center;
   min-width: 0;
-  padding: 18px 20px;
-  border-radius: 22px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 246, 0.84));
   border: 1px solid rgba(15, 23, 42, 0.07);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     var(--shadow-soft);
+  flex: 1 1 260px;
+}
+
+.hero-selected-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .hero-selected-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1658,7 +1664,30 @@ select {
 }
 
 .hero-selected strong {
+  font-size: 14px;
   color: #17263d;
+}
+
+.hero-selected small {
+  font-size: 12px;
+}
+
+.hero-header-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.hero-toolbar-btn {
+  width: auto;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .notice {
@@ -2475,31 +2504,6 @@ select {
   line-height: 1.6;
 }
 
-.blacklist-toggle-card {
-  display: grid;
-  gap: 14px;
-}
-
-.blacklist-toggle-copy h3,
-.blacklist-toggle-copy p {
-  margin: 0;
-}
-
-.blacklist-toggle-copy h3 {
-  font-family: "Fraunces", serif;
-  font-size: 24px;
-  color: #132238;
-}
-
-.blacklist-toggle-copy p:last-child {
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.blacklist-toggle-btn {
-  justify-content: center;
-}
-
 .link-btn {
   border: none;
   background: transparent;
@@ -2707,9 +2711,18 @@ button:disabled {
   }
 
   .hero-aside {
-    grid-template-columns: 1fr;
     width: 100%;
     max-width: none;
+    justify-content: flex-start;
+  }
+
+  .hero-selected {
+    flex-basis: 100%;
+  }
+
+  .hero-header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
