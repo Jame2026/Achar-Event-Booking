@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\User;
 use App\Models\VendorSetting;
 use App\Support\IdentityBlacklist;
+use App\Support\ManagedEventDeletion;
 use App\Support\NotificationCache;
 use App\Support\PublicEventCache;
 use App\Support\VendorCache;
@@ -306,6 +307,26 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'This email or phone number can be reused again.',
             'blacklist' => $blacklistedIdentity->fresh(['blacklistedBy:id,name', 'approvedBy:id,name']),
+        ]);
+    }
+
+    public function deleteEvent(Request $request, Event $event): JsonResponse
+    {
+        $admin = $this->resolveAuthorizedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $vendorId = (int) ($event->vendor_id ?? 0);
+
+        ManagedEventDeletion::delete($event);
+
+        if ($vendorId > 0) {
+            VendorCache::flushVendor($vendorId);
+        }
+
+        return response()->json([
+            'message' => 'Listing deleted successfully.',
         ]);
     }
 

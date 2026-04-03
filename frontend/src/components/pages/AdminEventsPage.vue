@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime } from "../../features/bookingMappers";
-import { apiGet } from "../../features/apiClient";
+import { apiDelete, apiGet } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
@@ -14,6 +14,10 @@ const props = defineProps({
   adminDisplayName: {
     type: String,
     default: "Admin",
+  },
+  adminUserId: {
+    type: [Number, String],
+    default: null,
   },
   logoutUser: {
     type: Function,
@@ -82,6 +86,12 @@ const copyByLanguage = {
     other: "Other",
     locationMissing: "Location not added yet",
     dateTbd: "Date TBD",
+    adminMissing: "Admin account could not be identified.",
+    deleteListing: "Delete Listing",
+    deletingListing: "Deleting...",
+    deleteListingConfirm: "Delete {title} from the marketplace? This removes the listing and its related bookings.",
+    deleteListingSuccess: "Listing deleted successfully.",
+    deleteListingError: "Could not delete this listing.",
   },
   zh: {
     nav: {
@@ -143,6 +153,12 @@ const copyByLanguage = {
     other: "其他",
     locationMissing: "尚未添加位置",
     dateTbd: "日期待定",
+    adminMissing: "Admin account could not be identified.",
+    deleteListing: "Delete Listing",
+    deletingListing: "Deleting...",
+    deleteListingConfirm: "Delete {title} from the marketplace? This removes the listing and its related bookings.",
+    deleteListingSuccess: "Listing deleted successfully.",
+    deleteListingError: "Could not delete this listing.",
   },
 };
 copyByLanguage.zh.eventTypes = {
@@ -247,8 +263,11 @@ const searchQuery = ref("");
 const statusFilter = ref("all");
 const isLoading = ref(false);
 const loadError = ref("");
+const notice = ref("");
+const noticeTone = ref("info");
 const vendorEvents = ref([]);
 const selectedEventId = ref(null);
+const deletingEventId = ref(null);
 const failedVendorImages = ref(new Set());
 const navItems = computed(() => [
   { key: "dashboard", label: uiText.value.nav.dashboard, icon: "dashboard" },
@@ -391,6 +410,11 @@ function handleVendorImageError(imageKey) {
   failedVendorImages.value = next;
 }
 
+function setNotice(message, tone = "info") {
+  notice.value = message;
+  noticeTone.value = tone;
+}
+
 async function loadAdminEvents() {
   isLoading.value = true;
   loadError.value = "";
@@ -404,6 +428,32 @@ async function loadAdminEvents() {
     loadError.value = error?.message || uiText.value.noMatches;
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function deleteSelectedEvent() {
+  const eventId = Number(selectedEvent.value?.id || 0);
+  if (!eventId) return setNotice(uiText.value.deleteListingError, "error");
+  if (!props.adminUserId) return setNotice(uiText.value.adminMissing, "error");
+
+  const confirmed = window.confirm(
+    interpolate(uiText.value.deleteListingConfirm, {
+      title: selectedEvent.value?.title || uiText.value.untitledService,
+    }),
+  );
+  if (!confirmed) return;
+
+  deletingEventId.value = eventId;
+  try {
+    await apiDelete(`admin/events/${eventId}`, {
+      admin_user_id: props.adminUserId,
+    });
+    await loadAdminEvents();
+    setNotice(uiText.value.deleteListingSuccess, "success");
+  } catch (error) {
+    setNotice(error?.message || uiText.value.deleteListingError, "error");
+  } finally {
+    deletingEventId.value = null;
   }
 }
 
@@ -535,6 +585,8 @@ onMounted(() => void loadAdminEvents());
         <button class="primary-btn" type="button" @click="loadAdminEvents">{{ uiText.refreshList }}</button>
       </section>
 
+      <p v-if="notice" class="notice" :class="noticeTone">{{ notice }}</p>
+
       <section class="events-highlights">
         <article v-for="card in highlights" :key="card.label" class="highlight-card">
           <p class="highlight-label">{{ card.label }}</p>
@@ -653,7 +705,17 @@ onMounted(() => void loadAdminEvents());
             <p class="event-detail-copy">
               {{ selectedEvent.description || uiText.noDescription }}
             </p>
-            <button class="primary-btn full" type="button" @click="navigateTo('vendors')">{{ uiText.openVendorWorkspace }}</button>
+            <div class="detail-actions">
+              <button class="primary-btn full" type="button" @click="navigateTo('vendors')">{{ uiText.openVendorWorkspace }}</button>
+              <button
+                class="ghost-btn danger-btn compact-action-btn"
+                type="button"
+                :disabled="deletingEventId === selectedEvent.id"
+                @click="deleteSelectedEvent"
+              >
+                {{ deletingEventId === selectedEvent.id ? uiText.deletingListing : uiText.deleteListing }}
+              </button>
+            </div>
           </article>
           <article v-else class="card detail-card empty-detail-card">
             <header>
@@ -997,6 +1059,31 @@ onMounted(() => void loadAdminEvents());
   padding: 20px 24px;
   border-radius: 26px;
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.12);
+}
+
+.notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+}
+
+.notice.success {
+  background: rgba(31, 157, 108, 0.12);
+  color: #0f7a51;
+  border-color: rgba(31, 157, 108, 0.18);
+}
+
+.notice.error {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b42318;
+  border-color: rgba(220, 38, 38, 0.16);
+}
+
+.notice.info {
+  background: rgba(15, 23, 42, 0.05);
+  color: #334155;
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
 .eyebrow {
@@ -1364,6 +1451,11 @@ onMounted(() => void loadAdminEvents());
   line-height: 1.6;
 }
 
+.detail-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .empty-detail-card p {
   margin: 0;
   color: var(--muted);
@@ -1426,6 +1518,44 @@ onMounted(() => void loadAdminEvents());
 
 .ghost-btn.full {
   width: 100%;
+}
+
+.danger-btn {
+  color: #b42318;
+  border-color: rgba(220, 38, 38, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 244, 0.98), rgba(255, 235, 236, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 12px 20px rgba(220, 38, 38, 0.08);
+}
+
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 16px 24px rgba(220, 38, 38, 0.12);
+}
+
+.compact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  width: auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 1100px) {

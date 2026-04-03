@@ -994,7 +994,6 @@ onMounted(() => void loadVendorDirectory());
                   <small>{{ vendor.lastActivityLabel }}</small>
                 </div>
                 <div v-if="selectedVendor?.key === vendor.key" class="directory-actions">
-                  <span class="directory-action-label">Moderation</span>
                   <button
                     class="primary-btn directory-action-btn"
                     type="button"
@@ -1998,26 +1997,24 @@ select {
 }
 
 .directory-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  width: min(100%, 210px);
+  justify-content: flex-end;
   margin-top: 12px;
-}
-
-.directory-action-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #f15b2a;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
-  width: 100%;
   justify-content: center;
-  padding: 11px 14px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
 }
 
 .chip {
@@ -2163,23 +2160,32 @@ select {
 
 .blacklist-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: 4px;
 }
 
 .approve-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  padding: 12px 16px;
+  width: auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
   color: #b45309;
   border-color: rgba(241, 91, 42, 0.18);
   background: linear-gradient(135deg, rgba(255, 250, 245, 0.98), rgba(255, 240, 232, 0.94));
-  box-shadow: 0 12px 22px rgba(241, 91, 42, 0.08);
+  box-shadow: none;
 }
 
 .approve-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 16px 28px rgba(241, 91, 42, 0.12);
+  box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
 }
 
 .approve-btn:disabled {
@@ -2324,7 +2330,7 @@ button:disabled {
   }
 
   .directory-actions {
-    width: 100%;
+    justify-content: flex-start;
   }
 }
 

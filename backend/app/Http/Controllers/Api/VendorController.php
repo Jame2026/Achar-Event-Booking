@@ -8,6 +8,7 @@ use App\Models\BookingNotification;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\VendorSetting;
+use App\Support\ManagedEventDeletion;
 use App\Support\NotificationCache;
 use App\Support\VendorCache;
 use App\Support\PublicEventCache;
@@ -499,15 +500,7 @@ class VendorController extends Controller
 
     private function deleteManagedEvent(Event $event): void
     {
-        // Clear event-specific setting rows so past services can always be removed cleanly.
-        VendorSetting::query()
-            ->where('event_id', $event->id)
-            ->delete();
-
-        $this->deleteStoredEventImage($event->image_url);
-        $this->deleteStoredEventImage($event->qr_code_url);
-        $event->delete();
-        PublicEventCache::invalidate();
+        ManagedEventDeletion::delete($event);
     }
 
     private function canManageEvent(Request $request, Event $event): bool

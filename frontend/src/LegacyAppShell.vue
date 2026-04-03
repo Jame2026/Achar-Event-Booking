@@ -2552,6 +2552,7 @@ onBeforeUnmount(() => {
         v-else-if="isAdminAccount && resolvedCurrentPage === 'events'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :admin-user-id="loggedInUser?.id"
         :logout-user="logout"
       />
       <AdminRevenuePage

@@ -94,6 +94,7 @@ Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'upda
 Route::delete('vendor/bookings/{booking}', [VendorController::class, 'destroyBookingByVendorId']);
 Route::post('admin/users/{user}/activate-vendor-subscription', [AdminController::class, 'activateVendorSubscription']);
 Route::post('admin/users/{user}/delete-with-blacklist', [AdminController::class, 'deleteUserWithBlacklist']);
+Route::delete('admin/events/{event}', [AdminController::class, 'deleteEvent']);
 Route::patch('admin/blacklist/{blacklistedIdentity}/approve', [AdminController::class, 'approveBlacklistedIdentity']);
 
 Route::prefix('vendor')->group(function () {
