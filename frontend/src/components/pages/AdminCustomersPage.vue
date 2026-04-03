@@ -903,10 +903,6 @@ onMounted(() => void loadCustomerDirectory());
                   <strong>{{ customer.name }}</strong>
                 </div>
                 <p>{{ customer.email || uiText.emailNotProvided }}</p>
-                <div class="chips">
-                  <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
-                  <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
-                </div>
               </div>
               <span class="directory-date">{{ customer.lastBookingLabel }}</span>
               <span
@@ -1785,10 +1781,11 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(160px, 1.4fr) minmax(90px, 0.8fr) auto minmax(140px, 180px);
-  gap: 10px;
+  grid-template-columns: auto minmax(160px, 1fr) minmax(90px, 0.75fr) auto minmax(160px, 240px);
+  gap: 12px;
   align-items: center;
-  padding: 12px;
+  min-height: 68px;
+  padding: 8px 12px;
   border-radius: 14px;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.05);
@@ -1878,6 +1875,11 @@ select {
   min-width: 0;
 }
 
+.customer-row .customer-copy {
+  gap: 2px;
+  align-content: center;
+}
+
 .customer-copy strong,
 .booking-copy strong,
 .identity-copy strong {
@@ -1886,8 +1888,8 @@ select {
 }
 
 .customer-copy strong {
-  font-size: 16px;
-  line-height: 1.3;
+  font-size: 15px;
+  line-height: 1.2;
   font-weight: 600;
 }
 
@@ -1899,7 +1901,6 @@ select {
 }
 
 .customer-copy p {
-  margin-top: 4px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1912,23 +1913,23 @@ select {
 }
 
 .directory-actions {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 8px;
   justify-self: end;
   align-items: center;
   min-width: 0;
   text-align: right;
+  flex-wrap: nowrap;
 }
 
 .customer-actions {
-  justify-items: end;
+  justify-content: flex-end;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
   min-height: 0;
   padding: 8px 10px;
   border-radius: 10px;
@@ -1949,7 +1950,6 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
   min-height: 0;
   padding: 8px 10px;
   border-radius: 10px;
@@ -1999,9 +1999,10 @@ select {
 }
 
 .queue-stat {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: #18263d;
+  white-space: nowrap;
 }
 
 .directory-action-copy {
@@ -2325,7 +2326,9 @@ button:disabled {
 
   .directory-actions {
     justify-self: start;
+    justify-content: flex-start;
     text-align: left;
+    flex-wrap: wrap;
   }
 }
 
