@@ -1879,7 +1879,7 @@ select {
 .vendor-row {
   width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) minmax(90px, 0.75fr) auto minmax(160px, 260px);
+  grid-template-columns: auto minmax(160px, 1fr) minmax(90px, 0.75fr) auto minmax(300px, 340px);
   gap: 12px;
   align-items: center;
   min-height: 68px;
@@ -2021,6 +2021,7 @@ select {
 }
 
 .vendor-actions {
+  min-width: 320px;
   justify-content: flex-end;
 }
 
@@ -2038,10 +2039,12 @@ select {
   text-align: center;
   box-shadow: none;
   transition: none;
+  flex: 0 0 auto;
 }
 
 .fixed-action-btn {
-  min-width: 0;
+  width: 116px;
+  min-width: 116px;
 }
 
 .listing-delete-btn {
@@ -2061,6 +2064,9 @@ select {
   cursor: pointer;
   box-shadow: none;
   transition: none;
+  width: 136px;
+  min-width: 136px;
+  flex: 0 0 auto;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
@@ -2101,6 +2107,7 @@ select {
   font-weight: 600;
   color: #18263d;
   white-space: nowrap;
+  margin-right: auto;
 }
 
 .directory-action-copy {
@@ -2435,7 +2442,12 @@ button:disabled {
   }
 
   .vendor-actions {
+    min-width: 0;
     justify-content: flex-start;
+  }
+
+  .queue-stat {
+    margin-right: 0;
   }
 }
 
