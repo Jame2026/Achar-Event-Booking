@@ -431,14 +431,14 @@ async function loadAdminEvents() {
   }
 }
 
-async function deleteSelectedEvent() {
-  const eventId = Number(selectedEvent.value?.id || 0);
+async function deleteSelectedEvent(eventItem = selectedEvent.value) {
+  const eventId = Number(eventItem?.id || 0);
   if (!eventId) return setNotice(uiText.value.deleteListingError, "error");
   if (!props.adminUserId) return setNotice(uiText.value.adminMissing, "error");
 
   const confirmed = window.confirm(
     interpolate(uiText.value.deleteListingConfirm, {
-      title: selectedEvent.value?.title || uiText.value.untitledService,
+      title: eventItem?.title || uiText.value.untitledService,
     }),
   );
   if (!confirmed) return;
@@ -614,13 +614,17 @@ onMounted(() => void loadAdminEvents());
           <p v-else-if="isLoading" class="queue-feedback">{{ uiText.loadingList }}</p>
           <p v-else-if="!filteredEvents.length" class="queue-feedback">{{ uiText.noMatches }}</p>
           <div v-else class="queue-list">
-            <button
+            <article
               v-for="item in filteredEvents"
               :key="item.key"
-              type="button"
               class="queue-row"
               :class="{ selected: selectedEvent?.id === item.id }"
+              role="button"
+              tabindex="0"
+              :aria-pressed="selectedEvent?.id === item.id ? 'true' : 'false'"
               @click="selectEvent(item.id)"
+              @keydown.enter.prevent="selectEvent(item.id)"
+              @keydown.space.prevent="selectEvent(item.id)"
             >
               <div class="badge vendor-badge">
                 <img
@@ -640,8 +644,17 @@ onMounted(() => void loadAdminEvents());
               <div class="row-actions">
                 <span class="queue-stat">{{ item.priceLabel }}</span>
                 <span class="queue-stat muted">{{ interpolate(uiText.bookingsCount, { count: item.bookingsCount }) }}</span>
+                <button
+                  v-if="selectedEvent?.id === item.id"
+                  class="queue-delete-btn"
+                  type="button"
+                  :disabled="deletingEventId === item.id"
+                  @click.stop="deleteSelectedEvent(item)"
+                >
+                  {{ deletingEventId === item.id ? uiText.deletingListing : uiText.deleteListing }}
+                </button>
               </div>
-            </button>
+            </article>
           </div>
         </article>
 
@@ -705,17 +718,7 @@ onMounted(() => void loadAdminEvents());
             <p class="event-detail-copy">
               {{ selectedEvent.description || uiText.noDescription }}
             </p>
-            <div class="detail-actions">
-              <button class="primary-btn full" type="button" @click="navigateTo('vendors')">{{ uiText.openVendorWorkspace }}</button>
-              <button
-                class="ghost-btn danger-btn compact-action-btn"
-                type="button"
-                :disabled="deletingEventId === selectedEvent.id"
-                @click="deleteSelectedEvent"
-              >
-                {{ deletingEventId === selectedEvent.id ? uiText.deletingListing : uiText.deleteListing }}
-              </button>
-            </div>
+            <button class="primary-btn full" type="button" @click="navigateTo('vendors')">{{ uiText.openVendorWorkspace }}</button>
           </article>
           <article v-else class="card detail-card empty-detail-card">
             <header>
@@ -1248,6 +1251,11 @@ onMounted(() => void loadAdminEvents());
   overflow: visible;
 }
 
+.queue-row:focus-visible {
+  outline: 3px solid rgba(255, 122, 26, 0.18);
+  outline-offset: 2px;
+}
+
 .queue-row:hover {
   transform: translateX(4px);
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
@@ -1328,6 +1336,32 @@ onMounted(() => void loadAdminEvents());
   align-items: center;
   min-width: 0;
   text-align: right;
+}
+
+.queue-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: none;
+}
+
+.queue-delete-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 244, 244, 0.96);
 }
 
 .queue-stat {
@@ -1451,11 +1485,6 @@ onMounted(() => void loadAdminEvents());
   line-height: 1.6;
 }
 
-.detail-actions {
-  display: grid;
-  gap: 10px;
-}
-
 .empty-detail-card p {
   margin: 0;
   color: var(--muted);
@@ -1518,45 +1547,6 @@ onMounted(() => void loadAdminEvents());
 
 .ghost-btn.full {
   width: 100%;
-}
-
-.danger-btn {
-  color: #b42318;
-  border-color: rgba(220, 38, 38, 0.2);
-  background:
-    linear-gradient(135deg, rgba(255, 244, 244, 0.98), rgba(255, 235, 236, 0.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 12px 20px rgba(220, 38, 38, 0.08);
-}
-
-.danger-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 16px 24px rgba(220, 38, 38, 0.12);
-}
-
-.compact-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: start;
-  width: auto;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.1;
-  box-shadow: none;
-  transition: none;
-  white-space: nowrap;
-}
-
-.compact-action-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 button:disabled {
