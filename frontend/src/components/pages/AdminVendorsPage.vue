@@ -924,39 +924,30 @@ onMounted(() => void loadVendorDirectory());
         </div>
         <div class="hero-aside">
           <div v-if="selectedVendor" class="hero-selected">
-            <div class="hero-selected-head">
-              <div class="hero-selected-copy">
-                <span class="hero-selected-label">{{ uiText.selectedVendor }}</span>
-                <strong>{{ selectedVendor.name }}</strong>
-                <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
-              </div>
-              <button
-                v-if="canToggleVendorVisibility()"
-                class="directory-action-btn fixed-action-btn hero-selected-action"
-                type="button"
-                :disabled="!canToggleVendorVisibility() || isSaving"
-                @click="setVendorVisibility(selectedVendorNextActive)"
-              >
-                {{ vendorActionLabel() }}
-              </button>
+            <div class="hero-selected-copy">
+              <span class="hero-selected-label">{{ uiText.selectedVendor }}</span>
+              <strong>{{ selectedVendor.name }}</strong>
+              <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
             </div>
           </div>
-          <div class="hero-blacklist">
-            <div class="hero-blacklist-head">
-              <div class="hero-blacklist-copy">
-                <span class="hero-selected-label">Safety Watch</span>
-                <strong>Vendor Blacklist</strong>
-                <small>{{ count(vendorBlacklistRows.length) }} hidden entr{{ vendorBlacklistRows.length === 1 ? "y" : "ies" }}</small>
-              </div>
-              <button
-                class="directory-action-btn fixed-action-btn hero-blacklist-action"
-                type="button"
-                :aria-expanded="showVendorBlacklist ? 'true' : 'false'"
-                @click="showVendorBlacklist = !showVendorBlacklist"
-              >
-                {{ showVendorBlacklist ? "Hide Blacklist" : "See Blacklist" }}
-              </button>
-            </div>
+          <div class="hero-header-actions">
+            <button
+              v-if="selectedVendor && canToggleVendorVisibility()"
+              class="directory-action-btn fixed-action-btn hero-toolbar-btn"
+              type="button"
+              :disabled="!canToggleVendorVisibility() || isSaving"
+              @click="setVendorVisibility(selectedVendorNextActive)"
+            >
+              {{ vendorActionLabel() }}
+            </button>
+            <button
+              class="directory-action-btn fixed-action-btn hero-toolbar-btn"
+              type="button"
+              :aria-expanded="showVendorBlacklist ? 'true' : 'false'"
+              @click="showVendorBlacklist = !showVendorBlacklist"
+            >
+              {{ showVendorBlacklist ? "Hide Blacklist" : "See Blacklist" }}
+            </button>
           </div>
         </div>
       </section>
@@ -1743,67 +1734,70 @@ select {
 }
 
 .hero-aside {
-  display: grid;
-  grid-template-columns: minmax(260px, 340px);
-  gap: 14px;
-  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   justify-content: flex-end;
-  width: min(100%, 340px);
+  width: min(100%, 520px);
 }
 
-.hero-selected,
-.hero-blacklist {
-  display: grid;
-  gap: 6px;
+.hero-selected {
+  display: flex;
+  align-items: center;
   min-width: 0;
-  padding: 18px 20px;
-  border-radius: 22px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 246, 0.84));
   border: 1px solid rgba(15, 23, 42, 0.07);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     var(--shadow-soft);
+  flex: 1 1 260px;
 }
 
-.hero-selected-head,
-.hero-blacklist-head {
+.hero-selected-copy {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
-}
-
-.hero-selected-copy,
-.hero-blacklist-copy {
-  display: grid;
-  gap: 6px;
   min-width: 0;
-  flex: 1 1 180px;
+  flex: 1 1 auto;
 }
 
 .hero-selected-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #7c8ca3;
 }
 
-.hero-selected strong,
-.hero-blacklist strong {
+.hero-selected strong {
+  font-size: 14px;
   color: #17263d;
 }
 
-.hero-selected-action,
-.hero-blacklist-action {
+.hero-selected small {
+  font-size: 12px;
+}
+
+.hero-header-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.hero-toolbar-btn {
   width: auto;
-  min-width: 112px;
-  min-height: 36px;
-  padding: 8px 12px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 12px;
   border-radius: 12px;
   font-size: 12px;
-  align-self: flex-start;
+  line-height: 1;
 }
 
 .notice {
@@ -2836,9 +2830,18 @@ button:disabled {
   }
 
   .hero-aside {
-    grid-template-columns: 1fr;
     width: 100%;
     max-width: none;
+    justify-content: flex-start;
+  }
+
+  .hero-selected {
+    flex-basis: 100%;
+  }
+
+  .hero-header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
