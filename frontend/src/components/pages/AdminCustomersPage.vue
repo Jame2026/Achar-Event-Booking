@@ -918,15 +918,12 @@ onMounted(() => void loadCustomerDirectory());
                 </div>
                 <div v-if="selectedCustomer?.key === customer.key" class="directory-actions customer-actions">
                   <button
-                    class="ghost-btn danger-btn directory-action-btn fixed-action-btn"
+                    class="ghost-btn listing-delete-btn"
                     type="button"
                     :disabled="deletingCustomerId === customer.id"
                     @click.stop="deleteCustomerAndBlacklist"
                   >
-                    <span class="directory-action-copy">
-                      <span>{{ deletingCustomerId === customer.id ? "Deleting" : "Delete +" }}</span>
-                      <span>{{ deletingCustomerId === customer.id ? "..." : "Blacklist" }}</span>
-                    </span>
+                    {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
                   </button>
                 </div>
               </div>
@@ -1908,7 +1905,7 @@ select {
 }
 
 .customer-actions {
-  grid-template-columns: 64px;
+  grid-template-columns: auto;
   justify-content: end;
 }
 
@@ -1932,6 +1929,32 @@ select {
   min-width: 64px;
   min-height: 44px;
   padding: 6px 8px;
+}
+
+.listing-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: none;
+}
+
+.listing-delete-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 244, 244, 0.96);
 }
 
 .directory-action-copy {

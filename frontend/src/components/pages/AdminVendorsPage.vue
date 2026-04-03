@@ -995,15 +995,12 @@ onMounted(() => void loadVendorDirectory());
                 </div>
                 <div v-if="selectedVendor?.key === vendor.key" class="directory-actions vendor-actions">
                   <button
-                    class="ghost-btn danger-btn directory-action-btn fixed-action-btn"
+                    class="ghost-btn listing-delete-btn"
                     type="button"
                     :disabled="deletingVendorId === vendor.id"
                     @click.stop="deleteVendorAndBlacklist"
                   >
-                    <span class="directory-action-copy">
-                      <span>{{ deletingVendorId === vendor.id ? "Deleting" : "Delete +" }}</span>
-                      <span>{{ deletingVendorId === vendor.id ? "..." : "Blacklist" }}</span>
-                    </span>
+                    {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
                   </button>
                   <button
                     class="primary-btn directory-action-btn fixed-action-btn"
@@ -2010,8 +2007,9 @@ select {
 }
 
 .vendor-actions {
-  grid-template-columns: repeat(2, 64px);
+  grid-template-columns: auto 64px;
   justify-content: end;
+  align-items: start;
 }
 
 .directory-action-btn {
@@ -2034,6 +2032,32 @@ select {
   min-width: 64px;
   min-height: 44px;
   padding: 6px 8px;
+}
+
+.listing-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: none;
+}
+
+.listing-delete-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 244, 244, 0.96);
 }
 
 .directory-action-copy {
@@ -2360,6 +2384,11 @@ button:disabled {
   }
 
   .directory-actions {
+    justify-content: start;
+  }
+
+  .vendor-actions {
+    grid-template-columns: repeat(2, auto);
     justify-content: start;
   }
 }
