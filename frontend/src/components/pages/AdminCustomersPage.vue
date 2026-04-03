@@ -357,6 +357,7 @@ const noticeTone = ref("info");
 const customers = ref([]);
 const selectedCustomerKey = ref("");
 const blacklistedCustomers = ref([]);
+const showCustomerBlacklist = ref(false);
 const deletingCustomerId = ref(null);
 const approvingBlacklistId = ref(null);
 const failedCustomerImages = ref(new Set());
@@ -1030,7 +1031,23 @@ onMounted(() => void loadCustomerDirectory());
             </div>
           </article>
 
-          <article class="card bookings-card">
+          <article class="card blacklist-toggle-card">
+            <div class="blacklist-toggle-copy">
+              <p class="card-eyebrow">Safety Watch</p>
+              <h3>Customer Blacklist</h3>
+              <p>{{ count(customerBlacklistRows.length) }} hidden entr{{ customerBlacklistRows.length === 1 ? "y" : "ies" }}</p>
+            </div>
+            <button
+              class="ghost-btn full blacklist-toggle-btn"
+              type="button"
+              :aria-expanded="showCustomerBlacklist ? 'true' : 'false'"
+              @click="showCustomerBlacklist = !showCustomerBlacklist"
+            >
+              {{ showCustomerBlacklist ? "Hide Blacklisted Customers" : "See Blacklisted Customers" }}
+            </button>
+          </article>
+
+          <article v-if="showCustomerBlacklist" class="card bookings-card">
             <header class="card-head">
               <div>
                 <p class="card-eyebrow">Safety Watch</p>
@@ -2456,6 +2473,31 @@ select {
   margin: 0 0 16px;
   color: #5b6c84;
   line-height: 1.6;
+}
+
+.blacklist-toggle-card {
+  display: grid;
+  gap: 14px;
+}
+
+.blacklist-toggle-copy h3,
+.blacklist-toggle-copy p {
+  margin: 0;
+}
+
+.blacklist-toggle-copy h3 {
+  font-family: "Fraunces", serif;
+  font-size: 24px;
+  color: #132238;
+}
+
+.blacklist-toggle-copy p:last-child {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.blacklist-toggle-btn {
+  justify-content: center;
 }
 
 .link-btn {
