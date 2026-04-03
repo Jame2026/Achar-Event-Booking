@@ -912,27 +912,25 @@ onMounted(() => void loadCustomerDirectory());
                   </div>
                 </div>
               </div>
-              <div class="customer-side">
-                <div class="directory-side-meta">
-                  <strong class="directory-metric">
-                    {{
-                      customer.bookingsCount
-                        ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
-                        : uiText.noBookingsYet
-                    }}
-                  </strong>
-                  <small>{{ customer.lastBookingLabel }}</small>
-                </div>
-                <div class="directory-actions customer-actions">
-                  <button
-                    class="ghost-btn listing-delete-btn"
-                    type="button"
-                    :disabled="deletingCustomerId === customer.id"
-                    @click.stop="deleteCustomerAndBlacklist(customer)"
-                  >
-                    {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
-                  </button>
-                </div>
+              <div class="directory-summary">
+                <strong class="directory-metric">
+                  {{
+                    customer.bookingsCount
+                      ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
+                      : uiText.noBookingsYet
+                  }}
+                </strong>
+                <small>{{ customer.lastBookingLabel }}</small>
+              </div>
+              <div class="directory-actions customer-actions">
+                <button
+                  class="ghost-btn listing-delete-btn"
+                  type="button"
+                  :disabled="deletingCustomerId === customer.id"
+                  @click.stop="deleteCustomerAndBlacklist(customer)"
+                >
+                  {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
+                </button>
               </div>
             </article>
           </div>
@@ -1782,50 +1780,33 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 28px;
-  padding: 24px 28px;
-  border: 1px solid rgba(255, 181, 140, 0.74);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 241, 0.98));
-  border-radius: 34px;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 180px) minmax(170px, auto);
+  gap: 24px;
+  align-items: center;
+  padding: 22px 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 250, 246, 0.96));
+  border-radius: 24px;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  box-shadow: 0 18px 38px rgba(255, 145, 77, 0.08);
-}
-
-.customer-row::after {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border-radius: 26px;
-  border: 1px solid rgba(255, 196, 161, 0.84);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.customer-row > * {
-  position: relative;
-  z-index: 1;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
 }
 
 .customer-row:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 140, 79, 0.82);
-  box-shadow: 0 24px 46px rgba(255, 145, 77, 0.12);
+  border-color: rgba(255, 122, 26, 0.2);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.09);
 }
 
 .customer-row.selected {
-  border-color: rgba(255, 132, 66, 0.92);
-  background: linear-gradient(135deg, rgba(255, 247, 239, 1), rgba(255, 253, 250, 0.98));
-  box-shadow: 0 26px 50px rgba(255, 145, 77, 0.16);
-}
-
-.customer-row.selected::after {
-  border-color: rgba(255, 178, 132, 0.9);
+  border-color: rgba(255, 122, 26, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 245, 236, 0.98));
+  box-shadow: 0 20px 40px rgba(255, 122, 26, 0.1);
 }
 
 .customer-row:focus-visible {
@@ -1861,16 +1842,16 @@ select {
 }
 
 .customer-photo {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
   background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
   color: #bf5c06;
   display: grid;
   place-items: center;
   font-weight: 700;
   overflow: hidden;
-  box-shadow: 0 12px 28px rgba(255, 122, 26, 0.16);
+  box-shadow: 0 10px 20px rgba(255, 122, 26, 0.12);
   flex-shrink: 0;
 }
 
@@ -1923,82 +1904,87 @@ select {
 
 .customer-copy p {
   color: #68778d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.customer-side {
+.directory-summary {
   display: grid;
   justify-items: end;
-  gap: 14px;
-  min-width: 220px;
-  font-weight: 600;
-}
-
-.directory-side-meta {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
+  gap: 5px;
+  min-width: 0;
   text-align: right;
 }
 
 .directory-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 10px;
-  justify-content: flex-end;
+  justify-items: end;
+  min-width: 0;
 }
 
 .customer-actions {
-  align-items: stretch;
+  align-content: center;
 }
 
 .directory-metric {
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1.2;
   color: #17263d;
+}
+
+.directory-summary small {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 10px 16px;
-  border-radius: 18px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
-  line-height: 1.1;
-  box-shadow: none;
-  transition: none;
-  white-space: normal;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .fixed-action-btn {
-  min-width: 122px;
+  min-width: 156px;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 10px 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 147, 89, 0.34);
-  background: rgba(255, 252, 249, 0.88);
-  color: #dd641f;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 122, 26, 0.16);
+  background: rgba(255, 255, 255, 0.98);
+  color: #c45a12;
   font-size: 13px;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: none;
-  transition: none;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-  background: rgba(255, 246, 238, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(255, 122, 26, 0.08);
+  background: rgba(255, 247, 240, 0.98);
 }
 
 .directory-action-copy {
@@ -2015,17 +2001,18 @@ select {
 .chip {
   display: inline-flex;
   align-items: center;
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
-  background: #fff3e6;
-  color: #f15b2a;
-  font-size: 11px;
+  background: rgba(255, 122, 26, 0.1);
+  color: #c45a12;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .chip.muted {
   background: #f8fafc;
-  color: #475569;
+  color: #526377;
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .spotlight-card {
@@ -2313,18 +2300,10 @@ button:disabled {
     padding: 22px 20px;
   }
 
-  .customer-side {
-    min-width: 0;
-    justify-items: start;
-  }
-
-  .directory-side-meta {
+  .directory-summary,
+  .directory-actions {
     justify-items: start;
     text-align: left;
-  }
-
-  .directory-actions {
-    justify-content: start;
   }
 }
 
@@ -2348,12 +2327,7 @@ button:disabled {
 
   .customer-row {
     padding: 20px 18px;
-    border-radius: 28px;
-  }
-
-  .customer-row::after {
-    inset: 6px;
-    border-radius: 22px;
+    border-radius: 20px;
   }
 
   .topbar-actions {
