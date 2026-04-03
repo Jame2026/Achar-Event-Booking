@@ -2059,28 +2059,26 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 122, 26, 0.16);
-  background: rgba(255, 255, 255, 0.98);
-  color: #c45a12;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 244, 244, 0.96);
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    background-color 0.18s ease;
+  box-shadow: none;
+  transition: none;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(255, 122, 26, 0.08);
-  background: rgba(255, 247, 240, 0.98);
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 244, 244, 0.96);
 }
 
 .directory-action-copy {
