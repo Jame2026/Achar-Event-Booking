@@ -2016,7 +2016,7 @@ select {
   line-height: 1.1;
   box-shadow: none;
   transition: none;
-  white-space: nowrap;
+  white-space: wrap;
 }
 
 .chip {
@@ -2188,11 +2188,6 @@ select {
 .approve-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
-}
-
-.directory-action-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 .approve-btn:disabled {
