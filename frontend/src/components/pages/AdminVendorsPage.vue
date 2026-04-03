@@ -924,18 +924,22 @@ onMounted(() => void loadVendorDirectory());
         </div>
         <div class="hero-aside">
           <div v-if="selectedVendor" class="hero-selected">
-            <span class="hero-selected-label">{{ uiText.selectedVendor }}</span>
-            <strong>{{ selectedVendor.name }}</strong>
-            <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
-            <button
-              v-if="canToggleVendorVisibility()"
-              class="ghost-btn full"
-              type="button"
-              :disabled="!canToggleVendorVisibility() || isSaving"
-              @click="setVendorVisibility(selectedVendorNextActive)"
-            >
-              {{ vendorActionLabel() }}
-            </button>
+            <div class="hero-selected-head">
+              <div class="hero-selected-copy">
+                <span class="hero-selected-label">{{ uiText.selectedVendor }}</span>
+                <strong>{{ selectedVendor.name }}</strong>
+                <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
+              </div>
+              <button
+                v-if="canToggleVendorVisibility()"
+                class="directory-action-btn fixed-action-btn hero-selected-action"
+                type="button"
+                :disabled="!canToggleVendorVisibility() || isSaving"
+                @click="setVendorVisibility(selectedVendorNextActive)"
+              >
+                {{ vendorActionLabel() }}
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1759,6 +1763,21 @@ select {
     var(--shadow-soft);
 }
 
+.hero-selected-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-selected-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
 .hero-selected-label {
   font-size: 11px;
   font-weight: 700;
@@ -1769,6 +1788,16 @@ select {
 
 .hero-selected strong {
   color: #17263d;
+}
+
+.hero-selected-action {
+  width: auto;
+  min-width: 112px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  align-self: flex-start;
 }
 
 .notice {
