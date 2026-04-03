@@ -889,41 +889,46 @@ onMounted(() => void loadCustomerDirectory());
               @keydown.enter.prevent="selectedCustomerKey = customer.key"
               @keydown.space.prevent="selectedCustomerKey = customer.key"
             >
-              <div class="customer-main">
-                <div class="customer-photo">
-                  <img
-                    v-if="hasCustomerProfileImage(customer)"
-                    :src="customer.profileImageUrl"
-                    :alt="`${customer.name} profile`"
-                    @error="handleCustomerImageError(customer.customerImageKey)"
-                  />
-                  <span v-else>{{ customer.initials }}</span>
+              <div class="customer-photo">
+                <img
+                  v-if="hasCustomerProfileImage(customer)"
+                  :src="customer.profileImageUrl"
+                  :alt="`${customer.name} profile`"
+                  @error="handleCustomerImageError(customer.customerImageKey)"
+                />
+                <span v-else>{{ customer.initials }}</span>
+              </div>
+              <div class="customer-copy">
+                <div class="customer-title-row">
+                  <strong>{{ customer.name }}</strong>
                 </div>
-                <div class="customer-copy">
-                  <div class="customer-title-row">
-                    <strong>{{ customer.name }}</strong>
-                    <span class="chip muted">{{ customer.memberState }}</span>
-                  </div>
-                  <p>{{ customer.email || uiText.emailNotProvided }}</p>
-                  <div class="chips">
-                    <span class="chip">{{ interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) }) }}</span>
-                    <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
-                    <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
-                  </div>
+                <p>{{ customer.email || uiText.emailNotProvided }}</p>
+                <div class="chips">
+                  <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
+                  <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
                 </div>
               </div>
-              <div class="directory-summary">
-                <strong class="directory-metric">
+              <span class="directory-date">{{ customer.lastBookingLabel }}</span>
+              <span
+                class="status"
+                :class="{
+                  active: customer.bookingsCount === 1,
+                  mixed: customer.bookingsCount > 1,
+                  inactive: customer.bookingsCount === 0,
+                }"
+              >
+                {{ customer.memberState }}
+              </span>
+              <div class="directory-actions customer-actions">
+                <span class="queue-stat">
                   {{
                     customer.bookingsCount
                       ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
                       : uiText.noBookingsYet
                   }}
-                </strong>
-                <small>{{ customer.lastBookingLabel }}</small>
-              </div>
-              <div class="directory-actions customer-actions">
+                </span>
                 <button
+                  v-if="selectedCustomer?.key === customer.key"
                   class="ghost-btn listing-delete-btn"
                   type="button"
                   :disabled="deletingCustomerId === customer.id"
@@ -1780,33 +1785,30 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 180px) minmax(170px, auto);
-  gap: 24px;
+  grid-template-columns: auto minmax(160px, 1.4fr) minmax(90px, 0.8fr) auto minmax(140px, 180px);
+  gap: 10px;
   align-items: center;
-  padding: 22px 24px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 250, 246, 0.96));
-  border-radius: 24px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-soft);
   text-align: left;
   cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    background-color 0.18s ease;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible;
 }
 
 .customer-row:hover {
-  transform: translateY(-2px);
+  transform: translateX(4px);
   border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.09);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
 }
 
 .customer-row.selected {
   border-color: rgba(255, 122, 26, 0.28);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 245, 236, 0.98));
-  box-shadow: 0 20px 40px rgba(255, 122, 26, 0.1);
+  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
+  box-shadow: 0 18px 36px rgba(255, 122, 26, 0.12);
 }
 
 .customer-row:focus-visible {
@@ -1814,18 +1816,11 @@ select {
   outline-offset: 2px;
 }
 
-.customer-main,
 .customer-title-row,
 .booking-title-row,
 .customer-identity {
   display: flex;
   align-items: flex-start;
-}
-
-.customer-main {
-  gap: 16px;
-  min-width: 0;
-  align-items: center;
 }
 
 .customer-title-row,
@@ -1842,16 +1837,16 @@ select {
 }
 
 .customer-photo {
-  width: 58px;
-  height: 58px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
-  color: #bf5c06;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #fff3e6;
+  color: var(--accent);
   display: grid;
   place-items: center;
   font-weight: 700;
   overflow: hidden;
-  box-shadow: 0 10px 20px rgba(255, 122, 26, 0.12);
+  border: 1px solid rgba(255, 122, 26, 0.15);
   flex-shrink: 0;
 }
 
@@ -1891,72 +1886,63 @@ select {
 }
 
 .customer-copy strong {
-  font-size: 18px;
-  line-height: 1.2;
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .customer-copy p,
 .booking-copy p,
 .booking-copy small {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .customer-copy p {
-  color: #68778d;
+  margin-top: 4px;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.directory-summary {
-  display: grid;
-  justify-items: end;
-  gap: 5px;
-  min-width: 0;
-  text-align: right;
+.directory-date {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .directory-actions {
   display: grid;
-  gap: 10px;
-  justify-items: end;
+  gap: 4px;
+  justify-self: end;
+  align-items: center;
   min-width: 0;
+  text-align: right;
 }
 
 .customer-actions {
-  align-content: center;
-}
-
-.directory-metric {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #17263d;
-}
-
-.directory-summary small {
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 500;
+  justify-items: end;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
   white-space: nowrap;
   text-align: center;
+  box-shadow: none;
+  transition: none;
 }
 
 .fixed-action-btn {
-  min-width: 156px;
+  min-width: 0;
 }
 
 .listing-delete-btn {
@@ -1983,6 +1969,39 @@ select {
   transform: none;
   box-shadow: none;
   background: rgba(255, 244, 244, 0.96);
+}
+
+.directory-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  justify-self: start;
+}
+
+.status.active {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.status.mixed {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status.inactive {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.queue-stat {
+  font-size: 13px;
+  font-weight: 700;
+  color: #18263d;
 }
 
 .directory-action-copy {
@@ -2293,14 +2312,19 @@ button:disabled {
   }
 
   .customer-row {
-    grid-template-columns: 1fr;
-    gap: 18px;
-    padding: 22px 20px;
+    grid-template-columns: auto 1fr;
+    row-gap: 8px;
+    padding: 12px;
   }
 
-  .directory-summary,
+  .directory-date,
+  .status,
   .directory-actions {
-    justify-items: start;
+    grid-column: 1 / -1;
+  }
+
+  .directory-actions {
+    justify-self: start;
     text-align: left;
   }
 }
@@ -2324,8 +2348,8 @@ button:disabled {
   }
 
   .customer-row {
-    padding: 20px 18px;
-    border-radius: 20px;
+    padding: 12px;
+    border-radius: 14px;
   }
 
   .topbar-actions {
