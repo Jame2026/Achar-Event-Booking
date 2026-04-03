@@ -830,15 +830,6 @@ onMounted(() => void loadCustomerDirectory());
             <strong>{{ selectedCustomer.name }}</strong>
             <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
           </div>
-          <div v-if="selectedCustomer" class="hero-action-panel">
-            <span class="hero-action-label">Moderation Actions</span>
-            <div class="hero-action-grid">
-              <button class="ghost-btn danger-btn hero-action-btn" type="button" :disabled="!selectedCustomer || deletingCustomerId === selectedCustomer?.id" @click="deleteCustomerAndBlacklist">
-                {{ deletingCustomerId === selectedCustomer?.id ? "Deleting..." : "Delete + Blacklist" }}
-              </button>
-            </div>
-            <small class="hero-action-note">Remove and blacklist customers who abuse payments, bookings, or other marketplace rules.</small>
-          </div>
         </div>
       </section>
 
@@ -885,7 +876,18 @@ onMounted(() => void loadCustomerDirectory());
           <div v-if="isLoading" class="empty">{{ uiText.loadingCustomerDirectory }}</div>
           <div v-else-if="!filteredCustomers.length" class="empty">{{ uiText.noCustomersMatch }}</div>
           <div v-else class="customer-list">
-            <button v-for="customer in filteredCustomers" :key="customer.key" type="button" class="customer-row" :class="{ selected: selectedCustomer?.key === customer.key }" @click="selectedCustomerKey = customer.key">
+            <article
+              v-for="customer in filteredCustomers"
+              :key="customer.key"
+              class="customer-row"
+              :class="{ selected: selectedCustomer?.key === customer.key }"
+              role="button"
+              tabindex="0"
+              :aria-pressed="selectedCustomer?.key === customer.key ? 'true' : 'false'"
+              @click="selectedCustomerKey = customer.key"
+              @keydown.enter.prevent="selectedCustomerKey = customer.key"
+              @keydown.space.prevent="selectedCustomerKey = customer.key"
+            >
               <div class="customer-main">
                 <div class="customer-photo">
                   <img
@@ -910,10 +912,23 @@ onMounted(() => void loadCustomerDirectory());
                 </div>
               </div>
               <div class="customer-side">
-                <span>{{ customer.lastBookingService }}</span>
-                <small>{{ customer.lastBookingLabel }}</small>
+                <div class="directory-side-meta">
+                  <span>{{ customer.lastBookingService }}</span>
+                  <small>{{ customer.lastBookingLabel }}</small>
+                </div>
+                <div v-if="selectedCustomer?.key === customer.key" class="directory-actions">
+                  <span class="directory-action-label">Moderation</span>
+                  <button
+                    class="ghost-btn danger-btn directory-action-btn"
+                    type="button"
+                    :disabled="deletingCustomerId === customer.id"
+                    @click.stop="deleteCustomerAndBlacklist"
+                  >
+                    {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
+                  </button>
+                </div>
               </div>
-            </button>
+            </article>
           </div>
         </article>
 
@@ -1591,11 +1606,11 @@ select {
 
 .hero-aside {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(220px, 280px);
+  grid-template-columns: minmax(260px, 340px);
   gap: 14px;
   align-items: stretch;
   justify-content: flex-end;
-  width: min(100%, 600px);
+  width: min(100%, 340px);
 }
 
 .hero-selected {
@@ -1609,49 +1624,6 @@ select {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     var(--shadow-soft);
-}
-
-.hero-action-panel {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-  padding: 16px;
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 248, 0.96), rgba(255, 242, 237, 0.92));
-  border: 1px solid rgba(220, 38, 38, 0.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 20px 36px rgba(220, 38, 38, 0.08);
-}
-
-.hero-action-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #b45309;
-}
-
-.hero-action-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.hero-action-btn {
-  width: 100%;
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-weight: 700;
-}
-
-.hero-action-note {
-  font-size: 12px;
-  line-height: 1.5;
-  color: #7b5560;
 }
 
 .hero-selected-label {
@@ -1827,6 +1799,11 @@ select {
   box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
 }
 
+.customer-row:focus-visible {
+  outline: 3px solid rgba(255, 122, 26, 0.2);
+  outline-offset: 2px;
+}
+
 .customer-main,
 .customer-title-row,
 .booking-title-row,
@@ -1913,6 +1890,35 @@ select {
   gap: 4px;
   min-width: 120px;
   font-weight: 600;
+}
+
+.directory-side-meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.directory-actions {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 210px);
+  margin-top: 12px;
+}
+
+.directory-action-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f15b2a;
+}
+
+.directory-action-btn {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  padding: 11px 14px;
 }
 
 .chip {
@@ -2202,6 +2208,14 @@ button:disabled {
 
   .customer-side {
     justify-items: start;
+  }
+
+  .directory-side-meta {
+    justify-items: start;
+  }
+
+  .directory-actions {
+    width: 100%;
   }
 }
 
