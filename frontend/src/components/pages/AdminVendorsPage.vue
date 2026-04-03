@@ -941,6 +941,23 @@ onMounted(() => void loadVendorDirectory());
               </button>
             </div>
           </div>
+          <div class="hero-blacklist">
+            <div class="hero-blacklist-head">
+              <div class="hero-blacklist-copy">
+                <span class="hero-selected-label">Safety Watch</span>
+                <strong>Vendor Blacklist</strong>
+                <small>{{ count(vendorBlacklistRows.length) }} hidden entr{{ vendorBlacklistRows.length === 1 ? "y" : "ies" }}</small>
+              </div>
+              <button
+                class="directory-action-btn fixed-action-btn hero-blacklist-action"
+                type="button"
+                :aria-expanded="showVendorBlacklist ? 'true' : 'false'"
+                @click="showVendorBlacklist = !showVendorBlacklist"
+              >
+                {{ showVendorBlacklist ? "Hide Blacklist" : "See Blacklist" }}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1145,22 +1162,6 @@ onMounted(() => void loadVendorDirectory());
                 </div>
               </div>
             </div>
-          </article>
-
-          <article class="card blacklist-toggle-card">
-            <div class="blacklist-toggle-copy">
-              <p class="card-eyebrow">Safety Watch</p>
-              <h3>Vendor Blacklist</h3>
-              <p>{{ count(vendorBlacklistRows.length) }} hidden entr{{ vendorBlacklistRows.length === 1 ? "y" : "ies" }}</p>
-            </div>
-            <button
-              class="ghost-btn full blacklist-toggle-btn"
-              type="button"
-              :aria-expanded="showVendorBlacklist ? 'true' : 'false'"
-              @click="showVendorBlacklist = !showVendorBlacklist"
-            >
-              {{ showVendorBlacklist ? "Hide Blacklisted Vendors" : "See Blacklisted Vendors" }}
-            </button>
           </article>
 
           <article v-if="showVendorBlacklist" class="card services-card">
@@ -1750,7 +1751,8 @@ select {
   width: min(100%, 340px);
 }
 
-.hero-selected {
+.hero-selected,
+.hero-blacklist {
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -1763,7 +1765,8 @@ select {
     var(--shadow-soft);
 }
 
-.hero-selected-head {
+.hero-selected-head,
+.hero-blacklist-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1771,7 +1774,8 @@ select {
   flex-wrap: wrap;
 }
 
-.hero-selected-copy {
+.hero-selected-copy,
+.hero-blacklist-copy {
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -1786,11 +1790,13 @@ select {
   color: #7c8ca3;
 }
 
-.hero-selected strong {
+.hero-selected strong,
+.hero-blacklist strong {
   color: #17263d;
 }
 
-.hero-selected-action {
+.hero-selected-action,
+.hero-blacklist-action {
   width: auto;
   min-width: 112px;
   min-height: 36px;
@@ -2611,31 +2617,6 @@ select {
   margin: 0 0 16px;
   color: #5b6c84;
   line-height: 1.6;
-}
-
-.blacklist-toggle-card {
-  display: grid;
-  gap: 14px;
-}
-
-.blacklist-toggle-copy h3,
-.blacklist-toggle-copy p {
-  margin: 0;
-}
-
-.blacklist-toggle-copy h3 {
-  font-family: "Fraunces", serif;
-  font-size: 24px;
-  color: #132238;
-}
-
-.blacklist-toggle-copy p:last-child {
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.blacklist-toggle-btn {
-  justify-content: center;
 }
 
 .link-btn {
