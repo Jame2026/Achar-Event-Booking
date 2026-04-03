@@ -84,6 +84,7 @@ Route::put('vendor/settings', [VendorSettingController::class, 'update']);
 Route::patch('vendor/settings', [VendorSettingController::class, 'update']);
 Route::post('vendor/settings/subscription/complete-payment', [VendorSettingController::class, 'submitSubscriptionPayment']);
 Route::get('admin/customer-directory', [AdminController::class, 'customerDirectory']);
+Route::get('admin/blacklist', [AdminController::class, 'blacklistedIdentities']);
 Route::get('vendor/services', [VendorController::class, 'servicesByVendorId']);
 Route::post('vendor/services', [VendorController::class, 'storeServiceByVendorId']);
 Route::patch('vendor/services/{event}', [VendorController::class, 'updateServiceByVendorId']);
@@ -92,6 +93,8 @@ Route::get('vendor/bookings', [VendorController::class, 'bookingsByVendorId']);
 Route::patch('vendor/bookings/{booking}/status', [VendorController::class, 'updateBookingStatusByVendorId']);
 Route::delete('vendor/bookings/{booking}', [VendorController::class, 'destroyBookingByVendorId']);
 Route::post('admin/users/{user}/activate-vendor-subscription', [AdminController::class, 'activateVendorSubscription']);
+Route::post('admin/users/{user}/delete-with-blacklist', [AdminController::class, 'deleteUserWithBlacklist']);
+Route::patch('admin/blacklist/{blacklistedIdentity}/approve', [AdminController::class, 'approveBlacklistedIdentity']);
 
 Route::prefix('vendor')->group(function () {
     Route::get('/chats', [ChatController::class, 'vendorIndex']);

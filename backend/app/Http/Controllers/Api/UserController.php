@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ContactIdentity;
+use App\Support\IdentityBlacklist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -53,6 +55,15 @@ class UserController extends Controller
         }
 
         if (array_key_exists('phone', $validated) && $validated['phone']) {
+            if ($entry = IdentityBlacklist::findActiveEntry(null, (string) $validated['phone'])) {
+                return response()->json([
+                    'message' => IdentityBlacklist::blockedMessage(
+                        $entry,
+                        'This phone number has been blacklisted. Please contact the admin for approval.'
+                    ),
+                ], 422);
+            }
+
             $phoneAlreadyUsed = User::query()
                 ->where('phone', $validated['phone'])
                 ->whereKeyNot($user->id)
@@ -178,25 +189,7 @@ class UserController extends Controller
 
     private function normalizePhone(string $value): ?string
     {
-        $trimmed = trim($value);
-        if ($trimmed === '') {
-            return null;
-        }
-
-        if (preg_match('/[^0-9\s()+.-]/', $trimmed) === 1) {
-            return $trimmed;
-        }
-
-        if (substr_count($trimmed, '+') > 1 || (str_contains($trimmed, '+') && ! str_starts_with($trimmed, '+'))) {
-            return $trimmed;
-        }
-
-        $digits = preg_replace('/\D+/', '', $trimmed);
-        if (! is_string($digits) || $digits === '') {
-            return $trimmed;
-        }
-
-        return str_starts_with($trimmed, '+') ? '+'.$digits : $digits;
+        return ContactIdentity::normalizePhone($value);
     }
 
     private function storeProfileImage(UploadedFile $image): string

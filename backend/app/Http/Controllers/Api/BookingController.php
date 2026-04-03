@@ -9,6 +9,8 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\Event;
 use App\Models\User;
+use App\Support\ContactIdentity;
+use App\Support\IdentityBlacklist;
 use App\Support\NotificationCache;
 use App\Support\VendorDayOff;
 use App\Support\VendorCache;
@@ -39,10 +41,20 @@ class BookingController extends Controller
         $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $customerEmail = isset($validated['customer_email'])
-            ? strtolower(trim((string) $validated['customer_email']))
+            ? ContactIdentity::normalizeEmail((string) $validated['customer_email'])
             : null;
-        $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+        $customerPhone = ContactIdentity::normalizePhone($validated['customer_phone'] ?? null);
+        $customerPhoneVariants = $this->bookingPhoneLookupVariants($customerPhone);
         $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+
+        if ($entry = $this->resolveBlacklistedEntry($userId, $customerEmail, $customerPhone)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email or phone number has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 403);
+        }
 
         $bookings = Booking::query()
             ->with([
@@ -243,6 +255,22 @@ class BookingController extends Controller
             'payment_method' => ['nullable', 'string', 'max:40'],
         ]);
 
+        $validated['customer_email'] = ContactIdentity::normalizeEmail($validated['customer_email'] ?? null);
+        $validated['customer_phone'] = ContactIdentity::normalizePhone($validated['customer_phone'] ?? null);
+
+        if ($entry = $this->resolveBlacklistedEntry(
+            $request->user()?->id,
+            $validated['customer_email'] ?? null,
+            $validated['customer_phone'] ?? null,
+        )) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email or phone number has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 422);
+        }
+
         $eventId = $validated['event_id'] ?? null;
         $event = $eventId ? Event::with('vendor:id,name,email')->findOrFail($eventId) : null;
         $totalAmount = 0.0;
@@ -414,6 +442,19 @@ class BookingController extends Controller
             'event.vendor:id,name,email',
             'user:id,name,email,phone',
         ]);
+
+        if ($entry = $this->resolveBlacklistedEntry(
+            $booking->user_id ? (int) $booking->user_id : null,
+            $booking->customer_email,
+            $booking->customer_phone
+        )) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email or phone number has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 403);
+        }
 
         $providedToken = trim((string) ($validated['payment_token'] ?? ''));
         $storedToken = (string) ($booking->payment_token ?? '');
@@ -681,6 +722,25 @@ class BookingController extends Controller
             static fn ($value) => trim((string) $value),
             $variants
         ))));
+    }
+
+    private function resolveBlacklistedEntry(
+        ?int $userId = null,
+        ?string $customerEmail = null,
+        ?string $customerPhone = null,
+    ) {
+        $user = null;
+
+        if ($userId && $userId > 0) {
+            $user = User::query()
+                ->select(['id', 'email', 'phone'])
+                ->find($userId);
+        }
+
+        return IdentityBlacklist::findActiveEntry(
+            $user?->email ?? $customerEmail,
+            $user?->phone ?? $customerPhone,
+        );
     }
 
     private function canUserAccessBooking(User $user, Booking $booking): bool

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\VendorSetting;
+use App\Support\ContactIdentity;
+use App\Support\IdentityBlacklist;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -80,10 +82,21 @@ class SocialAuthController extends Controller
             return $this->redirectToFrontendError('Could not read your social account details.', $preferredFrontendUrl);
         }
 
-        $email = strtolower(trim((string) ($socialUser['email'] ?? '')));
+        $email = ContactIdentity::normalizeEmail((string) ($socialUser['email'] ?? '')) ?? '';
         if ($email === '') {
             return $this->redirectToFrontendError('Could not read an email from your social account.', $preferredFrontendUrl);
         }
+
+        if ($entry = IdentityBlacklist::findActiveEntry($email, null)) {
+            return $this->redirectToFrontendError(
+                IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email address has been blacklisted. Please contact the admin for approval.'
+                ),
+                $preferredFrontendUrl
+            );
+        }
+
         $name = trim((string) ($socialUser['name'] ?? ''));
         if ($name === '') {
             $name = strstr($email, '@', true) ?: 'Achar User';

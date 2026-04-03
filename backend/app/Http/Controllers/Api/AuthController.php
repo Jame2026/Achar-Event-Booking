@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\VendorSetting;
+use App\Support\ContactIdentity;
+use App\Support\IdentityBlacklist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -18,12 +20,21 @@ class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
-        $email = is_string($request->input('email')) ? strtolower(trim((string) $request->input('email'))) : null;
-        $phone = is_string($request->input('phone')) ? $this->normalizePhone((string) $request->input('phone')) : null;
+        $email = is_string($request->input('email')) ? ContactIdentity::normalizeEmail((string) $request->input('email')) : null;
+        $phone = is_string($request->input('phone')) ? ContactIdentity::normalizePhone((string) $request->input('phone')) : null;
         $request->merge([
             'email' => $email,
             'phone' => $phone,
         ]);
+
+        if ($entry = IdentityBlacklist::findActiveEntry($email, $phone)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email or phone number has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 422);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'regex:/^[\pL\s\-]+$/u'],
@@ -113,6 +124,18 @@ class AuthController extends Controller
         }
 
         $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+        $normalizedEmail = $isEmail ? ContactIdentity::normalizeEmail($identifier) : null;
+        $normalizedPhone = $isEmail ? null : ContactIdentity::normalizePhone($identifier);
+
+        if ($entry = IdentityBlacklist::findActiveEntry($normalizedEmail, $normalizedPhone)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This account has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 403);
+        }
+
         if ($isEmail && str_ends_with(strtolower($identifier), '@users.achar.local')) {
             return response()->json([
                 'message' => 'Invalid login credentials.',
@@ -122,12 +145,12 @@ class AuthController extends Controller
         $user = $isEmail
             ? User::query()
             ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
-            ->where('email', strtolower($identifier))
+            ->where('email', $normalizedEmail)
             ->whereNotNull('email')
             ->first()
             : User::query()
             ->select(['id', 'name', 'email', 'phone', 'location', 'profile_image_url', 'role', 'password'])
-            ->where('phone', $this->normalizePhone($identifier))
+            ->where('phone', $normalizedPhone)
             ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
@@ -228,6 +251,8 @@ class AuthController extends Controller
 
     private function normalizePhone(string $value): string
     {
+        return ContactIdentity::normalizePhone($value) ?? '';
+
         $trimmed = trim($value);
         if ($trimmed === '') {
             return '';

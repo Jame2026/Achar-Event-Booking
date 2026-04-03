@@ -8,6 +8,8 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\Event;
 use App\Models\User;
+use App\Support\ContactIdentity;
+use App\Support\IdentityBlacklist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -98,6 +100,15 @@ class ChatController extends Controller
         ]);
 
         $email = $this->normalizeEmail((string) $validated['customer_email']);
+        if ($entry = IdentityBlacklist::findActiveEntry($email, null)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email address has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 403);
+        }
+
         $this->syncCustomerBookingConversationsByEmail($email);
 
         $conversations = ChatConversation::query()
@@ -184,6 +195,15 @@ class ChatController extends Controller
         }
 
         $email = $this->normalizeEmail((string) $validated['customer_email']);
+        if ($entry = IdentityBlacklist::findActiveEntry($email, null)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email address has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 422);
+        }
+
         $customerName = trim((string) ($validated['customer_name'] ?? ''));
         $serviceName = trim((string) ($validated['service_name'] ?? ''));
         $customer = User::query()->select(['id', 'name'])->where('email', $email)->first();
@@ -283,6 +303,15 @@ class ChatController extends Controller
         ]);
 
         $email = $this->normalizeEmail((string) $validated['customer_email']);
+        if ($entry = IdentityBlacklist::findActiveEntry($email, null)) {
+            return response()->json([
+                'message' => IdentityBlacklist::blockedMessage(
+                    $entry,
+                    'This email address has been blacklisted. Please contact the admin for approval.'
+                ),
+            ], 403);
+        }
+
         $conversationEmail = $this->normalizeEmail(
             (string) ($conversation->customer_email ?: $conversation->booking?->customer_email ?: '')
         );
@@ -495,7 +524,7 @@ class ChatController extends Controller
 
     private function normalizeEmail(string $email): string
     {
-        return strtolower(trim($email));
+        return ContactIdentity::normalizeEmail($email) ?? '';
     }
 
     private function validateUploadedImage(UploadedFile $image): ?string

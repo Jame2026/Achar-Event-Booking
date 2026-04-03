@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\BlacklistedIdentity;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\VendorSetting;
+use App\Support\IdentityBlacklist;
+use App\Support\NotificationCache;
+use App\Support\PublicEventCache;
+use App\Support\VendorCache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -77,7 +83,7 @@ class AdminController extends Controller
 
     public function customerDirectory(Request $request): JsonResponse
     {
-        $admin = $this->resolveAdminFromRequest($request);
+        $admin = $this->resolveAuthorizedAdmin($request);
         if ($admin instanceof JsonResponse) {
             return $admin;
         }
@@ -124,14 +130,55 @@ class AdminController extends Controller
         return response()->json($customers);
     }
 
+    public function blacklistedIdentities(Request $request): JsonResponse
+    {
+        $admin = $this->resolveAuthorizedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $validated = $request->validate([
+            'role' => ['nullable', Rule::in(['user', 'vendor'])],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
+
+        $entries = BlacklistedIdentity::query()
+            ->select([
+                'id',
+                'subject_name',
+                'subject_role',
+                'blocked_email',
+                'blocked_phone',
+                'reason',
+                'blacklisted_by_user_id',
+                'blacklisted_at',
+                'approved_by_user_id',
+                'approved_at',
+                'created_at',
+                'updated_at',
+            ])
+            ->with([
+                'blacklistedBy:id,name',
+                'approvedBy:id,name',
+            ])
+            ->when(
+                $validated['role'] ?? null,
+                fn ($query, $role) => $query->where('subject_role', $role)
+            )
+            ->latest('blacklisted_at')
+            ->latest('id')
+            ->paginate($perPage);
+
+        return response()->json($entries);
+    }
+
     public function activateVendorSubscription(Request $request, User $user): JsonResponse
     {
-        $authenticatedAdmin = $request->user();
-        if (! ($authenticatedAdmin instanceof User && $authenticatedAdmin->isAdmin())) {
-            $admin = $this->resolveAdminFromRequest($request);
-            if ($admin instanceof JsonResponse) {
-                return $admin;
-            }
+        $admin = $this->resolveAuthorizedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
         }
 
         if (! $user->isVendor()) {
@@ -178,6 +225,90 @@ class AdminController extends Controller
         ]);
     }
 
+    public function deleteUserWithBlacklist(Request $request, User $user): JsonResponse
+    {
+        $admin = $this->resolveAuthorizedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        if (! in_array($user->role, ['user', 'vendor'], true)) {
+            return response()->json([
+                'message' => 'Only customer and vendor accounts can be deleted from this tool.',
+            ], 422);
+        }
+
+        if ((int) $admin->id === (int) $user->id) {
+            return response()->json([
+                'message' => 'You cannot delete your own admin account from this tool.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $entry = DB::transaction(function () use ($user, $admin, $validated) {
+            $target = $user->fresh();
+            if (! $target) {
+                abort(404);
+            }
+
+            $entry = IdentityBlacklist::blacklistUser($target, $admin, (string) $validated['reason']);
+
+            if ($target->isVendor()) {
+                Event::query()
+                    ->where('vendor_id', $target->id)
+                    ->update([
+                        'is_active' => false,
+                        'updated_at' => now(),
+                    ]);
+
+                VendorCache::flushVendor($target->id);
+                PublicEventCache::invalidate();
+            }
+
+            $role = $target->isVendor() ? 'vendor' : 'user';
+            $email = $target->email ? strtolower(trim((string) $target->email)) : null;
+
+            $this->flushNotificationScope($role, $target->id, $email);
+
+            $target->tokens()->delete();
+            $target->delete();
+
+            return $entry;
+        });
+
+        return response()->json([
+            'message' => $user->isVendor()
+                ? 'Vendor deleted and contact details added to the blacklist.'
+                : 'Customer deleted and contact details added to the blacklist.',
+            'blacklist' => $entry,
+        ]);
+    }
+
+    public function approveBlacklistedIdentity(Request $request, BlacklistedIdentity $blacklistedIdentity): JsonResponse
+    {
+        $admin = $this->resolveAuthorizedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        if ($blacklistedIdentity->approved_at) {
+            return response()->json([
+                'message' => 'This blacklist entry has already been approved.',
+                'blacklist' => $blacklistedIdentity->load(['blacklistedBy:id,name', 'approvedBy:id,name']),
+            ]);
+        }
+
+        IdentityBlacklist::approve($blacklistedIdentity, $admin);
+
+        return response()->json([
+            'message' => 'This email or phone number can be reused again.',
+            'blacklist' => $blacklistedIdentity->fresh(['blacklistedBy:id,name', 'approvedBy:id,name']),
+        ]);
+    }
+
     public function updateUserRole(Request $request, User $user): JsonResponse
     {
         $validated = $request->validate([
@@ -203,6 +334,17 @@ class AdminController extends Controller
         );
     }
 
+    private function resolveAuthorizedAdmin(Request $request): User|JsonResponse
+    {
+        $authenticatedAdmin = $request->user();
+
+        if ($authenticatedAdmin instanceof User && $authenticatedAdmin->isAdmin()) {
+            return $authenticatedAdmin;
+        }
+
+        return $this->resolveAdminFromRequest($request);
+    }
+
     private function resolveAdminFromRequest(Request $request): User|JsonResponse
     {
         $validated = $request->validate([
@@ -218,5 +360,14 @@ class AdminController extends Controller
         }
 
         return $admin;
+    }
+
+    private function flushNotificationScope(string $role, int $userId, ?string $email): void
+    {
+        NotificationCache::flushScope(NotificationCache::scopeKey($role, $userId, $email));
+
+        if ($email !== null && $email !== '') {
+            NotificationCache::flushScope(NotificationCache::scopeKey($role, null, $email));
+        }
     }
 }

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
 import { formatDateTime, summarizeBookedServices } from "../../features/bookingMappers";
-import { apiGet } from "../../features/apiClient";
+import { apiGet, apiPatch, apiPost } from "../../features/apiClient";
 import { useLanguageCopy } from "../../features/language";
 
 const props = defineProps({
@@ -356,6 +356,9 @@ const notice = ref("");
 const noticeTone = ref("info");
 const customers = ref([]);
 const selectedCustomerKey = ref("");
+const blacklistedCustomers = ref([]);
+const deletingCustomerId = ref(null);
+const approvingBlacklistId = ref(null);
 const failedCustomerImages = ref(new Set());
 
 function count(value) {
@@ -563,6 +566,27 @@ const selectedCustomer = computed(
 );
 
 const selectedBookings = computed(() => selectedCustomer.value?.bookingHistory || []);
+const customerBlacklistRows = computed(() =>
+  blacklistedCustomers.value
+    .map((entry) => {
+      const approvedAt = String(entry?.approved_at || "").trim();
+
+      return {
+        id: Number(entry?.id || 0),
+        name: String(entry?.subject_name || uiText.value.customerFallback || "Customer").trim() || uiText.value.customerFallback || "Customer",
+        email: String(entry?.blocked_email || "").trim(),
+        phone: String(entry?.blocked_phone || "").trim(),
+        reason: String(entry?.reason || "").trim() || "No blacklist note was added.",
+        blacklistedAt: String(entry?.blacklisted_at || entry?.created_at || "").trim(),
+        blacklistedAtLabel: entry?.blacklisted_at || entry?.created_at ? formatDateTime(entry?.blacklisted_at || entry?.created_at) : uiText.value.timeTbd,
+        approvedAt,
+        approvedAtLabel: approvedAt ? formatDateTime(approvedAt) : "",
+        canApprove: !approvedAt,
+        statusLabel: approvedAt ? "Approved" : "Blocked",
+      };
+    })
+    .sort((left, right) => stamp(right.blacklistedAt) - stamp(left.blacklistedAt)),
+);
 
 const highlightCards = computed(() => [
   {
@@ -619,20 +643,86 @@ async function loadCustomerDirectory() {
   notice.value = "";
 
   try {
-    const result = await apiGet("admin/customer-directory", {
-      admin_user_id: props.adminUserId,
-      per_page: 100,
-      ts: Date.now(),
-    });
+    const [result, blacklistResult] = await Promise.all([
+      apiGet("admin/customer-directory", {
+        admin_user_id: props.adminUserId,
+        per_page: 100,
+        ts: Date.now(),
+      }),
+      apiGet("admin/blacklist", {
+        admin_user_id: props.adminUserId,
+        role: "user",
+        per_page: 100,
+        ts: Date.now(),
+      }),
+    ]);
 
     customers.value = Array.isArray(result?.data) ? result.data : [];
+    blacklistedCustomers.value = Array.isArray(blacklistResult?.data) ? blacklistResult.data : [];
     failedCustomerImages.value = new Set();
     if (!customers.value.length) notice.value = uiText.value.noCustomerAccounts;
   } catch (error) {
     customers.value = [];
+    blacklistedCustomers.value = [];
     setNotice(error?.message || uiText.value.couldNotLoadCustomerDirectory, "error");
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function deleteCustomerAndBlacklist() {
+  const customerId = Number(selectedCustomer.value?.id || 0);
+  if (!customerId) return setNotice("This customer account is missing an ID.", "error");
+  if (!props.adminUserId) return setNotice(uiText.value.adminMissing, "error");
+
+  const reason = window.prompt(
+    `Add a blacklist note for ${selectedCustomer.value?.name || "this customer"}.`,
+    `${selectedCustomer.value?.name || "Customer"} was removed for fraudulent or abusive activity.`,
+  );
+
+  if (reason === null) return;
+  if (!String(reason).trim()) {
+    return setNotice("A blacklist note is required before deleting this customer.", "error");
+  }
+
+  const confirmed = window.confirm(
+    `Delete ${selectedCustomer.value?.name || "this customer"} and blacklist their email or phone number?`,
+  );
+  if (!confirmed) return;
+
+  deletingCustomerId.value = customerId;
+  try {
+    await apiPost(`admin/users/${customerId}/delete-with-blacklist`, {
+      admin_user_id: props.adminUserId,
+      reason: String(reason).trim(),
+    });
+    await loadCustomerDirectory();
+    setNotice("Customer deleted and blacklisted successfully.", "success");
+  } catch (error) {
+    setNotice(error?.message || "Could not delete and blacklist this customer.", "error");
+  } finally {
+    deletingCustomerId.value = null;
+  }
+}
+
+async function approveBlacklistEntry(entry) {
+  if (!entry?.id) return;
+  if (!props.adminUserId) return setNotice(uiText.value.adminMissing, "error");
+
+  const confirmed = window.confirm(`Approve ${entry.name || "this customer"} to reuse the platform again?`);
+  if (!confirmed) return;
+
+  approvingBlacklistId.value = entry.id;
+  try {
+    await apiPatch(`admin/blacklist/${entry.id}/approve`, {
+      admin_user_id: props.adminUserId,
+    });
+    await loadCustomerDirectory();
+    setNotice("Blacklist approval saved. This customer can register again.", "success");
+  } catch (error) {
+    setNotice(error?.message || "Could not approve this blacklist entry.", "error");
+  } finally {
+    approvingBlacklistId.value = null;
   }
 }
 
@@ -740,6 +830,9 @@ onMounted(() => void loadCustomerDirectory());
             <strong>{{ selectedCustomer.name }}</strong>
             <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
           </div>
+          <button class="ghost-btn danger-btn" type="button" :disabled="!selectedCustomer || deletingCustomerId === selectedCustomer?.id" @click="deleteCustomerAndBlacklist">
+            {{ deletingCustomerId === selectedCustomer?.id ? "Deleting..." : "Delete + Blacklist" }}
+          </button>
         </div>
       </section>
 
@@ -906,7 +999,39 @@ onMounted(() => void loadCustomerDirectory());
             </div>
           </article>
 
-          <article v-else class="card empty-selection">
+          <article class="card bookings-card">
+            <header class="card-head">
+              <div>
+                <p class="card-eyebrow">Safety Watch</p>
+                <h3>Blacklisted Customers</h3>
+              </div>
+              <span class="card-meta">{{ count(customerBlacklistRows.length) }}</span>
+            </header>
+            <div v-if="!customerBlacklistRows.length" class="empty small">No customers are blacklisted right now.</div>
+            <div v-else class="booking-list">
+              <div v-for="entry in customerBlacklistRows" :key="entry.id" class="booking-row blacklist-row">
+                <div class="booking-copy">
+                  <div class="booking-title-row">
+                    <strong>{{ entry.name }}</strong>
+                    <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
+                  </div>
+                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> · {{ entry.phone }}</template></p>
+                  <small>{{ entry.blacklistedAtLabel }}<template v-if="entry.approvedAtLabel"> · Approved {{ entry.approvedAtLabel }}</template></small>
+                  <p class="service-description">{{ entry.reason }}</p>
+                </div>
+                <button
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
+                  @click="approveBlacklistEntry(entry)"
+                >
+                  {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Approved" }}
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article v-if="!selectedCustomer" class="card empty-selection">
             <p class="card-eyebrow">{{ uiText.customerProfile }}</p>
             <h3>{{ uiText.selectCustomer }}</h3>
             <p>{{ uiText.selectCustomerSubtitle }}</p>
@@ -1820,11 +1945,22 @@ select {
   border-color: rgba(255, 122, 26, 0.24);
 }
 
+.danger-btn {
+  color: #b42318;
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(255, 241, 242, 0.96);
+}
+
 .booking-row {
   display: grid;
   gap: 12px;
   padding: 16px;
   background: linear-gradient(180deg, #fff, #fcfdff);
+}
+
+.blacklist-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .booking-copy {
@@ -1892,12 +2028,17 @@ button:disabled {
 @media (max-width: 840px) {
   .admin-topbar,
   .customer-row,
-  .sidebar-head {
+  .sidebar-head,
+  .blacklist-row {
     flex-direction: column;
     align-items: stretch;
   }
 
   .customer-row {
+    grid-template-columns: 1fr;
+  }
+
+  .blacklist-row {
     grid-template-columns: 1fr;
   }
 

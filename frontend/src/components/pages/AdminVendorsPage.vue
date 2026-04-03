@@ -339,6 +339,9 @@ const noticeTone = ref("info");
 const vendorUsers = ref([]);
 const vendorEvents = ref([]);
 const selectedVendorKey = ref("");
+const blacklistedVendors = ref([]);
+const deletingVendorId = ref(null);
+const approvingBlacklistId = ref(null);
 const failedVendorImages = ref(new Set());
 
 const initials = computed(() => {
@@ -576,6 +579,27 @@ const selectedVendor = computed(
 );
 
 const selectedServices = computed(() => selectedVendor.value?.listings || []);
+const vendorBlacklistRows = computed(() =>
+  blacklistedVendors.value
+    .map((entry) => {
+      const approvedAt = String(entry?.approved_at || "").trim();
+
+      return {
+        id: Number(entry?.id || 0),
+        name: String(entry?.subject_name || uiText.value.vendorFallback || "Vendor").trim() || uiText.value.vendorFallback || "Vendor",
+        email: String(entry?.blocked_email || "").trim(),
+        phone: String(entry?.blocked_phone || "").trim(),
+        reason: String(entry?.reason || "").trim() || "No blacklist note was added.",
+        blacklistedAt: String(entry?.blacklisted_at || entry?.created_at || "").trim(),
+        blacklistedAtLabel: entry?.blacklisted_at || entry?.created_at ? formatDateTime(entry?.blacklisted_at || entry?.created_at) : uiText.value.dateTbd,
+        approvedAt,
+        approvedAtLabel: approvedAt ? formatDateTime(approvedAt) : "",
+        canApprove: !approvedAt,
+        statusLabel: approvedAt ? "Approved" : "Blocked",
+      };
+    })
+    .sort((left, right) => stamp(right.blacklistedAt) - stamp(left.blacklistedAt)),
+);
 
 const highlightCards = computed(() => [
   {
@@ -640,18 +664,33 @@ async function loadVendorDirectory() {
   notice.value = "";
 
   try {
-    const [vendorResult, eventResult] = await Promise.all([
+    const requests = [
       apiGet("vendors", { per_page: 100, ts: Date.now() }),
       apiGet("events", { per_page: 100, include_inactive: 1, ts: Date.now() }),
-    ]);
+    ];
+
+    if (props.adminUserId) {
+      requests.push(
+        apiGet("admin/blacklist", {
+          admin_user_id: props.adminUserId,
+          role: "vendor",
+          per_page: 100,
+          ts: Date.now(),
+        }),
+      );
+    }
+
+    const [vendorResult, eventResult, blacklistResult] = await Promise.all(requests);
 
     vendorUsers.value = Array.isArray(vendorResult?.data) ? vendorResult.data : Array.isArray(vendorResult) ? vendorResult : [];
     vendorEvents.value = Array.isArray(eventResult?.data) ? eventResult.data : Array.isArray(eventResult) ? eventResult : [];
+    blacklistedVendors.value = Array.isArray(blacklistResult?.data) ? blacklistResult.data : [];
     failedVendorImages.value = new Set();
     if (!vendorUsers.value.length) notice.value = uiText.value.noVendorAccounts;
   } catch (error) {
     vendorUsers.value = [];
     vendorEvents.value = [];
+    blacklistedVendors.value = [];
     setNotice(error?.message || uiText.value.couldNotLoadVendorDirectory, "error");
   } finally {
     isLoading.value = false;
@@ -701,6 +740,62 @@ async function activateVendorPlan() {
     setNotice(error?.message || "Could not approve the vendor plan.", "error");
   } finally {
     activatingVendorId.value = null;
+  }
+}
+
+async function deleteVendorAndBlacklist() {
+  const vendorId = Number(selectedVendor.value?.id || 0);
+  if (!vendorId) return setNotice(uiText.value.missingVendorAccountId, "error");
+  if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
+
+  const reason = window.prompt(
+    `Add a blacklist note for ${selectedVendor.value?.name || "this vendor"}.`,
+    `${selectedVendor.value?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
+  );
+
+  if (reason === null) return;
+  if (!String(reason).trim()) {
+    return setNotice("A blacklist note is required before deleting this vendor.", "error");
+  }
+
+  const confirmed = window.confirm(
+    `Delete ${selectedVendor.value?.name || "this vendor"} and blacklist their email or phone number?`,
+  );
+  if (!confirmed) return;
+
+  deletingVendorId.value = vendorId;
+  try {
+    await apiPost(`admin/users/${vendorId}/delete-with-blacklist`, {
+      admin_user_id: props.adminUserId,
+      reason: String(reason).trim(),
+    });
+    await loadVendorDirectory();
+    setNotice("Vendor deleted and blacklisted successfully.", "success");
+  } catch (error) {
+    setNotice(error?.message || "Could not delete and blacklist this vendor.", "error");
+  } finally {
+    deletingVendorId.value = null;
+  }
+}
+
+async function approveBlacklistEntry(entry) {
+  if (!entry?.id) return;
+  if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
+
+  const confirmed = window.confirm(`Approve ${entry.name || "this vendor"} to reuse the platform again?`);
+  if (!confirmed) return;
+
+  approvingBlacklistId.value = entry.id;
+  try {
+    await apiPatch(`admin/blacklist/${entry.id}/approve`, {
+      admin_user_id: props.adminUserId,
+    });
+    await loadVendorDirectory();
+    setNotice("Blacklist approval saved. This vendor can register again.", "success");
+  } catch (error) {
+    setNotice(error?.message || "Could not approve this blacklist entry.", "error");
+  } finally {
+    approvingBlacklistId.value = null;
   }
 }
 
@@ -817,6 +912,9 @@ onMounted(() => void loadVendorDirectory());
           </div>
           <button class="primary-btn" type="button" :disabled="!selectedVendor || !selectedServices.length || isSaving" @click="setVendorVisibility(selectedVendor?.visibility === 'paused')">
             {{ selectedVendor?.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
+          </button>
+          <button class="ghost-btn danger-btn" type="button" :disabled="!selectedVendor || deletingVendorId === selectedVendor?.id" @click="deleteVendorAndBlacklist">
+            {{ deletingVendorId === selectedVendor?.id ? "Deleting..." : "Delete + Blacklist" }}
           </button>
         </div>
       </section>
@@ -997,7 +1095,39 @@ onMounted(() => void loadVendorDirectory());
             </div>
           </article>
 
-          <article v-else class="card empty-selection">
+          <article class="card services-card">
+            <header class="card-head">
+              <div>
+                <p class="card-eyebrow">Safety Watch</p>
+                <h3>Blacklisted Vendors</h3>
+              </div>
+              <span class="card-meta">{{ count(vendorBlacklistRows.length) }}</span>
+            </header>
+            <div v-if="!vendorBlacklistRows.length" class="empty small">No vendors are blacklisted right now.</div>
+            <div v-else class="service-list">
+              <div v-for="entry in vendorBlacklistRows" :key="entry.id" class="service-row blacklist-row">
+                <div class="service-copy">
+                  <div class="service-title-row">
+                    <strong>{{ entry.name }}</strong>
+                    <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
+                  </div>
+                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> · {{ entry.phone }}</template></p>
+                  <small>{{ entry.blacklistedAtLabel }}<template v-if="entry.approvedAtLabel"> · Approved {{ entry.approvedAtLabel }}</template></small>
+                  <p class="service-description">{{ entry.reason }}</p>
+                </div>
+                <button
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
+                  @click="approveBlacklistEntry(entry)"
+                >
+                  {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Approved" }}
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article v-if="!selectedVendor" class="card empty-selection">
             <p class="card-eyebrow">{{ uiText.vendorProfile }}</p>
             <h3>{{ uiText.selectVendor }}</h3>
             <p>{{ uiText.selectVendorSubtitle }}</p>
@@ -1911,11 +2041,22 @@ select {
   border-color: rgba(255, 122, 26, 0.24);
 }
 
+.danger-btn {
+  color: #b42318;
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(255, 241, 242, 0.96);
+}
+
 .service-row {
   display: grid;
   gap: 12px;
   padding: 16px;
   background: linear-gradient(180deg, #fff, #fcfdff);
+}
+
+.blacklist-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .service-copy {
@@ -1988,12 +2129,17 @@ button:disabled {
 @media (max-width: 840px) {
   .admin-topbar,
   .vendor-row,
-  .sidebar-head {
+  .sidebar-head,
+  .blacklist-row {
     flex-direction: column;
     align-items: stretch;
   }
 
   .vendor-row {
+    grid-template-columns: 1fr;
+  }
+
+  .blacklist-row {
     grid-template-columns: 1fr;
   }
 
