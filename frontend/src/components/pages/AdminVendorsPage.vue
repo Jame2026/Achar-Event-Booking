@@ -1825,7 +1825,8 @@ select {
 }
 
 .content-grid {
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(300px, 320px) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
@@ -1862,7 +1863,7 @@ select {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
   margin-bottom: 18px;
   padding: 16px;
@@ -1874,7 +1875,7 @@ select {
 .filter-field {
   display: grid;
   gap: 8px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .filter-field span {
@@ -1897,11 +1898,11 @@ select {
 .vendor-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(188px, auto);
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 14px;
   align-items: stretch;
   min-height: 0;
-  padding: 18px;
+  padding: 14px;
   border-radius: 24px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.94));
   border: 1px solid rgba(15, 23, 42, 0.07);
@@ -2072,8 +2073,8 @@ select {
   align-content: center;
   gap: 10px;
   min-width: 0;
-  padding-left: 18px;
-  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .directory-date {
@@ -2124,14 +2125,17 @@ select {
   gap: 10px;
   justify-self: stretch;
   align-items: stretch;
-  width: 188px;
-  min-width: 188px;
-  max-width: 188px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   text-align: left;
   flex-wrap: nowrap;
 }
 
 .vendor-actions {
+  width: auto;
+  min-width: 0;
+  max-width: none;
   justify-content: center;
 }
 
