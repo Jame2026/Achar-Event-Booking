@@ -916,14 +916,17 @@ onMounted(() => void loadCustomerDirectory());
                   <span>{{ customer.lastBookingService }}</span>
                   <small>{{ customer.lastBookingLabel }}</small>
                 </div>
-                <div v-if="selectedCustomer?.key === customer.key" class="directory-actions">
+                <div v-if="selectedCustomer?.key === customer.key" class="directory-actions customer-actions">
                   <button
-                    class="ghost-btn danger-btn directory-action-btn"
+                    class="ghost-btn danger-btn directory-action-btn fixed-action-btn"
                     type="button"
                     :disabled="deletingCustomerId === customer.id"
                     @click.stop="deleteCustomerAndBlacklist"
                   >
-                    {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
+                    <span class="directory-action-copy">
+                      <span>{{ deletingCustomerId === customer.id ? "Deleting" : "Delete +" }}</span>
+                      <span>{{ deletingCustomerId === customer.id ? "..." : "Blacklist" }}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1898,11 +1901,15 @@ select {
 }
 
 .directory-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: end;
   margin-top: 12px;
+}
+
+.customer-actions {
+  grid-template-columns: 64px;
+  justify-content: end;
 }
 
 .directory-action-btn {
@@ -1917,7 +1924,25 @@ select {
   line-height: 1.1;
   box-shadow: none;
   transition: none;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.fixed-action-btn {
+  width: 64px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 6px 8px;
+}
+
+.directory-action-copy {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  text-align: center;
+}
+
+.directory-action-copy span {
+  display: block;
 }
 
 .chip {
@@ -2228,7 +2253,7 @@ button:disabled {
   }
 
   .directory-actions {
-    justify-content: flex-start;
+    justify-content: start;
   }
 }
 

@@ -993,22 +993,28 @@ onMounted(() => void loadVendorDirectory());
                   <span>{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
                   <small>{{ vendor.lastActivityLabel }}</small>
                 </div>
-                <div v-if="selectedVendor?.key === vendor.key" class="directory-actions">
+                <div v-if="selectedVendor?.key === vendor.key" class="directory-actions vendor-actions">
                   <button
-                    class="primary-btn directory-action-btn"
-                    type="button"
-                    :disabled="!selectedServices.length || isSaving"
-                    @click.stop="setVendorVisibility(selectedVendor?.visibility === 'paused')"
-                  >
-                    {{ selectedVendor?.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
-                  </button>
-                  <button
-                    class="ghost-btn danger-btn directory-action-btn"
+                    class="ghost-btn danger-btn directory-action-btn fixed-action-btn"
                     type="button"
                     :disabled="deletingVendorId === vendor.id"
                     @click.stop="deleteVendorAndBlacklist"
                   >
-                    {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
+                    <span class="directory-action-copy">
+                      <span>{{ deletingVendorId === vendor.id ? "Deleting" : "Delete +" }}</span>
+                      <span>{{ deletingVendorId === vendor.id ? "..." : "Blacklist" }}</span>
+                    </span>
+                  </button>
+                  <button
+                    class="primary-btn directory-action-btn fixed-action-btn"
+                    type="button"
+                    :disabled="!selectedServices.length || isSaving"
+                    @click.stop="setVendorVisibility(selectedVendor?.visibility === 'paused')"
+                  >
+                    <span class="directory-action-copy">
+                      <span>{{ selectedVendor?.visibility === "paused" ? "Go Live" : "Pause" }}</span>
+                      <span>{{ selectedVendor?.visibility === "paused" ? "Again" : "Vendor" }}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1997,11 +2003,15 @@ select {
 }
 
 .directory-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: end;
   margin-top: 12px;
+}
+
+.vendor-actions {
+  grid-template-columns: repeat(2, 64px);
+  justify-content: end;
 }
 
 .directory-action-btn {
@@ -2016,7 +2026,25 @@ select {
   line-height: 1.1;
   box-shadow: none;
   transition: none;
-  white-space: wrap;
+  white-space: normal;
+}
+
+.fixed-action-btn {
+  width: 64px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 6px 8px;
+}
+
+.directory-action-copy {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  text-align: center;
+}
+
+.directory-action-copy span {
+  display: block;
 }
 
 .chip {
@@ -2332,7 +2360,7 @@ button:disabled {
   }
 
   .directory-actions {
-    justify-content: flex-start;
+    justify-content: start;
   }
 }
 
