@@ -670,14 +670,15 @@ async function loadCustomerDirectory() {
   }
 }
 
-async function deleteCustomerAndBlacklist() {
-  const customerId = Number(selectedCustomer.value?.id || 0);
+async function deleteCustomerAndBlacklist(customer = selectedCustomer.value) {
+  const targetCustomer = customer || selectedCustomer.value;
+  const customerId = Number(targetCustomer?.id || 0);
   if (!customerId) return setNotice("This customer account is missing an ID.", "error");
   if (!props.adminUserId) return setNotice(uiText.value.adminMissing, "error");
 
   const reason = window.prompt(
-    `Add a blacklist note for ${selectedCustomer.value?.name || "this customer"}.`,
-    `${selectedCustomer.value?.name || "Customer"} was removed for fraudulent or abusive activity.`,
+    `Add a blacklist note for ${targetCustomer?.name || "this customer"}.`,
+    `${targetCustomer?.name || "Customer"} was removed for fraudulent or abusive activity.`,
   );
 
   if (reason === null) return;
@@ -686,7 +687,7 @@ async function deleteCustomerAndBlacklist() {
   }
 
   const confirmed = window.confirm(
-    `Delete ${selectedCustomer.value?.name || "this customer"} and blacklist their email or phone number?`,
+    `Delete ${targetCustomer?.name || "this customer"} and blacklist their email or phone number?`,
   );
   if (!confirmed) return;
 
@@ -913,15 +914,21 @@ onMounted(() => void loadCustomerDirectory());
               </div>
               <div class="customer-side">
                 <div class="directory-side-meta">
-                  <span>{{ customer.lastBookingService }}</span>
+                  <strong class="directory-metric">
+                    {{
+                      customer.bookingsCount
+                        ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
+                        : uiText.noBookingsYet
+                    }}
+                  </strong>
                   <small>{{ customer.lastBookingLabel }}</small>
                 </div>
-                <div v-if="selectedCustomer?.key === customer.key" class="directory-actions customer-actions">
+                <div class="directory-actions customer-actions">
                   <button
                     class="ghost-btn listing-delete-btn"
                     type="button"
                     :disabled="deletingCustomerId === customer.id"
-                    @click.stop="deleteCustomerAndBlacklist"
+                    @click.stop="deleteCustomerAndBlacklist(customer)"
                   >
                     {{ deletingCustomerId === customer.id ? "Deleting..." : "Delete + Blacklist" }}
                   </button>
@@ -1776,26 +1783,49 @@ select {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 18px;
+  gap: 28px;
+  padding: 24px 28px;
+  border: 1px solid rgba(255, 181, 140, 0.74);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 241, 0.98));
+  border-radius: 34px;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: 0 18px 38px rgba(255, 145, 77, 0.08);
+}
+
+.customer-row::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 196, 161, 0.84);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.customer-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 .customer-row:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 122, 26, 0.18);
-  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
+  border-color: rgba(255, 140, 79, 0.82);
+  box-shadow: 0 24px 46px rgba(255, 145, 77, 0.12);
 }
 
 .customer-row.selected {
-  border-color: rgba(255, 122, 26, 0.24);
-  background: linear-gradient(135deg, rgba(255, 247, 240, 0.96), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
+  border-color: rgba(255, 132, 66, 0.92);
+  background: linear-gradient(135deg, rgba(255, 247, 239, 1), rgba(255, 253, 250, 0.98));
+  box-shadow: 0 26px 50px rgba(255, 145, 77, 0.16);
+}
+
+.customer-row.selected::after {
+  border-color: rgba(255, 178, 132, 0.9);
 }
 
 .customer-row:focus-visible {
@@ -1812,7 +1842,9 @@ select {
 }
 
 .customer-main {
-  gap: 12px;
+  gap: 16px;
+  min-width: 0;
+  align-items: center;
 }
 
 .customer-title-row,
@@ -1829,9 +1861,9 @@ select {
 }
 
 .customer-photo {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
   color: #bf5c06;
   display: grid;
@@ -1866,7 +1898,8 @@ select {
 .booking-copy,
 .identity-copy {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .customer-copy strong,
@@ -1876,18 +1909,27 @@ select {
   color: #17263d;
 }
 
+.customer-copy strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
 .customer-copy p,
 .booking-copy p,
 .booking-copy small {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.customer-copy p {
+  color: #68778d;
 }
 
 .customer-side {
   display: grid;
   justify-items: end;
-  gap: 4px;
-  min-width: 120px;
+  gap: 14px;
+  min-width: 220px;
   font-weight: 600;
 }
 
@@ -1895,29 +1937,35 @@ select {
   display: grid;
   gap: 4px;
   justify-items: end;
+  text-align: right;
 }
 
 .directory-actions {
-  display: grid;
-  gap: 8px;
-  justify-content: end;
-  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .customer-actions {
-  grid-template-columns: auto;
-  justify-content: end;
+  align-items: stretch;
+}
+
+.directory-metric {
+  font-size: 17px;
+  line-height: 1.2;
+  color: #17263d;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 600;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.1;
   box-shadow: none;
   transition: none;
@@ -1925,25 +1973,21 @@ select {
 }
 
 .fixed-action-btn {
-  width: 64px;
-  min-width: 64px;
-  min-height: 44px;
-  padding: 6px 8px;
+  min-width: 122px;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(220, 38, 38, 0.24);
-  background: rgba(255, 244, 244, 0.96);
-  color: #b42318;
-  font-size: 11.5px;
-  font-weight: 600;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 147, 89, 0.34);
+  background: rgba(255, 252, 249, 0.88);
+  color: #dd641f;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
@@ -1954,12 +1998,12 @@ select {
 .listing-delete-btn:hover:not(:disabled) {
   transform: none;
   box-shadow: none;
-  background: rgba(255, 244, 244, 0.96);
+  background: rgba(255, 246, 238, 0.96);
 }
 
 .directory-action-copy {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   justify-items: center;
   text-align: center;
 }
@@ -2265,14 +2309,18 @@ button:disabled {
 
   .customer-row {
     grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 22px 20px;
   }
 
   .customer-side {
+    min-width: 0;
     justify-items: start;
   }
 
   .directory-side-meta {
     justify-items: start;
+    text-align: left;
   }
 
   .directory-actions {
@@ -2296,6 +2344,16 @@ button:disabled {
 
   .hero-copy h1 {
     font-size: 34px;
+  }
+
+  .customer-row {
+    padding: 20px 18px;
+    border-radius: 28px;
+  }
+
+  .customer-row::after {
+    inset: 6px;
+    border-radius: 22px;
   }
 
   .topbar-actions {

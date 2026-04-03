@@ -697,16 +697,19 @@ async function loadVendorDirectory() {
   }
 }
 
-async function setVendorVisibility(nextActive) {
-  if (!selectedVendor.value?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
-  const services = selectedServices.value.filter((item) => Boolean(item.is_active) !== nextActive);
+async function setVendorVisibility(nextActive, vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  if (!targetVendor?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
+  const services = (Array.isArray(targetVendor?.listings) ? targetVendor.listings : []).filter(
+    (item) => Boolean(item.is_active) !== nextActive,
+  );
   if (!services.length) return setNotice(nextActive ? uiText.value.allListingsAlreadyLive : uiText.value.allListingsAlreadyPaused);
 
   isSaving.value = true;
   try {
     for (const service of services) {
       const updated = await apiPatch(`vendor/services/${service.id}`, {
-        vendor_user_id: selectedVendor.value.id,
+        vendor_user_id: targetVendor.id,
         is_active: nextActive,
       });
       patchLocalEvent(updated);
@@ -743,14 +746,15 @@ async function activateVendorPlan() {
   }
 }
 
-async function deleteVendorAndBlacklist() {
-  const vendorId = Number(selectedVendor.value?.id || 0);
+async function deleteVendorAndBlacklist(vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  const vendorId = Number(targetVendor?.id || 0);
   if (!vendorId) return setNotice(uiText.value.missingVendorAccountId, "error");
   if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
 
   const reason = window.prompt(
-    `Add a blacklist note for ${selectedVendor.value?.name || "this vendor"}.`,
-    `${selectedVendor.value?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
+    `Add a blacklist note for ${targetVendor?.name || "this vendor"}.`,
+    `${targetVendor?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
   );
 
   if (reason === null) return;
@@ -759,7 +763,7 @@ async function deleteVendorAndBlacklist() {
   }
 
   const confirmed = window.confirm(
-    `Delete ${selectedVendor.value?.name || "this vendor"} and blacklist their email or phone number?`,
+    `Delete ${targetVendor?.name || "this vendor"} and blacklist their email or phone number?`,
   );
   if (!confirmed) return;
 
@@ -990,28 +994,28 @@ onMounted(() => void loadVendorDirectory());
               </div>
               <div class="vendor-side">
                 <div class="directory-side-meta">
-                  <span>{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
+                  <strong class="directory-metric">{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</strong>
                   <small>{{ vendor.lastActivityLabel }}</small>
                 </div>
-                <div v-if="selectedVendor?.key === vendor.key" class="directory-actions vendor-actions">
+                <div class="directory-actions vendor-actions">
+                  <button
+                    class="primary-btn directory-action-btn fixed-action-btn"
+                    type="button"
+                    :disabled="!vendor.listings.some((item) => Boolean(item.is_active) !== (vendor.visibility === 'paused')) || isSaving"
+                    @click.stop="setVendorVisibility(vendor.visibility === 'paused', vendor)"
+                  >
+                    <span class="directory-action-copy">
+                      <span>{{ vendor.visibility === "paused" ? "Go Live" : "Pause" }}</span>
+                      <span>{{ vendor.visibility === "paused" ? "Again" : "Vendor" }}</span>
+                    </span>
+                  </button>
                   <button
                     class="ghost-btn listing-delete-btn"
                     type="button"
                     :disabled="deletingVendorId === vendor.id"
-                    @click.stop="deleteVendorAndBlacklist"
+                    @click.stop="deleteVendorAndBlacklist(vendor)"
                   >
                     {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
-                  </button>
-                  <button
-                    class="primary-btn directory-action-btn fixed-action-btn"
-                    type="button"
-                    :disabled="!selectedServices.length || isSaving"
-                    @click.stop="setVendorVisibility(selectedVendor?.visibility === 'paused')"
-                  >
-                    <span class="directory-action-copy">
-                      <span>{{ selectedVendor?.visibility === "paused" ? "Go Live" : "Pause" }}</span>
-                      <span>{{ selectedVendor?.visibility === "paused" ? "Again" : "Vendor" }}</span>
-                    </span>
                   </button>
                 </div>
               </div>
@@ -1878,26 +1882,49 @@ select {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 18px;
+  gap: 28px;
+  padding: 24px 28px;
+  border: 1px solid rgba(255, 181, 140, 0.74);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 241, 0.98));
+  border-radius: 34px;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: 0 18px 38px rgba(255, 145, 77, 0.08);
+}
+
+.vendor-row::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 196, 161, 0.84);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vendor-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 .vendor-row:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 122, 26, 0.18);
-  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
+  border-color: rgba(255, 140, 79, 0.82);
+  box-shadow: 0 24px 46px rgba(255, 145, 77, 0.12);
 }
 
 .vendor-row.selected {
-  border-color: rgba(255, 122, 26, 0.24);
-  background: linear-gradient(135deg, rgba(255, 247, 240, 0.96), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
+  border-color: rgba(255, 132, 66, 0.92);
+  background: linear-gradient(135deg, rgba(255, 247, 239, 1), rgba(255, 253, 250, 0.98));
+  box-shadow: 0 26px 50px rgba(255, 145, 77, 0.16);
+}
+
+.vendor-row.selected::after {
+  border-color: rgba(255, 178, 132, 0.9);
 }
 
 .vendor-row:focus-visible {
@@ -1914,7 +1941,9 @@ select {
 }
 
 .vendor-main {
-  gap: 12px;
+  gap: 16px;
+  min-width: 0;
+  align-items: center;
 }
 
 .vendor-title-row,
@@ -1931,9 +1960,9 @@ select {
 }
 
 .vendor-photo {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
   color: #bf5c06;
   display: grid;
@@ -1968,7 +1997,8 @@ select {
 .service-copy,
 .identity-copy {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .vendor-copy strong,
@@ -1978,18 +2008,27 @@ select {
   color: #17263d;
 }
 
+.vendor-copy strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
 .vendor-copy p,
 .service-copy p,
 .service-copy small {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.vendor-copy p {
+  color: #68778d;
 }
 
 .vendor-side {
   display: grid;
   justify-items: end;
-  gap: 4px;
-  min-width: 120px;
+  gap: 14px;
+  min-width: 220px;
   font-weight: 600;
 }
 
@@ -1997,30 +2036,35 @@ select {
   display: grid;
   gap: 4px;
   justify-items: end;
+  text-align: right;
 }
 
 .directory-actions {
-  display: grid;
-  gap: 8px;
-  justify-content: end;
-  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .vendor-actions {
-  grid-template-columns: auto 64px;
-  justify-content: end;
-  align-items: start;
+  align-items: stretch;
+}
+
+.directory-metric {
+  font-size: 17px;
+  line-height: 1.2;
+  color: #17263d;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 600;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.1;
   box-shadow: none;
   transition: none;
@@ -2028,25 +2072,21 @@ select {
 }
 
 .fixed-action-btn {
-  width: 64px;
-  min-width: 64px;
-  min-height: 44px;
-  padding: 6px 8px;
+  min-width: 122px;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(220, 38, 38, 0.24);
-  background: rgba(255, 244, 244, 0.96);
-  color: #b42318;
-  font-size: 11.5px;
-  font-weight: 600;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 147, 89, 0.34);
+  background: rgba(255, 252, 249, 0.88);
+  color: #dd641f;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
@@ -2057,12 +2097,12 @@ select {
 .listing-delete-btn:hover:not(:disabled) {
   transform: none;
   box-shadow: none;
-  background: rgba(255, 244, 244, 0.96);
+  background: rgba(255, 246, 238, 0.96);
 }
 
 .directory-action-copy {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   justify-items: center;
   text-align: center;
 }
@@ -2373,14 +2413,18 @@ button:disabled {
 
   .vendor-row {
     grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 22px 20px;
   }
 
   .vendor-side {
+    min-width: 0;
     justify-items: start;
   }
 
   .directory-side-meta {
     justify-items: start;
+    text-align: left;
   }
 
   .directory-actions {
@@ -2388,7 +2432,6 @@ button:disabled {
   }
 
   .vendor-actions {
-    grid-template-columns: repeat(2, auto);
     justify-content: start;
   }
 }
@@ -2414,6 +2457,16 @@ button:disabled {
 
   .hero-copy h1 {
     font-size: 34px;
+  }
+
+  .vendor-row {
+    padding: 20px 18px;
+    border-radius: 28px;
+  }
+
+  .vendor-row::after {
+    inset: 6px;
+    border-radius: 22px;
   }
 
   .topbar-actions {
