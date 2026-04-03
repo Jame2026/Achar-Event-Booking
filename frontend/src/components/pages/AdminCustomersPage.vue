@@ -1453,7 +1453,6 @@ select {
   font: inherit;
 }
 
-.ghost-btn,
 .primary-btn {
   padding: 10px 14px;
   border-radius: 14px;
@@ -1842,13 +1841,6 @@ select {
     transform 0.22s ease;
 }
 
-.customer-row:hover:not(:has(.directory-action-btn:hover, .listing-delete-btn:hover)) {
-  transform: translateY(-2px);
-  border-color: rgba(255, 122, 26, 0.18);
-  box-shadow:
-    0 26px 50px rgba(15, 23, 42, 0.12),
-    0 0 0 1px rgba(255, 122, 26, 0.06);
-}
 
 .customer-row.selected {
   border-color: rgba(255, 122, 26, 0.28);
@@ -2099,22 +2091,11 @@ select {
   flex: 0 0 auto;
 }
 
-.listing-delete-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(220, 38, 38, 0.08);
-  background: rgba(255, 244, 244, 0.98);
-}
-
 .directory-action-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
 }
 
-.directory-action-btn:active,
-.listing-delete-btn:active {
-  transform: none;
-  box-shadow: none;
-}
 
 .status {
   padding: 7px 12px;
@@ -2281,12 +2262,6 @@ select {
     0 14px 24px rgba(220, 38, 38, 0.1);
 }
 
-.danger-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 18px 28px rgba(220, 38, 38, 0.14);
-}
 
 .booking-row {
   display: grid;
