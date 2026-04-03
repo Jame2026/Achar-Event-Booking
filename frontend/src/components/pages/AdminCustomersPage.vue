@@ -459,7 +459,12 @@ const customerRows = computed(() =>
   customers.value
     .map((customer) => {
       const customerName = String(customer?.name || uiText.value.customerFallback).trim() || uiText.value.customerFallback;
-      const bookingHistory = (Array.isArray(customer?.bookings) ? customer.bookings : [])
+      const rawBookings = Array.isArray(customer?.bookings)
+        ? customer.bookings
+        : Array.isArray(customer?.booking_history)
+          ? customer.booking_history
+          : [];
+      const bookingHistory = rawBookings
         .map((booking) => {
           const event = booking?.event || {};
           const vendor = event?.vendor || {};
@@ -498,14 +503,22 @@ const customerRows = computed(() =>
         })
         .sort((left, right) => stamp(right.sortAt) - stamp(left.sortAt));
 
+      const bookingCountFromHistory = bookingHistory.length;
+      const confirmedCountFromHistory = bookingHistory.filter((booking) => booking.status === "confirmed").length;
+      const pendingCountFromHistory = bookingHistory.filter((booking) => booking.status === "pending").length;
+      const cancelledCountFromHistory = bookingHistory.filter((booking) => booking.status === "cancelled").length;
       const confirmedSpend = bookingHistory
         .filter((booking) => booking.status === "confirmed")
         .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
       const preferredTypes = Array.from(new Set(bookingHistory.map((booking) => booking.eventTypeLabel).filter(Boolean)));
-      const bookingsCount = Number(customer?.bookings_count || bookingHistory.length || 0);
-      const confirmedCount = Number(customer?.confirmed_bookings_count || 0);
-      const pendingCount = Number(customer?.pending_bookings_count || 0);
-      const cancelledCount = Number(customer?.cancelled_bookings_count || 0);
+      const bookedVendorCount = new Set(bookingHistory.map((booking) => booking.vendorName).filter(Boolean)).size;
+      const latestBookingSummary = bookingHistory[0]
+        ? `${bookingHistory[0].serviceLabel} | ${bookingHistory[0].vendorName}`
+        : uiText.value.noBookingsYet;
+      const bookingsCount = Math.max(Number(customer?.bookings_count || 0), bookingCountFromHistory);
+      const confirmedCount = Math.max(Number(customer?.confirmed_bookings_count || 0), confirmedCountFromHistory);
+      const pendingCount = Math.max(Number(customer?.pending_bookings_count || 0), pendingCountFromHistory);
+      const cancelledCount = Math.max(Number(customer?.cancelled_bookings_count || 0), cancelledCountFromHistory);
 
       return {
         id: Number(customer?.id || 0),
@@ -525,10 +538,13 @@ const customerRows = computed(() =>
         confirmedSpend,
         confirmedSpendLabel: money(confirmedSpend),
         preferredTypes,
+        bookedVendorCount,
         bookingHistory,
         memberState: bookingsCount === 0 ? uiText.value.newMember : bookingsCount > 1 ? uiText.value.repeatMember : uiText.value.activeMember,
         lastBookingLabel: bookingHistory[0]?.dateLabel || uiText.value.noBookingsYet,
         lastBookingService: bookingHistory[0]?.serviceLabel || uiText.value.noBookingsYet,
+        lastBookingVendor: bookingHistory[0]?.vendorName || uiText.value.vendorFallback,
+        latestBookingSummary,
       };
     })
     .sort((left, right) => {
@@ -917,6 +933,7 @@ onMounted(() => void loadCustomerDirectory());
                   {{ customer.email || uiText.emailNotProvided }}
                   <template v-if="customer.preferredTypes[0]"> | {{ customer.preferredTypes[0] }}</template>
                 </p>
+                <p class="queue-submeta">{{ customer.latestBookingSummary }}</p>
               </div>
               <span class="queue-date">{{ customer.lastBookingLabel }}</span>
               <span
@@ -1001,6 +1018,10 @@ onMounted(() => void loadCustomerDirectory());
               <div>
                 <span>{{ uiText.location }}</span>
                 <strong>{{ selectedCustomer.location }}</strong>
+              </div>
+              <div>
+                <span>Booked Vendors</span>
+                <strong>{{ count(selectedCustomer.bookedVendorCount) }}</strong>
               </div>
             </div>
             <p class="detail-copy">
@@ -2317,6 +2338,15 @@ select {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-submeta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #475569;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
