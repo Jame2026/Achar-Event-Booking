@@ -64,10 +64,12 @@ const copyByLanguage = {
     emailNotProvided: "Email not provided",
     noCategoryYet: "No category yet",
     bookingCount: "{count} booking(s)",
+    serviceCount: "{count} service(s)",
     customerProfile: "Customer Profile",
     confirmedCount: "{count} confirmed",
     pendingCount: "{count} pending",
     bookings: "Bookings",
+    bookedServices: "Booked Services",
     totalSpend: "Total Spend",
     email: "Email",
     phone: "Phone",
@@ -168,10 +170,12 @@ const copyByLanguage = {
     emailNotProvided: "æœªæä¾›é‚®ç®±",
     noCategoryYet: "æš‚æ— åˆ†ç±»",
     bookingCount: "{count} æ¡é¢„è®¢",
+    serviceCount: "{count} é¡¹æœåŠ¡",
     customerProfile: "å®¢æˆ·èµ„æ–™",
     confirmedCount: "{count} å·²ç¡®è®¤",
     pendingCount: "{count} å¾…å¤„ç†",
     bookings: "é¢„è®¢",
+    bookedServices: "å·²é¢„è®¢æœåŠ¡",
     totalSpend: "æ€»æ¶ˆè´¹",
     email: "é‚®ç®±",
     phone: "ç”µè¯",
@@ -274,10 +278,12 @@ copyByLanguage.km = {
   emailNotProvided: "áž˜áž·áž“áž”áž¶áž“áž•áŸ’ážáž›áŸ‹áž¢áŸŠáž¸áž˜áŸ‚áž›",
   noCategoryYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž”áŸ’ážšáž—áŸáž‘",
   bookingCount: "áž€áž¶ážšáž€áž€áŸ‹ {count}",
+  serviceCount: "ážŸáŸážœáž¶ {count}",
   customerProfile: "áž”áŸ’ážšážœážáŸ’ážáž·ážšáž¼áž”áž¢ážáž·ážáž·áž‡áž“",
   confirmedCount: "{count} áž”áž¶áž“áž”áž‰áŸ’áž‡áž¶áž€áŸ‹",
   pendingCount: "{count} ážšáž„áŸ‹áž…áž¶áŸ†",
   bookings: "áž€áž¶ážšáž€áž€áŸ‹",
+  bookedServices: "ážŸáŸážœáž¶ážŠáŸ‚áž›áž”áž¶áž“áž€áž€áŸ‹",
   totalSpend: "áž…áŸ†ážŽáž¶áž™ážŸážšáž»áž”",
   email: "áž¢áŸŠáž¸áž˜áŸ‚áž›",
   phone: "áž‘áž¼ážšážŸáŸáž–áŸ’áž‘",
@@ -490,6 +496,7 @@ const customerRows = computed(() =>
                 : uiText.value.service,
             eventTypeLabel: eventTypeLabel(event?.event_type),
             quantity: Number(booking?.quantity || 1),
+            bookedServiceCount: Math.max(bookedItems.filter(Boolean).length, 1),
             location: String(event?.location || "").trim() || uiText.value.locationMissing,
             status,
             statusLabel: bookingStatusLabel(status),
@@ -507,9 +514,11 @@ const customerRows = computed(() =>
       const confirmedCountFromHistory = bookingHistory.filter((booking) => booking.status === "confirmed").length;
       const pendingCountFromHistory = bookingHistory.filter((booking) => booking.status === "pending").length;
       const cancelledCountFromHistory = bookingHistory.filter((booking) => booking.status === "cancelled").length;
+      const totalSpend = bookingHistory.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
       const confirmedSpend = bookingHistory
         .filter((booking) => booking.status === "confirmed")
         .reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+      const bookedServiceCount = bookingHistory.reduce((sum, booking) => sum + Number(booking.bookedServiceCount || 0), 0);
       const preferredTypes = Array.from(new Set(bookingHistory.map((booking) => booking.eventTypeLabel).filter(Boolean)));
       const bookedVendorCount = new Set(bookingHistory.map((booking) => booking.vendorName).filter(Boolean)).size;
       const latestBookingSummary = bookingHistory[0]
@@ -535,8 +544,11 @@ const customerRows = computed(() =>
         confirmedCount,
         pendingCount,
         cancelledCount,
+        totalSpend,
+        totalSpendLabel: money(totalSpend),
         confirmedSpend,
         confirmedSpendLabel: money(confirmedSpend),
+        bookedServiceCount,
         preferredTypes,
         bookedVendorCount,
         bookingHistory,
@@ -947,11 +959,11 @@ onMounted(() => void loadCustomerDirectory());
                 {{ customer.memberState }}
               </span>
               <div class="row-actions customer-actions">
-                <span class="queue-stat">{{ customer.confirmedSpendLabel }}</span>
+                <span class="queue-stat">{{ customer.totalSpendLabel }}</span>
                 <span class="queue-stat muted">
                   {{
                     customer.bookingsCount
-                      ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
+                      ? `${interpolate(uiText.serviceCount, { count: count(customer.bookedServiceCount) })} | ${interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })}`
                       : uiText.noBookingsYet
                   }}
                 </span>
@@ -1009,7 +1021,7 @@ onMounted(() => void loadCustomerDirectory());
               </div>
               <div>
                 <span>{{ uiText.totalSpend }}</span>
-                <strong>{{ selectedCustomer.confirmedSpendLabel }}</strong>
+                <strong>{{ selectedCustomer.totalSpendLabel }}</strong>
               </div>
               <div>
                 <span>{{ uiText.joined }}</span>
@@ -1018,6 +1030,10 @@ onMounted(() => void loadCustomerDirectory());
               <div>
                 <span>{{ uiText.location }}</span>
                 <strong>{{ selectedCustomer.location }}</strong>
+              </div>
+              <div>
+                <span>{{ uiText.bookedServices }}</span>
+                <strong>{{ count(selectedCustomer.bookedServiceCount) }}</strong>
               </div>
               <div>
                 <span>Booked Vendors</span>
