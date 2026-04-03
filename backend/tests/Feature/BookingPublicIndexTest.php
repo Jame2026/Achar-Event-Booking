@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\BookingRating;
 use App\Models\Event;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -173,5 +174,54 @@ class BookingPublicIndexTest extends TestCase
             ->assertJsonPath('data.0.event.title', 'Birthday Celebration Package')
             ->assertJsonPath('data.0.event.vendor.name', 'Golden Vendor')
             ->assertJsonPath('data.0.event.vendor.profile_image_url', 'https://example.com/vendor.jpg');
+    }
+
+    public function test_public_booking_index_includes_existing_customer_rating(): void
+    {
+        $vendor = User::factory()->create([
+            'role' => 'vendor',
+        ]);
+
+        $customer = User::factory()->create([
+            'role' => 'user',
+            'email' => 'rated-customer@example.com',
+        ]);
+
+        $event = Event::create([
+            'vendor_id' => $vendor->id,
+            'title' => 'Corporate Setup',
+            'event_type' => 'company_party',
+            'location' => 'Phnom Penh',
+            'starts_at' => now()->subDay()->toDateTimeString(),
+            'price' => 800,
+            'capacity' => 20,
+            'is_active' => true,
+        ]);
+
+        $booking = Booking::create([
+            'event_id' => $event->id,
+            'user_id' => $customer->id,
+            'quantity' => 1,
+            'total_amount' => 800,
+            'status' => 'confirmed',
+            'customer_name' => 'Rated Customer',
+            'customer_email' => 'rated-customer@example.com',
+            'service_name' => 'Corporate Setup',
+            'requested_event_date' => now()->subDay()->toDateString(),
+        ]);
+
+        BookingRating::query()->create([
+            'booking_id' => $booking->id,
+            'event_id' => $event->id,
+            'vendor_id' => $vendor->id,
+            'user_id' => $customer->id,
+            'rating' => 4,
+            'review' => 'Solid service.',
+        ]);
+
+        $this->getJson('/api/bookings?customer_email=rated-customer@example.com')
+            ->assertOk()
+            ->assertJsonPath('data.0.rating.rating', 4)
+            ->assertJsonPath('data.0.rating.review', 'Solid service.');
     }
 }

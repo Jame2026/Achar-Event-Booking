@@ -87,4 +87,9 @@ class Booking extends Model
     {
         return $this->hasOne(ChatConversation::class, 'booking_id');
     }
+
+    public function rating(): HasOne
+    {
+        return $this->hasOne(BookingRating::class);
+    }
 }

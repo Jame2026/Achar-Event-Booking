@@ -140,6 +140,8 @@ export function mapBooking(apiBooking, options) {
       : false
   const initialPaymentAmount = Number((depositAmount + serviceFeeAmount).toFixed(2))
   const lateCancellationRefundAmount = Number((initialPaymentAmount * 0.15).toFixed(2))
+  const customerRating = Number(apiBooking.rating?.rating || 0)
+  const customerReview = String(apiBooking.rating?.review || '').trim()
 
   let statusText = 'Deposit Payment Required'
   let statusClass = 'pending'
@@ -188,6 +190,8 @@ export function mapBooking(apiBooking, options) {
 
   const type = deriveBookingType(status, bookingDate)
   const canCancel = !isCancelled && type === 'Upcoming' && (status === 'pending' || status === 'confirmed')
+  const hasRating = customerRating >= 1 && customerRating <= 5
+  const canRate = Boolean(event.id) && (status === 'cancelled' || (status === 'confirmed' && type === 'Completed'))
 
   return {
     id: apiBooking.id,
@@ -217,6 +221,11 @@ export function mapBooking(apiBooking, options) {
     balanceDueAmount,
     refundAmount,
     customerCompensationAmount,
+    customerRating,
+    customerReview,
+    customerRatingUpdatedAt: apiBooking.rating?.updated_at || null,
+    hasRating,
+    canRate,
     vendorCancellationDeadlineAt: apiBooking.vendor_cancellation_deadline_at || null,
     qrCodeUrl,
     requestedEventDate: apiBooking.requested_event_date || null,

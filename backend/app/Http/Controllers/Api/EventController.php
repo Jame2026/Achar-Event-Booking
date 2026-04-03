@@ -42,7 +42,8 @@ class EventController extends Controller
                     'updated_at',
                 ])
                 ->with('vendor:id,name,profile_image_url')
-                ->withCount('bookings')
+                ->withCount(['bookings', 'ratings'])
+                ->withAvg('ratings as rating_average', 'rating')
                 ->latest('starts_at')
                 ->paginate($perPage);
 
@@ -78,7 +79,8 @@ class EventController extends Controller
                         ->where('subscription_expires_at', '>=', now());
                 })
                 ->with('vendor:id,name,profile_image_url')
-                ->withCount('bookings')
+                ->withCount(['bookings', 'ratings'])
+                ->withAvg('ratings as rating_average', 'rating')
                 ->latest('starts_at')
                 ->paginate($perPage);
         });
@@ -140,12 +142,33 @@ class EventController extends Controller
 
     public function show(Event $event): JsonResponse
     {
-        $event
-            ->load([
+        $event = Event::query()
+            ->select([
+                'id',
+                'vendor_id',
+                'title',
+                'event_type',
+                'description',
+                'packages',
+                'qr_code_url',
+                'service_mode',
+                'image_url',
+                'location',
+                'starts_at',
+                'ends_at',
+                'price',
+                'capacity',
+                'is_active',
+                'created_at',
+                'updated_at',
+            ])
+            ->with([
                 'vendor:id,name,profile_image_url',
                 'vendor.vendorSetting:user_id,subscription_status,subscription_expires_at',
             ])
-            ->loadCount('bookings');
+            ->withCount(['bookings', 'ratings'])
+            ->withAvg('ratings as rating_average', 'rating')
+            ->findOrFail($event->id);
 
         $vendorSetting = $event->vendor?->vendorSetting;
         $publiclyVisible = $event->is_active

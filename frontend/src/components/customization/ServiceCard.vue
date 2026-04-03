@@ -132,6 +132,12 @@ function formatCurrency(value) {
 
     <p>{{ service.description }}</p>
 
+    <div class="service-rating-line">
+      <span class="service-rating-star" aria-hidden="true">★</span>
+      <strong>{{ service.ratingDisplay || 'New' }}</strong>
+      <small>{{ service.reviewsDisplay || '0 reviews' }}</small>
+    </div>
+
     <div class="addon-card-actions service-actions">
       <button type="button" class="choice-indicator" @click.stop="emit('toggle-service', service.id)">
         {{ isSelected ? uiText.selected : uiText.addService }}

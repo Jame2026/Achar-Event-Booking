@@ -107,6 +107,7 @@ Route::prefix('user')->group(function () {
     Route::get('/chats', [ChatController::class, 'userIndex']);
     Route::post('/chats/{conversation}/messages', [ChatController::class, 'userSendMessage']);
     Route::patch('/bookings/{booking}/cancel', [BookingController::class, 'cancelForUser']);
+    Route::patch('/bookings/{booking}/rating', [BookingController::class, 'upsertRatingForUser']);
     Route::delete('/bookings/{booking}', [BookingController::class, 'destroyForUser']);
 });
 

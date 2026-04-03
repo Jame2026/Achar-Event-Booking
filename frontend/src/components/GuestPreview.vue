@@ -783,6 +783,31 @@ function formatEventDateLabel(value) {
   });
 }
 
+function normalizeEventRatingAverage(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return Number(numeric.toFixed(1));
+}
+
+function normalizeEventRatingsCount(value) {
+  const numeric = Math.trunc(Number(value || 0));
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
+
+function formatGuestRatingValue(ratingAverage, ratingsCount) {
+  return ratingsCount > 0 && ratingAverage !== null ? ratingAverage.toFixed(1) : "New";
+}
+
+function formatGuestReviewCount(ratingsCount) {
+  return `${ratingsCount} review${ratingsCount === 1 ? "" : "s"}`;
+}
+
+function formatGuestProfileRating(ratingAverage, ratingsCount) {
+  return ratingsCount > 0 && ratingAverage !== null
+    ? `${ratingAverage.toFixed(1)} (${formatGuestReviewCount(ratingsCount)})`
+    : "No ratings yet";
+}
+
 function mapEventToGuestPackage(item) {
   const eventType = String(item.event_type || "other");
   const serviceMode = String(item.service_mode || "overall");
@@ -796,6 +821,8 @@ function mapEventToGuestPackage(item) {
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   const isPreview = Boolean(item.is_demo);
+  const ratingAverage = normalizeEventRatingAverage(item.rating_average);
+  const ratingsCount = normalizeEventRatingsCount(item.ratings_count);
   return {
     id: `live-package-${item.id}`,
     title: String(item.title || "Service Booking"),
@@ -816,6 +843,11 @@ function mapEventToGuestPackage(item) {
     vendorImage,
     vendorId,
     vendor: item.vendor || null,
+    ratingAverage,
+    ratingsCount,
+    ratingDisplay: formatGuestRatingValue(ratingAverage, ratingsCount),
+    reviewsDisplay: formatGuestReviewCount(ratingsCount),
+    profileRatingLabel: formatGuestProfileRating(ratingAverage, ratingsCount),
     packages,
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
@@ -828,6 +860,8 @@ function mapEventToGuestService(item) {
   const vendorImage = item.vendor?.image_url || item.vendor?.profile_image_url || null;
   const vendorId = Number(item.vendor_id || item.vendor?.id || 0) || null;
   const isPreview = Boolean(item.is_demo);
+  const ratingAverage = normalizeEventRatingAverage(item.rating_average);
+  const ratingsCount = normalizeEventRatingsCount(item.ratings_count);
   return {
     id: `live-service-${item.id}`,
     name: String(item.title || "Service Booking"),
@@ -842,6 +876,11 @@ function mapEventToGuestService(item) {
     vendorImage,
     vendorId,
     vendor: item.vendor || null,
+    ratingAverage,
+    ratingsCount,
+    ratingDisplay: formatGuestRatingValue(ratingAverage, ratingsCount),
+    reviewsDisplay: formatGuestReviewCount(ratingsCount),
+    profileRatingLabel: formatGuestProfileRating(ratingAverage, ratingsCount),
     serviceMode,
     qrCodeUrl: item.qr_code_url || item.qrCodeUrl || "",
     isPreview,
@@ -1774,7 +1813,7 @@ function openServiceVendor(service) {
     eventId: Number(service.backingEventId || 0) || null,
     name: vendor.name || service.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
-    rating: vendor.rating || vendorProfile.rating,
+    rating: service.profileRatingLabel || vendor.rating || vendorProfile.rating,
     serviceName: service.name,
     servicePriceLabel: `$${Number(service.price || 0).toLocaleString()}`,
     location: vendor.location || service.location || fallbackVendorLocation,
@@ -1807,7 +1846,7 @@ function openPackageVendor() {
     eventId: Number(activePackage.value.backingEventId || 0) || null,
     name: vendor.name || activePackage.value.vendorName || vendorProfile.name,
     subtitle: vendor.subtitle || vendor.tagline || vendorProfile.subtitle,
-    rating: vendor.rating || vendorProfile.rating,
+    rating: activePackage.value.profileRatingLabel || vendor.rating || vendorProfile.rating,
     serviceName: activePackage.value.title,
     servicePriceLabel: activePackage.value.priceLabel,
     location: vendor.location || activePackage.value.location || fallbackVendorLocation,
@@ -2435,12 +2474,8 @@ function noop() {}
                     </p>
                     <div class="package-rating">
                       <span class="star">★</span>
-                      <strong>{{
-                        (item.rating || 4.7).toFixed
-                          ? (item.rating || 4.7).toFixed(1)
-                          : "4.7"
-                      }}</strong>
-                      <small>{{ uiText.reviewsLabel || "0 reviews" }}</small>
+                      <strong>{{ item.ratingDisplay }}</strong>
+                      <small>{{ item.reviewsDisplay }}</small>
                     </div>
 
                     <div class="package-bottom">

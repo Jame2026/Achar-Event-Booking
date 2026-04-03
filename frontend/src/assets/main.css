@@ -2538,6 +2538,146 @@ a {
   color: #fff;
 }
 
+.booking-rating {
+  margin-top: 0.7rem;
+  border-top: 1px solid #e2e8f3;
+  padding-top: 0.7rem;
+}
+
+.booking-rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.booking-rating-summary small {
+  display: block;
+  font-size: 0.62rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.booking-rating-summary strong {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.booking-rating-toggle {
+  white-space: nowrap;
+}
+
+.booking-rating-review {
+  margin: 0.55rem 0 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.booking-rating-editor {
+  margin-top: 0.65rem;
+  border: 1px solid #e2e8f3;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 0.8rem;
+}
+
+.booking-rating-stars {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.booking-rating-stars > span,
+.booking-rating-textarea > span {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.booking-rating-stars > div {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.booking-star-btn {
+  border: 1px solid #fcd7aa;
+  background: #fff7ed;
+  color: #f59e0b;
+  border-radius: 10px;
+  padding: 0.28rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.booking-star-btn.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+.booking-rating-textarea {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.booking-rating-textarea textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 84px;
+  border: 1px solid #d7e2ef;
+  border-radius: 14px;
+  background: #fff;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  color: #0f172a;
+}
+
+.booking-rating-error {
+  margin: 0.55rem 0 0;
+  color: #dc2626;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.booking-rating-actions {
+  display: inline-flex;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.service-rating-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  margin-top: 0.55rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.service-rating-star {
+  color: #f59e0b;
+}
+
+.service-rating-line strong {
+  color: #0f172a;
+  font-size: 0.86rem;
+}
+
+.service-rating-line small {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
 .messages-page {
   height: calc(100vh - 78px);
 }
@@ -3174,6 +3314,12 @@ a {
   .booking-actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .booking-rating-summary,
+  .booking-rating-stars {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .booking-filter-wrap {

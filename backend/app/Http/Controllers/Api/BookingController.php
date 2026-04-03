@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\ContactIdentity;
 use App\Support\IdentityBlacklist;
 use App\Support\NotificationCache;
+use App\Support\PublicEventCache;
 use App\Support\VendorDayOff;
 use App\Support\VendorCache;
 use Carbon\CarbonPeriod;
@@ -60,6 +61,7 @@ class BookingController extends Controller
             ->with([
                 'event:id,title,event_type,image_url,qr_code_url,starts_at,location,vendor_id,service_mode',
                 'event.vendor:id,name,email,profile_image_url',
+                'rating:id,booking_id,rating,review,updated_at',
                 'user:id,name,email,phone,location,profile_image_url',
             ])
             ->when($userId || $customerEmail || $customerPhoneVariants, function ($query) use ($userId, $customerEmail, $customerPhoneVariants) {
@@ -113,6 +115,7 @@ class BookingController extends Controller
             ->with([
                 'event:id,title,event_type,image_url,qr_code_url,starts_at,location,vendor_id,service_mode',
                 'event.vendor:id,name,email,profile_image_url',
+                'rating:id,booking_id,rating,review,updated_at',
                 'user:id,name,email,phone,location,profile_image_url',
             ])
             ->latest()
@@ -124,7 +127,7 @@ class BookingController extends Controller
     public function indexByEvent(Event $event): JsonResponse
     {
         $bookings = $event->bookings()
-            ->with('user:id,name,email')
+            ->with(['user:id,name,email', 'rating:id,booking_id,rating,review,updated_at'])
             ->latest()
             ->paginate(15);
 
@@ -353,7 +356,11 @@ class BookingController extends Controller
 
     public function show(Booking $booking): JsonResponse
     {
-        return response()->json($booking->load(['event.vendor:id,name,email', 'user:id,name,email,phone,location']));
+        return response()->json($booking->load([
+            'event.vendor:id,name,email',
+            'rating:id,booking_id,rating,review,updated_at',
+            'user:id,name,email,phone,location',
+        ]));
     }
 
     public function update(Request $request, Booking $booking): JsonResponse
@@ -424,7 +431,11 @@ class BookingController extends Controller
             $this->createBookingStatusNotifications($updatedBooking, $validated['status']);
         }
 
-        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email,phone,location']));
+        return response()->json($updatedBooking->load([
+            'event.vendor:id,name',
+            'rating:id,booking_id,rating,review,updated_at',
+            'user:id,name,email,phone,location',
+        ]));
     }
 
     public function confirmPayment(Request $request, Booking $booking): JsonResponse
@@ -522,7 +533,11 @@ class BookingController extends Controller
             $this->flushVendorCacheForBooking($updatedBooking);
         }
 
-        return response()->json($updatedBooking->load(['event.vendor:id,name', 'user:id,name,email']));
+        return response()->json($updatedBooking->load([
+            'event.vendor:id,name',
+            'rating:id,booking_id,rating,review,updated_at',
+            'user:id,name,email',
+        ]));
     }
 
     public function destroy(Booking $booking): JsonResponse
@@ -594,6 +609,7 @@ class BookingController extends Controller
         $booking->loadMissing([
             'event:id,title,starts_at,location,vendor_id',
             'event.vendor:id,name,email',
+            'rating:id,booking_id,rating,review,updated_at',
             'user:id,name,email,phone',
         ]);
 
@@ -627,12 +643,71 @@ class BookingController extends Controller
         $updatedBooking = $booking->fresh()->load([
             'event:id,title,starts_at,location,vendor_id',
             'event.vendor:id,name,email',
+            'rating:id,booking_id,rating,review,updated_at',
             'user:id,name,email,phone',
         ]);
         $this->createBookingStatusNotifications($updatedBooking, 'cancelled');
         $this->createCustomerCancellationChatMessage($updatedBooking);
 
         return response()->json($updatedBooking);
+    }
+
+    public function upsertRatingForUser(Request $request, Booking $booking): JsonResponse
+    {
+        $booking->loadMissing([
+            'event:id,vendor_id,starts_at',
+            'rating:id,booking_id,rating,review,updated_at',
+            'user:id,name,email,phone',
+        ]);
+
+        [$canAccess, $identityError] = $this->resolveCustomerBookingAccess($request, $booking);
+
+        if ($identityError instanceof JsonResponse) {
+            return $identityError;
+        }
+
+        if (! $canAccess) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if (! $booking->event_id || ! $booking->event || ! $booking->event->vendor_id) {
+            return response()->json([
+                'message' => 'Only live vendor services can be rated.',
+            ], 422);
+        }
+
+        if (! $this->canCustomerRateBooking($booking)) {
+            return response()->json([
+                'message' => 'You can rate this service only after it is completed or cancelled.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'review' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $review = trim((string) ($validated['review'] ?? ''));
+
+        $booking->rating()->updateOrCreate(
+            [],
+            [
+                'event_id' => (int) $booking->event_id,
+                'vendor_id' => (int) $booking->event->vendor_id,
+                'user_id' => $booking->user_id ? (int) $booking->user_id : null,
+                'rating' => (int) $validated['rating'],
+                'review' => $review !== '' ? $review : null,
+            ]
+        );
+
+        PublicEventCache::invalidate();
+
+        return response()->json($booking->fresh()->load([
+            'event:id,title,event_type,image_url,qr_code_url,starts_at,location,vendor_id,service_mode',
+            'event.vendor:id,name,email,profile_image_url',
+            'rating:id,booking_id,rating,review,updated_at',
+            'user:id,name,email,phone,location,profile_image_url',
+        ]));
     }
 
     private function hasCapacity(Event $event, int $requestedQuantity, ?int $ignoreBookingId = null, ?string $requestedDate = null): bool
@@ -817,19 +892,7 @@ class BookingController extends Controller
 
     private function canCustomerDeleteBooking(Booking $booking): bool
     {
-        if ($booking->requested_event_date) {
-            return Carbon::parse($booking->requested_event_date)->startOfDay()->lte(Carbon::today());
-        }
-
-        $event = $booking->relationLoaded('event')
-            ? $booking->event
-            : $booking->event()->select(['id', 'starts_at'])->first();
-
-        if ($event?->starts_at) {
-            return Carbon::parse($event->starts_at)->lte(now());
-        }
-
-        return false;
+        return $this->hasBookingOccurred($booking);
     }
 
     private function canCustomerCancelBooking(Booking $booking): bool
@@ -852,6 +915,38 @@ class BookingController extends Controller
         }
 
         return true;
+    }
+
+    private function canCustomerRateBooking(Booking $booking): bool
+    {
+        $status = strtolower((string) ($booking->status ?? 'pending'));
+
+        if ($status === 'cancelled') {
+            return true;
+        }
+
+        if ($status !== 'confirmed') {
+            return false;
+        }
+
+        return $this->hasBookingOccurred($booking);
+    }
+
+    private function hasBookingOccurred(Booking $booking): bool
+    {
+        if ($booking->requested_event_date) {
+            return Carbon::parse($booking->requested_event_date)->startOfDay()->lte(Carbon::today());
+        }
+
+        $event = $booking->relationLoaded('event')
+            ? $booking->event
+            : $booking->event()->select(['id', 'starts_at'])->first();
+
+        if ($event?->starts_at) {
+            return Carbon::parse($event->starts_at)->lte(now());
+        }
+
+        return false;
     }
 
     private function vendorHasAnotherBookedEvent(Event $event, ?string $requestedDate = null): bool

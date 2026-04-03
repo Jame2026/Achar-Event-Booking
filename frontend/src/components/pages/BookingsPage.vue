@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLanguageCopy } from '../../features/language'
 
 const props = defineProps([
@@ -13,6 +13,7 @@ const props = defineProps([
   'goToVendor',
   'goToMessages',
   'goToProfile',
+  'submitBookingRating',
   'bookingSecondaryAction',
   'bookingPrimaryAction',
 ])
@@ -38,30 +39,41 @@ const copyByLanguage = {
     noResults: 'Try clearing search or adjusting filters.',
     date: 'Date',
     chatVendor: 'Chat Vendor',
+    rateService: 'Rate Service',
+    editRating: 'Edit Rating',
+    yourRating: 'Your Rating',
+    notRatedYet: 'Not rated yet',
+    selectRating: 'Select stars',
+    reviewOptional: 'Review',
+    reviewPlaceholder: 'Share a short review other customers can trust.',
+    saveRating: 'Save Rating',
+    savingRating: 'Saving...',
+    cancelEdit: 'Cancel',
+    ratingRequired: 'Please choose a rating from 1 to 5.',
   },
   km: {
-    breadcrumbs: 'ទំព័រដើម > ការកក់របស់ខ្ញុំ',
-    title: 'ការកក់របស់ខ្ញុំ',
-    subtitle: 'គ្រប់គ្រងសេវាព្រឹត្តិការណ៍នាពេលខាងមុខ និងកន្លងមករបស់អ្នក។',
-    upcoming: 'នាពេលខាងមុខ',
-    completed: 'បានបញ្ចប់',
-    drafts: 'ព្រាង',
-    loading: 'កំពុងផ្ទុកការកក់ពី API...',
-    empty: 'រកមិនឃើញការកក់សម្រាប់តម្រងនេះទេ។ ប្រើអ៊ីមែលរបស់អ្នកនៅទំព័រអ្នកផ្គត់ផ្គង់ ហើយចុច "ផ្ទុកការកក់របស់ខ្ញុំ"។',
-    date: 'កាលបរិច្ឆេទ',
-    chatVendor: 'ជជែកជាមួយអ្នកផ្គត់ផ្គង់',
+    breadcrumbs: 'áž‘áŸ†áž–áŸážšážŠáž¾áž˜ > áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹ážáŸ’áž‰áž»áŸ†',
+    title: 'áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹ážáŸ’áž‰áž»áŸ†',
+    subtitle: 'áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„ážŸáŸážœáž¶áž–áŸ’ážšáž¹ážáŸ’ážáž·áž€áž¶ážšážŽáŸáž“áž¶áž–áŸáž›ážáž¶áž„áž˜áž»áž áž“áž·áž„áž€áž“áŸ’áž›áž„áž˜áž€ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áŸ”',
+    upcoming: 'áž“áž¶áž–áŸáž›ážáž¶áž„áž˜áž»áž',
+    completed: 'áž”áž¶áž“áž”áž‰áŸ’áž…áž”áŸ‹',
+    drafts: 'áž–áŸ’ážšáž¶áž„',
+    loading: 'áž€áŸ†áž–áž»áž„áž•áŸ’áž‘áž»áž€áž€áž¶ážšáž€áž€áŸ‹áž–áž¸ API...',
+    empty: 'ážšáž€áž˜áž·áž“ážƒáž¾áž‰áž€áž¶ážšáž€áž€áŸ‹ážŸáž˜áŸ’ážšáž¶áž”áŸ‹ážáž˜áŸ’ážšáž„áž“áŸáŸ‡áž‘áŸáŸ” áž”áŸ’ážšáž¾áž¢áŸŠáž¸áž˜áŸ‚áž›ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áž“áŸ…áž‘áŸ†áž–áŸážšáž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ áž áž¾áž™áž…áž»áž… "áž•áŸ’áž‘áž»áž€áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹ážáŸ’áž‰áž»áŸ†"áŸ”',
+    date: 'áž€áž¶áž›áž”ážšáž·áž…áŸ’áž†áŸáž‘',
+    chatVendor: 'áž‡áž‡áŸ‚áž€áž‡áž¶áž˜áž½áž™áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹',
   },
   zh: {
-    breadcrumbs: '首页 > 我的预订',
-    title: '我的预订',
-    subtitle: '管理您即将开始和过去的活动服务。',
-    upcoming: '即将开始',
-    completed: '已完成',
-    drafts: '草稿',
-    loading: '正在从 API 加载预订...',
-    empty: '当前筛选条件下没有预订。请在商家页面使用您的邮箱并点击“加载我的预订”。',
-    date: '日期',
-    chatVendor: '联系商家',
+    breadcrumbs: 'é¦–é¡µ > æˆ‘çš„é¢„è®¢',
+    title: 'æˆ‘çš„é¢„è®¢',
+    subtitle: 'ç®¡ç†æ‚¨å³å°†å¼€å§‹å’Œè¿‡åŽ»çš„æ´»åŠ¨æœåŠ¡ã€‚',
+    upcoming: 'å³å°†å¼€å§‹',
+    completed: 'å·²å®Œæˆ',
+    drafts: 'è‰ç¨¿',
+    loading: 'æ­£åœ¨ä»Ž API åŠ è½½é¢„è®¢...',
+    empty: 'å½“å‰ç­›é€‰æ¡ä»¶ä¸‹æ²¡æœ‰é¢„è®¢ã€‚è¯·åœ¨å•†å®¶é¡µé¢ä½¿ç”¨æ‚¨çš„é‚®ç®±å¹¶ç‚¹å‡»â€œåŠ è½½æˆ‘çš„é¢„è®¢â€ã€‚',
+    date: 'æ—¥æœŸ',
+    chatVendor: 'è”ç³»å•†å®¶',
   },
 }
 
@@ -74,6 +86,9 @@ const filterTabs = computed(() => [
 ])
 
 const searchQuery = ref('')
+const ratingDrafts = ref({})
+const ratingErrors = ref({})
+const submittingRatingId = ref(null)
 const baseBookings = computed(() => (Array.isArray(props.filteredBookings) ? props.filteredBookings : []))
 const visibleBookings = computed(() => {
   const q = String(searchQuery.value || '').trim().toLowerCase()
@@ -86,6 +101,7 @@ const visibleBookings = computed(() => {
       item?.metaValue,
       item?.placeValue,
       item?.note,
+      item?.customerReview,
     ]
       .map((value) => String(value || '').toLowerCase())
       .join(' | ')
@@ -125,6 +141,142 @@ function resetFilters() {
   props.bindings.bookingFilter.value = 'Upcoming'
   props.bindings.bookingEventTypeFilter.value = 'all'
   searchQuery.value = ''
+}
+
+function normalizeRatingValue(value) {
+  const numeric = Math.round(Number(value || 0))
+  return numeric >= 1 && numeric <= 5 ? numeric : 0
+}
+
+function createRatingDraft(item, existing = {}) {
+  const persistedRating = normalizeRatingValue(item?.customerRating)
+  return {
+    open: Boolean(existing?.open),
+    rating: normalizeRatingValue(existing?.rating) || persistedRating || 5,
+    review: existing?.open ? String(existing?.review || '') : String(item?.customerReview || ''),
+  }
+}
+
+watch(
+  baseBookings,
+  (rows) => {
+    const nextDrafts = {}
+    const nextErrors = {}
+
+    rows.forEach((item) => {
+      const existing = ratingDrafts.value[item.id]
+      nextDrafts[item.id] = createRatingDraft(item, existing)
+      if (ratingErrors.value[item.id]) {
+        nextErrors[item.id] = ratingErrors.value[item.id]
+      }
+    })
+
+    ratingDrafts.value = nextDrafts
+    ratingErrors.value = nextErrors
+  },
+  { immediate: true, deep: true },
+)
+
+function getRatingDraft(item) {
+  return ratingDrafts.value[item.id] || createRatingDraft(item)
+}
+
+function canEditRating(item) {
+  return Boolean(item?.canRate && typeof props.submitBookingRating === 'function')
+}
+
+function shouldShowRating(item) {
+  return Boolean(item?.hasRating || canEditRating(item))
+}
+
+function isRatingEditorOpen(item) {
+  return Boolean(getRatingDraft(item)?.open)
+}
+
+function openRatingEditor(item) {
+  ratingErrors.value = {
+    ...ratingErrors.value,
+    [item.id]: '',
+  }
+  ratingDrafts.value = {
+    ...ratingDrafts.value,
+    [item.id]: {
+      ...createRatingDraft(item, ratingDrafts.value[item.id]),
+      open: true,
+    },
+  }
+}
+
+function closeRatingEditor(item) {
+  ratingErrors.value = {
+    ...ratingErrors.value,
+    [item.id]: '',
+  }
+  ratingDrafts.value = {
+    ...ratingDrafts.value,
+    [item.id]: {
+      ...createRatingDraft(item),
+      open: false,
+    },
+  }
+}
+
+function setDraftRating(item, value) {
+  ratingDrafts.value = {
+    ...ratingDrafts.value,
+    [item.id]: {
+      ...getRatingDraft(item),
+      rating: normalizeRatingValue(value) || 1,
+    },
+  }
+}
+
+async function saveRating(item) {
+  if (!canEditRating(item)) return
+
+  const draft = getRatingDraft(item)
+  const rating = normalizeRatingValue(draft.rating)
+
+  if (!rating) {
+    ratingErrors.value = {
+      ...ratingErrors.value,
+      [item.id]: t.value.ratingRequired,
+    }
+    return
+  }
+
+  submittingRatingId.value = item.id
+  ratingErrors.value = {
+    ...ratingErrors.value,
+    [item.id]: '',
+  }
+
+  try {
+    await props.submitBookingRating(item, rating, draft.review)
+    ratingDrafts.value = {
+      ...ratingDrafts.value,
+      [item.id]: {
+        ...draft,
+        open: false,
+      },
+    }
+  } catch (error) {
+    ratingErrors.value = {
+      ...ratingErrors.value,
+      [item.id]: error?.message || 'Could not save your rating.',
+    }
+  } finally {
+    submittingRatingId.value = null
+  }
+}
+
+function rateButtonLabel(item) {
+  return item?.hasRating ? t.value.editRating : t.value.rateService
+}
+
+function customerRatingLabel(item) {
+  const rating = normalizeRatingValue(item?.customerRating)
+  return rating ? `${rating}/5` : t.value.notRatedYet
 }
 </script>
 
@@ -279,6 +431,68 @@ function resetFilters() {
                 >
                   {{ item.primaryBtn }}
                 </button>
+              </div>
+            </div>
+
+            <div v-if="shouldShowRating(item)" class="booking-rating">
+              <div class="booking-rating-summary">
+                <div>
+                  <small>{{ t.yourRating }}</small>
+                  <strong>{{ customerRatingLabel(item) }}</strong>
+                </div>
+                <button
+                  v-if="canEditRating(item)"
+                  type="button"
+                  class="ghost booking-rating-toggle"
+                  @click="isRatingEditorOpen(item) ? closeRatingEditor(item) : openRatingEditor(item)"
+                >
+                  {{ isRatingEditorOpen(item) ? t.cancelEdit : rateButtonLabel(item) }}
+                </button>
+              </div>
+
+              <p v-if="item.customerReview && !isRatingEditorOpen(item)" class="booking-rating-review">
+                {{ item.customerReview }}
+              </p>
+
+              <div v-if="isRatingEditorOpen(item)" class="booking-rating-editor">
+                <div class="booking-rating-stars">
+                  <span>{{ t.selectRating }}</span>
+                  <div>
+                    <button
+                      v-for="star in 5"
+                      :key="`${item.id}-star-${star}`"
+                      type="button"
+                      class="booking-star-btn"
+                      :class="{ active: getRatingDraft(item).rating >= star }"
+                      @click="setDraftRating(item, star)"
+                    >
+                      {{ getRatingDraft(item).rating >= star ? '★' : '☆' }}
+                    </button>
+                  </div>
+                </div>
+
+                <label class="booking-rating-textarea">
+                  <span>{{ t.reviewOptional }}</span>
+                  <textarea
+                    v-model="getRatingDraft(item).review"
+                    rows="3"
+                    :placeholder="t.reviewPlaceholder"
+                  ></textarea>
+                </label>
+
+                <p v-if="ratingErrors[item.id]" class="booking-rating-error">{{ ratingErrors[item.id] }}</p>
+
+                <div class="booking-rating-actions">
+                  <button type="button" class="ghost" @click="closeRatingEditor(item)">{{ t.cancelEdit }}</button>
+                  <button
+                    type="button"
+                    class="accent"
+                    :disabled="submittingRatingId === item.id"
+                    @click="saveRating(item)"
+                  >
+                    {{ submittingRatingId === item.id ? t.savingRating : t.saveRating }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

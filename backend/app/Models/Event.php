@@ -48,4 +48,9 @@ class Event extends Model
     {
         return $this->belongsTo(User::class, 'vendor_id');
     }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(BookingRating::class);
+    }
 }

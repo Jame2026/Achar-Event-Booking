@@ -1024,6 +1024,11 @@ function getLocalBookingsByIdentity({ email = '', phone = '' } = {}) {
           bookedItems,
           canDelete,
           canCancel,
+          canRate: false,
+          hasRating: false,
+          customerRating: 0,
+          customerReview: '',
+          customerRatingUpdatedAt: null,
           primaryBtn: 'View Details',
           secondaryBtn: 'Reschedule',
           note: formatBookingIdentityNote(row, normalizedEmail, phone),
@@ -2417,6 +2422,40 @@ async function deleteCustomerBooking(item) {
   }
 }
 
+async function submitCustomerBookingRating(item, rating, review = '') {
+  if (!item) return
+
+  const bookingId = Number(item.id || 0)
+  const lookup = resolveBookingLookup()
+
+  try {
+    if (!Number.isFinite(bookingId) || bookingId < 1) {
+      notice.value = 'Could not save your rating.'
+      throw new Error('Could not save your rating.')
+    }
+
+    if (!lookup.hasIdentity) {
+      notice.value = uiText.value.signInToContinue
+      throw new Error(uiText.value.signInToContinue)
+    }
+
+    await apiPatch(`user/bookings/${bookingId}/rating`, {
+      user_id: lookup.userId || undefined,
+      customer_email: lookup.email || lookup.fallbackEmail || undefined,
+      customer_phone: lookup.phone || undefined,
+      rating,
+      review: String(review || '').trim() || undefined,
+    })
+
+    clearGuestEventsCache()
+    await loadBookings({ silent: true })
+    notice.value = 'Your rating was saved.'
+  } catch (error) {
+    notice.value = error?.message || 'Could not save your rating.'
+    throw error
+  }
+}
+
 async function confirmCustomization() {
   if (!requireLogin(uiText.value.signInConfirmPackage)) {
     return
@@ -2726,6 +2765,7 @@ onBeforeUnmount(() => {
       :go-to-vendor="goToVendor"
       :go-to-messages="goToMessages"
       :go-to-profile="goToProfile"
+      :submit-booking-rating="submitCustomerBookingRating"
       :booking-secondary-action="bookingSecondaryAction"
       :booking-primary-action="bookingPrimaryAction"
     />
