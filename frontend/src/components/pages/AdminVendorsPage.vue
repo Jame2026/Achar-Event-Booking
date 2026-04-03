@@ -1078,7 +1078,9 @@ onMounted(() => void loadVendorDirectory());
             <div class="detail-card-grid">
               <div>
                 <span>{{ uiText.email }}</span>
-                <strong>{{ selectedVendor.email || uiText.notProvided }}</strong>
+                <strong class="detail-value-email" :title="selectedVendor.email || uiText.notProvided">
+                  {{ selectedVendor.email || uiText.notProvided }}
+                </strong>
               </div>
               <div>
                 <span>{{ uiText.phone }}</span>
@@ -2605,6 +2607,15 @@ select {
   margin-top: 6px;
   font-size: 14px;
   color: #16253b;
+}
+
+.detail-value-email {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .detail-copy {

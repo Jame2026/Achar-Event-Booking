@@ -942,7 +942,9 @@ onMounted(() => void loadCustomerDirectory());
               <div class="queue-copy">
                 <p class="queue-title">{{ customer.name }}</p>
                 <p class="queue-meta">
-                  {{ customer.email || uiText.emailNotProvided }}
+                  <span class="queue-email" :title="customer.email || uiText.emailNotProvided">
+                    {{ customer.email || uiText.emailNotProvided }}
+                  </span>
                   <template v-if="customer.preferredTypes[0]"> | {{ customer.preferredTypes[0] }}</template>
                 </p>
                 <p class="queue-submeta">{{ customer.latestBookingSummary }}</p>
@@ -1009,7 +1011,9 @@ onMounted(() => void loadCustomerDirectory());
             <div class="detail-card-grid">
               <div>
                 <span>{{ uiText.email }}</span>
-                <strong>{{ selectedCustomer.email || uiText.notProvided }}</strong>
+                <strong class="detail-value-email" :title="selectedCustomer.email || uiText.notProvided">
+                  {{ selectedCustomer.email || uiText.notProvided }}
+                </strong>
               </div>
               <div>
                 <span>{{ uiText.phone }}</span>
@@ -2359,6 +2363,14 @@ select {
   text-overflow: ellipsis;
 }
 
+.queue-email {
+  display: inline-block;
+  max-width: min(100%, 24ch);
+  vertical-align: bottom;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .queue-submeta {
   margin: 4px 0 0;
   font-size: 12px;
@@ -2542,6 +2554,15 @@ select {
   margin-top: 6px;
   font-size: 14px;
   color: #16253b;
+}
+
+.detail-value-email {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .detail-copy {
