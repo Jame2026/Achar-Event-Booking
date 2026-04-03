@@ -1909,13 +1909,15 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
   box-shadow: none;
+  transition: none;
+  white-space: nowrap;
 }
 
 .chip {
@@ -2082,6 +2084,11 @@ select {
 .approve-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
+}
+
+.directory-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
 }
 
 .approve-btn:disabled {

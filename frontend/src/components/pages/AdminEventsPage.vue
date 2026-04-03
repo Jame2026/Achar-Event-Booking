@@ -1543,12 +1543,20 @@ onMounted(() => void loadAdminEvents());
   justify-content: center;
   justify-self: start;
   width: auto;
-  min-height: 34px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  box-shadow: none;
+  transition: none;
+  white-space: nowrap;
+}
+
+.compact-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
 }
 
 button:disabled {
