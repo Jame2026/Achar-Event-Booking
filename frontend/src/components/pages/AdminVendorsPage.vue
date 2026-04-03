@@ -579,6 +579,7 @@ const selectedVendor = computed(
 );
 
 const selectedServices = computed(() => selectedVendor.value?.listings || []);
+const selectedVendorNextActive = computed(() => selectedVendor.value?.visibility === "paused");
 const vendorBlacklistRows = computed(() =>
   blacklistedVendors.value
     .map((entry) => {
@@ -697,16 +698,33 @@ async function loadVendorDirectory() {
   }
 }
 
-async function setVendorVisibility(nextActive) {
-  if (!selectedVendor.value?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
-  const services = selectedServices.value.filter((item) => Boolean(item.is_active) !== nextActive);
+function canToggleVendorVisibility(vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  if (!targetVendor?.id) return false;
+
+  return (Array.isArray(targetVendor?.listings) ? targetVendor.listings : []).some(
+    (item) => Boolean(item.is_active) !== (targetVendor.visibility === "paused"),
+  );
+}
+
+function vendorActionLabel(vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  return targetVendor?.visibility === "paused" ? uiText.value.goLiveAgain : uiText.value.pauseVendor;
+}
+
+async function setVendorVisibility(nextActive, vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  if (!targetVendor?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
+  const services = (Array.isArray(targetVendor?.listings) ? targetVendor.listings : []).filter(
+    (item) => Boolean(item.is_active) !== nextActive,
+  );
   if (!services.length) return setNotice(nextActive ? uiText.value.allListingsAlreadyLive : uiText.value.allListingsAlreadyPaused);
 
   isSaving.value = true;
   try {
     for (const service of services) {
       const updated = await apiPatch(`vendor/services/${service.id}`, {
-        vendor_user_id: selectedVendor.value.id,
+        vendor_user_id: targetVendor.id,
         is_active: nextActive,
       });
       patchLocalEvent(updated);
@@ -743,14 +761,15 @@ async function activateVendorPlan() {
   }
 }
 
-async function deleteVendorAndBlacklist() {
-  const vendorId = Number(selectedVendor.value?.id || 0);
+async function deleteVendorAndBlacklist(vendor = selectedVendor.value) {
+  const targetVendor = vendor || selectedVendor.value;
+  const vendorId = Number(targetVendor?.id || 0);
   if (!vendorId) return setNotice(uiText.value.missingVendorAccountId, "error");
   if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
 
   const reason = window.prompt(
-    `Add a blacklist note for ${selectedVendor.value?.name || "this vendor"}.`,
-    `${selectedVendor.value?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
+    `Add a blacklist note for ${targetVendor?.name || "this vendor"}.`,
+    `${targetVendor?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
   );
 
   if (reason === null) return;
@@ -759,7 +778,7 @@ async function deleteVendorAndBlacklist() {
   }
 
   const confirmed = window.confirm(
-    `Delete ${selectedVendor.value?.name || "this vendor"} and blacklist their email or phone number?`,
+    `Delete ${targetVendor?.name || "this vendor"} and blacklist their email or phone number?`,
   );
   if (!confirmed) return;
 
@@ -986,7 +1005,7 @@ onMounted(() => void loadVendorDirectory());
                     <span class="chip muted">{{ interpolate(uiText.listingCount, { count: count(vendor.serviceCount) }) }}</span>
                     <span class="chip muted">{{ interpolate(uiText.packageCount, { count: count(vendor.packageCount) }) }}</span>
                   </div>
-                </div>z
+                </div>
               </div>
               <div class="vendor-side">
                 <div class="directory-side-meta">
@@ -998,20 +1017,17 @@ onMounted(() => void loadVendorDirectory());
                     class="ghost-btn listing-delete-btn"
                     type="button"
                     :disabled="deletingVendorId === vendor.id"
-                    @click.stop="deleteVendorAndBlacklist"
+                    @click.stop="deleteVendorAndBlacklist(vendor)"
                   >
                     {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
                   </button>
                   <button
-                    class="primary-btn directory-action-btn fixed-action-btn"
+                    class="ghost-btn directory-action-btn fixed-action-btn"
                     type="button"
-                    :disabled="!selectedServices.length || isSaving"
-                    @click.stop="setVendorVisibility(selectedVendor?.visibility === 'paused')"
+                    :disabled="!canToggleVendorVisibility(vendor) || isSaving"
+                    @click.stop="setVendorVisibility(selectedVendorNextActive, vendor)"
                   >
-                    <span class="directory-action-copy">
-                      <span>{{ selectedVendor?.visibility === "paused" ? "Go Live" : "Pause" }}</span>
-                      <span>{{ selectedVendor?.visibility === "paused" ? "Again" : "Vendor" }}</span>
-                    </span>
+                    {{ vendorActionLabel(vendor) }}
                   </button>
                 </div>
               </div>
@@ -1811,12 +1827,34 @@ select {
 }
 
 .content-grid {
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
 .card {
   padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.directory-card,
+.spotlight-card,
+.services-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 251, 253, 0.94));
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.directory-card::before,
+.spotlight-card::before,
+.services-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.34), rgba(255, 122, 26, 0));
+  pointer-events: none;
 }
 
 .card-head,
@@ -1839,22 +1877,28 @@ select {
 .card-meta {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 9px 13px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
+  background: rgba(255, 122, 26, 0.08);
+  color: #c45a12;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .filters {
+  display: grid;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 248, 241, 0.94), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.1);
 }
 
 .filter-field {
   display: grid;
   gap: 8px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .filter-field span {
@@ -1877,27 +1921,44 @@ select {
 .vendor-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 18px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 250, 246, 0.96));
+  border-radius: 24px;
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  position: relative;
+}
+
+.vendor-row::before {
+  content: "";
+  position: absolute;
+  inset: 18px auto 18px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 122, 26, 0.9), rgba(255, 122, 26, 0.18));
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .vendor-row:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 122, 26, 0.18);
-  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.09);
 }
 
 .vendor-row.selected {
   border-color: rgba(255, 122, 26, 0.24);
-  background: linear-gradient(135deg, rgba(255, 247, 240, 0.96), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 244, 235, 0.98));
+  box-shadow: 0 20px 40px rgba(255, 122, 26, 0.1);
+}
+
+.vendor-row.selected::before {
+  opacity: 1;
 }
 
 .vendor-row:focus-visible {
@@ -1914,7 +1975,9 @@ select {
 }
 
 .vendor-main {
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
+  align-items: center;
 }
 
 .vendor-title-row,
@@ -1959,16 +2022,17 @@ select {
 }
 
 .vendor-photo.large {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
 }
 
 .vendor-copy,
 .service-copy,
 .identity-copy {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .vendor-copy strong,
@@ -1982,82 +2046,104 @@ select {
 .service-copy p,
 .service-copy small {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .vendor-side {
   display: grid;
-  justify-items: end;
-  gap: 4px;
-  min-width: 120px;
+  justify-items: start;
+  gap: 12px;
+  min-width: 0;
   font-weight: 600;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .directory-side-meta {
   display: grid;
-  gap: 4px;
-  justify-items: end;
+  gap: 6px;
+  justify-items: start;
+}
+
+.directory-side-meta span {
+  font-size: 16px;
+  font-weight: 700;
+  color: #17263d;
+}
+
+.directory-side-meta small {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .directory-actions {
   display: grid;
-  gap: 8px;
-  justify-content: end;
-  margin-top: 12px;
+  gap: 10px;
+  width: 100%;
 }
 
 .vendor-actions {
-  grid-template-columns: auto 64px;
-  justify-content: end;
-  align-items: start;
+  grid-template-columns: 1fr;
+  justify-content: stretch;
+  align-items: stretch;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 600;
+  min-height: 44px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.1;
-  box-shadow: none;
-  transition: none;
-  white-space: normal;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .fixed-action-btn {
-  width: 64px;
-  min-width: 64px;
-  min-height: 44px;
-  padding: 6px 8px;
+  border-color: rgba(255, 122, 26, 0.2);
+  background: linear-gradient(135deg, rgba(255, 250, 244, 0.98), rgba(255, 255, 255, 0.98));
+  color: #c45a12;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.fixed-action-btn:hover:not(:disabled),
+.fixed-action-btn:active {
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
+  min-height: 44px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 14px;
   border: 1px solid rgba(220, 38, 38, 0.24);
-  background: rgba(255, 244, 244, 0.96);
+  background: rgba(255, 247, 247, 0.98);
   color: #b42318;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: none;
-  transition: none;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-  background: rgba(255, 244, 244, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(220, 38, 38, 0.08);
+  background: rgba(255, 242, 242, 0.98);
 }
 
 .directory-action-copy {
@@ -2085,6 +2171,7 @@ select {
 .chip.muted {
   background: #f8fafc;
   color: #475569;
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .spotlight-card {
@@ -2100,6 +2187,10 @@ select {
 .vendor-identity {
   gap: 12px;
   margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 249, 243, 0.94), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.08);
 }
 
 .identity-copy strong {
@@ -2113,10 +2204,11 @@ select {
 .stats-grid div,
 .detail-block,
 .service-row {
-  padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fff, #f8fafc);
-  border: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.04);
 }
 
 .stats-grid span {
@@ -2165,6 +2257,11 @@ select {
   color: #c65300;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(255, 122, 26, 0.24);
+}
+
+.primary-btn:hover:not(:disabled),
+.ghost-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .danger-btn {
@@ -2373,6 +2470,7 @@ button:disabled {
 
   .vendor-row {
     grid-template-columns: 1fr;
+    padding: 18px 16px;
   }
 
   .vendor-side {
@@ -2388,7 +2486,7 @@ button:disabled {
   }
 
   .vendor-actions {
-    grid-template-columns: repeat(2, auto);
+    grid-template-columns: 1fr;
     justify-content: start;
   }
 }

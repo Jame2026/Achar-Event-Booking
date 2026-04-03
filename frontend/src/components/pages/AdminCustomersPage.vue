@@ -1714,12 +1714,34 @@ select {
 }
 
 .content-grid {
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
 .card {
   padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.directory-card,
+.spotlight-card,
+.bookings-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 251, 253, 0.94));
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.directory-card::before,
+.spotlight-card::before,
+.bookings-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.34), rgba(255, 122, 26, 0));
+  pointer-events: none;
 }
 
 .card-head,
@@ -1742,22 +1764,28 @@ select {
 .card-meta {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 9px 13px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
+  background: rgba(255, 122, 26, 0.08);
+  color: #c45a12;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .filters {
+  display: grid;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 248, 241, 0.94), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.1);
 }
 
 .filter-field {
   display: grid;
   gap: 8px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .filter-field span {
@@ -1780,10 +1808,10 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 180px) minmax(170px, auto);
-  gap: 24px;
-  align-items: center;
-  padding: 22px 24px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+  padding: 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 250, 246, 0.96));
   border-radius: 24px;
@@ -1795,6 +1823,18 @@ select {
     border-color 0.18s ease,
     background-color 0.18s ease;
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  position: relative;
+}
+
+.customer-row::before {
+  content: "";
+  position: absolute;
+  inset: 18px auto 18px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 122, 26, 0.9), rgba(255, 122, 26, 0.18));
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .customer-row:hover {
@@ -1807,6 +1847,10 @@ select {
   border-color: rgba(255, 122, 26, 0.28);
   background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 245, 236, 0.98));
   box-shadow: 0 20px 40px rgba(255, 122, 26, 0.1);
+}
+
+.customer-row.selected::before {
+  opacity: 1;
 }
 
 .customer-row:focus-visible {
@@ -1823,7 +1867,7 @@ select {
 }
 
 .customer-main {
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
   align-items: center;
 }
@@ -1870,9 +1914,9 @@ select {
 }
 
 .customer-photo.large {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
 }
 
 .customer-copy,
@@ -1911,21 +1955,23 @@ select {
 
 .directory-summary {
   display: grid;
-  justify-items: end;
-  gap: 5px;
+  justify-items: start;
+  gap: 6px;
   min-width: 0;
-  text-align: right;
+  text-align: left;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .directory-actions {
   display: grid;
   gap: 10px;
-  justify-items: end;
+  justify-items: stretch;
   min-width: 0;
 }
 
 .customer-actions {
-  align-content: center;
+  align-content: start;
 }
 
 .directory-metric {
@@ -1946,7 +1992,8 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 10px 14px;
+  width: 100%;
+  padding: 11px 14px;
   border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
@@ -1964,11 +2011,12 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 10px 14px;
+  width: 100%;
+  padding: 11px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 122, 26, 0.16);
-  background: rgba(255, 255, 255, 0.98);
-  color: #c45a12;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(255, 247, 247, 0.98);
+  color: #b42318;
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
@@ -1983,8 +2031,8 @@ select {
 
 .listing-delete-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(255, 122, 26, 0.08);
-  background: rgba(255, 247, 240, 0.98);
+  box-shadow: 0 10px 18px rgba(220, 38, 38, 0.08);
+  background: rgba(255, 242, 242, 0.98);
 }
 
 .directory-action-copy {
@@ -2028,6 +2076,10 @@ select {
 .customer-identity {
   gap: 12px;
   margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 249, 243, 0.94), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.08);
 }
 
 .identity-copy strong {
@@ -2041,10 +2093,11 @@ select {
 .stats-grid div,
 .detail-block,
 .booking-row {
-  padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fff, #f8fafc);
-  border: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.04);
 }
 
 .stats-grid span {
@@ -2093,6 +2146,11 @@ select {
   color: #c65300;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(255, 122, 26, 0.24);
+}
+
+.primary-btn:hover:not(:disabled),
+.ghost-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .danger-btn {
@@ -2163,11 +2221,6 @@ select {
 .approve-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
-}
-
-.directory-action-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
 }
 
 .approve-btn:disabled {
@@ -2297,7 +2350,7 @@ button:disabled {
   .customer-row {
     grid-template-columns: 1fr;
     gap: 18px;
-    padding: 22px 20px;
+    padding: 18px 16px;
   }
 
   .directory-summary,
