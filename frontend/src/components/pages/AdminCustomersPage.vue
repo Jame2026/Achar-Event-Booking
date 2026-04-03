@@ -1796,7 +1796,7 @@ select {
   overflow: visible;
 }
 
-.customer-row:hover {
+.customer-row:hover:not(:has(.directory-action-btn:hover, .listing-delete-btn:hover)) {
   transform: translateX(4px);
   border-color: rgba(255, 122, 26, 0.2);
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
@@ -1917,13 +1917,17 @@ select {
   gap: 8px;
   justify-self: end;
   align-items: center;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   text-align: right;
   flex-wrap: nowrap;
 }
 
 .customer-actions {
+  width: 228px;
   min-width: 228px;
+  max-width: 228px;
   justify-content: flex-end;
 }
 
@@ -1978,6 +1982,12 @@ select {
 }
 
 .directory-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.directory-action-btn:active,
+.listing-delete-btn:active {
   transform: none;
   box-shadow: none;
 }
@@ -2339,7 +2349,9 @@ button:disabled {
   }
 
   .customer-actions {
+    width: auto;
     min-width: 0;
+    max-width: none;
     justify-content: flex-start;
   }
 
