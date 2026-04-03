@@ -889,32 +889,51 @@ onMounted(() => void loadCustomerDirectory());
               @keydown.enter.prevent="selectedCustomerKey = customer.key"
               @keydown.space.prevent="selectedCustomerKey = customer.key"
             >
-              <div class="customer-photo">
-                <img
-                  v-if="hasCustomerProfileImage(customer)"
-                  :src="customer.profileImageUrl"
-                  :alt="`${customer.name} profile`"
-                  @error="handleCustomerImageError(customer.customerImageKey)"
-                />
-                <span v-else>{{ customer.initials }}</span>
-              </div>
-              <div class="customer-copy">
-                <div class="customer-title-row">
-                  <strong>{{ customer.name }}</strong>
+              <div class="directory-primary">
+                <div class="customer-photo">
+                  <img
+                    v-if="hasCustomerProfileImage(customer)"
+                    :src="customer.profileImageUrl"
+                    :alt="`${customer.name} profile`"
+                    @error="handleCustomerImageError(customer.customerImageKey)"
+                  />
+                  <span v-else>{{ customer.initials }}</span>
                 </div>
-                <p>{{ customer.email || uiText.emailNotProvided }}</p>
+                <div class="customer-copy">
+                  <div class="customer-title-row">
+                    <strong>{{ customer.name }}</strong>
+                  </div>
+                  <p>{{ customer.email || uiText.emailNotProvided }}</p>
+                  <div class="directory-chip-row">
+                    <span v-if="customer.confirmedCount" class="chip muted">{{ interpolate(uiText.confirmedCount, { count: count(customer.confirmedCount) }) }}</span>
+                    <span v-if="customer.pendingCount" class="chip muted">{{ interpolate(uiText.pendingCount, { count: count(customer.pendingCount) }) }}</span>
+                    <span v-if="!customer.confirmedCount && !customer.pendingCount" class="chip muted">
+                      {{
+                        customer.bookingsCount
+                          ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
+                          : uiText.noBookingsYet
+                      }}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <span class="directory-date">{{ customer.lastBookingLabel }}</span>
-              <span
-                class="status"
-                :class="{
-                  active: customer.bookingsCount === 1,
-                  mixed: customer.bookingsCount > 1,
-                  inactive: customer.bookingsCount === 0,
-                }"
-              >
-                {{ customer.memberState }}
-              </span>
+              <div class="directory-secondary">
+                <span class="directory-date">{{ customer.lastBookingLabel }}</span>
+                <p class="directory-note">{{ customer.lastBookingService }}</p>
+                <div class="directory-badges">
+                  <span
+                    class="status"
+                    :class="{
+                      active: customer.bookingsCount === 1,
+                      mixed: customer.bookingsCount > 1,
+                      inactive: customer.bookingsCount === 0,
+                    }"
+                  >
+                    {{ customer.memberState }}
+                  </span>
+                  <span class="directory-emphasis">{{ customer.confirmedSpendLabel }}</span>
+                </div>
+              </div>
               <div class="directory-actions customer-actions">
                 <span class="queue-stat">
                   {{
@@ -1751,8 +1770,14 @@ select {
 }
 
 .filters {
-  gap: 12px;
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 250, 245, 0.86), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.1);
 }
 
 .filter-field {
@@ -1781,36 +1806,73 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) minmax(90px, 0.75fr) auto minmax(220px, 250px);
-  gap: 12px;
-  align-items: center;
-  min-height: 68px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  box-shadow: var(--shadow-soft);
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(176px, auto);
+  gap: 18px;
+  align-items: stretch;
+  min-height: 0;
+  padding: 18px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.94));
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  overflow: visible;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+.customer-row::before {
+  content: "";
+  position: absolute;
+  inset: 16px auto 16px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 122, 26, 0.92), rgba(255, 190, 133, 0.24));
+  opacity: 0;
+  transform: scaleY(0.6);
+  transform-origin: center;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
 }
 
 .customer-row:hover:not(:has(.directory-action-btn:hover, .listing-delete-btn:hover)) {
-  transform: translateX(4px);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(255, 122, 26, 0.18);
+  box-shadow:
+    0 26px 50px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(255, 122, 26, 0.06);
 }
 
 .customer-row.selected {
   border-color: rgba(255, 122, 26, 0.28);
   background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
-  box-shadow: 0 18px 36px rgba(255, 122, 26, 0.12);
+  box-shadow:
+    0 26px 52px rgba(255, 122, 26, 0.14),
+    0 0 0 1px rgba(255, 122, 26, 0.08);
+}
+
+.customer-row.selected::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .customer-row:focus-visible {
   outline: 3px solid rgba(255, 122, 26, 0.2);
   outline-offset: 2px;
+}
+
+.directory-primary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
 }
 
 .customer-title-row,
@@ -1834,10 +1896,10 @@ select {
 }
 
 .customer-photo {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #fff3e6;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff8f1, #ffeddc);
   color: var(--accent);
   display: grid;
   place-items: center;
@@ -1845,6 +1907,7 @@ select {
   overflow: hidden;
   border: 1px solid rgba(255, 122, 26, 0.15);
   flex-shrink: 0;
+  box-shadow: 0 14px 30px rgba(255, 122, 26, 0.12);
 }
 
 .customer-photo img {
@@ -1862,9 +1925,9 @@ select {
 }
 
 .customer-photo.large {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
 }
 
 .customer-copy,
@@ -1876,7 +1939,7 @@ select {
 }
 
 .customer-row .customer-copy {
-  gap: 2px;
+  gap: 7px;
   align-content: center;
 }
 
@@ -1888,9 +1951,9 @@ select {
 }
 
 .customer-copy strong {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.2;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .customer-copy p,
@@ -1907,83 +1970,140 @@ select {
   white-space: nowrap;
 }
 
+.directory-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.directory-secondary {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 18px;
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+}
+
 .directory-date {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7d8ca2;
+}
+
+.directory-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #314258;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.directory-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.directory-emphasis {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  color: #22324a;
   font-size: 12px;
-  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .directory-actions {
   display: flex;
-  gap: 8px;
-  justify-self: end;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  text-align: right;
+  flex-direction: column;
+  gap: 10px;
+  justify-self: stretch;
+  align-items: stretch;
+  width: 176px;
+  min-width: 176px;
+  max-width: 176px;
+  text-align: left;
   flex-wrap: nowrap;
 }
 
 .customer-actions {
-  width: 228px;
-  min-width: 228px;
-  max-width: 228px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 11.5px;
+  min-height: 42px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.1;
-  white-space: nowrap;
+  line-height: 1.2;
+  white-space: normal;
   text-align: center;
   box-shadow: none;
-  transition: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
   flex: 0 0 auto;
 }
 
 .fixed-action-btn {
-  width: 116px;
-  min-width: 116px;
+  width: 100%;
+  min-width: 0;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(220, 38, 38, 0.24);
   background: rgba(255, 244, 244, 0.96);
   color: #b42318;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.1;
-  white-space: nowrap;
+  line-height: 1.2;
+  white-space: normal;
   cursor: pointer;
   box-shadow: none;
-  transition: none;
-  width: 136px;
-  min-width: 136px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+  width: 100%;
+  min-width: 0;
   flex: 0 0 auto;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-  background: rgba(255, 244, 244, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(220, 38, 38, 0.08);
+  background: rgba(255, 244, 244, 0.98);
 }
 
 .directory-action-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
 }
 
 .directory-action-btn:active,
@@ -1993,9 +2113,11 @@ select {
 }
 
 .status {
-  padding: 4px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
   font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   justify-self: start;
 }
 
@@ -2015,11 +2137,20 @@ select {
 }
 
 .queue-stat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 248, 241, 0.98), rgba(255, 238, 225, 0.92));
+  border: 1px solid rgba(255, 122, 26, 0.12);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #18263d;
-  white-space: nowrap;
-  margin-right: auto;
+  white-space: normal;
+  text-align: center;
+  margin-right: 0;
 }
 
 .directory-action-copy {
@@ -2054,6 +2185,7 @@ select {
   background:
     radial-gradient(circle at 100% 0%, rgba(255, 122, 26, 0.12), transparent 28%),
     rgba(255, 255, 255, 0.92);
+  overflow: hidden;
 }
 
 .sidebar-head p {
@@ -2063,6 +2195,10 @@ select {
 .customer-identity {
   gap: 12px;
   margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 250, 245, 0.92), rgba(247, 250, 252, 0.96));
+  border: 1px solid rgba(255, 122, 26, 0.08);
 }
 
 .identity-copy strong {
@@ -2076,10 +2212,11 @@ select {
 .stats-grid div,
 .detail-block,
 .booking-row {
-  padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fff, #f8fafc);
-  border: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
 }
 
 .stats-grid span {
@@ -2200,11 +2337,6 @@ select {
   box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
 }
 
-.directory-action-btn:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-}
-
 .approve-btn:disabled {
   color: #94a3b8;
   border-color: rgba(148, 163, 184, 0.24);
@@ -2322,7 +2454,6 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
-  .customer-row,
   .sidebar-head,
   .blacklist-card {
     flex-direction: column;
@@ -2330,33 +2461,28 @@ button:disabled {
   }
 
   .customer-row {
-    grid-template-columns: auto 1fr;
-    row-gap: 8px;
+    grid-template-columns: 1fr;
+    row-gap: 14px;
     padding: 12px;
   }
 
-  .directory-date,
-  .status,
-  .directory-actions {
-    grid-column: 1 / -1;
+  .directory-secondary {
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
   }
 
   .directory-actions {
-    justify-self: start;
-    justify-content: flex-start;
-    text-align: left;
-    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   .customer-actions {
     width: auto;
     min-width: 0;
     max-width: none;
-    justify-content: flex-start;
-  }
-
-  .queue-stat {
-    margin-right: 0;
   }
 }
 
