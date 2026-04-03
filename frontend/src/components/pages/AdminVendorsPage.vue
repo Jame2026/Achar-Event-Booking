@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
@@ -114,198 +114,198 @@ const copyByLanguage = {
   },
   zh: {
     nav: {
-      dashboard: "仪表盘",
-      events: "活动",
-      bookings: "预订",
-      vendors: "商家",
-      customers: "客户",
-      revenue: "收入",
-      settings: "设置",
+      dashboard: "ä»ªè¡¨ç›˜",
+      events: "æ´»åŠ¨",
+      bookings: "é¢„è®¢",
+      vendors: "å•†å®¶",
+      customers: "å®¢æˆ·",
+      revenue: "æ”¶å…¥",
+      settings: "è®¾ç½®",
     },
-    brandKicker: "运营控制台",
+    brandKicker: "è¿è¥æŽ§åˆ¶å°",
     brandTitle: "Achar Admin",
-    brandSubtitle: "商家目录工作区",
-    navigation: "导航",
-    adminModules: "管理员模块",
-    searchPlaceholder: "搜索商家名称、列表、位置或联系方式...",
-    notifications: "通知",
-    heroEyebrow: "商家目录",
-    heroTitle: "所有商家及其列表",
-    heroSubtitle: "选择一位商家，查看其资料以及系统中当前的所有服务或套餐。",
-    totalVendorsText: "{count} 位商家",
-    totalListingsText: "{count} 个列表",
-    selectedVendor: "已选商家",
-    listingSelectedSummary: "{count} 个列表 - {date}",
-    goLiveAgain: "重新上线",
-    pauseVendor: "暂停商家",
-    totalVendors: "商家总数",
-    shownHere: "当前显示 {count} 位",
-    liveVendors: "上线商家",
-    withVisibleListings: "具有可见列表",
-    listingsInSystem: "系统中的列表",
-    packageListings: "{count} 个套餐列表",
-    bookings: "预订",
-    acrossVendorListings: "跨商家列表",
-    directoryEyebrow: "商家目录",
-    allVendors: "所有商家",
-    results: "{count} 条结果",
-    visibility: "可见状态",
-    allVisibility: "全部状态",
-    live: "上线",
-    mixed: "混合",
-    paused: "已暂停",
-    category: "分类",
-    allCategories: "全部分类",
-    loadingVendorDirectory: "正在加载商家目录...",
-    noVendorsMatch: "没有符合筛选条件的商家。",
-    listingCount: "{count} 个列表",
-    packageCount: "{count} 个套餐",
-    bookingsCount: "{count} 个预订",
-    vendorProfile: "商家资料",
-    servicesCount: "{count} 项服务",
-    packagesCount: "{count} 个套餐",
-    total: "总数",
-    hidden: "隐藏",
-    email: "邮箱",
-    phone: "电话",
-    categories: "分类",
-    noCategoriesYet: "暂无分类",
-    notProvided: "未提供",
-    servicesAndPackages: "服务与套餐",
-    noServicesYet: "该商家还没有任何服务或套餐。",
-    serviceHidden: "隐藏",
-    packageItems: "{count} 个套餐项目",
-    selectVendor: "选择商家",
-    selectVendorSubtitle: "从目录中选择一位商家，以在此查看其账户信息和系统列表。",
-    vendorFallback: "商家",
-    other: "其他",
-    package: "套餐",
-    service: "服务",
-    noListings: "无列表",
-    dateTbd: "日期待定",
-    locationMissing: "位置尚未添加",
-    joinDateUnavailable: "加入日期不可用",
-    noListingActivityYet: "暂无列表活动",
-    noVendorAccounts: "暂无商家账户。",
-    couldNotLoadVendorDirectory: "无法加载商家目录。",
-    missingVendorAccountId: "该商家没有关联的商家账户 ID。",
-    allListingsAlreadyLive: "所有列表都已上线。",
-    allListingsAlreadyPaused: "所有列表都已暂停。",
-    listingsLiveAgain: "商家列表已重新上线。",
-    listingsWerePaused: "商家列表已暂停。",
-    couldNotUpdateVendorVisibility: "无法更新商家可见状态。",
+    brandSubtitle: "å•†å®¶ç›®å½•å·¥ä½œåŒº",
+    navigation: "å¯¼èˆª",
+    adminModules: "ç®¡ç†å‘˜æ¨¡å—",
+    searchPlaceholder: "æœç´¢å•†å®¶åç§°ã€åˆ—è¡¨ã€ä½ç½®æˆ–è”ç³»æ–¹å¼...",
+    notifications: "é€šçŸ¥",
+    heroEyebrow: "å•†å®¶ç›®å½•",
+    heroTitle: "æ‰€æœ‰å•†å®¶åŠå…¶åˆ—è¡¨",
+    heroSubtitle: "é€‰æ‹©ä¸€ä½å•†å®¶ï¼ŒæŸ¥çœ‹å…¶èµ„æ–™ä»¥åŠç³»ç»Ÿä¸­å½“å‰çš„æ‰€æœ‰æœåŠ¡æˆ–å¥—é¤ã€‚",
+    totalVendorsText: "{count} ä½å•†å®¶",
+    totalListingsText: "{count} ä¸ªåˆ—è¡¨",
+    selectedVendor: "å·²é€‰å•†å®¶",
+    listingSelectedSummary: "{count} ä¸ªåˆ—è¡¨ - {date}",
+    goLiveAgain: "é‡æ–°ä¸Šçº¿",
+    pauseVendor: "æš‚åœå•†å®¶",
+    totalVendors: "å•†å®¶æ€»æ•°",
+    shownHere: "å½“å‰æ˜¾ç¤º {count} ä½",
+    liveVendors: "ä¸Šçº¿å•†å®¶",
+    withVisibleListings: "å…·æœ‰å¯è§åˆ—è¡¨",
+    listingsInSystem: "ç³»ç»Ÿä¸­çš„åˆ—è¡¨",
+    packageListings: "{count} ä¸ªå¥—é¤åˆ—è¡¨",
+    bookings: "é¢„è®¢",
+    acrossVendorListings: "è·¨å•†å®¶åˆ—è¡¨",
+    directoryEyebrow: "å•†å®¶ç›®å½•",
+    allVendors: "æ‰€æœ‰å•†å®¶",
+    results: "{count} æ¡ç»“æžœ",
+    visibility: "å¯è§çŠ¶æ€",
+    allVisibility: "å…¨éƒ¨çŠ¶æ€",
+    live: "ä¸Šçº¿",
+    mixed: "æ··åˆ",
+    paused: "å·²æš‚åœ",
+    category: "åˆ†ç±»",
+    allCategories: "å…¨éƒ¨åˆ†ç±»",
+    loadingVendorDirectory: "æ­£åœ¨åŠ è½½å•†å®¶ç›®å½•...",
+    noVendorsMatch: "æ²¡æœ‰ç¬¦åˆç­›é€‰æ¡ä»¶çš„å•†å®¶ã€‚",
+    listingCount: "{count} ä¸ªåˆ—è¡¨",
+    packageCount: "{count} ä¸ªå¥—é¤",
+    bookingsCount: "{count} ä¸ªé¢„è®¢",
+    vendorProfile: "å•†å®¶èµ„æ–™",
+    servicesCount: "{count} é¡¹æœåŠ¡",
+    packagesCount: "{count} ä¸ªå¥—é¤",
+    total: "æ€»æ•°",
+    hidden: "éšè—",
+    email: "é‚®ç®±",
+    phone: "ç”µè¯",
+    categories: "åˆ†ç±»",
+    noCategoriesYet: "æš‚æ— åˆ†ç±»",
+    notProvided: "æœªæä¾›",
+    servicesAndPackages: "æœåŠ¡ä¸Žå¥—é¤",
+    noServicesYet: "è¯¥å•†å®¶è¿˜æ²¡æœ‰ä»»ä½•æœåŠ¡æˆ–å¥—é¤ã€‚",
+    serviceHidden: "éšè—",
+    packageItems: "{count} ä¸ªå¥—é¤é¡¹ç›®",
+    selectVendor: "é€‰æ‹©å•†å®¶",
+    selectVendorSubtitle: "ä»Žç›®å½•ä¸­é€‰æ‹©ä¸€ä½å•†å®¶ï¼Œä»¥åœ¨æ­¤æŸ¥çœ‹å…¶è´¦æˆ·ä¿¡æ¯å’Œç³»ç»Ÿåˆ—è¡¨ã€‚",
+    vendorFallback: "å•†å®¶",
+    other: "å…¶ä»–",
+    package: "å¥—é¤",
+    service: "æœåŠ¡",
+    noListings: "æ— åˆ—è¡¨",
+    dateTbd: "æ—¥æœŸå¾…å®š",
+    locationMissing: "ä½ç½®å°šæœªæ·»åŠ ",
+    joinDateUnavailable: "åŠ å…¥æ—¥æœŸä¸å¯ç”¨",
+    noListingActivityYet: "æš‚æ— åˆ—è¡¨æ´»åŠ¨",
+    noVendorAccounts: "æš‚æ— å•†å®¶è´¦æˆ·ã€‚",
+    couldNotLoadVendorDirectory: "æ— æ³•åŠ è½½å•†å®¶ç›®å½•ã€‚",
+    missingVendorAccountId: "è¯¥å•†å®¶æ²¡æœ‰å…³è”çš„å•†å®¶è´¦æˆ· IDã€‚",
+    allListingsAlreadyLive: "æ‰€æœ‰åˆ—è¡¨éƒ½å·²ä¸Šçº¿ã€‚",
+    allListingsAlreadyPaused: "æ‰€æœ‰åˆ—è¡¨éƒ½å·²æš‚åœã€‚",
+    listingsLiveAgain: "å•†å®¶åˆ—è¡¨å·²é‡æ–°ä¸Šçº¿ã€‚",
+    listingsWerePaused: "å•†å®¶åˆ—è¡¨å·²æš‚åœã€‚",
+    couldNotUpdateVendorVisibility: "æ— æ³•æ›´æ–°å•†å®¶å¯è§çŠ¶æ€ã€‚",
     eventTypes: {
-      wedding: "婚礼",
-      monk_ceremony: "僧侣仪式",
-      house_blessing: "住宅祈福",
-      company_party: "公司派对",
-      birthday: "生日",
-      school_event: "学校活动",
-      engagement: "订婚",
-      anniversary: "周年纪念",
-      baby_shower: "迎婴派对",
-      graduation: "毕业典礼",
-      festival: "节庆",
-      other: "其他",
+      wedding: "å©šç¤¼",
+      monk_ceremony: "åƒ§ä¾£ä»ªå¼",
+      house_blessing: "ä½å®…ç¥ˆç¦",
+      company_party: "å…¬å¸æ´¾å¯¹",
+      birthday: "ç”Ÿæ—¥",
+      school_event: "å­¦æ ¡æ´»åŠ¨",
+      engagement: "è®¢å©š",
+      anniversary: "å‘¨å¹´çºªå¿µ",
+      baby_shower: "è¿Žå©´æ´¾å¯¹",
+      graduation: "æ¯•ä¸šå…¸ç¤¼",
+      festival: "èŠ‚åº†",
+      other: "å…¶ä»–",
     },
   },
 };
 copyByLanguage.km = {
   ...copyByLanguage.en,
   nav: {
-    dashboard: "ផ្ទាំងគ្រប់គ្រង",
-    events: "ព្រឹត្តិការណ៍",
-    bookings: "ការកក់",
-    vendors: "អ្នកផ្គត់ផ្គង់",
-    customers: "អតិថិជន",
-    revenue: "ចំណូល",
-    settings: "ការកំណត់",
+    dashboard: "áž•áŸ’áž‘áž¶áŸ†áž„áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„",
+    events: "áž–áŸ’ážšáž¹ážáŸ’ážáž·áž€áž¶ážšážŽáŸ",
+    bookings: "áž€áž¶ážšáž€áž€áŸ‹",
+    vendors: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+    customers: "áž¢ážáž·ážáž·áž‡áž“",
+    revenue: "áž…áŸ†ážŽáž¼áž›",
+    settings: "áž€áž¶ážšáž€áŸ†ážŽážáŸ‹",
   },
-  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandKicker: "áž•áŸ’áž‘áž¶áŸ†áž„áž”áŸ’ážšážáž·áž”ážáŸ’ážáž·áž€áž¶ážš",
   brandTitle: "Achar Admin",
-  brandSubtitle: "កន្លែងធ្វើការបញ្ជីអ្នកផ្គត់ផ្គង់",
-  navigation: "ការរុករក",
-  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
-  searchPlaceholder: "ស្វែងរកឈ្មោះអ្នកផ្គត់ផ្គង់ បញ្ជី ទីតាំង ឬព័ត៌មានទំនាក់ទំនង...",
-  notifications: "ការជូនដំណឹង",
-  heroEyebrow: "បញ្ជីអ្នកផ្គត់ផ្គង់",
-  heroTitle: "អ្នកផ្គត់ផ្គង់ទាំងអស់ និងបញ្ជីរបស់ពួកគេ",
-  heroSubtitle: "ជ្រើសអ្នកផ្គត់ផ្គង់ម្នាក់ ដើម្បីពិនិត្យប្រវត្តិរូប និងសេវា ឬកញ្ចប់ទាំងអស់ដែលមានក្នុងប្រព័ន្ធ។",
-  totalVendorsText: "អ្នកផ្គត់ផ្គង់សរុប {count}",
-  totalListingsText: "បញ្ជីសរុប {count}",
-  selectedVendor: "អ្នកផ្គត់ផ្គង់ដែលបានជ្រើស",
-  listingSelectedSummary: "បញ្ជី {count} - {date}",
-  goLiveAgain: "បើកដំណើរការឡើងវិញ",
-  pauseVendor: "ផ្អាកអ្នកផ្គត់ផ្គង់",
-  totalVendors: "អ្នកផ្គត់ផ្គង់សរុប",
-  shownHere: "បង្ហាញនៅទីនេះ {count}",
-  liveVendors: "អ្នកផ្គត់ផ្គង់សកម្ម",
-  withVisibleListings: "មានបញ្ជីដែលអាចមើលឃើញ",
-  listingsInSystem: "បញ្ជីនៅក្នុងប្រព័ន្ធ",
-  packageListings: "បញ្ជីកញ្ចប់ {count}",
-  bookings: "ការកក់",
-  acrossVendorListings: "នៅទូទាំងបញ្ជីរបស់អ្នកផ្គត់ផ្គង់",
-  directoryEyebrow: "បញ្ជីអ្នកផ្គត់ផ្គង់",
-  allVendors: "អ្នកផ្គត់ផ្គង់ទាំងអស់",
-  results: "លទ្ធផល {count}",
-  visibility: "ភាពអាចមើលឃើញ",
-  allVisibility: "ភាពអាចមើលឃើញទាំងអស់",
-  live: "ដំណើរការ",
-  mixed: "ចម្រុះ",
-  paused: "ផ្អាក",
-  category: "ប្រភេទ",
-  allCategories: "ប្រភេទទាំងអស់",
-  loadingVendorDirectory: "កំពុងផ្ទុកបញ្ជីអ្នកផ្គត់ផ្គង់...",
-  noVendorsMatch: "មិនមានអ្នកផ្គត់ផ្គង់ត្រូវនឹងតម្រងរបស់អ្នកទេ។",
-  listingCount: "បញ្ជី {count}",
-  packageCount: "កញ្ចប់ {count}",
-  bookingsCount: "ការកក់ {count}",
-  vendorProfile: "ប្រវត្តិរូបអ្នកផ្គត់ផ្គង់",
-  servicesCount: "សេវា {count}",
-  packagesCount: "កញ្ចប់ {count}",
-  total: "សរុប",
-  hidden: "លាក់",
-  email: "អ៊ីមែល",
-  phone: "ទូរស័ព្ទ",
-  categories: "ប្រភេទ",
-  noCategoriesYet: "មិនទាន់មានប្រភេទ",
-  notProvided: "មិនបានផ្តល់",
-  servicesAndPackages: "សេវា និងកញ្ចប់",
-  noServicesYet: "មិនទាន់មានសេវា ឬកញ្ចប់សម្រាប់អ្នកផ្គត់ផ្គង់នេះទេ។",
-  serviceHidden: "លាក់",
-  packageItems: "ធាតុកញ្ចប់ {count}",
-  selectVendor: "ជ្រើសអ្នកផ្គត់ផ្គង់",
-  selectVendorSubtitle: "ជ្រើសអ្នកផ្គត់ផ្គង់ម្នាក់ពីបញ្ជី ដើម្បីពិនិត្យព័ត៌មានគណនី និងបញ្ជីក្នុងប្រព័ន្ធ។",
-  vendorFallback: "អ្នកផ្គត់ផ្គង់",
-  other: "ផ្សេងៗ",
-  package: "កញ្ចប់",
-  service: "សេវា",
-  noListings: "មិនមានបញ្ជី",
-  dateTbd: "កាលបរិច្ឆេទមិនទាន់កំណត់",
-  locationMissing: "មិនទាន់បន្ថែមទីតាំង",
-  joinDateUnavailable: "មិនមានកាលបរិច្ឆេទចូល",
-  noListingActivityYet: "មិនទាន់មានសកម្មភាពបញ្ជី",
-  noVendorAccounts: "មិនទាន់មានគណនីអ្នកផ្គត់ផ្គង់។",
-  couldNotLoadVendorDirectory: "មិនអាចផ្ទុកបញ្ជីអ្នកផ្គត់ផ្គង់បានទេ។",
-  missingVendorAccountId: "អ្នកផ្គត់ផ្គង់នេះមិនមានលេខសម្គាល់គណនីអ្នកផ្គត់ផ្គង់ដែលភ្ជាប់ទេ។",
-  allListingsAlreadyLive: "បញ្ជីទាំងអស់កំពុងដំណើរការរួចហើយ។",
-  allListingsAlreadyPaused: "បញ្ជីទាំងអស់ត្រូវបានផ្អាករួចហើយ។",
-  listingsLiveAgain: "បញ្ជីអ្នកផ្គត់ផ្គង់ត្រូវបានបើកដំណើរការឡើងវិញ។",
-  listingsWerePaused: "បញ្ជីអ្នកផ្គត់ផ្គង់ត្រូវបានផ្អាក។",
-  couldNotUpdateVendorVisibility: "មិនអាចធ្វើបច្ចុប្បន្នភាពភាពអាចមើលឃើញរបស់អ្នកផ្គត់ផ្គង់បានទេ។",
+  brandSubtitle: "áž€áž“áŸ’áž›áŸ‚áž„áž’áŸ’ážœáž¾áž€áž¶ážšáž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  navigation: "áž€áž¶ážšážšáž»áž€ážšáž€",
+  adminModules: "áž˜áž»ážáž„áž¶ážšáž¢áŸ’áž“áž€áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„",
+  searchPlaceholder: "ážŸáŸ’ážœáŸ‚áž„ážšáž€ážˆáŸ’áž˜áŸ„áŸ‡áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ áž”áž‰áŸ’áž‡áž¸ áž‘áž¸ážáž¶áŸ†áž„ áž¬áž–áŸážáŸŒáž˜áž¶áž“áž‘áŸ†áž“áž¶áž€áŸ‹áž‘áŸ†áž“áž„...",
+  notifications: "áž€áž¶ážšáž‡áž¼áž“ážŠáŸ†ážŽáž¹áž„",
+  heroEyebrow: "áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  heroTitle: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹ áž“áž·áž„áž”áž‰áŸ’áž‡áž¸ážšáž”ážŸáŸ‹áž–áž½áž€áž‚áŸ",
+  heroSubtitle: "áž‡áŸ’ážšáž¾ážŸáž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž˜áŸ’áž“áž¶áž€áŸ‹ ážŠáž¾áž˜áŸ’áž”áž¸áž–áž·áž“áž·ážáŸ’áž™áž”áŸ’ážšážœážáŸ’ážáž·ážšáž¼áž” áž“áž·áž„ážŸáŸážœáž¶ áž¬áž€áž‰áŸ’áž…áž”áŸ‹áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹ážŠáŸ‚áž›áž˜áž¶áž“áž€áŸ’áž“áž»áž„áž”áŸ’ážšáž–áŸáž“áŸ’áž’áŸ”",
+  totalVendorsText: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážŸážšáž»áž” {count}",
+  totalListingsText: "áž”áž‰áŸ’áž‡áž¸ážŸážšáž»áž” {count}",
+  selectedVendor: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážŠáŸ‚áž›áž”áž¶áž“áž‡áŸ’ážšáž¾ážŸ",
+  listingSelectedSummary: "áž”áž‰áŸ’áž‡áž¸ {count} - {date}",
+  goLiveAgain: "áž”áž¾áž€ážŠáŸ†ážŽáž¾ážšáž€áž¶ážšáž¡áž¾áž„ážœáž·áž‰",
+  pauseVendor: "áž•áŸ’áž¢áž¶áž€áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  totalVendors: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážŸážšáž»áž”",
+  shownHere: "áž”áž„áŸ’áž áž¶áž‰áž“áŸ…áž‘áž¸áž“áŸáŸ‡ {count}",
+  liveVendors: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážŸáž€áž˜áŸ’áž˜",
+  withVisibleListings: "áž˜áž¶áž“áž”áž‰áŸ’áž‡áž¸ážŠáŸ‚áž›áž¢áž¶áž…áž˜áž¾áž›ážƒáž¾áž‰",
+  listingsInSystem: "áž”áž‰áŸ’áž‡áž¸áž“áŸ…áž€áŸ’áž“áž»áž„áž”áŸ’ážšáž–áŸáž“áŸ’áž’",
+  packageListings: "áž”áž‰áŸ’áž‡áž¸áž€áž‰áŸ’áž…áž”áŸ‹ {count}",
+  bookings: "áž€áž¶ážšáž€áž€áŸ‹",
+  acrossVendorListings: "áž“áŸ…áž‘áž¼áž‘áž¶áŸ†áž„áž”áž‰áŸ’áž‡áž¸ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  directoryEyebrow: "áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  allVendors: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹",
+  results: "áž›áž‘áŸ’áž’áž•áž› {count}",
+  visibility: "áž—áž¶áž–áž¢áž¶áž…áž˜áž¾áž›ážƒáž¾áž‰",
+  allVisibility: "áž—áž¶áž–áž¢áž¶áž…áž˜áž¾áž›ážƒáž¾áž‰áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹",
+  live: "ážŠáŸ†ážŽáž¾ážšáž€áž¶ážš",
+  mixed: "áž…áž˜áŸ’ážšáž»áŸ‡",
+  paused: "áž•áŸ’áž¢áž¶áž€",
+  category: "áž”áŸ’ážšáž—áŸáž‘",
+  allCategories: "áž”áŸ’ážšáž—áŸáž‘áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹",
+  loadingVendorDirectory: "áž€áŸ†áž–áž»áž„áž•áŸ’áž‘áž»áž€áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹...",
+  noVendorsMatch: "áž˜áž·áž“áž˜áž¶áž“áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážáŸ’ážšáž¼ážœáž“áž¹áž„ážáž˜áŸ’ážšáž„ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áž‘áŸáŸ”",
+  listingCount: "áž”áž‰áŸ’áž‡áž¸ {count}",
+  packageCount: "áž€áž‰áŸ’áž…áž”áŸ‹ {count}",
+  bookingsCount: "áž€áž¶ážšáž€áž€áŸ‹ {count}",
+  vendorProfile: "áž”áŸ’ážšážœážáŸ’ážáž·ážšáž¼áž”áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  servicesCount: "ážŸáŸážœáž¶ {count}",
+  packagesCount: "áž€áž‰áŸ’áž…áž”áŸ‹ {count}",
+  total: "ážŸážšáž»áž”",
+  hidden: "áž›áž¶áž€áŸ‹",
+  email: "áž¢áŸŠáž¸áž˜áŸ‚áž›",
+  phone: "áž‘áž¼ážšážŸáŸáž–áŸ’áž‘",
+  categories: "áž”áŸ’ážšáž—áŸáž‘",
+  noCategoriesYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž”áŸ’ážšáž—áŸáž‘",
+  notProvided: "áž˜áž·áž“áž”áž¶áž“áž•áŸ’ážáž›áŸ‹",
+  servicesAndPackages: "ážŸáŸážœáž¶ áž“áž·áž„áž€áž‰áŸ’áž…áž”áŸ‹",
+  noServicesYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“ážŸáŸážœáž¶ áž¬áž€áž‰áŸ’áž…áž”áŸ‹ážŸáž˜áŸ’ážšáž¶áž”áŸ‹áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž“áŸáŸ‡áž‘áŸáŸ”",
+  serviceHidden: "áž›áž¶áž€áŸ‹",
+  packageItems: "áž’áž¶ážáž»áž€áž‰áŸ’áž…áž”áŸ‹ {count}",
+  selectVendor: "áž‡áŸ’ážšáž¾ážŸáž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  selectVendorSubtitle: "áž‡áŸ’ážšáž¾ážŸáž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž˜áŸ’áž“áž¶áž€áŸ‹áž–áž¸áž”áž‰áŸ’áž‡áž¸ ážŠáž¾áž˜áŸ’áž”áž¸áž–áž·áž“áž·ážáŸ’áž™áž–áŸážáŸŒáž˜áž¶áž“áž‚ážŽáž“áž¸ áž“áž·áž„áž”áž‰áŸ’áž‡áž¸áž€áŸ’áž“áž»áž„áž”áŸ’ážšáž–áŸáž“áŸ’áž’áŸ”",
+  vendorFallback: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  other: "áž•áŸ’ážŸáŸáž„áŸ—",
+  package: "áž€áž‰áŸ’áž…áž”áŸ‹",
+  service: "ážŸáŸážœáž¶",
+  noListings: "áž˜áž·áž“áž˜áž¶áž“áž”áž‰áŸ’áž‡áž¸",
+  dateTbd: "áž€áž¶áž›áž”ážšáž·áž…áŸ’áž†áŸáž‘áž˜áž·áž“áž‘áž¶áž“áŸ‹áž€áŸ†ážŽážáŸ‹",
+  locationMissing: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž”áž“áŸ’ážáŸ‚áž˜áž‘áž¸ážáž¶áŸ†áž„",
+  joinDateUnavailable: "áž˜áž·áž“áž˜áž¶áž“áž€áž¶áž›áž”ážšáž·áž…áŸ’áž†áŸáž‘áž…áž¼áž›",
+  noListingActivityYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“ážŸáž€áž˜áŸ’áž˜áž—áž¶áž–áž”áž‰áŸ’áž‡áž¸",
+  noVendorAccounts: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž‚ážŽáž“áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áŸ”",
+  couldNotLoadVendorDirectory: "áž˜áž·áž“áž¢áž¶áž…áž•áŸ’áž‘áž»áž€áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž”áž¶áž“áž‘áŸáŸ”",
+  missingVendorAccountId: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž“áŸáŸ‡áž˜áž·áž“áž˜áž¶áž“áž›áŸážážŸáž˜áŸ’áž‚áž¶áž›áŸ‹áž‚ážŽáž“áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážŠáŸ‚áž›áž—áŸ’áž‡áž¶áž”áŸ‹áž‘áŸáŸ”",
+  allListingsAlreadyLive: "áž”áž‰áŸ’áž‡áž¸áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹áž€áŸ†áž–áž»áž„ážŠáŸ†ážŽáž¾ážšáž€áž¶ážšážšáž½áž…áž áž¾áž™áŸ”",
+  allListingsAlreadyPaused: "áž”áž‰áŸ’áž‡áž¸áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹ážáŸ’ážšáž¼ážœáž”áž¶áž“áž•áŸ’áž¢áž¶áž€ážšáž½áž…áž áž¾áž™áŸ”",
+  listingsLiveAgain: "áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážáŸ’ážšáž¼ážœáž”áž¶áž“áž”áž¾áž€ážŠáŸ†ážŽáž¾ážšáž€áž¶ážšáž¡áž¾áž„ážœáž·áž‰áŸ”",
+  listingsWerePaused: "áž”áž‰áŸ’áž‡áž¸áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹ážáŸ’ážšáž¼ážœáž”áž¶áž“áž•áŸ’áž¢áž¶áž€áŸ”",
+  couldNotUpdateVendorVisibility: "áž˜áž·áž“áž¢áž¶áž…áž’áŸ’ážœáž¾áž”áž…áŸ’áž…áž»áž”áŸ’áž”áž“áŸ’áž“áž—áž¶áž–áž—áž¶áž–áž¢áž¶áž…áž˜áž¾áž›ážƒáž¾áž‰ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹áž”áž¶áž“áž‘áŸáŸ”",
   eventTypes: {
-    wedding: "អាពាហ៍ពិពាហ៍",
-    monk_ceremony: "ពិធីព្រះសង្ឃ",
-    house_blessing: "ពិធីឡើងផ្ទះ",
-    company_party: "ពិធីជប់លៀងក្រុមហ៊ុន",
-    birthday: "ខួបកំណើត",
-    school_event: "ព្រឹត្តិការណ៍សាលា",
-    engagement: "ពិធីភ្ជាប់ពាក្យ",
-    anniversary: "ខួបអនុស្សាវរីយ៍",
-    baby_shower: "ពិធីស្វាគមន៍ទារក",
-    graduation: "ពិធីបញ្ចប់ការសិក្សា",
-    festival: "ពិធីបុណ្យ",
-    other: "ផ្សេងៗ",
+    wedding: "áž¢áž¶áž–áž¶áž áŸáž–áž·áž–áž¶áž áŸ",
+    monk_ceremony: "áž–áž·áž’áž¸áž–áŸ’ážšáŸ‡ážŸáž„áŸ’ážƒ",
+    house_blessing: "áž–áž·áž’áž¸áž¡áž¾áž„áž•áŸ’áž‘áŸ‡",
+    company_party: "áž–áž·áž’áž¸áž‡áž”áŸ‹áž›áŸ€áž„áž€áŸ’ážšáž»áž˜áž áŸŠáž»áž“",
+    birthday: "ážáž½áž”áž€áŸ†ážŽáž¾áž",
+    school_event: "áž–áŸ’ážšáž¹ážáŸ’ážáž·áž€áž¶ážšážŽáŸážŸáž¶áž›áž¶",
+    engagement: "áž–áž·áž’áž¸áž—áŸ’áž‡áž¶áž”áŸ‹áž–áž¶áž€áŸ’áž™",
+    anniversary: "ážáž½áž”áž¢áž“áž»ážŸáŸ’ážŸáž¶ážœážšáž¸áž™áŸ",
+    baby_shower: "áž–áž·áž’áž¸ážŸáŸ’ážœáž¶áž‚áž˜áž“áŸáž‘áž¶ážšáž€",
+    graduation: "áž–áž·áž’áž¸áž”áž‰áŸ’áž…áž”áŸ‹áž€áž¶ážšážŸáž·áž€áŸ’ážŸáž¶",
+    festival: "áž–áž·áž’áž¸áž”áž»ážŽáŸ’áž™",
+    other: "áž•áŸ’ážŸáŸáž„áŸ—",
   },
 };
 
@@ -910,12 +910,18 @@ onMounted(() => void loadVendorDirectory());
             <strong>{{ selectedVendor.name }}</strong>
             <small>{{ interpolate(uiText.listingSelectedSummary, { count: count(selectedVendor.serviceCount), date: selectedVendor.joinedLabel }) }}</small>
           </div>
-          <button class="primary-btn" type="button" :disabled="!selectedVendor || !selectedServices.length || isSaving" @click="setVendorVisibility(selectedVendor?.visibility === 'paused')">
-            {{ selectedVendor?.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
-          </button>
-          <button class="ghost-btn danger-btn" type="button" :disabled="!selectedVendor || deletingVendorId === selectedVendor?.id" @click="deleteVendorAndBlacklist">
-            {{ deletingVendorId === selectedVendor?.id ? "Deleting..." : "Delete + Blacklist" }}
-          </button>
+          <div v-if="selectedVendor" class="hero-action-panel">
+            <span class="hero-action-label">Moderation Actions</span>
+            <div class="hero-action-grid">
+              <button class="primary-btn hero-action-btn" type="button" :disabled="!selectedVendor || !selectedServices.length || isSaving" @click="setVendorVisibility(selectedVendor?.visibility === 'paused')">
+                {{ selectedVendor?.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
+              </button>
+              <button class="ghost-btn danger-btn hero-action-btn" type="button" :disabled="!selectedVendor || deletingVendorId === selectedVendor?.id" @click="deleteVendorAndBlacklist">
+                {{ deletingVendorId === selectedVendor?.id ? "Deleting..." : "Delete + Blacklist" }}
+              </button>
+            </div>
+            <small class="hero-action-note">Use these controls when a vendor must be paused or removed for breaking marketplace rules.</small>
+          </div>
         </div>
       </section>
 
@@ -1103,26 +1109,37 @@ onMounted(() => void loadVendorDirectory());
               </div>
               <span class="card-meta">{{ count(vendorBlacklistRows.length) }}</span>
             </header>
-            <div v-if="!vendorBlacklistRows.length" class="empty small">No vendors are blacklisted right now.</div>
+            <div v-if="!vendorBlacklistRows.length" class="section-empty section-empty-compact">
+              <span class="section-empty-label">Safety Watch</span>
+              <strong>No vendors are blacklisted right now.</strong>
+              <p>The moderation list will appear here one by one when an account is removed for rule violations.</p>
+            </div>
             <div v-else class="service-list">
-              <div v-for="entry in vendorBlacklistRows" :key="entry.id" class="service-row blacklist-row">
-                <div class="service-copy">
-                  <div class="service-title-row">
-                    <strong>{{ entry.name }}</strong>
-                    <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
+              <div v-for="entry in vendorBlacklistRows" :key="entry.id" class="service-row blacklist-card">
+                <div class="blacklist-head">
+                  <div class="service-copy">
+                    <div class="service-title-row">
+                      <strong>{{ entry.name }}</strong>
+                      <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
+                    </div>
+                    <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> | {{ entry.phone }}</template></p>
                   </div>
-                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> · {{ entry.phone }}</template></p>
-                  <small>{{ entry.blacklistedAtLabel }}<template v-if="entry.approvedAtLabel"> · Approved {{ entry.approvedAtLabel }}</template></small>
-                  <p class="service-description">{{ entry.reason }}</p>
                 </div>
-                <button
-                  class="ghost-btn"
-                  type="button"
-                  :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
-                  @click="approveBlacklistEntry(entry)"
-                >
-                  {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Approved" }}
-                </button>
+                <div class="blacklist-meta">
+                  <span class="chip muted">Blacklisted {{ entry.blacklistedAtLabel }}</span>
+                  <span v-if="entry.approvedAtLabel" class="chip muted">Approved {{ entry.approvedAtLabel }}</span>
+                </div>
+                <p class="service-description blacklist-reason">{{ entry.reason }}</p>
+                <div class="blacklist-actions">
+                  <button
+                    class="ghost-btn approve-btn"
+                    type="button"
+                    :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
+                    @click="approveBlacklistEntry(entry)"
+                  >
+                    {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Reuse Approved" }}
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -1667,21 +1684,68 @@ select {
 }
 
 .hero-aside {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(240px, 280px);
   gap: 14px;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-end;
-  max-width: 420px;
+  width: min(100%, 600px);
 }
 
 .hero-selected {
   display: grid;
-  gap: 4px;
-  min-width: 250px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.84);
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 246, 0.84));
   border: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: var(--shadow-soft);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    var(--shadow-soft);
+}
+
+.hero-action-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 248, 0.96), rgba(255, 242, 237, 0.92));
+  border: 1px solid rgba(220, 38, 38, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 20px 36px rgba(220, 38, 38, 0.08);
+}
+
+.hero-action-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.hero-action-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-action-btn {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+}
+
+.hero-action-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7b5560;
 }
 
 .hero-selected-label {
@@ -2043,8 +2107,19 @@ select {
 
 .danger-btn {
   color: #b42318;
-  border-color: rgba(220, 38, 38, 0.22);
-  background: rgba(255, 241, 242, 0.96);
+  border-color: rgba(220, 38, 38, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 244, 0.98), rgba(255, 235, 236, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 14px 24px rgba(220, 38, 38, 0.1);
+}
+
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 28px rgba(220, 38, 38, 0.14);
 }
 
 .service-row {
@@ -2054,9 +2129,52 @@ select {
   background: linear-gradient(180deg, #fff, #fcfdff);
 }
 
-.blacklist-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+.blacklist-card {
+  gap: 14px;
+  padding: 18px;
+  border-color: rgba(220, 38, 38, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 246, 244, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+.blacklist-head {
+  display: grid;
+  gap: 10px;
+}
+
+.blacklist-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blacklist-actions {
+  display: flex;
+}
+
+.approve-btn {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 16px;
+  color: #b45309;
+  border-color: rgba(241, 91, 42, 0.18);
+  background: linear-gradient(135deg, rgba(255, 250, 245, 0.98), rgba(255, 240, 232, 0.94));
+  box-shadow: 0 12px 22px rgba(241, 91, 42, 0.08);
+}
+
+.approve-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(241, 91, 42, 0.12);
+}
+
+.approve-btn:disabled {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.24);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.95));
 }
 
 .service-copy {
@@ -2067,6 +2185,48 @@ select {
   margin: 0;
   color: #596981;
   line-height: 1.6;
+}
+
+.blacklist-reason {
+  margin-top: 2px;
+}
+
+.section-empty {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  padding: 20px 18px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 122, 26, 0.24);
+  background: linear-gradient(135deg, rgba(255, 248, 241, 0.96), rgba(255, 255, 255, 0.98));
+  text-align: left;
+}
+
+.section-empty strong,
+.section-empty p {
+  margin: 0;
+}
+
+.section-empty strong {
+  color: #17263d;
+  font-size: 16px;
+}
+
+.section-empty p {
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.section-empty-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f15b2a;
+}
+
+.section-empty-compact {
+  min-height: auto;
 }
 
 .empty,
@@ -2116,13 +2276,18 @@ button:disabled {
 
   .vendors-hero,
   .hero-aside {
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .hero-copy h1 {
     max-width: none;
     font-size: 42px;
+  }
+
+  .hero-aside {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: none;
   }
 }
 
@@ -2130,16 +2295,12 @@ button:disabled {
   .admin-topbar,
   .vendor-row,
   .sidebar-head,
-  .blacklist-row {
+  .blacklist-card {
     flex-direction: column;
     align-items: stretch;
   }
 
   .vendor-row {
-    grid-template-columns: 1fr;
-  }
-
-  .blacklist-row {
     grid-template-columns: 1fr;
   }
 
@@ -2180,6 +2341,4 @@ button:disabled {
   }
 }
 </style>
-
-
 

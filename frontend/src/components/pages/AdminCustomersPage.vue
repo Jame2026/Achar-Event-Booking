@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventTypeMap } from "../../features/appData";
@@ -120,212 +120,212 @@ const copyByLanguage = {
   },
   zh: {
     nav: {
-      dashboard: "仪表盘",
-      events: "活动",
-      bookings: "预订",
-      vendors: "商家",
-      customers: "客户",
-      revenue: "收入",
-      settings: "设置",
+      dashboard: "ä»ªè¡¨ç›˜",
+      events: "æ´»åŠ¨",
+      bookings: "é¢„è®¢",
+      vendors: "å•†å®¶",
+      customers: "å®¢æˆ·",
+      revenue: "æ”¶å…¥",
+      settings: "è®¾ç½®",
     },
-    brandKicker: "运营控制台",
+    brandKicker: "è¿è¥æŽ§åˆ¶å°",
     brandTitle: "Achar Admin",
-    brandSubtitle: "客户关系工作区",
-    navigation: "导航",
-    adminModules: "管理员模块",
-    searchPlaceholder: "搜索客户姓名、邮箱、电话或已预订服务...",
-    notifications: "通知",
-    heroEyebrow: "客户目录",
-    heroTitle: "所有客户及其预订",
-    heroSubtitle: "查看已注册客户账户，并检查他们在系统中预订的服务或套餐。",
-    totalCustomersText: "{count} 位客户",
-    totalBookingsText: "{count} 条预订",
-    selectedCustomer: "已选客户",
-    customerSelectedSummary: "{count} 条预订 - {date}",
-    totalCustomers: "客户总数",
-    shownHere: "当前显示 {count} 位",
-    activeBookers: "活跃预订客户",
-    customersWithBookings: "有预订的客户",
-    bookingsInSystem: "系统中的预订",
-    acrossServicesPackages: "涵盖服务与套餐",
-    confirmedRevenue: "已确认收入",
-    fromConfirmedBookings: "来自已确认预订",
-    directoryEyebrow: "客户目录",
-    allCustomers: "所有客户",
-    results: "{count} 条结果",
-    activity: "活跃度",
-    allCustomersFilter: "全部客户",
-    withBookings: "有预订",
-    repeatCustomers: "回头客",
-    noBookingsYetFilter: "尚无预订",
-    bookingStatus: "预订状态",
-    anyStatus: "任意状态",
-    confirmed: "已确认",
-    pending: "待处理",
-    cancelled: "已取消",
-    loadingCustomerDirectory: "正在加载客户目录...",
-    noCustomersMatch: "没有符合筛选条件的客户。",
-    emailNotProvided: "未提供邮箱",
-    noCategoryYet: "暂无分类",
-    bookingCount: "{count} 条预订",
-    customerProfile: "客户资料",
-    confirmedCount: "{count} 已确认",
-    pendingCount: "{count} 待处理",
-    bookings: "预订",
-    totalSpend: "总消费",
-    email: "邮箱",
-    phone: "电话",
-    location: "位置",
-    joined: "加入时间",
-    preferredCategories: "偏好分类",
-    noBookingsYet: "暂无预订",
-    bookingHistory: "预订记录",
-    customerBookings: "客户预订",
-    noServicePackageYet: "该客户尚未预订任何服务或套餐。",
-    qty: "数量 {count}",
-    selectCustomer: "选择客户",
-    selectCustomerSubtitle: "从目录中选择一位客户，以在此查看其资料和预订记录。",
-    notProvided: "未提供",
-    timeTbd: "时间待定",
-    allDay: "全天",
-    unknown: "未知",
-    customerFallback: "客户",
-    vendorFallback: "商家",
-    serviceBooking: "服务预订",
-    package: "套餐",
-    service: "服务",
-    other: "其他",
-    locationMissing: "位置尚未添加",
-    joinDateUnavailable: "加入日期不可用",
-    newMember: "新客户",
-    repeatMember: "回头客",
-    activeMember: "活跃",
-    unpaid: "未支付",
-    paid: "已支付",
-    refunded: "已退款",
-    failed: "失败",
-    adminMissing: "管理员账户缺失，请重新登录。",
-    noCustomerAccounts: "暂无客户账户。",
-    couldNotLoadCustomerDirectory: "无法加载客户目录。",
+    brandSubtitle: "å®¢æˆ·å…³ç³»å·¥ä½œåŒº",
+    navigation: "å¯¼èˆª",
+    adminModules: "ç®¡ç†å‘˜æ¨¡å—",
+    searchPlaceholder: "æœç´¢å®¢æˆ·å§“åã€é‚®ç®±ã€ç”µè¯æˆ–å·²é¢„è®¢æœåŠ¡...",
+    notifications: "é€šçŸ¥",
+    heroEyebrow: "å®¢æˆ·ç›®å½•",
+    heroTitle: "æ‰€æœ‰å®¢æˆ·åŠå…¶é¢„è®¢",
+    heroSubtitle: "æŸ¥çœ‹å·²æ³¨å†Œå®¢æˆ·è´¦æˆ·ï¼Œå¹¶æ£€æŸ¥ä»–ä»¬åœ¨ç³»ç»Ÿä¸­é¢„è®¢çš„æœåŠ¡æˆ–å¥—é¤ã€‚",
+    totalCustomersText: "{count} ä½å®¢æˆ·",
+    totalBookingsText: "{count} æ¡é¢„è®¢",
+    selectedCustomer: "å·²é€‰å®¢æˆ·",
+    customerSelectedSummary: "{count} æ¡é¢„è®¢ - {date}",
+    totalCustomers: "å®¢æˆ·æ€»æ•°",
+    shownHere: "å½“å‰æ˜¾ç¤º {count} ä½",
+    activeBookers: "æ´»è·ƒé¢„è®¢å®¢æˆ·",
+    customersWithBookings: "æœ‰é¢„è®¢çš„å®¢æˆ·",
+    bookingsInSystem: "ç³»ç»Ÿä¸­çš„é¢„è®¢",
+    acrossServicesPackages: "æ¶µç›–æœåŠ¡ä¸Žå¥—é¤",
+    confirmedRevenue: "å·²ç¡®è®¤æ”¶å…¥",
+    fromConfirmedBookings: "æ¥è‡ªå·²ç¡®è®¤é¢„è®¢",
+    directoryEyebrow: "å®¢æˆ·ç›®å½•",
+    allCustomers: "æ‰€æœ‰å®¢æˆ·",
+    results: "{count} æ¡ç»“æžœ",
+    activity: "æ´»è·ƒåº¦",
+    allCustomersFilter: "å…¨éƒ¨å®¢æˆ·",
+    withBookings: "æœ‰é¢„è®¢",
+    repeatCustomers: "å›žå¤´å®¢",
+    noBookingsYetFilter: "å°šæ— é¢„è®¢",
+    bookingStatus: "é¢„è®¢çŠ¶æ€",
+    anyStatus: "ä»»æ„çŠ¶æ€",
+    confirmed: "å·²ç¡®è®¤",
+    pending: "å¾…å¤„ç†",
+    cancelled: "å·²å–æ¶ˆ",
+    loadingCustomerDirectory: "æ­£åœ¨åŠ è½½å®¢æˆ·ç›®å½•...",
+    noCustomersMatch: "æ²¡æœ‰ç¬¦åˆç­›é€‰æ¡ä»¶çš„å®¢æˆ·ã€‚",
+    emailNotProvided: "æœªæä¾›é‚®ç®±",
+    noCategoryYet: "æš‚æ— åˆ†ç±»",
+    bookingCount: "{count} æ¡é¢„è®¢",
+    customerProfile: "å®¢æˆ·èµ„æ–™",
+    confirmedCount: "{count} å·²ç¡®è®¤",
+    pendingCount: "{count} å¾…å¤„ç†",
+    bookings: "é¢„è®¢",
+    totalSpend: "æ€»æ¶ˆè´¹",
+    email: "é‚®ç®±",
+    phone: "ç”µè¯",
+    location: "ä½ç½®",
+    joined: "åŠ å…¥æ—¶é—´",
+    preferredCategories: "åå¥½åˆ†ç±»",
+    noBookingsYet: "æš‚æ— é¢„è®¢",
+    bookingHistory: "é¢„è®¢è®°å½•",
+    customerBookings: "å®¢æˆ·é¢„è®¢",
+    noServicePackageYet: "è¯¥å®¢æˆ·å°šæœªé¢„è®¢ä»»ä½•æœåŠ¡æˆ–å¥—é¤ã€‚",
+    qty: "æ•°é‡ {count}",
+    selectCustomer: "é€‰æ‹©å®¢æˆ·",
+    selectCustomerSubtitle: "ä»Žç›®å½•ä¸­é€‰æ‹©ä¸€ä½å®¢æˆ·ï¼Œä»¥åœ¨æ­¤æŸ¥çœ‹å…¶èµ„æ–™å’Œé¢„è®¢è®°å½•ã€‚",
+    notProvided: "æœªæä¾›",
+    timeTbd: "æ—¶é—´å¾…å®š",
+    allDay: "å…¨å¤©",
+    unknown: "æœªçŸ¥",
+    customerFallback: "å®¢æˆ·",
+    vendorFallback: "å•†å®¶",
+    serviceBooking: "æœåŠ¡é¢„è®¢",
+    package: "å¥—é¤",
+    service: "æœåŠ¡",
+    other: "å…¶ä»–",
+    locationMissing: "ä½ç½®å°šæœªæ·»åŠ ",
+    joinDateUnavailable: "åŠ å…¥æ—¥æœŸä¸å¯ç”¨",
+    newMember: "æ–°å®¢æˆ·",
+    repeatMember: "å›žå¤´å®¢",
+    activeMember: "æ´»è·ƒ",
+    unpaid: "æœªæ”¯ä»˜",
+    paid: "å·²æ”¯ä»˜",
+    refunded: "å·²é€€æ¬¾",
+    failed: "å¤±è´¥",
+    adminMissing: "ç®¡ç†å‘˜è´¦æˆ·ç¼ºå¤±ï¼Œè¯·é‡æ–°ç™»å½•ã€‚",
+    noCustomerAccounts: "æš‚æ— å®¢æˆ·è´¦æˆ·ã€‚",
+    couldNotLoadCustomerDirectory: "æ— æ³•åŠ è½½å®¢æˆ·ç›®å½•ã€‚",
     eventTypes: {
-      wedding: "婚礼",
-      monk_ceremony: "僧侣仪式",
-      house_blessing: "住宅祈福",
-      company_party: "公司派对",
-      birthday: "生日",
-      school_event: "学校活动",
-      engagement: "订婚",
-      anniversary: "周年纪念",
-      baby_shower: "迎婴派对",
-      graduation: "毕业典礼",
-      festival: "节庆",
-      other: "其他",
+      wedding: "å©šç¤¼",
+      monk_ceremony: "åƒ§ä¾£ä»ªå¼",
+      house_blessing: "ä½å®…ç¥ˆç¦",
+      company_party: "å…¬å¸æ´¾å¯¹",
+      birthday: "ç”Ÿæ—¥",
+      school_event: "å­¦æ ¡æ´»åŠ¨",
+      engagement: "è®¢å©š",
+      anniversary: "å‘¨å¹´çºªå¿µ",
+      baby_shower: "è¿Žå©´æ´¾å¯¹",
+      graduation: "æ¯•ä¸šå…¸ç¤¼",
+      festival: "èŠ‚åº†",
+      other: "å…¶ä»–",
     },
   },
 };
 copyByLanguage.km = {
   ...copyByLanguage.en,
   nav: {
-    dashboard: "ផ្ទាំងគ្រប់គ្រង",
-    events: "ព្រឹត្តិការណ៍",
-    bookings: "ការកក់",
-    vendors: "អ្នកផ្គត់ផ្គង់",
-    customers: "អតិថិជន",
-    revenue: "ចំណូល",
-    settings: "ការកំណត់",
+    dashboard: "áž•áŸ’áž‘áž¶áŸ†áž„áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„",
+    events: "áž–áŸ’ážšáž¹ážáŸ’ážáž·áž€áž¶ážšážŽáŸ",
+    bookings: "áž€áž¶ážšáž€áž€áŸ‹",
+    vendors: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+    customers: "áž¢ážáž·ážáž·áž‡áž“",
+    revenue: "áž…áŸ†ážŽáž¼áž›",
+    settings: "áž€áž¶ážšáž€áŸ†ážŽážáŸ‹",
   },
-  brandKicker: "ផ្ទាំងប្រតិបត្តិការ",
+  brandKicker: "áž•áŸ’áž‘áž¶áŸ†áž„áž”áŸ’ážšážáž·áž”ážáŸ’ážáž·áž€áž¶ážš",
   brandTitle: "Achar Admin",
-  brandSubtitle: "កន្លែងធ្វើការទំនាក់ទំនងអតិថិជន",
-  navigation: "ការរុករក",
-  adminModules: "មុខងារអ្នកគ្រប់គ្រង",
-  searchPlaceholder: "ស្វែងរកឈ្មោះអតិថិជន អ៊ីមែល ទូរស័ព្ទ ឬសេវាដែលបានកក់...",
-  notifications: "ការជូនដំណឹង",
-  heroEyebrow: "បញ្ជីអតិថិជន",
-  heroTitle: "អតិថិជនទាំងអស់ និងការកក់របស់ពួកគេ",
-  heroSubtitle: "ពិនិត្យគណនីអតិថិជនដែលបានចុះឈ្មោះ និងសេវា ឬកញ្ចប់ដែលពួកគេបានកក់នៅក្នុងប្រព័ន្ធ។",
-  totalCustomersText: "អតិថិជនសរុប {count}",
-  totalBookingsText: "ការកក់សរុប {count}",
-  selectedCustomer: "អតិថិជនដែលបានជ្រើស",
-  customerSelectedSummary: "ការកក់ {count} - {date}",
-  totalCustomers: "អតិថិជនសរុប",
-  shownHere: "បង្ហាញនៅទីនេះ {count}",
-  activeBookers: "អតិថិជនដែលកំពុងកក់",
-  customersWithBookings: "អតិថិជនដែលមានការកក់",
-  bookingsInSystem: "ការកក់នៅក្នុងប្រព័ន្ធ",
-  acrossServicesPackages: "នៅទូទាំងសេវា និងកញ្ចប់",
-  confirmedRevenue: "ចំណូលដែលបានបញ្ជាក់",
-  fromConfirmedBookings: "ពីការកក់ដែលបានបញ្ជាក់",
-  directoryEyebrow: "បញ្ជីអតិថិជន",
-  allCustomers: "អតិថិជនទាំងអស់",
-  results: "លទ្ធផល {count}",
-  activity: "សកម្មភាព",
-  allCustomersFilter: "អតិថិជនទាំងអស់",
-  withBookings: "មានការកក់",
-  repeatCustomers: "អតិថិជនត្រឡប់មកវិញ",
-  noBookingsYetFilter: "មិនទាន់មានការកក់",
-  bookingStatus: "ស្ថានភាពការកក់",
-  anyStatus: "ស្ថានភាពណាមួយ",
-  confirmed: "បានបញ្ជាក់",
-  pending: "រង់ចាំ",
-  cancelled: "បានបោះបង់",
-  loadingCustomerDirectory: "កំពុងផ្ទុកបញ្ជីអតិថិជន...",
-  noCustomersMatch: "មិនមានអតិថិជនត្រូវនឹងតម្រងរបស់អ្នកទេ។",
-  emailNotProvided: "មិនបានផ្តល់អ៊ីមែល",
-  noCategoryYet: "មិនទាន់មានប្រភេទ",
-  bookingCount: "ការកក់ {count}",
-  customerProfile: "ប្រវត្តិរូបអតិថិជន",
-  confirmedCount: "{count} បានបញ្ជាក់",
-  pendingCount: "{count} រង់ចាំ",
-  bookings: "ការកក់",
-  totalSpend: "ចំណាយសរុប",
-  email: "អ៊ីមែល",
-  phone: "ទូរស័ព្ទ",
-  location: "ទីតាំង",
-  joined: "បានចូល",
-  preferredCategories: "ប្រភេទដែលពេញចិត្ត",
-  noBookingsYet: "មិនទាន់មានការកក់",
-  bookingHistory: "ប្រវត្តិការកក់",
-  customerBookings: "ការកក់របស់អតិថិជន",
-  noServicePackageYet: "អតិថិជននេះមិនទាន់បានកក់សេវា ឬកញ្ចប់ណាមួយទេ។",
-  qty: "ចំនួន {count}",
-  selectCustomer: "ជ្រើសអតិថិជន",
-  selectCustomerSubtitle: "ជ្រើសអតិថិជនម្នាក់ពីបញ្ជី ដើម្បីពិនិត្យប្រវត្តិរូប និងប្រវត្តិការកក់របស់ពួកគេនៅទីនេះ។",
-  notProvided: "មិនបានផ្តល់",
-  timeTbd: "ម៉ោងមិនទាន់កំណត់",
-  allDay: "ពេញមួយថ្ងៃ",
-  unknown: "មិនស្គាល់",
-  customerFallback: "អតិថិជន",
-  vendorFallback: "អ្នកផ្គត់ផ្គង់",
-  serviceBooking: "ការកក់សេវា",
-  package: "កញ្ចប់",
-  service: "សេវា",
-  other: "ផ្សេងៗ",
-  locationMissing: "មិនទាន់បន្ថែមទីតាំង",
-  joinDateUnavailable: "មិនមានកាលបរិច្ឆេទចូល",
-  newMember: "ថ្មី",
-  repeatMember: "ត្រឡប់មកវិញ",
-  activeMember: "សកម្ម",
-  unpaid: "មិនទាន់បង់",
-  paid: "បានបង់",
-  refunded: "បានសងប្រាក់វិញ",
-  failed: "បរាជ័យ",
-  adminMissing: "មិនមានគណនីអ្នកគ្រប់គ្រង សូមចូលម្តងទៀត។",
-  noCustomerAccounts: "មិនទាន់មានគណនីអតិថិជន។",
-  couldNotLoadCustomerDirectory: "មិនអាចផ្ទុកបញ្ជីអតិថិជនបានទេ។",
+  brandSubtitle: "áž€áž“áŸ’áž›áŸ‚áž„áž’áŸ’ážœáž¾áž€áž¶ážšáž‘áŸ†áž“áž¶áž€áŸ‹áž‘áŸ†áž“áž„áž¢ážáž·ážáž·áž‡áž“",
+  navigation: "áž€áž¶ážšážšáž»áž€ážšáž€",
+  adminModules: "áž˜áž»ážáž„áž¶ážšáž¢áŸ’áž“áž€áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„",
+  searchPlaceholder: "ážŸáŸ’ážœáŸ‚áž„ážšáž€ážˆáŸ’áž˜áŸ„áŸ‡áž¢ážáž·ážáž·áž‡áž“ áž¢áŸŠáž¸áž˜áŸ‚áž› áž‘áž¼ážšážŸáŸáž–áŸ’áž‘ áž¬ážŸáŸážœáž¶ážŠáŸ‚áž›áž”áž¶áž“áž€áž€áŸ‹...",
+  notifications: "áž€áž¶ážšáž‡áž¼áž“ážŠáŸ†ážŽáž¹áž„",
+  heroEyebrow: "áž”áž‰áŸ’áž‡áž¸áž¢ážáž·ážáž·áž‡áž“",
+  heroTitle: "áž¢ážáž·ážáž·áž‡áž“áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹ áž“áž·áž„áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹áž–áž½áž€áž‚áŸ",
+  heroSubtitle: "áž–áž·áž“áž·ážáŸ’áž™áž‚ážŽáž“áž¸áž¢ážáž·ážáž·áž‡áž“ážŠáŸ‚áž›áž”áž¶áž“áž…áž»áŸ‡ážˆáŸ’áž˜áŸ„áŸ‡ áž“áž·áž„ážŸáŸážœáž¶ áž¬áž€áž‰áŸ’áž…áž”áŸ‹ážŠáŸ‚áž›áž–áž½áž€áž‚áŸáž”áž¶áž“áž€áž€áŸ‹áž“áŸ…áž€áŸ’áž“áž»áž„áž”áŸ’ážšáž–áŸáž“áŸ’áž’áŸ”",
+  totalCustomersText: "áž¢ážáž·ážáž·áž‡áž“ážŸážšáž»áž” {count}",
+  totalBookingsText: "áž€áž¶ážšáž€áž€áŸ‹ážŸážšáž»áž” {count}",
+  selectedCustomer: "áž¢ážáž·ážáž·áž‡áž“ážŠáŸ‚áž›áž”áž¶áž“áž‡áŸ’ážšáž¾ážŸ",
+  customerSelectedSummary: "áž€áž¶ážšáž€áž€áŸ‹ {count} - {date}",
+  totalCustomers: "áž¢ážáž·ážáž·áž‡áž“ážŸážšáž»áž”",
+  shownHere: "áž”áž„áŸ’áž áž¶áž‰áž“áŸ…áž‘áž¸áž“áŸáŸ‡ {count}",
+  activeBookers: "áž¢ážáž·ážáž·áž‡áž“ážŠáŸ‚áž›áž€áŸ†áž–áž»áž„áž€áž€áŸ‹",
+  customersWithBookings: "áž¢ážáž·ážáž·áž‡áž“ážŠáŸ‚áž›áž˜áž¶áž“áž€áž¶ážšáž€áž€áŸ‹",
+  bookingsInSystem: "áž€áž¶ážšáž€áž€áŸ‹áž“áŸ…áž€áŸ’áž“áž»áž„áž”áŸ’ážšáž–áŸáž“áŸ’áž’",
+  acrossServicesPackages: "áž“áŸ…áž‘áž¼áž‘áž¶áŸ†áž„ážŸáŸážœáž¶ áž“áž·áž„áž€áž‰áŸ’áž…áž”áŸ‹",
+  confirmedRevenue: "áž…áŸ†ážŽáž¼áž›ážŠáŸ‚áž›áž”áž¶áž“áž”áž‰áŸ’áž‡áž¶áž€áŸ‹",
+  fromConfirmedBookings: "áž–áž¸áž€áž¶ážšáž€áž€áŸ‹ážŠáŸ‚áž›áž”áž¶áž“áž”áž‰áŸ’áž‡áž¶áž€áŸ‹",
+  directoryEyebrow: "áž”áž‰áŸ’áž‡áž¸áž¢ážáž·ážáž·áž‡áž“",
+  allCustomers: "áž¢ážáž·ážáž·áž‡áž“áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹",
+  results: "áž›áž‘áŸ’áž’áž•áž› {count}",
+  activity: "ážŸáž€áž˜áŸ’áž˜áž—áž¶áž–",
+  allCustomersFilter: "áž¢ážáž·ážáž·áž‡áž“áž‘áž¶áŸ†áž„áž¢ážŸáŸ‹",
+  withBookings: "áž˜áž¶áž“áž€áž¶ážšáž€áž€áŸ‹",
+  repeatCustomers: "áž¢ážáž·ážáž·áž‡áž“ážáŸ’ážšáž¡áž”áŸ‹áž˜áž€ážœáž·áž‰",
+  noBookingsYetFilter: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž€áž¶ážšáž€áž€áŸ‹",
+  bookingStatus: "ážŸáŸ’ážáž¶áž“áž—áž¶áž–áž€áž¶ážšáž€áž€áŸ‹",
+  anyStatus: "ážŸáŸ’ážáž¶áž“áž—áž¶áž–ážŽáž¶áž˜áž½áž™",
+  confirmed: "áž”áž¶áž“áž”áž‰áŸ’áž‡áž¶áž€áŸ‹",
+  pending: "ážšáž„áŸ‹áž…áž¶áŸ†",
+  cancelled: "áž”áž¶áž“áž”áŸ„áŸ‡áž”áž„áŸ‹",
+  loadingCustomerDirectory: "áž€áŸ†áž–áž»áž„áž•áŸ’áž‘áž»áž€áž”áž‰áŸ’áž‡áž¸áž¢ážáž·ážáž·áž‡áž“...",
+  noCustomersMatch: "áž˜áž·áž“áž˜áž¶áž“áž¢ážáž·ážáž·áž‡áž“ážáŸ’ážšáž¼ážœáž“áž¹áž„ážáž˜áŸ’ážšáž„ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áž‘áŸáŸ”",
+  emailNotProvided: "áž˜áž·áž“áž”áž¶áž“áž•áŸ’ážáž›áŸ‹áž¢áŸŠáž¸áž˜áŸ‚áž›",
+  noCategoryYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž”áŸ’ážšáž—áŸáž‘",
+  bookingCount: "áž€áž¶ážšáž€áž€áŸ‹ {count}",
+  customerProfile: "áž”áŸ’ážšážœážáŸ’ážáž·ážšáž¼áž”áž¢ážáž·ážáž·áž‡áž“",
+  confirmedCount: "{count} áž”áž¶áž“áž”áž‰áŸ’áž‡áž¶áž€áŸ‹",
+  pendingCount: "{count} ážšáž„áŸ‹áž…áž¶áŸ†",
+  bookings: "áž€áž¶ážšáž€áž€áŸ‹",
+  totalSpend: "áž…áŸ†ážŽáž¶áž™ážŸážšáž»áž”",
+  email: "áž¢áŸŠáž¸áž˜áŸ‚áž›",
+  phone: "áž‘áž¼ážšážŸáŸáž–áŸ’áž‘",
+  location: "áž‘áž¸ážáž¶áŸ†áž„",
+  joined: "áž”áž¶áž“áž…áž¼áž›",
+  preferredCategories: "áž”áŸ’ážšáž—áŸáž‘ážŠáŸ‚áž›áž–áŸáž‰áž…áž·ážáŸ’áž",
+  noBookingsYet: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž€áž¶ážšáž€áž€áŸ‹",
+  bookingHistory: "áž”áŸ’ážšážœážáŸ’ážáž·áž€áž¶ážšáž€áž€áŸ‹",
+  customerBookings: "áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹áž¢ážáž·ážáž·áž‡áž“",
+  noServicePackageYet: "áž¢ážáž·ážáž·áž‡áž“áž“áŸáŸ‡áž˜áž·áž“áž‘áž¶áž“áŸ‹áž”áž¶áž“áž€áž€áŸ‹ážŸáŸážœáž¶ áž¬áž€áž‰áŸ’áž…áž”áŸ‹ážŽáž¶áž˜áž½áž™áž‘áŸáŸ”",
+  qty: "áž…áŸ†áž“áž½áž“ {count}",
+  selectCustomer: "áž‡áŸ’ážšáž¾ážŸáž¢ážáž·ážáž·áž‡áž“",
+  selectCustomerSubtitle: "áž‡áŸ’ážšáž¾ážŸáž¢ážáž·ážáž·áž‡áž“áž˜áŸ’áž“áž¶áž€áŸ‹áž–áž¸áž”áž‰áŸ’áž‡áž¸ ážŠáž¾áž˜áŸ’áž”áž¸áž–áž·áž“áž·ážáŸ’áž™áž”áŸ’ážšážœážáŸ’ážáž·ážšáž¼áž” áž“áž·áž„áž”áŸ’ážšážœážáŸ’ážáž·áž€áž¶ážšáž€áž€áŸ‹ážšáž”ážŸáŸ‹áž–áž½áž€áž‚áŸáž“áŸ…áž‘áž¸áž“áŸáŸ‡áŸ”",
+  notProvided: "áž˜áž·áž“áž”áž¶áž“áž•áŸ’ážáž›áŸ‹",
+  timeTbd: "áž˜áŸ‰áŸ„áž„áž˜áž·áž“áž‘áž¶áž“áŸ‹áž€áŸ†ážŽážáŸ‹",
+  allDay: "áž–áŸáž‰áž˜áž½áž™ážáŸ’áž„áŸƒ",
+  unknown: "áž˜áž·áž“ážŸáŸ’áž‚áž¶áž›áŸ‹",
+  customerFallback: "áž¢ážáž·ážáž·áž‡áž“",
+  vendorFallback: "áž¢áŸ’áž“áž€áž•áŸ’áž‚ážáŸ‹áž•áŸ’áž‚áž„áŸ‹",
+  serviceBooking: "áž€áž¶ážšáž€áž€áŸ‹ážŸáŸážœáž¶",
+  package: "áž€áž‰áŸ’áž…áž”áŸ‹",
+  service: "ážŸáŸážœáž¶",
+  other: "áž•áŸ’ážŸáŸáž„áŸ—",
+  locationMissing: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž”áž“áŸ’ážáŸ‚áž˜áž‘áž¸ážáž¶áŸ†áž„",
+  joinDateUnavailable: "áž˜áž·áž“áž˜áž¶áž“áž€áž¶áž›áž”ážšáž·áž…áŸ’áž†áŸáž‘áž…áž¼áž›",
+  newMember: "ážáŸ’áž˜áž¸",
+  repeatMember: "ážáŸ’ážšáž¡áž”áŸ‹áž˜áž€ážœáž·áž‰",
+  activeMember: "ážŸáž€áž˜áŸ’áž˜",
+  unpaid: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž”áž„áŸ‹",
+  paid: "áž”áž¶áž“áž”áž„áŸ‹",
+  refunded: "áž”áž¶áž“ážŸáž„áž”áŸ’ážšáž¶áž€áŸ‹ážœáž·áž‰",
+  failed: "áž”ážšáž¶áž‡áŸáž™",
+  adminMissing: "áž˜áž·áž“áž˜áž¶áž“áž‚ážŽáž“áž¸áž¢áŸ’áž“áž€áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„ ážŸáž¼áž˜áž…áž¼áž›áž˜áŸ’ážáž„áž‘áŸ€ážáŸ”",
+  noCustomerAccounts: "áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž‚ážŽáž“áž¸áž¢ážáž·ážáž·áž‡áž“áŸ”",
+  couldNotLoadCustomerDirectory: "áž˜áž·áž“áž¢áž¶áž…áž•áŸ’áž‘áž»áž€áž”áž‰áŸ’áž‡áž¸áž¢ážáž·ážáž·áž‡áž“áž”áž¶áž“áž‘áŸáŸ”",
   eventTypes: {
-    wedding: "អាពាហ៍ពិពាហ៍",
-    monk_ceremony: "ពិធីព្រះសង្ឃ",
-    house_blessing: "ពិធីឡើងផ្ទះ",
-    company_party: "ពិធីជប់លៀងក្រុមហ៊ុន",
-    birthday: "ខួបកំណើត",
-    school_event: "ព្រឹត្តិការណ៍សាលា",
-    engagement: "ពិធីភ្ជាប់ពាក្យ",
-    anniversary: "ខួបអនុស្សាវរីយ៍",
-    baby_shower: "ពិធីស្វាគមន៍ទារក",
-    graduation: "ពិធីបញ្ចប់ការសិក្សា",
-    festival: "ពិធីបុណ្យ",
-    other: "ផ្សេងៗ",
+    wedding: "áž¢áž¶áž–áž¶áž áŸáž–áž·áž–áž¶áž áŸ",
+    monk_ceremony: "áž–áž·áž’áž¸áž–áŸ’ážšáŸ‡ážŸáž„áŸ’ážƒ",
+    house_blessing: "áž–áž·áž’áž¸áž¡áž¾áž„áž•áŸ’áž‘áŸ‡",
+    company_party: "áž–áž·áž’áž¸áž‡áž”áŸ‹áž›áŸ€áž„áž€áŸ’ážšáž»áž˜áž áŸŠáž»áž“",
+    birthday: "ážáž½áž”áž€áŸ†ážŽáž¾áž",
+    school_event: "áž–áŸ’ážšáž¹ážáŸ’ážáž·áž€áž¶ážšážŽáŸážŸáž¶áž›áž¶",
+    engagement: "áž–áž·áž’áž¸áž—áŸ’áž‡áž¶áž”áŸ‹áž–áž¶áž€áŸ’áž™",
+    anniversary: "ážáž½áž”áž¢áž“áž»ážŸáŸ’ážŸáž¶ážœážšáž¸áž™áŸ",
+    baby_shower: "áž–áž·áž’áž¸ážŸáŸ’ážœáž¶áž‚áž˜áž“áŸáž‘áž¶ážšáž€",
+    graduation: "áž–áž·áž’áž¸áž”áž‰áŸ’áž…áž”áŸ‹áž€áž¶ážšážŸáž·áž€áŸ’ážŸáž¶",
+    festival: "áž–áž·áž’áž¸áž”áž»ážŽáŸ’áž™",
+    other: "áž•áŸ’ážŸáŸáž„áŸ—",
   },
 };
 
@@ -830,9 +830,15 @@ onMounted(() => void loadCustomerDirectory());
             <strong>{{ selectedCustomer.name }}</strong>
             <small>{{ interpolate(uiText.customerSelectedSummary, { count: count(selectedCustomer.bookingsCount), date: selectedCustomer.joinedLabel }) }}</small>
           </div>
-          <button class="ghost-btn danger-btn" type="button" :disabled="!selectedCustomer || deletingCustomerId === selectedCustomer?.id" @click="deleteCustomerAndBlacklist">
-            {{ deletingCustomerId === selectedCustomer?.id ? "Deleting..." : "Delete + Blacklist" }}
-          </button>
+          <div v-if="selectedCustomer" class="hero-action-panel">
+            <span class="hero-action-label">Moderation Actions</span>
+            <div class="hero-action-grid">
+              <button class="ghost-btn danger-btn hero-action-btn" type="button" :disabled="!selectedCustomer || deletingCustomerId === selectedCustomer?.id" @click="deleteCustomerAndBlacklist">
+                {{ deletingCustomerId === selectedCustomer?.id ? "Deleting..." : "Delete + Blacklist" }}
+              </button>
+            </div>
+            <small class="hero-action-note">Remove and blacklist customers who abuse payments, bookings, or other marketplace rules.</small>
+          </div>
         </div>
       </section>
 
@@ -978,7 +984,11 @@ onMounted(() => void loadCustomerDirectory());
               </div>
               <span class="card-meta">{{ count(selectedBookings.length) }}</span>
             </header>
-            <div v-if="!selectedBookings.length" class="empty small">{{ uiText.noServicePackageYet }}</div>
+            <div v-if="!selectedBookings.length" class="section-empty section-empty-compact">
+              <span class="section-empty-label">{{ uiText.bookingHistory }}</span>
+              <strong>{{ uiText.noBookingsYet }}</strong>
+              <p>{{ uiText.noServicePackageYet }}</p>
+            </div>
             <div v-else class="booking-list">
               <div v-for="booking in selectedBookings" :key="booking.id" class="booking-row">
                 <div class="booking-copy">
@@ -1007,26 +1017,35 @@ onMounted(() => void loadCustomerDirectory());
               </div>
               <span class="card-meta">{{ count(customerBlacklistRows.length) }}</span>
             </header>
-            <div v-if="!customerBlacklistRows.length" class="empty small">No customers are blacklisted right now.</div>
+            <div v-if="!customerBlacklistRows.length" class="section-empty section-empty-compact">
+              <span class="section-empty-label">Safety Watch</span>
+              <strong>No customers are blacklisted right now.</strong>
+              <p>The moderation list will appear here one by one when an account is removed for rule violations.</p>
+            </div>
             <div v-else class="booking-list">
-              <div v-for="entry in customerBlacklistRows" :key="entry.id" class="booking-row blacklist-row">
+              <div v-for="entry in customerBlacklistRows" :key="entry.id" class="booking-row blacklist-card">
                 <div class="booking-copy">
                   <div class="booking-title-row">
                     <strong>{{ entry.name }}</strong>
                     <span class="chip" :class="{ muted: !entry.canApprove }">{{ entry.statusLabel }}</span>
                   </div>
-                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> · {{ entry.phone }}</template></p>
-                  <small>{{ entry.blacklistedAtLabel }}<template v-if="entry.approvedAtLabel"> · Approved {{ entry.approvedAtLabel }}</template></small>
-                  <p class="service-description">{{ entry.reason }}</p>
+                  <p>{{ entry.email || uiText.notProvided }}<template v-if="entry.phone"> | {{ entry.phone }}</template></p>
                 </div>
-                <button
-                  class="ghost-btn"
-                  type="button"
-                  :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
-                  @click="approveBlacklistEntry(entry)"
-                >
-                  {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Approved" }}
-                </button>
+                <div class="blacklist-meta">
+                  <span class="chip muted">Blacklisted {{ entry.blacklistedAtLabel }}</span>
+                  <span v-if="entry.approvedAtLabel" class="chip muted">Approved {{ entry.approvedAtLabel }}</span>
+                </div>
+                <p class="service-description blacklist-reason">{{ entry.reason }}</p>
+                <div class="blacklist-actions">
+                  <button
+                    class="ghost-btn approve-btn"
+                    type="button"
+                    :disabled="!entry.canApprove || approvingBlacklistId === entry.id"
+                    @click="approveBlacklistEntry(entry)"
+                  >
+                    {{ approvingBlacklistId === entry.id ? "Approving..." : entry.canApprove ? "Approve Reuse" : "Reuse Approved" }}
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -1571,21 +1590,68 @@ select {
 }
 
 .hero-aside {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 280px);
   gap: 14px;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-end;
-  max-width: 420px;
+  width: min(100%, 600px);
 }
 
 .hero-selected {
   display: grid;
-  gap: 4px;
-  min-width: 250px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.84);
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 246, 0.84));
   border: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: var(--shadow-soft);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    var(--shadow-soft);
+}
+
+.hero-action-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 248, 0.96), rgba(255, 242, 237, 0.92));
+  border: 1px solid rgba(220, 38, 38, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 20px 36px rgba(220, 38, 38, 0.08);
+}
+
+.hero-action-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.hero-action-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-action-btn {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+}
+
+.hero-action-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7b5560;
 }
 
 .hero-selected-label {
@@ -1947,8 +2013,19 @@ select {
 
 .danger-btn {
   color: #b42318;
-  border-color: rgba(220, 38, 38, 0.22);
-  background: rgba(255, 241, 242, 0.96);
+  border-color: rgba(220, 38, 38, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 244, 0.98), rgba(255, 235, 236, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 14px 24px rgba(220, 38, 38, 0.1);
+}
+
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 28px rgba(220, 38, 38, 0.14);
 }
 
 .booking-row {
@@ -1958,9 +2035,47 @@ select {
   background: linear-gradient(180deg, #fff, #fcfdff);
 }
 
-.blacklist-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+.blacklist-card {
+  gap: 14px;
+  padding: 18px;
+  border-color: rgba(220, 38, 38, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 246, 244, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+.blacklist-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blacklist-actions {
+  display: flex;
+}
+
+.approve-btn {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 16px;
+  color: #b45309;
+  border-color: rgba(241, 91, 42, 0.18);
+  background: linear-gradient(135deg, rgba(255, 250, 245, 0.98), rgba(255, 240, 232, 0.94));
+  box-shadow: 0 12px 22px rgba(241, 91, 42, 0.08);
+}
+
+.approve-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(241, 91, 42, 0.12);
+}
+
+.approve-btn:disabled {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.24);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.95));
 }
 
 .booking-copy {
@@ -1971,6 +2086,48 @@ select {
   margin: 0;
   color: #596981;
   line-height: 1.6;
+}
+
+.blacklist-reason {
+  margin-top: 2px;
+}
+
+.section-empty {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  padding: 20px 18px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 122, 26, 0.24);
+  background: linear-gradient(135deg, rgba(255, 248, 241, 0.96), rgba(255, 255, 255, 0.98));
+  text-align: left;
+}
+
+.section-empty strong,
+.section-empty p {
+  margin: 0;
+}
+
+.section-empty strong {
+  color: #17263d;
+  font-size: 16px;
+}
+
+.section-empty p {
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.section-empty-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f15b2a;
+}
+
+.section-empty-compact {
+  min-height: auto;
 }
 
 .empty,
@@ -2015,13 +2172,18 @@ button:disabled {
 
   .customers-hero,
   .hero-aside {
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .hero-copy h1 {
     max-width: none;
     font-size: 42px;
+  }
+
+  .hero-aside {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: none;
   }
 }
 
@@ -2029,16 +2191,12 @@ button:disabled {
   .admin-topbar,
   .customer-row,
   .sidebar-head,
-  .blacklist-row {
+  .blacklist-card {
     flex-direction: column;
     align-items: stretch;
   }
 
   .customer-row {
-    grid-template-columns: 1fr;
-  }
-
-  .blacklist-row {
     grid-template-columns: 1fr;
   }
 
@@ -2074,5 +2232,3 @@ button:disabled {
   }
 }
 </style>
-
-
