@@ -889,7 +889,7 @@ onMounted(() => void loadCustomerDirectory());
               @keydown.enter.prevent="selectedCustomerKey = customer.key"
               @keydown.space.prevent="selectedCustomerKey = customer.key"
             >
-              <div class="directory-primary">
+              <div class="customer-main">
                 <div class="customer-photo">
                   <img
                     v-if="hasCustomerProfileImage(customer)"
@@ -902,48 +902,28 @@ onMounted(() => void loadCustomerDirectory());
                 <div class="customer-copy">
                   <div class="customer-title-row">
                     <strong>{{ customer.name }}</strong>
+                    <span class="chip muted">{{ customer.memberState }}</span>
                   </div>
                   <p>{{ customer.email || uiText.emailNotProvided }}</p>
-                  <div class="directory-chip-row">
-                    <span v-if="customer.confirmedCount" class="chip muted">{{ interpolate(uiText.confirmedCount, { count: count(customer.confirmedCount) }) }}</span>
-                    <span v-if="customer.pendingCount" class="chip muted">{{ interpolate(uiText.pendingCount, { count: count(customer.pendingCount) }) }}</span>
-                    <span v-if="!customer.confirmedCount && !customer.pendingCount" class="chip muted">
-                      {{
-                        customer.bookingsCount
-                          ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
-                          : uiText.noBookingsYet
-                      }}
-                    </span>
+                  <div class="chips">
+                    <span class="chip">{{ interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) }) }}</span>
+                    <span class="chip muted">{{ customer.confirmedSpendLabel }}</span>
+                    <span class="chip muted">{{ customer.preferredTypes[0] || uiText.noCategoryYet }}</span>
                   </div>
                 </div>
               </div>
-              <div class="directory-secondary">
-                <span class="directory-date">{{ customer.lastBookingLabel }}</span>
-                <p class="directory-note">{{ customer.lastBookingService }}</p>
-                <div class="directory-badges">
-                  <span
-                    class="status"
-                    :class="{
-                      active: customer.bookingsCount === 1,
-                      mixed: customer.bookingsCount > 1,
-                      inactive: customer.bookingsCount === 0,
-                    }"
-                  >
-                    {{ customer.memberState }}
-                  </span>
-                  <span class="directory-emphasis">{{ customer.confirmedSpendLabel }}</span>
-                </div>
-              </div>
-              <div class="directory-actions customer-actions">
-                <span class="queue-stat">
+              <div class="directory-summary">
+                <strong class="directory-metric">
                   {{
                     customer.bookingsCount
                       ? interpolate(uiText.bookingCount, { count: count(customer.bookingsCount) })
                       : uiText.noBookingsYet
                   }}
-                </span>
+                </strong>
+                <small>{{ customer.lastBookingLabel }}</small>
+              </div>
+              <div class="directory-actions customer-actions">
                 <button
-                  v-if="selectedCustomer?.key === customer.key"
                   class="ghost-btn listing-delete-btn"
                   type="button"
                   :disabled="deletingCustomerId === customer.id"
@@ -1453,6 +1433,7 @@ select {
   font: inherit;
 }
 
+.ghost-btn,
 .primary-btn {
   padding: 10px 14px;
   border-radius: 14px;
@@ -1733,8 +1714,7 @@ select {
 }
 
 .content-grid {
-  grid-template-columns: minmax(300px, 320px) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
   align-items: start;
 }
 
@@ -1770,20 +1750,14 @@ select {
 }
 
 .filters {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-bottom: 18px;
-  padding: 16px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 250, 245, 0.86), rgba(247, 250, 252, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.1);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .filter-field {
   display: grid;
   gap: 8px;
-  min-width: 0;
+  min-width: 180px;
 }
 
 .filter-field span {
@@ -1806,53 +1780,33 @@ select {
 .customer-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  align-items: stretch;
-  min-height: 0;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 180px) minmax(170px, auto);
+  gap: 24px;
+  align-items: center;
+  padding: 22px 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 250, 246, 0.96));
   border-radius: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.94));
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
   text-align: left;
   cursor: pointer;
   transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
-  overflow: hidden;
-  position: relative;
-  isolation: isolate;
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
 }
 
-.customer-row::before {
-  content: "";
-  position: absolute;
-  inset: 16px auto 16px 0;
-  width: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 122, 26, 0.92), rgba(255, 190, 133, 0.24));
-  opacity: 0;
-  transform: scaleY(0.6);
-  transform-origin: center;
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+.customer-row:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 122, 26, 0.2);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.09);
 }
-
 
 .customer-row.selected {
   border-color: rgba(255, 122, 26, 0.28);
-  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
-  box-shadow:
-    0 26px 52px rgba(255, 122, 26, 0.14),
-    0 0 0 1px rgba(255, 122, 26, 0.08);
-}
-
-.customer-row.selected::before {
-  opacity: 1;
-  transform: scaleY(1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 245, 236, 0.98));
+  box-shadow: 0 20px 40px rgba(255, 122, 26, 0.1);
 }
 
 .customer-row:focus-visible {
@@ -1860,19 +1814,18 @@ select {
   outline-offset: 2px;
 }
 
-.directory-primary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-
+.customer-main,
 .customer-title-row,
 .booking-title-row,
 .customer-identity {
   display: flex;
   align-items: flex-start;
+}
+
+.customer-main {
+  gap: 16px;
+  min-width: 0;
+  align-items: center;
 }
 
 .customer-title-row,
@@ -1889,18 +1842,17 @@ select {
 }
 
 .customer-photo {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fff8f1, #ffeddc);
-  color: var(--accent);
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
+  color: #bf5c06;
   display: grid;
   place-items: center;
   font-weight: 700;
   overflow: hidden;
-  border: 1px solid rgba(255, 122, 26, 0.15);
+  box-shadow: 0 10px 20px rgba(255, 122, 26, 0.12);
   flex-shrink: 0;
-  box-shadow: 0 14px 30px rgba(255, 122, 26, 0.12);
 }
 
 .customer-photo img {
@@ -1918,9 +1870,9 @@ select {
 }
 
 .customer-photo.large {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
 }
 
 .customer-copy,
@@ -1929,11 +1881,6 @@ select {
   display: grid;
   gap: 10px;
   min-width: 0;
-}
-
-.customer-row .customer-copy {
-  gap: 7px;
-  align-content: center;
 }
 
 .customer-copy strong,
@@ -1946,196 +1893,98 @@ select {
 .customer-copy strong {
   font-size: 18px;
   line-height: 1.2;
-  font-weight: 700;
 }
 
 .customer-copy p,
 .booking-copy p,
 .booking-copy small {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .customer-copy p {
-  color: var(--muted);
+  color: #68778d;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.directory-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.directory-secondary {
+.directory-summary {
   display: grid;
-  align-content: center;
-  gap: 10px;
+  justify-items: end;
+  gap: 5px;
   min-width: 0;
-  padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.directory-date {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #7d8ca2;
-}
-
-.directory-note {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #314258;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.directory-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.directory-emphasis {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
-  color: #22324a;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: right;
 }
 
 .directory-actions {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 10px;
-  justify-self: stretch;
-  align-items: stretch;
-  width: 100%;
+  justify-items: end;
   min-width: 0;
-  max-width: none;
-  text-align: left;
-  flex-wrap: nowrap;
 }
 
 .customer-actions {
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  justify-content: center;
+  align-content: center;
+}
+
+.directory-metric {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #17263d;
+}
+
+.directory-summary small {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  width: 100%;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   border-radius: 14px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: normal;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   text-align: center;
-  box-shadow: none;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  flex: 0 0 auto;
 }
 
 .fixed-action-btn {
-  width: 100%;
-  min-width: 0;
+  min-width: 156px;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(220, 38, 38, 0.24);
-  background: rgba(255, 244, 244, 0.96);
-  color: #b42318;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: normal;
+  border: 1px solid rgba(255, 122, 26, 0.16);
+  background: rgba(255, 255, 255, 0.98);
+  color: #c45a12;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: none;
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  width: 100%;
-  min-width: 0;
-  flex: 0 0 auto;
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
 }
 
-.directory-action-btn:hover:not(:disabled) {
+.listing-delete-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
-}
-
-
-.status {
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  justify-self: start;
-}
-
-.status.active {
-  background: #ecfdf3;
-  color: #047857;
-}
-
-.status.mixed {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.status.inactive {
-  background: #f8fafc;
-  color: #64748b;
-}
-
-.queue-stat {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 248, 241, 0.98), rgba(255, 238, 225, 0.92));
-  border: 1px solid rgba(255, 122, 26, 0.12);
-  font-size: 12px;
-  font-weight: 700;
-  color: #18263d;
-  white-space: normal;
-  text-align: center;
-  margin-right: 0;
+  box-shadow: 0 10px 18px rgba(255, 122, 26, 0.08);
+  background: rgba(255, 247, 240, 0.98);
 }
 
 .directory-action-copy {
@@ -2170,7 +2019,6 @@ select {
   background:
     radial-gradient(circle at 100% 0%, rgba(255, 122, 26, 0.12), transparent 28%),
     rgba(255, 255, 255, 0.92);
-  overflow: hidden;
 }
 
 .sidebar-head p {
@@ -2180,10 +2028,6 @@ select {
 .customer-identity {
   gap: 12px;
   margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(255, 250, 245, 0.92), rgba(247, 250, 252, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.08);
 }
 
 .identity-copy strong {
@@ -2197,11 +2041,10 @@ select {
 .stats-grid div,
 .detail-block,
 .booking-row {
-  padding: 16px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  border: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .stats-grid span {
@@ -2262,6 +2105,12 @@ select {
     0 14px 24px rgba(220, 38, 38, 0.1);
 }
 
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 28px rgba(220, 38, 38, 0.14);
+}
 
 .booking-row {
   display: grid;
@@ -2314,6 +2163,11 @@ select {
 .approve-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 10px 18px rgba(241, 91, 42, 0.1);
+}
+
+.directory-action-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
 }
 
 .approve-btn:disabled {
@@ -2433,6 +2287,7 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
+  .customer-row,
   .sidebar-head,
   .blacklist-card {
     flex-direction: column;
@@ -2441,27 +2296,14 @@ button:disabled {
 
   .customer-row {
     grid-template-columns: 1fr;
-    row-gap: 14px;
-    padding: 12px;
+    gap: 18px;
+    padding: 22px 20px;
   }
 
-  .directory-secondary {
-    padding-left: 0;
-    padding-top: 14px;
-    border-left: none;
-    border-top: 1px solid rgba(148, 163, 184, 0.14);
-  }
-
+  .directory-summary,
   .directory-actions {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-
-  .customer-actions {
-    width: auto;
-    min-width: 0;
-    max-width: none;
+    justify-items: start;
+    text-align: left;
   }
 }
 
@@ -2484,8 +2326,8 @@ button:disabled {
   }
 
   .customer-row {
-    padding: 12px;
-    border-radius: 14px;
+    padding: 20px 18px;
+    border-radius: 20px;
   }
 
   .topbar-actions {

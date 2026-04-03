@@ -697,19 +697,16 @@ async function loadVendorDirectory() {
   }
 }
 
-async function setVendorVisibility(nextActive, vendor = selectedVendor.value) {
-  const targetVendor = vendor || selectedVendor.value;
-  if (!targetVendor?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
-  const services = (Array.isArray(targetVendor?.listings) ? targetVendor.listings : []).filter(
-    (item) => Boolean(item.is_active) !== nextActive,
-  );
+async function setVendorVisibility(nextActive) {
+  if (!selectedVendor.value?.id) return setNotice(uiText.value.missingVendorAccountId, "error");
+  const services = selectedServices.value.filter((item) => Boolean(item.is_active) !== nextActive);
   if (!services.length) return setNotice(nextActive ? uiText.value.allListingsAlreadyLive : uiText.value.allListingsAlreadyPaused);
 
   isSaving.value = true;
   try {
     for (const service of services) {
       const updated = await apiPatch(`vendor/services/${service.id}`, {
-        vendor_user_id: targetVendor.id,
+        vendor_user_id: selectedVendor.value.id,
         is_active: nextActive,
       });
       patchLocalEvent(updated);
@@ -746,15 +743,14 @@ async function activateVendorPlan() {
   }
 }
 
-async function deleteVendorAndBlacklist(vendor = selectedVendor.value) {
-  const targetVendor = vendor || selectedVendor.value;
-  const vendorId = Number(targetVendor?.id || 0);
+async function deleteVendorAndBlacklist() {
+  const vendorId = Number(selectedVendor.value?.id || 0);
   if (!vendorId) return setNotice(uiText.value.missingVendorAccountId, "error");
   if (!props.adminUserId) return setNotice("Admin account could not be identified.", "error");
 
   const reason = window.prompt(
-    `Add a blacklist note for ${targetVendor?.name || "this vendor"}.`,
-    `${targetVendor?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
+    `Add a blacklist note for ${selectedVendor.value?.name || "this vendor"}.`,
+    `${selectedVendor.value?.name || "Vendor"} was removed for fraudulent or abusive activity.`,
   );
 
   if (reason === null) return;
@@ -763,7 +759,7 @@ async function deleteVendorAndBlacklist(vendor = selectedVendor.value) {
   }
 
   const confirmed = window.confirm(
-    `Delete ${targetVendor?.name || "this vendor"} and blacklist their email or phone number?`,
+    `Delete ${selectedVendor.value?.name || "this vendor"} and blacklist their email or phone number?`,
   );
   if (!confirmed) return;
 
@@ -970,7 +966,7 @@ onMounted(() => void loadVendorDirectory());
               @keydown.enter.prevent="selectedVendorKey = vendor.key"
               @keydown.space.prevent="selectedVendorKey = vendor.key"
             >
-              <div class="directory-primary">
+              <div class="vendor-main">
                 <div class="vendor-photo">
                   <img
                     v-if="hasVendorProfileImage(vendor)"
@@ -985,49 +981,39 @@ onMounted(() => void loadVendorDirectory());
                     <strong>{{ vendor.name }}</strong>
                   </div>
                   <p>{{ vendor.location }}</p>
-                  <div class="directory-chip-row">
+                  <div class="chips">
+                    <span class="chip">{{ visibilityLabel(vendor.visibility) }}</span>
                     <span class="chip muted">{{ interpolate(uiText.listingCount, { count: count(vendor.serviceCount) }) }}</span>
                     <span class="chip muted">{{ interpolate(uiText.packageCount, { count: count(vendor.packageCount) }) }}</span>
                   </div>
-                </div>
+                </div>z
               </div>
-              <div class="directory-secondary">
-                <span class="directory-date">{{ vendor.lastActivityLabel }}</span>
-                <p class="directory-note">{{ vendor.categories.length ? vendor.categories.slice(0, 2).join(" / ") : uiText.noCategoriesYet }}</p>
-                <div class="directory-badges">
-                  <span
-                    class="status"
-                    :class="{
-                      active: vendor.visibility === 'live',
-                      mixed: vendor.visibility === 'mixed',
-                      inactive: vendor.visibility === 'paused' || vendor.visibility === 'empty',
-                    }"
+              <div class="vendor-side">
+                <div class="directory-side-meta">
+                  <span>{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
+                  <small>{{ vendor.lastActivityLabel }}</small>
+                </div>
+                <div v-if="selectedVendor?.key === vendor.key" class="directory-actions vendor-actions">
+                  <button
+                    class="ghost-btn listing-delete-btn"
+                    type="button"
+                    :disabled="deletingVendorId === vendor.id"
+                    @click.stop="deleteVendorAndBlacklist"
                   >
-                    {{ visibilityLabel(vendor.visibility) }}
-                  </span>
-                  <span class="directory-emphasis">{{ vendor.subscriptionPlanLabel }}</span>
+                    {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
+                  </button>
+                  <button
+                    class="primary-btn directory-action-btn fixed-action-btn"
+                    type="button"
+                    :disabled="!selectedServices.length || isSaving"
+                    @click.stop="setVendorVisibility(selectedVendor?.visibility === 'paused')"
+                  >
+                    <span class="directory-action-copy">
+                      <span>{{ selectedVendor?.visibility === "paused" ? "Go Live" : "Pause" }}</span>
+                      <span>{{ selectedVendor?.visibility === "paused" ? "Again" : "Vendor" }}</span>
+                    </span>
+                  </button>
                 </div>
-              </div>
-              <div class="directory-actions vendor-actions">
-                <span class="queue-stat">{{ interpolate(uiText.bookingsCount, { count: count(vendor.bookingsCount) }) }}</span>
-                <button
-                  v-if="selectedVendor?.key === vendor.key"
-                  class="primary-btn directory-action-btn fixed-action-btn"
-                  type="button"
-                  :disabled="!vendor.listings.some((item) => Boolean(item.is_active) !== (vendor.visibility === 'paused')) || isSaving"
-                  @click.stop="setVendorVisibility(vendor.visibility === 'paused', vendor)"
-                >
-                  {{ vendor.visibility === "paused" ? uiText.goLiveAgain : uiText.pauseVendor }}
-                </button>
-                <button
-                  v-if="selectedVendor?.key === vendor.key"
-                  class="ghost-btn listing-delete-btn"
-                  type="button"
-                  :disabled="deletingVendorId === vendor.id"
-                  @click.stop="deleteVendorAndBlacklist(vendor)"
-                >
-                  {{ deletingVendorId === vendor.id ? "Deleting..." : "Delete + Blacklist" }}
-                </button>
               </div>
             </article>
           </div>
@@ -1825,8 +1811,7 @@ select {
 }
 
 .content-grid {
-  grid-template-columns: minmax(300px, 320px) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
   align-items: start;
 }
 
@@ -1862,20 +1847,14 @@ select {
 }
 
 .filters {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-bottom: 18px;
-  padding: 16px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 250, 245, 0.86), rgba(247, 250, 252, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.1);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .filter-field {
   display: grid;
   gap: 8px;
-  min-width: 0;
+  min-width: 180px;
 }
 
 .filter-field span {
@@ -1898,60 +1877,27 @@ select {
 .vendor-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  align-items: stretch;
-  min-height: 0;
-  padding: 14px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.94));
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
   text-align: left;
   cursor: pointer;
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
-  overflow: hidden;
-  position: relative;
-  isolation: isolate;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.vendor-row::before {
-  content: "";
-  position: absolute;
-  inset: 16px auto 16px 0;
-  width: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 122, 26, 0.92), rgba(255, 190, 133, 0.24));
-  opacity: 0;
-  transform: scaleY(0.6);
-  transform-origin: center;
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
-}
-
-.vendor-row:hover:not(:has(.directory-action-btn:hover, .listing-delete-btn:hover)) {
+.vendor-row:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 122, 26, 0.18);
-  box-shadow:
-    0 26px 50px rgba(15, 23, 42, 0.12),
-    0 0 0 1px rgba(255, 122, 26, 0.06);
+  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
 }
 
 .vendor-row.selected {
-  border-color: rgba(255, 122, 26, 0.28);
-  background: linear-gradient(135deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 1));
-  box-shadow:
-    0 26px 52px rgba(255, 122, 26, 0.14),
-    0 0 0 1px rgba(255, 122, 26, 0.08);
-}
-
-.vendor-row.selected::before {
-  opacity: 1;
-  transform: scaleY(1);
+  border-color: rgba(255, 122, 26, 0.24);
+  background: linear-gradient(135deg, rgba(255, 247, 240, 0.96), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 18px 30px rgba(255, 122, 26, 0.12);
 }
 
 .vendor-row:focus-visible {
@@ -1959,19 +1905,16 @@ select {
   outline-offset: 2px;
 }
 
-.directory-primary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-
+.vendor-main,
 .vendor-title-row,
 .service-title-row,
 .vendor-identity {
   display: flex;
   align-items: flex-start;
+}
+
+.vendor-main {
+  gap: 12px;
 }
 
 .vendor-title-row,
@@ -1988,18 +1931,17 @@ select {
 }
 
 .vendor-photo {
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: 16px;
-  background: linear-gradient(180deg, #fff8f1, #ffeddc);
-  color: var(--accent);
+  background: linear-gradient(135deg, #ffe9d6, #ffd2aa);
+  color: #bf5c06;
   display: grid;
   place-items: center;
   font-weight: 700;
   overflow: hidden;
-  border: 1px solid rgba(255, 122, 26, 0.15);
+  box-shadow: 0 12px 28px rgba(255, 122, 26, 0.16);
   flex-shrink: 0;
-  box-shadow: 0 14px 30px rgba(255, 122, 26, 0.12);
 }
 
 .vendor-photo img {
@@ -2017,22 +1959,16 @@ select {
 }
 
 .vendor-photo.large {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
 }
 
 .vendor-copy,
 .service-copy,
 .identity-copy {
   display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.vendor-row .vendor-copy {
-  gap: 7px;
-  align-content: center;
+  gap: 8px;
 }
 
 .vendor-copy strong,
@@ -2042,215 +1978,91 @@ select {
   color: #17263d;
 }
 
-.vendor-copy strong {
-  font-size: 18px;
-  line-height: 1.2;
-  font-weight: 700;
-}
-
 .vendor-copy p,
 .service-copy p,
 .service-copy small {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 
-.vendor-copy p {
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.directory-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.directory-secondary {
+.vendor-side {
   display: grid;
-  align-content: center;
-  gap: 10px;
-  min-width: 0;
-  padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  justify-items: end;
+  gap: 4px;
+  min-width: 120px;
+  font-weight: 600;
 }
 
-.directory-date {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #7d8ca2;
-}
-
-.directory-note {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #314258;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.directory-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.directory-emphasis {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
-  color: #22324a;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.directory-side-meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
 }
 
 .directory-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  justify-self: stretch;
-  align-items: stretch;
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  text-align: left;
-  flex-wrap: nowrap;
+  display: grid;
+  gap: 8px;
+  justify-content: end;
+  margin-top: 12px;
 }
 
 .vendor-actions {
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  justify-content: center;
+  grid-template-columns: auto 64px;
+  justify-content: end;
+  align-items: start;
 }
 
 .directory-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-size: 12px;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.2;
-  white-space: normal;
-  text-align: center;
+  line-height: 1.1;
   box-shadow: none;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  flex: 0 0 auto;
+  transition: none;
+  white-space: normal;
 }
 
 .fixed-action-btn {
-  width: 100%;
-  min-width: 0;
+  width: 64px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 6px 8px;
 }
 
 .listing-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  justify-self: end;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid rgba(220, 38, 38, 0.24);
   background: rgba(255, 244, 244, 0.96);
   color: #b42318;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.2;
-  white-space: normal;
+  line-height: 1.1;
+  white-space: nowrap;
   cursor: pointer;
   box-shadow: none;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  width: 100%;
-  min-width: 0;
-  flex: 0 0 auto;
+  transition: none;
 }
 
 .listing-delete-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(220, 38, 38, 0.08);
-  background: rgba(255, 244, 244, 0.98);
-}
-
-.directory-action-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
-}
-
-.directory-action-btn:active,
-.listing-delete-btn:active {
   transform: none;
   box-shadow: none;
-}
-
-.status {
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  justify-self: start;
-}
-
-.status.active {
-  background: #ecfdf3;
-  color: #047857;
-}
-
-.status.mixed {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.status.inactive {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.queue-stat {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 248, 241, 0.98), rgba(255, 238, 225, 0.92));
-  border: 1px solid rgba(255, 122, 26, 0.12);
-  font-size: 12px;
-  font-weight: 700;
-  color: #18263d;
-  white-space: normal;
-  text-align: center;
-  margin-right: 0;
+  background: rgba(255, 244, 244, 0.96);
 }
 
 .directory-action-copy {
   display: grid;
-  gap: 1px;
+  gap: 2px;
   justify-items: center;
   text-align: center;
 }
@@ -2262,25 +2074,23 @@ select {
 .chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(255, 122, 26, 0.1);
-  color: #c45a12;
-  font-size: 12px;
+  background: #fff3e6;
+  color: #f15b2a;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .chip.muted {
   background: #f8fafc;
-  color: #526377;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: #475569;
 }
 
 .spotlight-card {
   background:
     radial-gradient(circle at 100% 0%, rgba(255, 122, 26, 0.12), transparent 28%),
     rgba(255, 255, 255, 0.92);
-  overflow: hidden;
 }
 
 .sidebar-head p {
@@ -2290,10 +2100,6 @@ select {
 .vendor-identity {
   gap: 12px;
   margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(255, 250, 245, 0.92), rgba(247, 250, 252, 0.96));
-  border: 1px solid rgba(255, 122, 26, 0.08);
 }
 
 .identity-copy strong {
@@ -2307,11 +2113,10 @@ select {
 .stats-grid div,
 .detail-block,
 .service-row {
-  padding: 16px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  border: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .stats-grid span {
@@ -2559,6 +2364,7 @@ button:disabled {
 
 @media (max-width: 840px) {
   .admin-topbar,
+  .vendor-row,
   .sidebar-head,
   .blacklist-card {
     flex-direction: column;
@@ -2567,27 +2373,23 @@ button:disabled {
 
   .vendor-row {
     grid-template-columns: 1fr;
-    row-gap: 14px;
-    padding: 12px;
   }
 
-  .directory-secondary {
-    padding-left: 0;
-    padding-top: 14px;
-    border-left: none;
-    border-top: 1px solid rgba(148, 163, 184, 0.14);
+  .vendor-side {
+    justify-items: start;
+  }
+
+  .directory-side-meta {
+    justify-items: start;
   }
 
   .directory-actions {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
+    justify-content: start;
   }
 
   .vendor-actions {
-    width: auto;
-    min-width: 0;
-    max-width: none;
+    grid-template-columns: repeat(2, auto);
+    justify-content: start;
   }
 }
 
@@ -2612,11 +2414,6 @@ button:disabled {
 
   .hero-copy h1 {
     font-size: 34px;
-  }
-
-  .vendor-row {
-    padding: 12px;
-    border-radius: 14px;
   }
 
   .topbar-actions {
