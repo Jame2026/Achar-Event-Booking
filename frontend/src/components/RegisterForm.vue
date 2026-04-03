@@ -56,7 +56,7 @@ const copyByLanguage = {
     emailPlaceholder: 'you@example.com',
     phoneNumber: 'Phone Number',
     profession: 'Role',
-    planner: 'User',
+    planner: 'Planner',
     vendor: 'Vendor',
     vendorPlans: 'Vendor Plan',
     vendorPlanHint: 'Choose your listing plan. After you create the vendor account, Achar will show the payment QR for this plan.',
