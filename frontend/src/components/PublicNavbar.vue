@@ -371,12 +371,17 @@ const currentRole = computed(() => String(currentUser.value?.role || '').trim().
 const isVendorRole = computed(() => currentRole.value === 'vendor')
 const isAdminRole = computed(() => currentRole.value === 'admin')
 const isDashboardRole = computed(() => isVendorRole.value || isAdminRole.value)
+const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'customers', 'revenue', 'settings']
 const legacyPage = computed(() => {
   const page = route.query?.page
   return typeof page === 'string' ? page : 'bookings'
 })
 const isDashboardActive = computed(
-  () => route.path === '/legacy-app' && legacyPage.value === 'dashboard' && isDashboardRole.value,
+  () => {
+    if (route.path !== '/legacy-app' || !isDashboardRole.value) return false
+    if (isAdminRole.value) return adminLegacyPages.includes(legacyPage.value)
+    return legacyPage.value === 'dashboard'
+  },
 )
 const isProfileActive = computed(() => route.path === '/legacy-app' && legacyPage.value === 'profile')
 const isBookingSearchContext = computed(() => route.path === '/legacy-app' && legacyPage.value === 'bookings')
@@ -411,6 +416,7 @@ onMounted(() => {
   }
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('achar:auth-updated', refreshAuthState)
   window.addEventListener('storage', refreshFavoriteCount)
   window.addEventListener('achar:favorites-updated', refreshFavoriteCount)
 })
@@ -420,6 +426,7 @@ onBeforeUnmount(() => {
   stopNotificationPolling()
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('achar:auth-updated', refreshAuthState)
   window.removeEventListener('storage', refreshFavoriteCount)
   window.removeEventListener('achar:favorites-updated', refreshFavoriteCount)
 })

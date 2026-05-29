@@ -38,7 +38,8 @@ body {
   font-family: "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg);
   color: var(--text);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #app {
@@ -117,6 +118,45 @@ a {
   align-items: center;
   gap: 0.72rem;
   font-weight: 700;
+}
+
+/* Responsive layout helpers */
+@media (max-width: 960px) {
+  .shell {
+    width: min(960px, calc(100% - 1.5rem));
+  }
+
+  .topbar-inner {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    row-gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+
+  .shell {
+    width: min(100%, calc(100% - 1rem));
+  }
+
+  .topbar-inner {
+    align-items: flex-start;
+  }
+
+  .topbar-actions,
+  .page-actions,
+  .pill-group {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .pill {
+    width: auto;
+  }
 }
 
 .brand-icon {

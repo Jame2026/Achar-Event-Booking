@@ -117,4 +117,61 @@ class BookingPublicIndexTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $matchedBooking->id);
     }
+
+    public function test_public_booking_index_returns_customer_bookings_with_vendor_service_details(): void
+    {
+        $vendor = User::factory()->create([
+            'role' => 'vendor',
+            'name' => 'Golden Vendor',
+            'profile_image_url' => 'https://example.com/vendor.jpg',
+        ]);
+
+        $customer = User::factory()->create([
+            'role' => 'user',
+            'name' => 'Customer One',
+            'email' => 'customer-one@example.com',
+        ]);
+
+        $event = Event::create([
+            'vendor_id' => $vendor->id,
+            'title' => 'Birthday Celebration Package',
+            'event_type' => 'birthday',
+            'description' => 'Birthday package.',
+            'service_mode' => 'package',
+            'location' => 'Phnom Penh',
+            'starts_at' => now()->addDays(5)->toDateTimeString(),
+            'price' => 300,
+            'capacity' => 50,
+            'is_active' => true,
+        ]);
+
+        $booking = Booking::create([
+            'event_id' => $event->id,
+            'user_id' => $customer->id,
+            'quantity' => 2,
+            'total_amount' => 600,
+            'status' => 'confirmed',
+            'customer_name' => 'Customer One',
+            'customer_email' => 'customer-one@example.com',
+            'customer_phone' => '+85512345678',
+            'customer_location' => 'Sen Sok',
+            'service_name' => 'Premium Birthday Package',
+            'requested_event_date' => now()->addDays(5)->toDateString(),
+            'booked_items' => [
+                ['name' => 'Premium Birthday Package'],
+                ['name' => 'Balloon Backdrop'],
+            ],
+        ]);
+
+        $response = $this->getJson('/api/bookings?per_page=100');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $booking->id)
+            ->assertJsonPath('data.0.customer_name', 'Customer One')
+            ->assertJsonPath('data.0.service_name', 'Premium Birthday Package')
+            ->assertJsonPath('data.0.event.title', 'Birthday Celebration Package')
+            ->assertJsonPath('data.0.event.vendor.name', 'Golden Vendor')
+            ->assertJsonPath('data.0.event.vendor.profile_image_url', 'https://example.com/vendor.jpg');
+    }
 }

@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet } from "../../features/apiClient";
 import { serviceFeeRate } from "../../features/appData";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -27,14 +27,15 @@ const navItems = [
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
 const activeKey = ref("revenue");
-const isLoading = ref(false);
-const loadError = ref("");
-const rawBookings = ref([]);
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all || adminStore.loading.bookings);
+const loadError = computed(() => adminStore.errors.bookings);
+const rawBookings = computed(() => adminStore.state.bookings);
 const rangeKey = ref("30d");
 const chartMetric = ref("gross");
 const rangeOptions = [
@@ -385,114 +386,71 @@ const setChartMetric = (metric) => {
   chartMetric.value = metric;
 };
 
-async function fetchPagedBookings(endpoint) {
-  const allRows = [];
-  let page = 1;
-  let lastPage = 1;
-  const maxPages = 40;
-  do {
-    const result = await apiGet(endpoint, { page });
-    const rows = Array.isArray(result?.data) ? result.data : [];
-    allRows.push(...rows);
-    lastPage = Number(result?.last_page || result?.lastPage || 1);
-    page += 1;
-  } while (page <= lastPage && page <= maxPages);
-  return allRows;
-}
-
-async function loadRevenueBookings() {
-  isLoading.value = true;
-  loadError.value = "";
-  try {
-    rawBookings.value = await fetchPagedBookings("admin/bookings");
-  } catch (error) {
-    try {
-      rawBookings.value = await fetchPagedBookings("bookings");
-    } catch (innerError) {
-      rawBookings.value = [];
-      loadError.value = innerError?.message || error?.message || "Unable to load revenue data.";
-    }
-  } finally {
-    isLoading.value = false;
-  }
-}
-
 syncActiveKey();
 watch(() => route.query.page, syncActiveKey);
-onMounted(loadRevenueBookings);
+onMounted(() => void adminStore.loadAll());
 </script>
 
 <template>
   <section class="admin-shell revenue-shell">
     <aside class="admin-sidebar">
-      <div class="brand">
-        <div class="brand-logo">
-          <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
-          <div v-else class="brand-mark">A</div>
-        </div>
-        <div>
-          <p class="brand-title">Revenue Admin</p>
-          <p class="brand-subtitle">Management Suite</p>
+      <div class="brand-card">
+        <div class="brand">
+          <div class="brand-logo">
+            <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+            <div v-else class="brand-mark">A</div>
+          </div>
+          <div>
+            <p class="brand-kicker">Operations Console</p>
+            <p class="brand-title">Achar Admin</p>
+            <p class="brand-subtitle">Revenue performance workspace</p>
+          </div>
         </div>
       </div>
 
-      <nav class="admin-nav">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-          type="button"
-          class="nav-item"
-          :class="{ active: activeKey === item.key }"
-          @click="navigateTo(item.key)"
-        >
-          <span class="nav-icon" aria-hidden="true">
-            <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
-            </svg>
-            <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
-            </svg>
-            <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-            </svg>
-            <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
-            </svg>
-            <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
-            </svg>
-            <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24">
-              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
-            </svg>
-          </span>
-          <span>{{ item.label }}</span>
-        </button>
-        <RouterLink class="nav-item home-link" to="/">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z" />
-            </svg>
-          </span>
-          <span>Back to Home</span>
-        </RouterLink>
-      </nav>
+      <section class="sidebar-block">
+        <div class="sidebar-block-head">
+          <span class="sidebar-section-label">Navigation</span>
+          <span class="sidebar-section-caption">Admin modules</span>
+        </div>
 
-      <div class="admin-user-card">
-        <div class="avatar" :class="{ 'has-image': avatarUrl }">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
-          <span v-else>{{ initials }}</span>
-        </div>
-        <div>
-          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
-          <p class="user-role">Revenue Manager</p>
-        </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
+        <nav class="admin-nav">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
+                <path d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" />
+              </svg>
+              <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
+                <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z" />
+              </svg>
+              <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
+                <path d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              </svg>
+              <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
+                <path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z" />
+              </svg>
+              <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
+              </svg>
+              <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
+                <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24">
+                <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z" />
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </section>
+
     </aside>
 
     <main class="admin-main">
@@ -527,7 +485,7 @@ onMounted(loadRevenueBookings);
         <div class="hero-copy">
           <p class="eyebrow">Revenue Intelligence</p>
           <h1 class="hero-title">Financial Health Overview</h1>
-          <p class="hero-subtitle">Monitor payouts, platform fees, and profit trends in one place.</p>
+          <p class="hero-subtitle">Monitor revenue health, platform fees, and profit trends in one place.</p>
           <div class="hero-tags">
             <span class="hero-tag">Automated Payouts</span>
             <span class="hero-tag soft">Fraud Watch</span>
@@ -640,18 +598,18 @@ onMounted(loadRevenueBookings);
         <article class="card side payout-card">
           <header class="side-header">
             <div>
-              <h3>Payout Management</h3>
+              <h3>Revenue Breakdown</h3>
               <p class="card-subtitle">Based on confirmed bookings in range</p>
             </div>
             <span class="status-pill">Ready</span>
           </header>
           <div class="payout-summary">
             <div>
-              <p>Available for Payout</p>
+              <p>Available Revenue</p>
               <h4>{{ payoutSummary.available }}</h4>
             </div>
             <div class="payout-progress">
-              <span>{{ payoutSummary.progress }}% cleared</span>
+              <span>{{ payoutSummary.progress }}% recognized</span>
               <div class="progress">
                 <span class="progress-fill" :style="{ width: `${payoutSummary.progress}%` }"></span>
               </div>
@@ -671,7 +629,7 @@ onMounted(loadRevenueBookings);
               <strong class="danger">{{ payoutSummary.platformFees }}</strong>
             </div>
           </div>
-          <button class="primary-btn full" type="button">Process Payouts Now</button>
+          <button class="primary-btn full" type="button">View Revenue Details</button>
         </article>
 
         <article class="card wide table-card">
@@ -709,20 +667,32 @@ onMounted(loadRevenueBookings);
         </article>
 
         <article class="card side projection">
-          <h3>Quarterly Projection</h3>
-          <p>Based on current range trends.</p>
-          <h4>{{ projection.valueLabel }}</h4>
-          <div class="projection-grid">
+          <header class="projection-head">
             <div>
+              <p class="projection-eyebrow">Forecast</p>
+              <h3>Quarterly Projection</h3>
+              <p class="projection-sub">Based on current range trends.</p>
+            </div>
+            <span class="status-pill">{{ projection.status }}</span>
+          </header>
+          <div class="projection-value">
+            <span class="value-label">Expected revenue</span>
+            <h4>{{ projection.valueLabel }}</h4>
+            <div class="projection-bar" role="presentation">
+              <span class="projection-bar-fill" :style="{ width: `${projection.confidence}%` }"></span>
+            </div>
+            <p class="projection-note">{{ projection.confidence }}% confidence</p>
+          </div>
+          <div class="projection-grid">
+            <div class="projection-metric">
               <span>Confidence</span>
               <strong>{{ projection.confidence }}%</strong>
             </div>
-            <div>
-              <span>Risk</span>
+            <div class="projection-metric">
+              <span>Risk level</span>
               <strong>{{ projection.risk }}</strong>
             </div>
           </div>
-          <span class="status-pill">{{ projection.status }}</span>
         </article>
       </section>
     </main>
@@ -806,26 +776,41 @@ onMounted(loadRevenueBookings);
   z-index: 1;
 }
 
+.brand-card,
+.sidebar-block {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.brand-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff1e4 0%, #ffe2cb 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff5eb 0%, #ffd7b5 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.22);
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.2);
+  border: 1px solid rgba(255, 122, 26, 0.16);
 }
 
 .brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -834,53 +819,93 @@ onMounted(loadRevenueBookings);
   color: var(--accent);
 }
 
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c86423;
+}
+
 .brand-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-family: "Fraunces", serif;
+  font-size: 22px;
+  color: #132238;
 }
 
 .brand-subtitle {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66758d;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a4b;
+}
+
+.sidebar-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
+}
+
+.sidebar-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sidebar-section-caption {
   font-size: 12px;
-  color: var(--muted);
+  color: #7b8ba2;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid transparent;
-  background: transparent;
-  padding: 14px 16px;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
   font-size: 15px;
   cursor: pointer;
-  color: #475569;
-  transition: all 0.2s ease;
+  color: #314258;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .nav-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 30% 20%, #f8fafc 0%, #eef2f7 70%);
-  color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
 }
 
 .nav-icon svg {
@@ -890,69 +915,26 @@ onMounted(loadRevenueBookings);
 }
 
 .nav-item:hover {
-  background: rgba(255, 122, 26, 0.08);
-  color: var(--accent);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(255, 122, 26, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.25);
-}
-
-.home-link {
-  text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 6px;
-  border: none;
-  background: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
 }
 
 .admin-main {
@@ -1546,24 +1528,120 @@ onMounted(loadRevenueBookings);
 }
 
 .projection {
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #ff7a1a 0%, #f15b2a 45%, #ff9a4d 100%);
   color: #fff;
+  border: none;
+  box-shadow: 0 26px 60px rgba(241, 91, 42, 0.32);
 }
 
-.projection h4 {
-  font-size: 26px;
-  margin: 12px 0;
+.projection::before {
+  content: "";
+  position: absolute;
+  inset: -30% -10% 35% 20%;
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.4), transparent 60%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.projection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+.projection > * {
+  position: relative;
+  z-index: 1;
+}
+
+.projection-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.projection-eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.projection-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.projection .status-pill {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.projection-value {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.projection-value h4 {
+  font-size: 28px;
+  margin: 6px 0 10px;
+  font-weight: 700;
+}
+
+.value-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.projection-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.projection-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #fff1df, #ffffff);
+  border-radius: inherit;
+}
+
+.projection-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
 }
 
 .projection-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  font-size: 12px;
-  margin-bottom: 12px;
 }
 
-.projection-grid strong {
+.projection-metric {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+}
+
+.projection-metric strong {
   display: block;
   margin-top: 6px;
   font-size: 14px;
@@ -1627,6 +1705,11 @@ onMounted(loadRevenueBookings);
   .admin-nav {
     flex-direction: row;
     overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    min-width: 220px;
   }
 
   .revenue-hero {
@@ -1649,6 +1732,15 @@ onMounted(loadRevenueBookings);
 @media (max-width: 720px) {
   .admin-main {
     padding: 24px;
+  }
+
+  .admin-sidebar {
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .admin-topbar {
@@ -1679,3 +1771,4 @@ onMounted(loadRevenueBookings);
   }
 }
 </style>
+

@@ -1,7 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet, apiPatch } from "../../features/apiClient";
+import { apiPatch } from "../../features/apiClient";
+import { serviceFeeRate } from "../../features/appData";
+import { getStoredLanguage, setStoredLanguage } from "../../features/language";
+import { useAdminDataStore } from "../../features/useAdminDataStore";
 
 const props = defineProps({
   appLogoSrc: {
@@ -12,6 +15,18 @@ const props = defineProps({
     type: String,
     default: "Admin",
   },
+  adminUser: {
+    type: Object,
+    default: null,
+  },
+  activePage: {
+    type: String,
+    default: "dashboard",
+  },
+  updateAdminUser: {
+    type: Function,
+    default: null,
+  },
   logoutUser: {
     type: Function,
     default: null,
@@ -19,82 +34,40 @@ const props = defineProps({
 });
 
 const searchQuery = ref("");
+const usersSearchQuery = ref("");
 const navItems = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
   { key: "events", label: "Events", icon: "events" },
   { key: "admin-bookings", label: "Bookings", icon: "bookings" },
   { key: "vendors", label: "Vendors", icon: "vendors" },
-  { key: "users", label: "Users", icon: "users" },
+  { key: "customers", label: "Customers", icon: "users" },
   { key: "revenue", label: "Revenue", icon: "revenue" },
   { key: "settings", label: "Settings", icon: "settings" },
 ];
+const adminPageKeys = navItems.map((item) => item.key);
+const AUTH_USER_STORAGE_KEY = "achar_auth_user";
+const currentAdmin = computed(() => {
+  const fallback = props.adminUser || null;
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+});
 const router = useRouter();
 const route = useRoute();
 const activeKey = ref("dashboard");
-const isLoading = ref(false);
-const loadError = ref("");
-const settingsNotice = ref("");
-const adminSummary = ref({ users_total: 0, events_total: 0, bookings_total: 0 });
-const bookingRows = ref([]);
-const eventRows = ref([]);
-const userRows = ref([]);
-const healthStatus = ref(null);
-const AUTH_USER_STORAGE_KEY = "achar_auth_user";
-const DEFAULT_ADMIN_EMAIL = "ream.khorn@student.passerellesnumeriques.org";
-const currentAdmin = computed(() => {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-});
-const adminEmail = computed(() => {
-  const fromUser = currentAdmin.value?.email;
-  return (fromUser && String(fromUser).trim()) || DEFAULT_ADMIN_EMAIL;
-});
-const settingsSections = [
-  { key: "profile", label: "Profile Settings" },
-  { key: "security", label: "Security" },
-  { key: "notifications", label: "Notifications" },
-  { key: "system", label: "System Preferences" },
-];
-const activeSettingsSection = ref("profile");
-
-const profileForm = ref({
-  name: "",
-  email: "",
-  role: "Super Admin",
-});
-const avatarUploadRef = ref(null);
-const avatarPreview = ref("");
-
-const securityForm = ref({
-  newPassword: "",
-  twoFactor: true,
-});
-
-const notificationForm = ref({
-  email: true,
-  sms: false,
-  push: true,
-});
-
-const systemForm = ref({
-  darkMode: false,
-  weeklyDigest: true,
-  language: "English (US)",
-  currency: "USD - US Dollar",
-});
-
-const notifications = ref([]);
-const notificationsUnreadCount = ref(0);
-const notificationsError = ref("");
-const isLoadingNotifications = ref(false);
-const notificationDropdownOpen = ref(false);
-const notificationMenuRef = ref(null);
-const isSendingEmail = ref(false);
-const notificationPollTimer = ref(null);
+const adminStore = useAdminDataStore();
+const isLoading = computed(() => adminStore.loading.all);
+const loadError = computed(() => adminStore.error);
+const adminSummary = computed(() => adminStore.state.summary);
+const bookingRows = computed(() => adminStore.state.bookings);
+const eventRows = computed(() => adminStore.state.events);
+const userRows = computed(() => adminStore.state.users);
+const healthStatus = computed(() => adminStore.state.health);
+const isUsersLoading = computed(() => adminStore.loading.all || adminStore.loading.users);
+const usersLoadError = computed(() => adminStore.errors.users);
 const initials = computed(() => {
   const pieces = String(currentAdmin.value?.name || props.adminDisplayName || "Admin")
     .split(" ")
@@ -103,94 +76,120 @@ const initials = computed(() => {
   const second = pieces[1]?.[0] || "";
   return `${first}${second}`.toUpperCase();
 });
-const avatarUrl = computed(() => currentAdmin.value?.profile_image_url || "");
+const ADMIN_NOTIFICATION_SETTINGS_KEY = "achar_admin_notification_settings_v1";
+const ADMIN_SECURITY_SETTINGS_KEY = "achar_admin_security_settings_v1";
+const ADMIN_SYSTEM_SETTINGS_KEY = "achar_admin_system_settings_v1";
+const settingsSections = [
+  { key: "security", label: "Security" },
+  { key: "notifications", label: "Notifications" },
+  { key: "system", label: "System Preferences" },
+];
+const languageOptions = [
+  { value: "en", label: "English" },
+  { value: "km", label: "Khmer" },
+  { value: "zh", label: "Chinese" },
+];
+const currencyOptions = [
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "KHR", label: "KHR - Khmer Riel" },
+  { value: "EUR", label: "EUR - Euro" },
+];
 
-const displayAvatar = computed(() => avatarPreview.value || avatarUrl.value || "");
+const readStoredObject = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { ...fallback };
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? { ...fallback, ...parsed } : { ...fallback };
+  } catch {
+    return { ...fallback };
+  }
+};
 
-const profileCompletion = computed(() => {
-  let score = 0;
-  if (profileForm.value.name?.trim()) score += 40;
-  if (profileForm.value.email?.trim()) score += 40;
-  if (displayAvatar.value) score += 20;
-  return Math.min(100, score);
+const writeStoredObject = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage failures and continue with in-memory settings.
+  }
+};
+
+const getDefaultNotificationSettings = () => ({
+  email: true,
+  sms: false,
+  push: true,
 });
 
-const hydrateSettings = () => {
-  profileForm.value = {
-    name: currentAdmin.value?.name || "Admin User",
-    email: currentAdmin.value?.email || "admin@eventhorizon.com",
-    role: "Super Admin",
-  };
-  avatarPreview.value = "";
+const getDefaultSecuritySettings = () => ({
+  twoFactor: false,
+});
 
-  securityForm.value = {
-    newPassword: "",
-    twoFactor: true,
-  };
+const getDefaultSystemSettings = () => ({
+  language: getStoredLanguage(),
+  currency: "USD",
+  theme: "light",
+});
 
-  notificationForm.value = {
-    email: true,
-    sms: false,
-    push: true,
-  };
+const activeSettingsSection = ref("security");
+const settingsNotice = ref("");
+const settingsNoticeTone = ref("info");
+const isSavingSettings = ref(false);
+const passwordForm = reactive({
+  current: "",
+  next: "",
+  confirm: "",
+  saving: false,
+  notice: "",
+  error: "",
+});
+const notificationSettings = reactive(readStoredObject(ADMIN_NOTIFICATION_SETTINGS_KEY, getDefaultNotificationSettings()));
+const securitySettings = reactive(readStoredObject(ADMIN_SECURITY_SETTINGS_KEY, getDefaultSecuritySettings()));
+const systemSettings = reactive(readStoredObject(ADMIN_SYSTEM_SETTINGS_KEY, getDefaultSystemSettings()));
+const preferredCurrency = computed(() =>
+  currencyOptions.some((option) => option.value === systemSettings.currency) ? systemSettings.currency : "USD",
+);
+const setSettingsNotice = (message, tone = "info") => {
+  settingsNotice.value = String(message || "").trim();
+  settingsNoticeTone.value = tone;
+};
 
-  systemForm.value = {
-    darkMode: false,
-    weeklyDigest: true,
-    language: "English (US)",
-    currency: "USD - US Dollar",
-  };
-
+const clearSettingsNotice = () => {
   settingsNotice.value = "";
+  settingsNoticeTone.value = "info";
 };
 
-const resetSettings = () => {
-  hydrateSettings();
-  settingsNotice.value = "Settings reset to defaults.";
+const persistNotificationSettings = () => {
+  writeStoredObject(ADMIN_NOTIFICATION_SETTINGS_KEY, {
+    email: Boolean(notificationSettings.email),
+    sms: Boolean(notificationSettings.sms),
+    push: Boolean(notificationSettings.push),
+  });
 };
 
-const saveSettings = async () => {
-  settingsNotice.value = "Saving...";
-  try {
-    // In a real app, send to API here.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    settingsNotice.value = "Settings saved.";
-  } catch (error) {
-    settingsNotice.value = error?.message || "Could not save settings.";
-  }
+const persistSecuritySettings = () => {
+  writeStoredObject(ADMIN_SECURITY_SETTINGS_KEY, {
+    twoFactor: Boolean(securitySettings.twoFactor),
+  });
 };
 
-const triggerAvatarUpload = () => {
-  avatarUploadRef.value?.click();
+const persistSystemSettings = () => {
+  const nextLanguage = setStoredLanguage(systemSettings.language);
+  systemSettings.language = nextLanguage;
+  systemSettings.currency = preferredCurrency.value;
+  systemSettings.theme = systemSettings.theme === "dark" ? "dark" : "light";
+  writeStoredObject(ADMIN_SYSTEM_SETTINGS_KEY, {
+    language: nextLanguage,
+    currency: systemSettings.currency,
+    theme: systemSettings.theme,
+  });
 };
 
-const handleAvatarFile = (event) => {
-  const file = event?.target?.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith("image/")) {
-    settingsNotice.value = "Please upload an image file.";
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = () => {
-    avatarPreview.value = String(reader.result || "");
-    settingsNotice.value = "Preview updated. Remember to Save.";
-  };
-  reader.readAsDataURL(file);
-};
-
-const clearAvatar = () => {
-  avatarPreview.value = "";
-  if (avatarUploadRef.value) avatarUploadRef.value.value = "";
-  settingsNotice.value = "Profile picture removed. Remember to Save.";
-};
-
-const scrollToSection = (key) => {
+const activateSettingsSection = (key) => {
+  if (!settingsSections.some((section) => section.key === key)) return;
   activeSettingsSection.value = key;
-  const el = document.getElementById(`settings-${key}`);
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  clearSettingsNotice();
+  passwordForm.notice = "";
+  passwordForm.error = "";
 };
 
 const getRoutePage = () => {
@@ -199,8 +198,8 @@ const getRoutePage = () => {
 };
 
 const syncActiveKey = () => {
-  const page = getRoutePage();
-  activeKey.value = page || "dashboard";
+  const nextPage = String(props.activePage || getRoutePage() || "").trim();
+  activeKey.value = adminPageKeys.includes(nextPage) ? nextPage : "dashboard";
 };
 
 const navigateTo = (key) => {
@@ -213,11 +212,20 @@ const formatNumber = (value) => {
   return new Intl.NumberFormat("en-US").format(Number.isFinite(amount) ? amount : 0);
 };
 
+const formatCompactNumber = (value) => {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return "0";
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
+};
+
 const formatCurrency = (value) => {
   const amount = Number(value || 0);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: preferredCurrency.value,
     minimumFractionDigits: 2,
   }).format(Number.isFinite(amount) ? amount : 0);
 };
@@ -242,6 +250,34 @@ const timeAgo = (value) => {
   return `${diffDays} days ago`;
 };
 
+const formatDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Date TBD";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const formatRoleLabel = (value) => {
+  const normalized = String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (!normalized) return "Admin";
+  return normalized
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
+
+// Notifications (stubbed locally so the UI renders even without API wiring)
+const notifications = ref([]);
+const notificationsUnreadCount = ref(0);
+const notificationsError = ref("");
+const isLoadingNotifications = ref(false);
+const notificationDropdownOpen = ref(false);
+const notificationMenuRef = ref(null);
 const notificationItems = computed(() =>
   notifications.value.map((item) => ({
     ...item,
@@ -249,139 +285,383 @@ const notificationItems = computed(() =>
   })),
 );
 
-function notificationRole(role) {
-  if (role === "vendor") return "vendor";
-  if (role === "admin") return "admin";
-  return "user";
-}
-
-function buildNotificationQuery() {
-  const user = (() => {
-    try {
-      const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  const query = {
-    role: notificationRole(user?.role || "admin"),
-    limit: 20,
-  };
-
-  const userId = Number(user?.id);
-  if (Number.isFinite(userId) && userId > 0) query.user_id = userId;
-
-  const email = String(user?.email || "").trim().toLowerCase();
-  if (email) query.email = email;
-
-  if (!query.user_id && !query.email) return null;
-  return query;
-}
-
-async function loadNotifications(options = {}) {
-  const { silent = false } = options;
-  const query = buildNotificationQuery();
-
-  if (!query) {
-    notifications.value = [];
-    notificationsUnreadCount.value = 0;
-    notificationsError.value = "Please sign in as admin.";
-    return;
-  }
-
-  if (!silent) isLoadingNotifications.value = true;
+const loadNotifications = () => {
+  isLoadingNotifications.value = true;
   notificationsError.value = "";
+  // Placeholder: replace with real API call
+  setTimeout(() => {
+    notifications.value = notifications.value; // no-op
+    notificationsUnreadCount.value = notifications.value.filter((n) => !n.is_read).length;
+    isLoadingNotifications.value = false;
+  }, 200);
+};
 
-  try {
-    const result = await apiGet("notifications/bookings", query);
-    const rows = Array.isArray(result.data) ? result.data : [];
-    notifications.value = rows;
-    notificationsUnreadCount.value = Number(result.unread_count || 0);
-  } catch {
-    notificationsError.value = "Could not load notifications right now.";
-  } finally {
-    if (!silent) isLoadingNotifications.value = false;
-  }
-}
-
-async function markNotificationAsRead(notification) {
+const markNotificationAsRead = (notification) => {
   if (!notification || notification.is_read) return;
-  const query = buildNotificationQuery();
-  if (!query) return;
-
   notification.is_read = true;
   notificationsUnreadCount.value = Math.max(0, notificationsUnreadCount.value - 1);
+};
 
-  try {
-    await apiPatch(`notifications/bookings/${notification.id}/read`, query);
-  } catch {
-    notification.is_read = false;
-    await loadNotifications({ silent: true });
-  }
-}
+const markAllNotificationsAsRead = () => {
+  notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }));
+  notificationsUnreadCount.value = 0;
+};
 
-async function markAllNotificationsAsRead() {
-  if (notificationsUnreadCount.value < 1) return;
-  const query = buildNotificationQuery();
-  if (!query) return;
-
-  try {
-    await apiPatch("notifications/bookings/read-all", query);
-    notifications.value = notifications.value.map((item) => ({ ...item, is_read: true }));
-    notificationsUnreadCount.value = 0;
-  } catch {
-    notificationsError.value = "Could not mark all notifications as read.";
-  }
-}
-
-async function emailNotification(notification) {
-  if (!notification) return;
-  const to = adminEmail.value;
-  const subject = encodeURIComponent(notification.title || "Booking notification");
-  const body = encodeURIComponent(notification.message || "");
-  const mailto = `mailto:${to}?subject=${subject}&body=${body}`;
-  window.open(mailto, "_blank");
-  notificationsError.value = `Opening mail client for ${to}`;
-}
-
-async function toggleNotificationDropdown() {
+const toggleNotificationDropdown = () => {
   notificationDropdownOpen.value = !notificationDropdownOpen.value;
-  if (notificationDropdownOpen.value) {
-    await loadNotifications();
-  }
-}
+  if (notificationDropdownOpen.value) loadNotifications();
+};
 
-function closeNotificationDropdown() {
+const closeNotificationDropdown = () => {
   notificationDropdownOpen.value = false;
-}
+};
 
-function stopNotificationPolling() {
-  if (notificationPollTimer.value) {
-    window.clearInterval(notificationPollTimer.value);
-    notificationPollTimer.value = null;
+const normalizeUserRole = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (["admin", "vendor", "user"].includes(normalized)) return normalized;
+  return "user";
+};
+
+const getInitials = (value) =>
+  String(value || "User")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+const normalizeUserStatus = (user) => {
+  const status = String(user?.status || "").toLowerCase();
+  if (status === "inactive" || status === "banned" || user?.is_active === false) return "Inactive";
+  return "Active";
+};
+
+const bookingCountForUser = (user) => {
+  const id = Number(user?.id || 0);
+  const email = String(user?.email || user?.customer_email || "").toLowerCase();
+  const rows = bookingRows.value.filter((row) => {
+    if (id && Number(row?.user_id || row?.user?.id || 0) === id) return true;
+    const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+    return email && rowEmail === email;
+  });
+  return rows.length;
+};
+
+const spentForUser = (user) => {
+  const id = Number(user?.id || 0);
+  const email = String(user?.email || user?.customer_email || "").toLowerCase();
+  return bookingRows.value.reduce((sum, row) => {
+    const status = normalizeBookingStatus(row);
+    if (status !== "confirmed") return sum;
+    const matchesId = id && Number(row?.user_id || row?.user?.id || 0) === id;
+    const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+    const matchesEmail = email && rowEmail === email;
+    if (!matchesId && !matchesEmail) return sum;
+    return sum + Number(row?.total_amount || 0);
+  }, 0);
+};
+
+const normalizedUsers = computed(() =>
+  userRows.value.map((user) => {
+    const createdAt = user?.created_at || user?.registered_at || user?.createdAt || null;
+    const lastLogin = user?.last_login_at || user?.last_active_at || user?.updated_at || null;
+    const bookingsCount = Number(user?.bookings_count || user?.bookings_total || bookingCountForUser(user));
+    const spent = Number(user?.total_spent || spentForUser(user));
+    return {
+      id: user?.id ? `#${user.id}` : "N/A",
+      rawId: Number(user?.id || 0),
+      role: normalizeUserRole(user?.role),
+      name: user?.name || user?.full_name || "Guest User",
+      email: user?.email || user?.customer_email || "No email",
+      phone: user?.phone || user?.phone_number || "No phone",
+      createdAt,
+      joinedLabel: formatDate(createdAt),
+      status: normalizeUserStatus(user),
+      initials: getInitials(user?.name || user?.full_name),
+      bookingsCount,
+      eventsCount: Number(user?.events_count || 0),
+      spent,
+      lastLogin,
+      lastSeenAt: lastLogin || createdAt,
+      lastLoginLabel: timeAgo(lastLogin),
+    };
+  }),
+);
+
+const matchedAdminUser = computed(() => {
+  const authId = Number(props.adminUser?.id || 0);
+  const authEmail = String(props.adminUser?.email || "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    userRows.value.find((user) => {
+      const userId = Number(user?.id || 0);
+      const userEmail = String(user?.email || user?.customer_email || "")
+        .trim()
+        .toLowerCase();
+
+      if (authId && userId === authId) return true;
+      return authEmail && userEmail === authEmail;
+    }) || null
+  );
+});
+
+const adminSettingsProfile = computed(() => {
+  const authUser = props.adminUser || {};
+  const matchedUser = matchedAdminUser.value || {};
+  const merged = { ...matchedUser, ...authUser };
+  const createdAt =
+    merged?.created_at ||
+    matchedUser?.created_at ||
+    matchedUser?.registered_at ||
+    authUser?.created_at ||
+    null;
+  const lastActiveAt =
+    merged?.last_login_at ||
+    matchedUser?.last_login_at ||
+    matchedUser?.last_active_at ||
+    authUser?.last_login_at ||
+    authUser?.updated_at ||
+    matchedUser?.updated_at ||
+    null;
+  const roleRaw = merged?.role || authUser?.role || "admin";
+  const email = String(merged?.email || matchedUser?.email || authUser?.email || "").trim();
+  const phone = String(merged?.phone || matchedUser?.phone || authUser?.phone || "").trim();
+  const location = String(merged?.location || matchedUser?.location || authUser?.location || "").trim();
+  const profileImageUrl = String(
+    merged?.profile_image_url || matchedUser?.profile_image_url || authUser?.profile_image_url || "",
+  ).trim();
+  const name =
+    String(merged?.name || matchedUser?.full_name || authUser?.name || props.adminDisplayName || "Admin").trim() ||
+    "Admin";
+  const status = normalizeUserStatus(merged);
+
+  return {
+    id: Number(merged?.id || authUser?.id || matchedUser?.id || 0),
+    name,
+    email,
+    phone,
+    location,
+    profileImageUrl,
+    initials: getInitials(name),
+    roleLabel: formatRoleLabel(roleRaw),
+    status,
+    joinedLabel: createdAt ? `Joined ${formatDate(createdAt)}` : "Join date unavailable",
+    joinedDate: createdAt ? formatDate(createdAt) : "Not available",
+    lastActiveLabel: lastActiveAt ? timeAgo(lastActiveAt) : "Recently active",
+  };
+});
+
+const resetPasswordForm = () => {
+  passwordForm.current = "";
+  passwordForm.next = "";
+  passwordForm.confirm = "";
+  passwordForm.notice = "";
+  passwordForm.error = "";
+};
+
+const saveSecuritySettings = async (showNotice = true) => {
+  persistSecuritySettings();
+  passwordForm.notice = "";
+  passwordForm.error = "";
+
+  const current = String(passwordForm.current || "").trim();
+  const next = String(passwordForm.next || "").trim();
+  const confirm = String(passwordForm.confirm || "").trim();
+  const hasPasswordInput = Boolean(current || next || confirm);
+
+  if (!hasPasswordInput) {
+    if (showNotice) {
+      setSettingsNotice("Security preferences saved.", "success");
+    }
+    return true;
   }
-}
 
-function startNotificationPolling() {
-  stopNotificationPolling();
-  const query = buildNotificationQuery();
-  if (!query) return;
-
-  loadNotifications({ silent: true });
-  notificationPollTimer.value = window.setInterval(() => {
-    loadNotifications({ silent: true });
-  }, 60000);
-}
-
-function handleDocumentClick(event) {
-  if (!notificationDropdownOpen.value) return;
-  if (!notificationMenuRef.value) return;
-  if (!notificationMenuRef.value.contains(event.target)) {
-    closeNotificationDropdown();
+  if (!current || !next || !confirm) {
+    const message = "Fill in current, new, and confirm password to update security settings.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
   }
-}
+
+  if (next.length < 8) {
+    const message = "New password must be at least 8 characters.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  }
+
+  if (next !== confirm) {
+    const message = "Password confirmation does not match.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  }
+
+  passwordForm.saving = true;
+  try {
+    const result = await apiPatch("user/password", {
+      user_id: adminSettingsProfile.value.id || undefined,
+      email: adminSettingsProfile.value.email || undefined,
+      phone: adminSettingsProfile.value.phone || undefined,
+      current_password: current,
+      new_password: next,
+      new_password_confirmation: confirm,
+    });
+
+    const message = result?.message || "Password updated successfully.";
+    resetPasswordForm();
+    passwordForm.notice = message;
+    if (showNotice) {
+      setSettingsNotice(message, "success");
+    }
+    return true;
+  } catch (error) {
+    const message = error?.message || "Could not update password.";
+    passwordForm.error = message;
+    setSettingsNotice(message, "error");
+    return false;
+  } finally {
+    passwordForm.saving = false;
+  }
+};
+
+const resetSecuritySettings = () => {
+  Object.assign(securitySettings, getDefaultSecuritySettings());
+  persistSecuritySettings();
+  resetPasswordForm();
+  setSettingsNotice("Security preferences reset.", "success");
+};
+
+const saveNotificationPreferences = (showNotice = true) => {
+  persistNotificationSettings();
+  if (showNotice) {
+    setSettingsNotice("Notification preferences saved.", "success");
+  }
+  return true;
+};
+
+const resetNotificationPreferences = () => {
+  Object.assign(notificationSettings, getDefaultNotificationSettings());
+  persistNotificationSettings();
+  setSettingsNotice("Notification preferences reset to default.", "success");
+};
+
+const saveSystemPreferences = (showNotice = true) => {
+  persistSystemSettings();
+  if (showNotice) {
+    setSettingsNotice("System preferences saved.", "success");
+  }
+  return true;
+};
+
+const resetSystemPreferences = () => {
+  Object.assign(systemSettings, getDefaultSystemSettings());
+  persistSystemSettings();
+  setSettingsNotice("System preferences reset to default.", "success");
+};
+
+const saveCurrentSettingsSection = async () => {
+  clearSettingsNotice();
+
+  switch (activeSettingsSection.value) {
+    case "security":
+      await saveSecuritySettings(true);
+      return;
+    case "notifications":
+      saveNotificationPreferences(true);
+      return;
+    case "system":
+      saveSystemPreferences(true);
+      return;
+    default:
+      return;
+  }
+};
+
+const filteredUsers = computed(() => {
+  const query = usersSearchQuery.value.trim().toLowerCase();
+  const base = query
+    ? normalizedUsers.value.filter((user) =>
+        [user.name, user.email, user.phone, user.id].join(" ").toLowerCase().includes(query),
+      )
+    : normalizedUsers.value;
+  return [...base].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+});
+
+const selectedUserId = ref("");
+
+watch(
+  filteredUsers,
+  (rows) => {
+    if (!rows.length) {
+      selectedUserId.value = "";
+      return;
+    }
+    if (!rows.some((row) => row.id === selectedUserId.value)) {
+      selectedUserId.value = rows[0].id;
+    }
+  },
+  { immediate: true },
+);
+
+const selectedUser = computed(() => filteredUsers.value.find((row) => row.id === selectedUserId.value) || null);
+
+const usersStats = computed(() => {
+  const total = normalizedUsers.value.length;
+  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const newUsers = normalizedUsers.value.filter((user) => new Date(user.createdAt || 0).getTime() >= monthAgo).length;
+  const active = normalizedUsers.value.filter((user) => normalizeUserStatus(user) === "Active").length;
+  const retention = total ? Math.round((active / total) * 100) : 0;
+  const inactive = total - active;
+  const churn = total ? (inactive / total) * 100 : 0;
+  return {
+    totalLabel: formatNumber(total),
+    totalDelta: `${formatNumber(newUsers)} new this month`,
+    newUsersLabel: formatNumber(newUsers),
+    newUsersDelta: total ? `${((newUsers / total) * 100).toFixed(1)}% of total` : "No data",
+    activeLabel: formatNumber(active),
+    activeDelta: `${retention}% retention`,
+    churnLabel: total ? `${churn.toFixed(1)}%` : "N/A",
+    churnDelta: `${formatNumber(inactive)} inactive`,
+  };
+});
+
+const usersFooterLabel = computed(() => {
+  const total = normalizedUsers.value.length;
+  const shown = filteredUsers.value.length;
+  if (!total) return "Showing 0 of 0 users";
+  return `Showing 1-${shown} of ${formatNumber(total)} users`;
+});
+
+const selectedUserActivities = computed(() => {
+  if (!selectedUser.value) return [];
+  const email = String(selectedUser.value.email || "").toLowerCase();
+  const id = Number(selectedUser.value.rawId || 0);
+  const rows = bookingRows.value
+    .filter((row) => {
+      if (id && Number(row?.user_id || row?.user?.id || 0) === id) return true;
+      const rowEmail = String(row?.customer_email || row?.user?.email || "").toLowerCase();
+      return email && rowEmail === email;
+    })
+    .sort((a, b) => {
+      const left = getRowDate(a, a?.event?.starts_at)?.getTime() || 0;
+      const right = getRowDate(b, b?.event?.starts_at)?.getTime() || 0;
+      return right - left;
+    })
+    .slice(0, 3);
+
+  return rows.map((row) => ({
+    title: row?.event?.title || row?.service_name || "Booking",
+    time: timeAgo(getRowDate(row, row?.event?.starts_at)),
+    meta: formatCurrency(row?.total_amount || 0),
+  }));
+});
 
 const normalizeBookingStatus = (row) => {
   const status = String(row?.status || "").toLowerCase();
@@ -405,13 +685,15 @@ const getMonthRange = (offset = 0) => {
   return { start, end };
 };
 
-const sumRevenue = (rows, range) =>
+const calculateServiceFee = (amount) => Number((Math.max(0, Number(amount || 0)) * serviceFeeRate).toFixed(2));
+
+const sumServiceFees = (rows, range) =>
   rows.reduce((sum, row) => {
     const status = normalizeBookingStatus(row);
     if (status !== "confirmed") return sum;
     const date = getRowDate(row, row?.event?.starts_at);
     if (!date || (range && (date < range.start || date > range.end))) return sum;
-    return sum + Number(row?.total_amount || 0);
+    return sum + calculateServiceFee(row?.total_amount || 0);
   }, 0);
 
 const countByDate = (rows, range, dateField = "created_at") =>
@@ -421,11 +703,23 @@ const countByDate = (rows, range, dateField = "created_at") =>
     return sum + 1;
   }, 0);
 
+const customerAccountsTotal = computed(
+  () => normalizedUsers.value.filter((user) => user.role === "user").length,
+);
+
+const vendorAccountsTotal = computed(
+  () => normalizedUsers.value.filter((user) => user.role === "vendor").length,
+);
+
+const trackedAccountsTotal = computed(() => customerAccountsTotal.value + vendorAccountsTotal.value);
+
 const dashboardStats = computed(() => {
   const totalEvents = adminSummary.value?.events_total || eventRows.value.length;
   const totalBookings = adminSummary.value?.bookings_total || bookingRows.value.length;
-  const totalUsers = adminSummary.value?.users_total || userRows.value.length;
-  const totalRevenue = sumRevenue(bookingRows.value);
+  const totalCustomers = adminSummary.value?.customers_total || customerAccountsTotal.value;
+  const totalVendors = adminSummary.value?.vendors_total || vendorAccountsTotal.value;
+  const totalAccounts = adminSummary.value?.accounts_total || trackedAccountsTotal.value;
+  const totalServiceFees = adminSummary.value?.service_fee_total || sumServiceFees(bookingRows.value);
 
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
@@ -437,85 +731,47 @@ const dashboardStats = computed(() => {
     countByDate(bookingRows.value, currentMonth, "created_at"),
     countByDate(bookingRows.value, previousMonth, "created_at"),
   );
-  const usersDelta = formatPercentDelta(
-    countByDate(userRows.value, currentMonth, "created_at"),
-    countByDate(userRows.value, previousMonth, "created_at"),
-  );
-  const revenueDelta = formatPercentDelta(
-    sumRevenue(bookingRows.value, currentMonth),
-    sumRevenue(bookingRows.value, previousMonth),
+  const accountsDelta =
+    totalAccounts > 0
+      ? `${formatNumber(totalVendors)} vendors, ${formatNumber(totalCustomers)} customers`
+      : "No customer or vendor accounts";
+  const serviceFeeDelta = formatPercentDelta(
+    sumServiceFees(bookingRows.value, currentMonth),
+    sumServiceFees(bookingRows.value, previousMonth),
   );
 
   return [
     { label: "Total Events", value: formatNumber(totalEvents), delta: eventsDelta, tone: "up", icon: "events" },
     { label: "Total Bookings", value: formatNumber(totalBookings), delta: bookingsDelta, tone: "up", icon: "bookings" },
     {
-      label: "Total Users",
-      value: totalUsers ? formatNumber(totalUsers) : "N/A",
-      delta: usersDelta,
-      tone: totalUsers ? "down" : "neutral",
+      label: "Total Accounts",
+      value: formatNumber(totalAccounts),
+      delta: accountsDelta,
+      tone: "neutral",
       icon: "users",
     },
-    { label: "Revenue Summary", value: formatCurrency(totalRevenue), delta: revenueDelta, tone: "solid", icon: "revenue" },
+    {
+      label: "Service Fee Total",
+      value: formatCurrency(totalServiceFees),
+      delta: serviceFeeDelta,
+      tone: "solid",
+      icon: "revenue",
+    },
   ];
-});
-
-const recentActivity = computed(() => {
-  const bookingActivities = bookingRows.value.map((row) => {
-    const status = normalizeBookingStatus(row);
-    const eventTitle = row?.event?.title || row?.service_name || "a booking";
-    const customer = row?.customer_name || row?.user?.name || "A customer";
-    const verb = status === "confirmed" ? "completed" : status === "cancelled" ? "cancelled" : "requested";
-    return {
-      name: customer,
-      detail: `${verb} ${eventTitle}`,
-      time: timeAgo(getRowDate(row, row?.event?.starts_at)),
-      at: getRowDate(row, row?.event?.starts_at)?.getTime() || 0,
-    };
-  });
-
-  const userActivities = userRows.value.map((row) => ({
-    name: row?.name || "New user",
-    detail: "registered as a new user",
-    time: timeAgo(getRowDate(row)),
-    at: getRowDate(row)?.getTime() || 0,
-  }));
-
-  const eventActivities = eventRows.value.map((row) => {
-    const host = row?.vendor?.name || row?.vendor_name || "A vendor";
-    const title = row?.title || "a new event";
-    return {
-      name: host,
-      detail: `created the event "${title}"`,
-      time: timeAgo(getRowDate(row, row?.starts_at)),
-      at: getRowDate(row, row?.starts_at)?.getTime() || 0,
-    };
-  });
-
-  const merged = [...bookingActivities, ...userActivities, ...eventActivities]
-    .filter((item) => item.at > 0)
-    .sort((a, b) => b.at - a.at);
-
-  const q = searchQuery.value.trim().toLowerCase();
-  const filtered = q
-    ? merged.filter((item) => item.name.toLowerCase().includes(q) || item.detail.toLowerCase().includes(q))
-    : merged;
-
-  return filtered.slice(0, 6);
 });
 
 const monthlyReport = computed(() => {
   const currentMonth = getMonthRange(0);
   const previousMonth = getMonthRange(-1);
-  const currentRevenue = sumRevenue(bookingRows.value, currentMonth);
-  const previousRevenue = sumRevenue(bookingRows.value, previousMonth);
-  const growth = previousRevenue ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+  const currentServiceFees = sumServiceFees(bookingRows.value, currentMonth);
+  const previousServiceFees = sumServiceFees(bookingRows.value, previousMonth);
+  const growth = previousServiceFees ? ((currentServiceFees - previousServiceFees) / previousServiceFees) * 100 : 0;
   return {
     growthLabel: `${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`,
     message:
-      previousRevenue > 0
-        ? `Revenue is ${growth >= 0 ? "up" : "down"} ${Math.abs(growth).toFixed(1)}% compared to last month.`
-        : "Revenue insights will appear once bookings are confirmed.",
+      previousServiceFees > 0
+        ? `Service fee income is ${growth >= 0 ? "up" : "down"} ${Math.abs(growth).toFixed(1)}% compared to last month.`
+        : "Service fee insights will appear once bookings are confirmed.",
   };
 });
 
@@ -531,169 +787,100 @@ const systemStatus = computed(() => {
   };
 });
 
-async function fetchPagedRows(endpoint, query = {}) {
-  const rows = [];
-  let page = 1;
-  let lastPage = 1;
-  const maxPages = 40;
-  do {
-    const result = await apiGet(endpoint, { ...query, page });
-    const data = Array.isArray(result?.data) ? result.data : [];
-    rows.push(...data);
-    lastPage = Number(result?.last_page || result?.lastPage || 1);
-    page += 1;
-  } while (page <= lastPage && page <= maxPages);
-  return rows;
-}
-
-async function loadDashboardData() {
-  isLoading.value = true;
-  loadError.value = "";
-  try {
-    try {
-      adminSummary.value = await apiGet("admin/dashboard");
-    } catch {
-      adminSummary.value = { users_total: 0, events_total: 0, bookings_total: 0 };
-    }
-
-    try {
-      bookingRows.value = await fetchPagedRows("admin/bookings");
-    } catch {
-      bookingRows.value = await fetchPagedRows("bookings");
-    }
-
-    try {
-      const eventsResult = await apiGet("events", { per_page: 200, include_inactive: 1, ts: Date.now() });
-      eventRows.value = Array.isArray(eventsResult?.data) ? eventsResult.data : [];
-    } catch {
-      eventRows.value = [];
-    }
-
-    try {
-      userRows.value = await fetchPagedRows("admin/users");
-    } catch {
-      userRows.value = [];
-    }
-
-    try {
-      healthStatus.value = await apiGet("health/redis");
-    } catch {
-      try {
-        healthStatus.value = await apiGet("health");
-      } catch {
-        healthStatus.value = null;
-      }
-    }
-  } catch (error) {
-    loadError.value = error?.message || "Unable to load dashboard data.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
 syncActiveKey();
+watch(() => props.activePage, syncActiveKey);
 watch(() => route.query.page, syncActiveKey);
-
-onMounted(() => {
-  document.addEventListener("click", handleDocumentClick);
-  startNotificationPolling();
-  hydrateSettings();
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener("click", handleDocumentClick);
-  stopNotificationPolling();
-});
-onMounted(loadDashboardData);
+watch(
+  () => props.adminUser?.id,
+  (adminUserId) => {
+    if (!adminUserId || userRows.value.length) return;
+    void adminStore.loadAll({
+      force: true,
+      adminUserId,
+    });
+  },
+);
+onMounted(() =>
+  void adminStore.loadAll({
+    adminUserId: props.adminUser?.id || null,
+  }),
+);
 </script>
 
 <template>
-  <section class="admin-shell">
+  <section class="admin-shell" :class="{ 'theme-dark': systemSettings.theme === 'dark' }">
     <aside class="admin-sidebar">
-      <div class="brand">
-        <div class="brand-logo">
-          <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
-          <div v-else class="brand-mark">A</div>
-        </div>
-        <div>
-          <p class="brand-title">Architect Admin</p>
-          <p class="brand-subtitle">Management Suite</p>
+      <div class="brand-card">
+        <div class="brand">
+          <div class="brand-logo">
+            <img v-if="appLogoSrc" :src="appLogoSrc" alt="Achar" />
+            <div v-else class="brand-mark">A</div>
+          </div>
+          <div>
+            <p class="brand-kicker">Operations Console</p>
+            <p class="brand-title">Achar Admin</p>
+            <p class="brand-subtitle">Operations overview workspace</p>
+          </div>
         </div>
       </div>
 
-      <nav class="admin-nav">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-        type="button"
-        class="nav-item"
-        :class="{ active: activeKey === item.key }"
-        @click="navigateTo(item.key)"
-      >
-          <span class="nav-icon" aria-hidden="true">
-            <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
-              <path
-                d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
-              <path
-                d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
-              <path
-                d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
-              <path
-                d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
-              <path
-                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
-              />
-            </svg>
-            <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
-              <path
-                d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z"
-              />
-            </svg>
-            <svg v-else viewBox="0 0 24 24">
-              <path
-                d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z"
-              />
-            </svg>
-          </span>
-          <span>{{ item.label }}</span>
-        </button>
-        <RouterLink class="nav-item home-link" to="/">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M10.707 6.293 5 12l5.707 5.707 1.414-1.414L8.828 13H20v-2H8.828l3.293-3.293-1.414-1.414Z"
-              />
-            </svg>
-          </span>
-          <span>Back to Home</span>
-        </RouterLink>
-      </nav>
+      <section class="sidebar-block">
+        <div class="sidebar-block-head">
+          <span class="sidebar-section-label">Navigation</span>
+          <span class="sidebar-section-caption">Admin modules</span>
+        </div>
 
-      <div class="admin-user-card">
-        <div class="avatar" :class="{ 'has-image': avatarUrl }">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="Profile" />
-          <span v-else>{{ initials }}</span>
-        </div>
-        <div>
-          <p class="user-name">{{ currentAdmin?.name || adminDisplayName }}</p>
-          <p class="user-role">Super Admin</p>
-        </div>
-        <button v-if="logoutUser" class="logout-btn" type="button" @click="logoutUser">
-          Log out
-        </button>
-      </div>
+        <nav class="admin-nav">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeKey === item.key }"
+            @click="navigateTo(item.key)"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.icon === 'dashboard'" viewBox="0 0 24 24">
+                <path
+                  d="M4 12.5 11.5 4 20 12.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'events'" viewBox="0 0 24 24">
+                <path
+                  d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'bookings'" viewBox="0 0 24 24">
+                <path
+                  d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'vendors'" viewBox="0 0 24 24">
+                <path
+                  d="M4 10h16l-1.5 9a2 2 0 0 1-2 1H7.5a2 2 0 0 1-2-1L4 10zm4-6h8l1 4H7z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'users'" viewBox="0 0 24 24">
+                <path
+                  d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
+                />
+              </svg>
+              <svg v-else-if="item.icon === 'revenue'" viewBox="0 0 24 24">
+                <path
+                  d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z"
+                />
+              </svg>
+              <svg v-else viewBox="0 0 24 24">
+                <path
+                  d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4zm8.5 4a6.5 6.5 0 0 0-.08-1l2.08-1.6-2-3.46-2.45 1a6.86 6.86 0 0 0-1.73-1L14 2h-4l-.32 2.94a6.86 6.86 0 0 0-1.73 1l-2.45-1-2 3.46L5.58 11a6.5 6.5 0 0 0 0 2l-2.08 1.6 2 3.46 2.45-1a6.86 6.86 0 0 0 1.73 1L10 22h4l.32-2.94a6.86 6.86 0 0 0 1.73-1l2.45 1 2-3.46L20.42 13a6.5 6.5 0 0 0 .08-1z"
+                />
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </section>
+
     </aside>
 
     <main class="admin-main">
@@ -767,14 +954,6 @@ onMounted(loadDashboardData);
                       >
                         Mark read
                       </button>
-                      <button
-                        class="notification-inline-btn"
-                        type="button"
-                        :disabled="isSendingEmail"
-                        @click="emailNotification(item)"
-                      >
-                        Email me
-                      </button>
                     </div>
                   </article>
                 </li>
@@ -800,7 +979,6 @@ onMounted(loadDashboardData);
         <h1 class="hero-title">Dashboard Overview</h1>
         <p class="hero-subtitle">Track bookings, vendors, and revenue at a glance.</p>
         <div class="hero-actions">
-          <button class="ghost-btn" type="button">Create Event</button>
           <button class="primary-btn" type="button">Export Report</button>
         </div>
       </section>
@@ -812,18 +990,24 @@ onMounted(loadDashboardData);
           class="stat-card"
           :class="card.tone"
         >
-          <div class="stat-icon" :class="card.icon">
-            <svg v-if="card.icon === 'events'" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3H7Zm12 6H5v10h14V9Z" />
+          <div class="stat-icon" aria-hidden="true">
+            <svg v-if="card.icon === 'events'" viewBox="0 0 24 24">
+              <path
+                d="M7 3v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3zm12 6H5v10h14z"
+              />
             </svg>
-            <svg v-else-if="card.icon === 'bookings'" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 4h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2V6a2 2 0 0 1 2-2Zm0 2v10.764l2-.999 4 2 4-2 2 .999V6H6Z" />
+            <svg v-else-if="card.icon === 'bookings'" viewBox="0 0 24 24">
+              <path
+                d="M6 4h12a2 2 0 0 1 2 2v4H4V6a2 2 0 0 1 2-2zm-2 8h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+              />
             </svg>
-            <svg v-else-if="card.icon === 'users'" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.79-6 4v1h12v-1c0-2.21-2.67-4-6-4Z" />
+            <svg v-else-if="card.icon === 'users'" viewBox="0 0 24 24">
+              <path
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z"
+              />
             </svg>
-            <svg v-else-if="card.icon === 'revenue'" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 3h2v18H5V3Zm12 6h2v12h-2V9Zm-6-4h2v16h-2V5Z" />
+            <svg v-else viewBox="0 0 24 24">
+              <path d="M4 18h16v2H4zm2-4h3v3H6zm5-6h3v9h-3zm5-3h3v12h-3z" />
             </svg>
           </div>
           <p class="stat-label">{{ card.label }}</p>
@@ -838,7 +1022,7 @@ onMounted(loadDashboardData);
       </section>
 
       <section v-if="activeKey === 'dashboard'" class="admin-grid">
-        <article class="activity-card">
+        <article v-if="false" class="activity-card">
           <header>
             <h3>Recent Activity</h3>
             <button class="link-btn" type="button">View All →</button>
@@ -847,11 +1031,13 @@ onMounted(loadDashboardData);
             <div v-if="isLoading" class="activity-empty">Loading latest activity...</div>
             <div v-else-if="loadError" class="activity-empty">{{ loadError }}</div>
             <div v-else-if="!recentActivity.length" class="activity-empty">
-              No activity yet. New bookings and users will appear here.
+              No recent customer or vendor activity yet.
             </div>
             <template v-else>
-              <div v-for="item in recentActivity" :key="item.name + item.time" class="activity-item">
-                <div class="activity-icon"></div>
+              <div v-for="item in recentActivity" :key="item.key" class="activity-item">
+                <div class="activity-icon" :class="`is-${item.type || 'activity'}`">
+                  {{ item.type === "vendor" ? "V" : item.type === "customer" ? "C" : "A" }}
+                </div>
                 <div>
                   <p class="activity-text">
                     <strong>{{ item.name }}</strong>
@@ -913,93 +1099,49 @@ onMounted(loadDashboardData);
               <p>Manage your account preferences and notifications.</p>
             </div>
           </div>
+          <div class="settings-quick">
+            <span class="pill alt">{{ adminSettingsProfile.joinedLabel }}</span>
+            <span class="pill alt">Last active {{ adminSettingsProfile.lastActiveLabel }}</span>
+            <button
+              class="primary-btn"
+              type="button"
+              :disabled="isSavingSettings || passwordForm.saving"
+              @click="saveCurrentSettingsSection"
+            >
+              Save
+            </button>
+          </div>
         </div>
+        <p
+          v-if="settingsNotice"
+          class="settings-feedback"
+          :class="{
+            success: settingsNoticeTone === 'success',
+            error: settingsNoticeTone === 'error',
+          }"
+        >
+          {{ settingsNotice }}
+        </p>
 
         <p v-if="settingsNotice" class="settings-notice">{{ settingsNotice }}</p>
 
         <div class="settings-layout">
           <aside class="settings-menu">
             <button
-              v-for="item in settingsSections"
-              :key="item.key"
+              v-for="section in settingsSections"
+              :key="section.key"
               type="button"
               class="settings-link"
-              :class="{ active: activeSettingsSection === item.key }"
-              @click="scrollToSection(item.key)"
+              :class="{ active: activeSettingsSection === section.key }"
+              @click="activateSettingsSection(section.key)"
             >
               <span class="dot"></span>
-              {{ item.label }}
+              {{ section.label }}
             </button>
           </aside>
 
           <div class="settings-content">
-            <article id="settings-profile" class="settings-card">
-              <div class="card-header">
-                <div class="card-title">
-                  <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                      <path
-                        d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.34-6 3v1h12v-1c0-1.66-2.67-3-6-3Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3>Profile Settings</h3>
-                    <p>Update your photo and personal details.</p>
-                    <div class="profile-meta">
-                      <span class="chip success">
-                        <svg viewBox="0 0 24 24">
-                          <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        Completion: {{ profileCompletion }}%
-                      </span>
-                      <span class="chip muted">Last updated: Today</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="profile-row">
-                <div class="profile-avatar">
-                  <div class="avatar-circle" :class="{ 'has-image': displayAvatar }">
-                    <img v-if="displayAvatar" :src="displayAvatar" alt="Profile preview" />
-                    <span v-else>{{ initials }}</span>
-                  </div>
-                  <div class="profile-details">
-                    <p class="label">Profile Picture</p>
-                    <p class="hint">JPG, GIF or PNG. Max size of 800K</p>
-                    <div class="upload-actions">
-                      <input
-                        ref="avatarUploadRef"
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif"
-                        class="sr-only"
-                        @change="handleAvatarFile"
-                      />
-                      <button class="primary-btn" type="button" @click="triggerAvatarUpload">Upload</button>
-                      <button class="link-btn danger" type="button" @click="clearAvatar">Remove</button>
-                    </div>
-                    <p class="hint subtle">Tip: square images look best for avatars.</p>
-                  </div>
-                </div>
-                <div class="form-grid">
-                  <label>
-                    <span>Full Name</span>
-                    <input v-model="profileForm.name" type="text" />
-                  </label>
-                  <label>
-                    <span>Role</span>
-                    <input v-model="profileForm.role" type="text" disabled />
-                  </label>
-                  <label class="full">
-                    <span>Email Address</span>
-                    <input v-model="profileForm.email" type="email" />
-                  </label>
-                </div>
-              </div>
-            </article>
-
-            <article id="settings-security" class="settings-card">
+            <article v-if="activeSettingsSection === 'security'" class="settings-card">
               <div class="card-header">
                 <div class="card-title">
                   <div class="card-icon">
@@ -1019,11 +1161,34 @@ onMounted(loadDashboardData);
               <div class="form-grid">
                 <label>
                   <span>Current Password</span>
-                  <input type="password" value="password" />
+                  <input
+                    v-model="passwordForm.current"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter current password"
+                  />
                 </label>
                 <label>
                   <span>New Password</span>
-                  <input v-model="securityForm.newPassword" type="password" placeholder="Enter new password" />
+                  <input
+                    v-model="passwordForm.next"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Enter new password"
+                  />
+                </label>
+                <label>
+                  <span>Confirm Password</span>
+                  <input
+                    v-model="passwordForm.confirm"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Confirm new password"
+                  />
+                </label>
+                <label class="full">
+                  <span>Last Active</span>
+                  <input type="text" :value="adminSettingsProfile.lastActiveLabel" readonly />
                 </label>
               </div>
               <div class="toggle-row">
@@ -1032,13 +1197,25 @@ onMounted(loadDashboardData);
                   <span>Add an extra layer of security to your account.</span>
                 </div>
                 <label class="switch">
-                  <input v-model="securityForm.twoFactor" type="checkbox" />
+                  <input v-model="securitySettings.twoFactor" type="checkbox" />
                   <span></span>
                 </label>
               </div>
+              <div class="settings-card-actions">
+                <button
+                  class="primary-btn"
+                  type="button"
+                  :disabled="passwordForm.saving"
+                  @click="saveSecuritySettings(true)"
+                >
+                  {{ passwordForm.saving ? "Updating..." : "Update Security" }}
+                </button>
+                <p v-if="passwordForm.notice" class="inline-feedback success">{{ passwordForm.notice }}</p>
+                <p v-else-if="passwordForm.error" class="inline-feedback error">{{ passwordForm.error }}</p>
+              </div>
             </article>
 
-            <article id="settings-notifications" class="settings-card">
+            <article v-else-if="activeSettingsSection === 'notifications'" class="settings-card">
               <div class="card-header">
                 <div class="card-title">
                   <div class="card-icon">
@@ -1062,7 +1239,7 @@ onMounted(loadDashboardData);
                     <span>Receive summaries of bookings and revenue.</span>
                   </div>
                   <label class="switch">
-                    <input v-model="notificationForm.email" type="checkbox" />
+                    <input v-model="notificationSettings.email" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -1072,7 +1249,7 @@ onMounted(loadDashboardData);
                     <span>Urgent event cancellations or security alerts.</span>
                   </div>
                   <label class="switch">
-                    <input v-model="notificationForm.sms" type="checkbox" />
+                    <input v-model="notificationSettings.sms" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
@@ -1082,14 +1259,14 @@ onMounted(loadDashboardData);
                     <span>Browser and mobile app push alerts.</span>
                   </div>
                   <label class="switch">
-                    <input v-model="notificationForm.push" type="checkbox" />
+                    <input v-model="notificationSettings.push" type="checkbox" />
                     <span></span>
                   </label>
                 </div>
               </div>
             </article>
 
-            <article id="settings-system" class="settings-card">
+            <article v-else-if="activeSettingsSection === 'system'" class="settings-card">
               <div class="card-header">
                 <div class="card-title">
                   <div class="card-icon">
@@ -1109,38 +1286,38 @@ onMounted(loadDashboardData);
               <div class="form-grid">
                 <label>
                   <span>Interface Language</span>
-                  <select v-model="systemForm.language">
-                    <option>English (US)</option>
-                    <option>English (UK)</option>
-                    <option>Khmer</option>
+                  <select v-model="systemSettings.language">
+                    <option v-for="option in languageOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </label>
                 <label>
                   <span>Default Currency</span>
-                  <select v-model="systemForm.currency">
-                    <option>USD - US Dollar</option>
-                    <option>KHR - Khmer Riel</option>
-                    <option>EUR - Euro</option>
+                  <select v-model="systemSettings.currency">
+                    <option v-for="option in currencyOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </label>
               </div>
               <div class="toggle-row theme-row">
                 <div>
-                  <p>Dark Mode Interface</p>
+                  <p>Interface Theme</p>
                   <span>Switch between light and dark display modes.</span>
                 </div>
                 <div class="theme-toggle">
                   <button
                     type="button"
-                    :class="{ active: !systemForm.darkMode }"
-                    @click="systemForm.darkMode = false"
+                    :class="{ active: systemSettings.theme === 'light' }"
+                    @click="systemSettings.theme = 'light'"
                   >
                     Light
                   </button>
                   <button
                     type="button"
-                    :class="{ active: systemForm.darkMode }"
-                    @click="systemForm.darkMode = true"
+                    :class="{ active: systemSettings.theme === 'dark' }"
+                    @click="systemSettings.theme = 'dark'"
                   >
                     Dark
                   </button>
@@ -1161,7 +1338,7 @@ onMounted(loadDashboardData);
         </div>
       </section>
 
-      <section v-else-if="activeKey === 'users'" class="users-page">
+      <section v-else-if="activeKey === 'customers'" class="users-page">
         <div class="users-toolbar">
           <label class="search users-search">
             <span class="search-icon" aria-hidden="true">
@@ -1171,30 +1348,52 @@ onMounted(loadDashboardData);
                 />
               </svg>
             </span>
-            <input type="search" placeholder="Search users by name, email..." />
+            <input v-model="usersSearchQuery" type="search" placeholder="Search users by name, email..." />
           </label>
         </div>
 
         <section class="users-stats">
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0z" />
+              </svg>
+            </div>
             <p>Total Users</p>
-            <h3>24,892</h3>
-            <span class="delta up">+12.5% from last month</span>
+            <h3>{{ usersStats.totalLabel }}</h3>
+            <span class="delta up">{{ usersStats.totalDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M9 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm6.5 1H19v2h-3.5v3h-2v-3H10v-2h3.5V9h2v3ZM4 19a5 5 0 0 1 10 0H4Z"
+                />
+              </svg>
+            </div>
             <p>New Users (Month)</p>
-            <h3>1,402</h3>
-            <span class="delta up">+8% growth rate</span>
+            <h3>{{ usersStats.newUsersLabel }}</h3>
+            <span class="delta up">{{ usersStats.newUsersDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M20.285 6.709 9 18l-5.285-5.291 1.414-1.414L9 15.172l9.871-9.877z" />
+              </svg>
+            </div>
             <p>Active Users</p>
-            <h3>18,245</h3>
-            <span class="delta neutral">73% retention</span>
+            <h3>{{ usersStats.activeLabel }}</h3>
+            <span class="delta neutral">{{ usersStats.activeDelta }}</span>
           </article>
           <article class="users-stat">
+            <div class="users-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 7h10l-3-3 1.414-1.414L19.828 9l-6.414 6.414L12 14l3-3H5V7zm14 10H9l3 3-1.414 1.414L4.172 15l6.414-6.414L12 10l-3 3h10v4z" />
+              </svg>
+            </div>
             <p>Churn Rate</p>
-            <h3>2.4%</h3>
-            <span class="delta down">0.5% decrease</span>
+            <h3>{{ usersStats.churnLabel }}</h3>
+            <span class="delta down">{{ usersStats.churnDelta }}</span>
           </article>
         </section>
 
@@ -1220,78 +1419,37 @@ onMounted(loadDashboardData);
                 <span>Status</span>
                 <span>Action</span>
               </div>
-              <div class="table-row">
+              <div v-if="isUsersLoading" class="table-empty">Loading users...</div>
+              <div v-else-if="usersLoadError" class="table-empty">{{ usersLoadError }}</div>
+              <div v-else-if="!filteredUsers.length" class="table-empty">No users found.</div>
+              <div
+                v-else
+                v-for="user in filteredUsers"
+                :key="user.id + user.email"
+                class="table-row"
+                @click="selectedUserId = user.id"
+              >
                 <div class="user-cell">
-                  <div class="user-avatar">SC</div>
+                  <div class="user-avatar">{{ user.initials }}</div>
                   <div>
-                    <p>Sarah Connor</p>
-                    <span>ID: #88219</span>
+                    <p>{{ user.name }}</p>
+                    <span>ID: {{ user.id }}</span>
                   </div>
                 </div>
                 <div class="contact-cell">
-                  <p>sarah.c@gmail.com</p>
-                  <span>+855 12 345 678</span>
+                  <p>{{ user.email }}</p>
+                  <span>{{ user.phone }}</span>
                 </div>
-                <div>Oct 12, 2023</div>
-                <div><span class="tag">42 Total</span></div>
-                <div><span class="status active">Active</span></div>
+                <div>{{ user.joinedLabel }}</div>
+                <div><span class="tag">{{ formatCompactNumber(user.bookingsCount) }} Total</span></div>
+                <div><span class="status" :class="user.status.toLowerCase()">{{ user.status }}</span></div>
                 <div class="dots">• • •</div>
               </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar dark">MW</div>
-                  <div>
-                    <p>Marcus Wright</p>
-                    <span>ID: #88154</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>m.wright@tech.io</p>
-                  <span>+855 88 990 112</span>
-                </div>
-                <div>Nov 03, 2023</div>
-                <div><span class="tag">12 Total</span></div>
-                <div><span class="status active">Active</span></div>
-                <div class="dots">• • •</div>
-              </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar">JH</div>
-                  <div>
-                    <p>John Henry</p>
-                    <span>ID: #88001</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>j.henry@global.com</p>
-                  <span>+855 96 111 223</span>
-                </div>
-                <div>Aug 21, 2023</div>
-                <div><span class="tag">8 Total</span></div>
-                <div><span class="status inactive">Inactive</span></div>
-                <div class="dots">• • •</div>
-              </div>
-              <div class="table-row">
-                <div class="user-cell">
-                  <div class="user-avatar">GB</div>
-                  <div>
-                    <p>Grace Brewster</p>
-                    <span>ID: #87992</span>
-                  </div>
-                </div>
-                <div class="contact-cell">
-                  <p>g.brew@outlook.com</p>
-                  <span>+855 77 445 566</span>
-                </div>
-                <div>Jan 15, 2024</div>
-                <div><span class="tag">105 Total</span></div>
-                <div><span class="status active">Active</span></div>
-                <div class="dots">• • •</div>
-              </div>
+
             </div>
 
             <footer class="directory-footer">
-              <span>Showing 1-10 of 24,892 users</span>
+              <span>{{ usersFooterLabel }}</span>
               <div class="pager">
                 <button class="pager-btn" type="button">1</button>
                 <button class="pager-btn active" type="button">2</button>
@@ -1305,44 +1463,42 @@ onMounted(loadDashboardData);
             <div class="profile-card">
               <div class="profile-hero"></div>
               <div class="profile-body">
-                <div class="profile-photo">SC</div>
-                <h3>Sarah Connor</h3>
-                <p class="profile-email">sarah.c@gmail.com</p>
+                <div class="profile-photo">{{ selectedUser?.initials || "?" }}</div>
+                <h3>{{ selectedUser?.name || "Select a user" }}</h3>
+                <p class="profile-email">{{ selectedUser?.email || "No email available" }}</p>
                 <div class="profile-stats">
                   <div>
                     <span>Spent</span>
-                    <strong>$12.4k</strong>
+                    <strong>{{ selectedUser ? formatCurrency(selectedUser.spent) : "$0.00" }}</strong>
                   </div>
                   <div>
                     <span>Bookings</span>
-                    <strong>42</strong>
+                    <strong>{{ selectedUser ? formatNumber(selectedUser.bookingsCount) : "0" }}</strong>
                   </div>
                   <div>
                     <span>Last Login</span>
-                    <strong>2h ago</strong>
+                    <strong>{{ selectedUser?.lastLoginLabel || "N/A" }}</strong>
                   </div>
                 </div>
                 <div class="profile-activity">
                   <p>Recent Activity</p>
-                  <div class="activity-item">
+                  <div v-if="!selectedUserActivities.length" class="activity-item">
                     <div class="activity-dot"></div>
                     <div>
-                      <strong>Booked: Angkor Night Run</strong>
-                      <span>Today, 10:45 AM • $45.00</span>
+                      <strong>No recent activity</strong>
+                      <span>Activity will appear when the user books or updates their account.</span>
                     </div>
                   </div>
-                  <div class="activity-item">
+                  <div
+                    v-else
+                    v-for="activity in selectedUserActivities"
+                    :key="activity.title + activity.time"
+                    class="activity-item"
+                  >
                     <div class="activity-dot"></div>
                     <div>
-                      <strong>Updated Profile Picture</strong>
-                      <span>Yesterday, 04:22 PM</span>
-                    </div>
-                  </div>
-                  <div class="activity-item">
-                    <div class="activity-dot"></div>
-                    <div>
-                      <strong>Canceled: Tech Meetup '24</strong>
-                      <span>Feb 18, 2024 • Refunded</span>
+                      <strong>{{ activity.title }}</strong>
+                      <span>{{ activity.time }} • {{ activity.meta }}</span>
                     </div>
                   </div>
                 </div>
@@ -1355,7 +1511,7 @@ onMounted(loadDashboardData);
             </div>
             <div class="elite-card">
               <h4>Elite Member</h4>
-              <p>Sarah is in the top 2% of contributors in the Siem Reap region.</p>
+              <p>{{ selectedUser?.name || "This user" }} is in the top 2% of contributors in the Siem Reap region.</p>
               <button class="link-btn" type="button">View full engagement report</button>
             </div>
           </aside>
@@ -1393,6 +1549,20 @@ onMounted(loadDashboardData);
   overflow: hidden;
 }
 
+.admin-shell.theme-dark {
+  --ink: #e5eef9;
+  --muted: #b7c4d4;
+  --surface: rgba(15, 23, 42, 0.82);
+  --surface-strong: rgba(15, 23, 42, 0.92);
+  --stroke: rgba(148, 163, 184, 0.18);
+  --shadow: 0 30px 72px rgba(2, 6, 23, 0.42);
+  --shadow-soft: 0 16px 34px rgba(2, 6, 23, 0.3);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(255, 122, 26, 0.14), transparent 45%),
+    radial-gradient(circle at 78% 18%, rgba(59, 130, 246, 0.16), transparent 46%),
+    linear-gradient(135deg, #0f172a 0%, #162033 52%, #102033 100%);
+}
+
 .admin-shell::before {
   content: "";
   position: absolute;
@@ -1401,6 +1571,12 @@ onMounted(loadDashboardData);
     radial-gradient(circle at 14% 70%, rgba(255, 122, 26, 0.14), transparent 45%),
     radial-gradient(circle at 78% 78%, rgba(99, 102, 241, 0.12), transparent 48%);
   pointer-events: none;
+}
+
+.admin-shell.theme-dark::before {
+  background:
+    radial-gradient(circle at 14% 70%, rgba(255, 122, 26, 0.12), transparent 45%),
+    radial-gradient(circle at 78% 78%, rgba(99, 102, 241, 0.1), transparent 48%);
 }
 
 .admin-shell > * {
@@ -1419,6 +1595,10 @@ onMounted(loadDashboardData);
   position: relative;
 }
 
+.admin-shell.theme-dark .admin-sidebar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 100%);
+}
+
 .admin-sidebar::after {
   content: "";
   position: absolute;
@@ -1433,26 +1613,47 @@ onMounted(loadDashboardData);
   z-index: 1;
 }
 
+.brand-card,
+.sidebar-block {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.admin-shell.theme-dark .brand-card,
+.admin-shell.theme-dark .sidebar-block {
+  background: rgba(15, 23, 42, 0.56);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.brand-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff1e4 0%, #ffe2cb 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff5eb 0%, #ffd7b5 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(255, 122, 26, 0.22);
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 16px 30px rgba(255, 122, 26, 0.2);
+  border: 1px solid rgba(255, 122, 26, 0.16);
 }
 
 .brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
@@ -1461,54 +1662,121 @@ onMounted(loadDashboardData);
   color: var(--accent);
 }
 
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c86423;
+}
+
+.admin-shell.theme-dark .brand-kicker,
+.admin-shell.theme-dark .sidebar-section-label {
+  color: #f4b17b;
+}
+
 .brand-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-family: "Fraunces", serif;
-  letter-spacing: 0.2px;
+  font-size: 22px;
+  color: #132238;
+}
+
+.admin-shell.theme-dark .brand-title {
+  color: #f8fafc;
 }
 
 .brand-subtitle {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #66758d;
+}
+
+.admin-shell.theme-dark .brand-subtitle {
+  color: #c6d4e3;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a4b;
+}
+
+.sidebar-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 26px;
+}
+
+.sidebar-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sidebar-section-caption {
   font-size: 12px;
-  color: var(--muted);
+  color: #7b8ba2;
+}
+
+.admin-shell.theme-dark .sidebar-section-caption {
+  color: #9fb2c8;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
-  border: 1px solid rgba(17, 24, 39, 0.06);
-  padding: 14px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  background: #fff;
-  padding: 14px 16px;
-  border-radius: 18px;
+  gap: 14px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.44);
+  padding: 12px 14px;
+  border-radius: 20px;
   font-size: 15px;
   cursor: pointer;
-  color: #475569;
-  transition: all 0.2s ease;
+  color: #314258;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.admin-shell.theme-dark .nav-item {
+  color: #d7e2ee;
+  background: rgba(15, 23, 42, 0.34);
 }
 
 .nav-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #f8fafc, #eef2f7);
-  color: #94a3b8;
+  background: linear-gradient(180deg, #ffffff, #eef3f9);
+  color: #7c8ba3;
   transition: all 0.2s ease;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
+}
+
+.admin-shell.theme-dark .nav-icon {
+  background: radial-gradient(circle at 30% 20%, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.88) 70%);
+  color: #9fb2c8;
+  border-color: rgba(148, 163, 184, 0.12);
 }
 
 .nav-icon svg {
@@ -1518,94 +1786,26 @@ onMounted(loadDashboardData);
 }
 
 .nav-item:hover {
-  background: linear-gradient(180deg, #fff9f3, #fef6ef);
-  color: var(--accent);
-  transform: translateX(2px);
-  border-color: rgba(255, 122, 26, 0.18);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 122, 26, 0.12);
+  transform: translateX(3px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #fff4ea 0%, #ffe2ce 100%);
-  color: var(--accent);
-  border-color: rgba(255, 122, 26, 0.2);
-  box-shadow: inset 3px 0 0 var(--accent), 0 10px 22px rgba(255, 122, 26, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 244, 234, 0.98), rgba(255, 228, 207, 0.96));
+  color: #d05f17;
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 14px 28px rgba(255, 122, 26, 0.12);
 }
 
 .nav-item.active .nav-icon {
-  background: linear-gradient(135deg, #ff7a1a, #f15b2a);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 10px 22px rgba(241, 91, 42, 0.25);
-}
-
-.home-link {
-  text-decoration: none;
-}
-
-.admin-user-card {
-  margin-top: auto;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 252, 255, 0.94));
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
-  display: grid;
-  gap: 10px;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  position: relative;
-  overflow: hidden;
-}
-
-
-
-
-.admin-user-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 90% 10%, rgba(255, 122, 26, 0.12), transparent 38%);
-  pointer-events: none;
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: #ffe7d2;
-  color: #c65300;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  box-shadow: 0 10px 18px rgba(241, 91, 42, 0.2);
-}
-
-.user-name {
-  font-weight: 600;
-  margin: 0;
-}
-
-.user-role {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.logout-btn {
-  margin-top: 4px;
-  border: 1px solid rgba(255, 122, 26, 0.22);
-  background: linear-gradient(135deg, #ffede0, #ffe7d2);
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #c65300;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  width: 100%;
-}
-
-.logout-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 22px rgba(241, 91, 42, 0.16);
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.24), rgba(255, 122, 26, 0.08));
+  color: #d7641d;
+  border-color: rgba(255, 122, 26, 0.24);
 }
 
 .admin-main {
@@ -1643,21 +1843,21 @@ onMounted(loadDashboardData);
 
 .search {
   flex: 1;
-  max-width: 380px;
+  max-width: 420px;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 18px;
+  padding: 12px 16px;
   gap: 8px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search:focus-within {
   transform: translateY(-1px);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
 }
 
 .search-icon svg {
@@ -1891,26 +2091,50 @@ onMounted(loadDashboardData);
 .admin-hero {
   display: grid;
   gap: 12px;
-  padding: 22px 24px;
-  border-radius: 26px;
-  background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: var(--shadow);
+  padding: 26px 28px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 244, 236, 0.9) 65%, rgba(236, 244, 255, 0.92) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40% 50% 30% -10%;
+  background: radial-gradient(circle at top, rgba(255, 122, 26, 0.28), transparent 60%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.admin-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 55%);
+  pointer-events: none;
+}
+
+.admin-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-hero .eyebrow {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.6px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   margin: 0;
-  color: #b45309;
+  color: #c45a12;
 }
 
 .hero-title {
   margin: 0;
-  font-size: 38px;
-  font-weight: 700;
+  font-size: 40px;
+  font-weight: 720;
   font-family: "Fraunces", serif;
   color: var(--ink);
 }
@@ -1918,7 +2142,7 @@ onMounted(loadDashboardData);
 .hero-subtitle {
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .hero-actions {
@@ -1926,6 +2150,7 @@ onMounted(loadDashboardData);
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .hero-actions .ghost-btn,
@@ -1936,54 +2161,104 @@ onMounted(loadDashboardData);
 .admin-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .stat-card {
-  background: var(--surface);
-  padding: 18px;
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 255, 0.92));
+  padding: 22px 24px 20px;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: stat-pop 0.6s ease both;
 }
 
 .stat-card::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.14), transparent 55%);
-  opacity: 0;
+  background:
+    radial-gradient(circle at top right, rgba(255, 122, 26, 0.16), transparent 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.6), transparent 55%);
+  opacity: 0.6;
   transition: opacity 0.2s ease;
 }
 
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  width: 54px;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 122, 26, 0.9), rgba(255, 154, 77, 0.5));
+  opacity: 0.7;
+}
+
 .stat-card:hover::after {
-  opacity: 1;
+  opacity: 0.9;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.16);
+  transform: translateY(-5px);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+  border-color: rgba(255, 122, 26, 0.2);
+}
+
+.stat-card:nth-child(1)::before {
+  background: linear-gradient(90deg, #ff7a1a, #ffb26b);
+}
+
+.stat-card:nth-child(2)::before {
+  background: linear-gradient(90deg, #3b82f6, #67e8f9);
+}
+
+.stat-card:nth-child(3)::before {
+  background: linear-gradient(90deg, #10b981, #6ee7b7);
+}
+
+.stat-card:nth-child(4)::before {
+  background: linear-gradient(90deg, #f15b2a, #ff9a4d);
+}
+
+.stat-card:nth-child(1) {
+  animation-delay: 0.02s;
+}
+
+.stat-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.stat-card:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.stat-card:nth-child(4) {
+  animation-delay: 0.2s;
 }
 
 .stat-card.solid {
-  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 100%);
+  background: linear-gradient(135deg, #ff7a1a 0%, #f15b2a 52%, #ff9a4d 100%);
   color: #fff;
   border-color: transparent;
+  box-shadow: 0 30px 70px rgba(241, 91, 42, 0.35);
 }
 
 .stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.2), rgba(255, 122, 26, 0.05));
-  margin-bottom: 12px;
-  border: 1px solid rgba(255, 122, 26, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 226, 206, 0.5));
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 122, 26, 0.22);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   display: grid;
   place-items: center;
-  color: #f15b2a;
+  color: #ff7a1a;
 }
 
 .stat-card.solid .stat-icon {
@@ -2001,13 +2276,15 @@ onMounted(loadDashboardData);
   margin: 0;
   font-size: 12px;
   color: inherit;
-  opacity: 0.75;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 .stat-value {
   margin: 6px 0 0;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 720;
 }
 
 .stat-delta {
@@ -2015,10 +2292,35 @@ onMounted(loadDashboardData);
   top: 16px;
   right: 16px;
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 999px;
-  background: #e9f7ef;
+  background: #eaf8ef;
   color: #2f9e5f;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card.solid::after {
+  opacity: 0.35;
+}
+
+.stat-card.solid .stat-label {
+  opacity: 0.9;
+  letter-spacing: 0.08em;
+}
+
+.stat-card.solid .stat-value {
+  font-size: 30px;
+}
+
+@keyframes stat-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .stat-delta.down {
@@ -2038,7 +2340,7 @@ onMounted(loadDashboardData);
 
 .admin-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 2fr) minmax(240px, 1fr);
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -2124,6 +2426,23 @@ onMounted(loadDashboardData);
   height: 42px;
   border-radius: 14px;
   background: #ffe6d1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #c45a18;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.activity-icon.is-customer {
+  background: #e7f5ff;
+  color: #1d4ed8;
+}
+
+.activity-icon.is-vendor {
+  background: #ecfdf3;
+  color: #15803d;
 }
 
 .activity-text {
@@ -2296,6 +2615,33 @@ onMounted(loadDashboardData);
   fill: currentColor;
 }
 
+.settings-quick {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-feedback {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  font-size: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-feedback.success {
+  border-color: rgba(47, 158, 95, 0.22);
+  color: #1f7a4a;
+}
+
+.settings-feedback.error {
+  border-color: rgba(226, 85, 63, 0.24);
+  color: #c53f28;
+}
+
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(220px, 260px) 1fr;
@@ -2431,119 +2777,11 @@ onMounted(loadDashboardData);
   gap: 20px;
 }
 
-.profile-avatar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  flex-wrap: wrap;
-}
-
 .profile-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.chip svg {
-  width: 14px;
-  height: 14px;
-}
-
-.chip.success {
-  background: #e7f6ec;
-  color: #0f9b4c;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.chip.muted {
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-.profile-details {
-  flex: 1;
-  min-width: 220px;
-}
-
-.avatar-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #ffb98b 0%, #ff8b3d 100%);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-weight: 700;
-}
-
-.avatar-circle.has-image {
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.12);
-}
-
-.avatar-circle img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.label {
-  margin: 0;
-  font-weight: 600;
-}
-
-.hint {
-  margin: 4px 0 10px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.hint.subtle {
-  color: #94a3b8;
-  margin: 6px 0 0;
-}
-
-.upload-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.upload-actions .ghost-btn,
-.upload-actions .link-btn {
-  white-space: nowrap;
 }
 
 .form-grid {
@@ -2581,6 +2819,11 @@ onMounted(loadDashboardData);
   color: #94a3b8;
 }
 
+.form-grid input[readonly] {
+  background: #f8fafc;
+  color: #334155;
+}
+
 .form-grid .full {
   grid-column: 1 / -1;
 }
@@ -2613,6 +2856,28 @@ onMounted(loadDashboardData);
 .toggle-list {
   display: grid;
   gap: 12px;
+}
+
+.settings-card-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inline-feedback {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inline-feedback.success {
+  color: #1f7a4a;
+}
+
+.inline-feedback.error {
+  color: #c53f28;
 }
 
 .switch {
@@ -2690,6 +2955,57 @@ onMounted(loadDashboardData);
   color: #e2553f;
 }
 
+.admin-shell.theme-dark .settings-menu,
+.admin-shell.theme-dark .settings-card,
+.admin-shell.theme-dark .toggle-row,
+.admin-shell.theme-dark .settings-feedback {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.admin-shell.theme-dark .settings-link {
+  color: #d7e2ee;
+}
+
+.admin-shell.theme-dark .settings-link .dot {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.admin-shell.theme-dark .pill {
+  background: rgba(255, 122, 26, 0.16);
+  color: #ffb98b;
+}
+
+.admin-shell.theme-dark .pill.alt {
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfd8ff;
+}
+
+.admin-shell.theme-dark .form-grid input,
+.admin-shell.theme-dark .form-grid select {
+  background: rgba(15, 23, 42, 0.88);
+  color: var(--ink);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.admin-shell.theme-dark .form-grid input::placeholder {
+  color: #7f8ea3;
+}
+
+.admin-shell.theme-dark .form-grid input[readonly] {
+  background: rgba(30, 41, 59, 0.78);
+  color: #d7e2ee;
+}
+
+.admin-shell.theme-dark .theme-toggle {
+  background: rgba(30, 41, 59, 0.88);
+}
+
+.admin-shell.theme-dark .theme-toggle button.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffb98b;
+}
+
 .users-page {
   display: grid;
   gap: 22px;
@@ -2701,26 +3017,73 @@ onMounted(loadDashboardData);
 }
 
 .users-search {
-  max-width: 420px;
+  max-width: 520px;
+  width: 100%;
+  border-radius: 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+.users-search:focus-within {
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+
+.users-search .search-icon svg {
+  fill: #94a3b8;
 }
 
 .users-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .users-stat {
-  background: var(--surface-strong);
-  border-radius: 18px;
-  padding: 16px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-soft);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.92));
+  border-radius: 20px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.users-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 55%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.users-stat:nth-child(1)::after {
+  background: radial-gradient(circle at top right, rgba(255, 122, 26, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(2)::after {
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(3)::after {
+  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.16), transparent 55%);
+}
+
+.users-stat:nth-child(4)::after {
+  background: radial-gradient(circle at top right, rgba(239, 68, 68, 0.16), transparent 55%);
+}
+
+.users-stat > * {
+  position: relative;
+  z-index: 1;
 }
 
 .users-stat h3 {
   margin: 8px 0;
-  font-size: 22px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .users-stat p {
@@ -2728,7 +3091,38 @@ onMounted(loadDashboardData);
   font-size: 12px;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
+}
+
+.users-stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+  color: #ff7a1a;
+  margin-bottom: 10px;
+}
+
+.users-stat-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.users-stat:nth-child(2) .users-stat-icon {
+  color: #3b82f6;
+}
+
+.users-stat:nth-child(3) .users-stat-icon {
+  color: #10b981;
+}
+
+.users-stat:nth-child(4) .users-stat-icon {
+  color: #ef4444;
 }
 
 .delta {
@@ -2751,6 +3145,8 @@ onMounted(loadDashboardData);
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 20px;
+  align-items: start;
+  min-width: 0;
 }
 
 .users-directory {
@@ -2798,6 +3194,15 @@ onMounted(loadDashboardData);
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 4px;
+}
+
+.table-empty {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .table-head,
@@ -2928,6 +3333,9 @@ onMounted(loadDashboardData);
   display: grid;
   gap: 16px;
   min-width: 0;
+  width: 100%;
+  max-width: 360px;
+  justify-self: stretch;
 }
 
 .profile-card {
@@ -2936,6 +3344,7 @@ onMounted(loadDashboardData);
   border: 1px solid var(--stroke);
   overflow: hidden;
   box-shadow: var(--shadow);
+  width: 100%;
 }
 
 .profile-hero {
@@ -3016,13 +3425,14 @@ onMounted(loadDashboardData);
 }
 
 .profile-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
 }
 
 .profile-actions .ghost-btn {
-  flex: 1 1 120px;
+  width: 100%;
   white-space: nowrap;
 }
 
@@ -3035,6 +3445,7 @@ onMounted(loadDashboardData);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  width: 100%;
 }
 
 .elite-card {
@@ -3043,6 +3454,26 @@ onMounted(loadDashboardData);
   padding: 18px;
   color: #fff;
   box-shadow: var(--shadow-soft);
+  width: 100%;
+}
+
+.admin-shell :is(
+    .stat-card,
+    .activity-card,
+    .report-card,
+    .status-card,
+    .settings-card,
+    .users-directory,
+    .profile-card,
+    .elite-card,
+    .users-stat
+  ) {
+  outline: 1px solid rgba(255, 122, 26, 0.2);
+  outline-offset: -10px;
+}
+
+.admin-shell :is(.stat-card.solid, .report-card, .elite-card) {
+  outline-color: rgba(255, 255, 255, 0.35);
 }
 
 .elite-card h4 {
@@ -3100,18 +3531,13 @@ onMounted(loadDashboardData);
   }
 
   .admin-nav {
-    display: flex;
     flex-direction: row;
-    gap: 10px;
     overflow-x: auto;
-    padding: 10px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid var(--stroke);
+    padding-bottom: 4px;
   }
 
-  .admin-user-card {
-    margin-top: 0;
+  .nav-item {
+    min-width: 220px;
   }
 
   .admin-grid {
@@ -3126,6 +3552,15 @@ onMounted(loadDashboardData);
 @media (max-width: 720px) {
   .admin-main {
     padding: 24px;
+  }
+
+  .admin-sidebar {
+    padding: 20px 16px;
+  }
+
+  .sidebar-block-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .admin-topbar {
@@ -3155,3 +3590,5 @@ onMounted(loadDashboardData);
   }
 }
 </style>
+
+

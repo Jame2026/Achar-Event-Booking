@@ -978,57 +978,10 @@ const { uiText } = useLanguageCopy(copyByLanguage)
                     {{ props.getAvailabilityLabel(item) }}
                   </span>
                   <p v-if="props.getAvailability(item)">{{ props.getAvailability(item).message }}</p>
-<<<<<<< HEAD
-                <strong class="service-price">{{ item.priceLabel }}</strong>
-              </div>
-              <p>{{ item.description }}</p>
-              <ul>
-                <li>{{ item.location }}</li>
-                <li>{{ item.date }}</li>
-              </ul>
-              <div class="service-footer">
-                <div class="service-book-actions">
-                  <button
-                    type="button"
-                    class="ghost"
-                    @click="props.goToPackageCustomization(item.eventType, item.title)"
-                  >
-                    {{ uiText.selectPackage }}
-                  </button>
-                  <input
-                    v-if="!item.isPreview"
-                    :value="props.selectedQuantities[item.id]"
-                    type="number"
-                    min="1"
-                    max="20"
-                    @input="props.selectedQuantities[item.id] = Number($event.target.value)"
-                  />
-                  <button
-                    type="button"
-                    :disabled="item.isPreview || props.bookingSubmittingEventId === item.id"
-                    @click="item.isPreview ? null : props.bookPackage(item)"
-                  >
-                    {{
-                      props.bookingSubmittingEventId === item.id
-                        ? uiText.booking
-                        : uiText.bookNow
-                    }}
-                  </button>
-                  <button
-                    type="button"
-                    class="ghost"
-                    :disabled="!item.isPreview && props.checkingAvailabilityEventId === item.id"
-                    @click="props.goToAvailability(item)"
-                  >
-                    {{ !item.isPreview && props.checkingAvailabilityEventId === item.id ? uiText.checking : uiText.checkAvailability }}
-                  </button>
-=======
->>>>>>> fbad5b74174203c482ad3f0bb669ad3a83a41d31
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </article>
 
         <article v-else-if="props.bindings.activeVendorTab.value === 'reviews'" class="card services">

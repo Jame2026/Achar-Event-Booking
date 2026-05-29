@@ -8,6 +8,7 @@ import BookingsPage from './components/pages/BookingsPage.vue'
 import CustomizationPage from './components/pages/CustomizationPage.vue'
 import AdminDashboardPage from './components/pages/AdminDashboardPage.vue'
 import AdminBookingsPage from './components/pages/AdminBookingsPage.vue'
+import AdminCustomersPage from './components/pages/AdminCustomersPage.vue'
 import AdminEventsPage from './components/pages/AdminEventsPage.vue'
 import AdminRevenuePage from './components/pages/AdminRevenuePage.vue'
 import AdminVendorsPage from './components/pages/AdminVendorsPage.vue'
@@ -235,6 +236,14 @@ function onLoginSuccess(user) {
   })
 }
 
+function syncAuthenticatedUser(nextUser) {
+  if (!nextUser || typeof nextUser !== 'object') return
+  loggedInUser.value = {
+    ...(loggedInUser.value || {}),
+    ...nextUser,
+  }
+}
+
 function handlePostAuthRedirect() {
   const redirectPath = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY)
   const redirectAtRaw = sessionStorage.getItem(POST_AUTH_REDIRECT_AT_KEY)
@@ -302,7 +311,8 @@ const currentPage = ref('dashboard')
 const activeVendorTab = ref('about')
 const vendorDashboardTab = ref('overview')
 const bookingFilter = ref('Upcoming')
-const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', 'revenue', 'events', 'admin-bookings', 'vendors']
+const adminLegacyPages = ['dashboard', 'events', 'admin-bookings', 'vendors', 'customers', 'revenue', 'settings']
+const allowedPages = ['dashboard', 'vendor', 'customization', 'availability', 'bookings', 'profile', 'messages', ...adminLegacyPages]
 const allowedVendorTabs = ['about', 'services', 'reviews']
 const allowedVendorDashboardTabs = ['overview', 'services', 'bookings', 'messages', 'income', 'settings']
 const isPlannerUser = computed(() => String(loggedInUser.value?.role || 'user') === 'user')
@@ -320,6 +330,8 @@ function firstQueryValue(value) {
 
 function normalizePage(value) {
   const page = firstQueryValue(value)
+  if (page === 'users') return 'customers'
+  if (adminLegacyPages.includes(page) && !isAdminAccount.value) return defaultLegacyPage.value
   if (!allowedPages.includes(page)) return defaultLegacyPage.value
   if (page === 'dashboard' && !isVendorAccount.value) return 'bookings'
   return page
@@ -1363,6 +1375,11 @@ async function loadVendorSettings({ eventId = null, silent = false } = {}) {
   isLoadingVendorSettings.value = true
   if (!silent) vendorSettingsNotice.value = ''
   try {
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+      throw new Error('Vendor account could not be identified.')
+    }
+
     const targetEventId =
       eventId !== null && eventId !== undefined
         ? eventId
@@ -1370,7 +1387,10 @@ async function loadVendorSettings({ eventId = null, silent = false } = {}) {
           ? null
           : Number(vendorSettingsServiceId.value)
 
-    const result = await apiGet('vendor/settings', targetEventId ? { event_id: targetEventId } : {})
+    const result = await apiGet('vendor/settings', {
+      vendor_user_id: vendorUserId,
+      ...(targetEventId ? { event_id: targetEventId } : {}),
+    })
     const settings = result?.settings || result?.data || result
     vendorSettings.value = normalizeVendorSettings(settings)
     if (targetEventId !== null && targetEventId !== undefined) {
@@ -1391,13 +1411,22 @@ async function saveVendorSettings(payload) {
   isSavingVendorSettings.value = true
   vendorSettingsNotice.value = ''
   try {
+    const vendorUserId = Number(loggedInUser.value?.id || 0)
+    if (!Number.isFinite(vendorUserId) || vendorUserId <= 0) {
+      throw new Error('Vendor account could not be identified.')
+    }
+
     const targetEventId =
       payload?.event_id !== undefined
         ? payload.event_id
         : vendorSettingsServiceId.value === 'all'
           ? null
           : Number(vendorSettingsServiceId.value)
-    const normalizedPayload = { ...payload, event_id: targetEventId }
+    const normalizedPayload = {
+      ...payload,
+      vendor_user_id: vendorUserId,
+      event_id: targetEventId,
+    }
     const result = await apiPatch('vendor/settings', normalizedPayload)
     const settings = result?.settings || result?.data || result
     vendorSettings.value = normalizeVendorSettings(settings)
@@ -2003,10 +2032,20 @@ async function deleteCustomerBooking(item) {
   if (!shouldDelete) return
 
   const bookingId = Number(item.id || 0)
+  const lookup = resolveBookingLookup()
 
   try {
-    if (Number.isFinite(bookingId) && bookingId > 0 && loggedInUser.value) {
-      await apiDelete(`user/bookings/${bookingId}`)
+    if (Number.isFinite(bookingId) && bookingId > 0) {
+      if (!lookup.hasIdentity) {
+        notice.value = uiText.value.signInToContinue
+        return
+      }
+
+      await apiDelete(`user/bookings/${bookingId}`, {
+        user_id: lookup.userId || undefined,
+        customer_email: lookup.email || lookup.fallbackEmail || undefined,
+        customer_phone: lookup.phone || undefined,
+      })
     }
 
     deleteLocalBookingEntry(item)
@@ -2120,11 +2159,15 @@ onBeforeUnmount(() => {
     <Register v-if="!loggedInUser && currentView === 'register'" @switch="toggleView" @success="onLoginSuccess" />
     <Login v-else-if="!loggedInUser" @switch="toggleView" @success="onLoginSuccess" />
     <div v-else class="page">
-      <PublicNavbar v-if="!(isAdminAccount && ['dashboard', 'revenue', 'events', 'admin-bookings', 'vendors'].includes(currentPage))" />
+      <PublicNavbar />
       <AdminDashboardPage
-        v-if="isAdminAccount && currentPage === 'dashboard'"
+        v-if="isAdminAccount && (currentPage === 'dashboard' || currentPage === 'settings')"
+        :key="currentPage"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :admin-user="loggedInUser"
+        :active-page="currentPage"
+        :update-admin-user="syncAuthenticatedUser"
         :logout-user="logout"
       />
       <AdminBookingsPage
@@ -2149,6 +2192,13 @@ onBeforeUnmount(() => {
         v-else-if="isAdminAccount && currentPage === 'vendors'"
         :app-logo-src="brandLogoSrc"
         :admin-display-name="adminDisplayName"
+        :logout-user="logout"
+      />
+      <AdminCustomersPage
+        v-else-if="isAdminAccount && currentPage === 'customers'"
+        :app-logo-src="brandLogoSrc"
+        :admin-display-name="adminDisplayName"
+        :admin-user-id="loggedInUser?.id"
         :logout-user="logout"
       />
       <VendorDashboardPage

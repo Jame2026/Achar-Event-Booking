@@ -3247,9 +3247,8 @@ function noop() {}
                       v-model.trim="prebookForm.email"
                       type="email"
                       placeholder="you@example.com"
-                      required
+                      autocomplete="email"
                     />
-                    <input v-model.trim="prebookForm.email" type="email" placeholder="you@example.com" />
                   </label>
 
                   <label class="prebook-field prebook-span-2">

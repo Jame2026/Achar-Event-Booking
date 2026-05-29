@@ -9,11 +9,12 @@ use App\Models\Event;
 use App\Models\User;
 use App\Services\AdminBookingAlertService;
 use App\Support\NotificationCache;
+use App\Support\VendorDayOff;
 use App\Support\VendorCache;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\CarbonPeriod;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -31,7 +32,9 @@ class BookingController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'event_type' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', Rule::in(['pending', 'confirmed', 'cancelled'])],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 20), 100));
 
         $customerEmail = isset($validated['customer_email'])
             ? strtolower(trim((string) $validated['customer_email']))
@@ -41,9 +44,9 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
-                'event.vendor:id,name,email',
-                'user:id,name,email,phone',
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event.vendor:id,name,email,profile_image_url',
+                'user:id,name,email,phone,location,profile_image_url',
             ])
             ->when($userId || $customerEmail || $customerPhoneVariants, function ($query) use ($userId, $customerEmail, $customerPhoneVariants) {
                 $query->where(function ($identityQuery) use ($userId, $customerEmail, $customerPhoneVariants) {
@@ -80,21 +83,26 @@ class BookingController extends Controller
                 )
             )
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage);
 
         return response()->json($bookings);
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 15), 100));
+
         $bookings = Booking::query()
             ->with([
-                'event:id,title,event_type,image_url,starts_at,location,vendor_id',
-                'event.vendor:id,name,email',
-                'user:id,name,email',
+                'event:id,title,event_type,image_url,starts_at,location,vendor_id,service_mode',
+                'event.vendor:id,name,email,profile_image_url',
+                'user:id,name,email,phone,location,profile_image_url',
             ])
             ->latest()
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json($bookings);
     }
@@ -126,26 +134,38 @@ class BookingController extends Controller
             ? null
             : max(0, $event->capacity - $reserved);
 
+        $vendorDayOff = VendorDayOff::resolve($event, $requestedDate);
         $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $requestedDate);
 
         $serviceAvailable = $event->is_active
             && ! $hasExistingBooking
             && ($event->capacity === 0 || $remainingCapacity >= $requestedQuantity);
 
+        $vendorAvailable = ! $hasOtherVendorBooking && ! ($vendorDayOff['is_day_off'] ?? false);
+
         return response()->json([
             'event_id' => $event->id,
             'requested_date' => $requestedDate,
             'service_available' => $serviceAvailable,
-            'vendor_available' => ! $hasOtherVendorBooking,
-            'is_busy' => ! $serviceAvailable || $hasOtherVendorBooking,
+            'vendor_available' => $vendorAvailable,
+            'is_busy' => ! $serviceAvailable || ! $vendorAvailable,
             'has_another_booked' => $hasOtherVendorBooking,
             'has_existing_booking' => $hasExistingBooking,
+            'has_vendor_day_off' => (bool) ($vendorDayOff['is_day_off'] ?? false),
+            'vendor_day_off_scope' => $vendorDayOff['scope'] ?? null,
             'is_active' => (bool) $event->is_active,
             'capacity' => $event->capacity,
             'requested_quantity' => $requestedQuantity,
             'reserved' => (int) $reserved,
             'remaining_capacity' => $remainingCapacity,
-            'message' => $this->availabilityMessage($event, $serviceAvailable, $hasOtherVendorBooking, $remainingCapacity, $requestedDate),
+            'message' => $this->availabilityMessage(
+                $event,
+                $serviceAvailable,
+                $hasOtherVendorBooking,
+                $remainingCapacity,
+                $requestedDate,
+                $vendorDayOff
+            ),
         ]);
     }
 
@@ -170,9 +190,11 @@ class BookingController extends Controller
             $remainingCapacity = $event->capacity === 0
                 ? null
                 : max(0, $event->capacity - $reserved);
+            $vendorDayOff = VendorDayOff::resolve($event, $dateString);
             $hasOtherVendorBooking = $this->vendorHasAnotherBookedEvent($event, $dateString);
             $isAvailable = $event->is_active
                 && ! $hasExistingBooking
+                && ! ($vendorDayOff['is_day_off'] ?? false)
                 && ! $hasOtherVendorBooking
                 && ($event->capacity === 0 || $remainingCapacity > 0);
 
@@ -184,6 +206,8 @@ class BookingController extends Controller
                 'remaining_capacity' => $remainingCapacity,
                 'has_another_booked' => $hasOtherVendorBooking,
                 'has_existing_booking' => $hasExistingBooking,
+                'has_vendor_day_off' => (bool) ($vendorDayOff['is_day_off'] ?? false),
+                'vendor_day_off_scope' => $vendorDayOff['scope'] ?? null,
             ];
         }
 
@@ -225,6 +249,13 @@ class BookingController extends Controller
         if ($event) {
             if (! $event->is_active) {
                 return response()->json(['message' => 'This event is not available for booking.'], 422);
+            }
+
+            $vendorDayOff = VendorDayOff::resolve($event, $requestedDate);
+            if ($vendorDayOff['is_day_off'] ?? false) {
+                return response()->json([
+                    'message' => $vendorDayOff['message'] ?? 'Vendor is unavailable on the selected date.',
+                ], 422);
             }
 
             if ($this->hasBookingOnDate($event, $requestedDate)) {
@@ -400,16 +431,45 @@ class BookingController extends Controller
 
     public function destroyForUser(Request $request, Booking $booking): JsonResponse
     {
-        /** @var \App\Models\User $user */
-        $user = $request->user();
-
         $booking->loadMissing([
             'event:id,title,starts_at,location,vendor_id',
             'event.vendor:id,name,email',
             'user:id,name,email,phone',
         ]);
 
-        if (! $this->canUserAccessBooking($user, $booking)) {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        $canAccess = false;
+
+        if ($user instanceof User) {
+            $canAccess = $this->canUserAccessBooking($user, $booking);
+        } else {
+            $validated = $request->validate([
+                'user_id' => ['nullable', 'integer', 'min:1'],
+                'customer_email' => ['nullable', 'email', 'max:255'],
+                'customer_phone' => ['nullable', 'string', 'max:20'],
+            ]);
+
+            $customerEmail = isset($validated['customer_email'])
+                ? strtolower(trim((string) $validated['customer_email']))
+                : null;
+            $customerPhoneVariants = $this->bookingPhoneLookupVariants($validated['customer_phone'] ?? null);
+            $userId = isset($validated['user_id']) ? (int) $validated['user_id'] : null;
+
+            if (! $userId && ! $customerEmail && ! $customerPhoneVariants) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+
+            $canAccess = $this->canIdentityAccessBooking(
+                $booking,
+                $userId,
+                $customerEmail,
+                $customerPhoneVariants,
+            );
+        }
+
+        if (! $canAccess) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -515,23 +575,38 @@ class BookingController extends Controller
 
     private function canUserAccessBooking(User $user, Booking $booking): bool
     {
-        if ((int) ($booking->user_id ?? 0) === (int) $user->id) {
-            return true;
-        }
-
         $userEmail = strtolower(trim((string) ($user->email ?? '')));
-        $bookingEmail = strtolower(trim((string) ($booking->customer_email ?? $booking->user?->email ?? '')));
-        if ($userEmail !== '' && $bookingEmail !== '' && $userEmail === $bookingEmail) {
+        $userPhoneVariants = $this->bookingPhoneLookupVariants($user->phone ?? null);
+
+        return $this->canIdentityAccessBooking(
+            $booking,
+            (int) $user->id,
+            $userEmail !== '' ? $userEmail : null,
+            $userPhoneVariants,
+        );
+    }
+
+    private function canIdentityAccessBooking(
+        Booking $booking,
+        ?int $userId = null,
+        ?string $customerEmail = null,
+        array $customerPhoneVariants = [],
+    ): bool {
+        if ($userId && (int) ($booking->user_id ?? 0) === $userId) {
             return true;
         }
 
-        $userPhoneVariants = $this->bookingPhoneLookupVariants($user->phone ?? null);
+        $bookingEmail = strtolower(trim((string) ($booking->customer_email ?? $booking->user?->email ?? '')));
+        if ($customerEmail && $bookingEmail !== '' && $bookingEmail === strtolower(trim($customerEmail))) {
+            return true;
+        }
+
         $bookingPhoneVariants = array_values(array_unique(array_merge(
             $this->bookingPhoneLookupVariants($booking->customer_phone ?? null),
             $this->bookingPhoneLookupVariants($booking->user?->phone ?? null),
         )));
 
-        return count(array_intersect($userPhoneVariants, $bookingPhoneVariants)) > 0;
+        return count(array_intersect($customerPhoneVariants, $bookingPhoneVariants)) > 0;
     }
 
     private function canCustomerDeleteBooking(Booking $booking): bool
@@ -604,10 +679,15 @@ class BookingController extends Controller
         bool $serviceAvailable,
         bool $hasOtherVendorBooking,
         ?int $remainingCapacity,
-        ?string $requestedDate = null
+        ?string $requestedDate = null,
+        array $vendorDayOff = []
     ): string {
         if (! $event->is_active) {
             return 'Service is not active right now.';
+        }
+
+        if ($vendorDayOff['is_day_off'] ?? false) {
+            return $vendorDayOff['message'] ?? 'Vendor is unavailable on the selected date.';
         }
 
         if ($this->hasBookingOnDate($event, $requestedDate)) {

@@ -188,6 +188,11 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.fullPath === from.fullPath) return undefined
+    return { top: 0, left: 0 }
+  },
 });
 
 export default router;
