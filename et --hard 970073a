@@ -1,0 +1,36 @@
+[33mf8e391e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: commit: add readme
+[33m970073a[m HEAD@{1}: checkout: moving from feature/fix to main
+[33m9bf5a01[m[33m ([m[1;31morigin/feature/fix[m[33m, [m[1;32mfeature/fix[m[33m)[m HEAD@{2}: commit (merge): add file
+[33mebcb807[m HEAD@{3}: commit: add more file
+[33m935370d[m HEAD@{4}: commit: update more feature
+[33m33a0d3f[m HEAD@{5}: commit: update eamil to real email on window
+[33m1ea78ce[m HEAD@{6}: commit: update more feature on admindasborad
+[33me205adb[m HEAD@{7}: pull origin feature/AdminDashboard: Merge made by the 'ort' strategy.
+[33m82279d5[m HEAD@{8}: checkout: moving from develop to feature/fix
+[33mfbad5b7[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{9}: checkout: moving from feature/fix to develop
+[33m82279d5[m HEAD@{10}: pull origin develop: Merge made by the 'ort' strategy.
+[33mcb24c7e[m HEAD@{11}: commit: upgrand profile
+[33m6ce23d5[m HEAD@{12}: checkout: moving from feature/overall to feature/fix
+[33m15a8889[m[33m ([m[1;31morigin/feature/overall[m[33m, [m[1;32mfeature/overall[m[33m)[m HEAD@{13}: commit: update more feature
+[33m36832c5[m HEAD@{14}: commit (merge): update more feature
+[33m6ce23d5[m HEAD@{15}: checkout: moving from feature/fix to feature/overall
+[33m6ce23d5[m HEAD@{16}: commit: upgrad more feature
+[33mc79a3e7[m HEAD@{17}: checkout: moving from develop to feature/fix
+[33mfbad5b7[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{18}: checkout: moving from feature/fix to develop
+[33mc79a3e7[m HEAD@{19}: commit: stop more feature on home page
+[33m6f4b4b7[m HEAD@{20}: checkout: moving from develop to feature/fix
+[33mfbad5b7[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{21}: checkout: moving from feature/fix to develop
+[33m6f4b4b7[m HEAD@{22}: commit: upgrand more feature on home page and about page
+[33m47d5559[m HEAD@{23}: commit (merge): pull develop few and update more feature
+[33mc7e6a2d[m HEAD@{24}: checkout: moving from develop to feature/fix
+[33mfbad5b7[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{25}: pull origin develop: Fast-forward
+[33md6d3fd7[m HEAD@{26}: checkout: moving from feature/fix to develop
+[33mc7e6a2d[m HEAD@{27}: commit (merge): Resolve merge conflict in VendorDashboardPage.vue
+[33m76cfcf4[m HEAD@{28}: checkout: moving from develop to feature/fix
+[33md6d3fd7[m HEAD@{29}: checkout: moving from feature/fix to develop
+[33m76cfcf4[m HEAD@{30}: commit: update more feature
+[33m280858d[m HEAD@{31}: commit: update more feature and color extra somepage
+[33m64950d1[m HEAD@{32}: commit: update few feature
+[33md6d3fd7[m HEAD@{33}: checkout: moving from develop to feature/fix
+[33md6d3fd7[m HEAD@{34}: checkout: moving from main to develop
+[33m970073a[m HEAD@{35}: clone: from https://github.com/Jame2026/Achar-Event-Booking.git

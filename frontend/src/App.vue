@@ -1,47 +1,39 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import SiteFooter from './components/SiteFooter.vue'
+
+const AUTH_USER_STORAGE_KEY = 'achar_auth_user'
+const route = useRoute()
+const hasAuthUser = ref(Boolean(localStorage.getItem(AUTH_USER_STORAGE_KEY)))
+
+function refreshAuthUserState() {
+  hasAuthUser.value = Boolean(localStorage.getItem(AUTH_USER_STORAGE_KEY))
+}
+
+const hideFooter = computed(() => {
+  if (
+    route.path === '/reset-password' ||
+    route.path === '/forgot-password' ||
+    route.path === '/auth/callback' ||
+    route.path === '/auth/google/callback'
+  ) return true
+  if (route.path === '/legacy-app') return true
+  return false
+})
+
+onMounted(() => {
+  window.addEventListener('storage', refreshAuthUserState)
+  window.addEventListener('achar:auth-updated', refreshAuthUserState)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', refreshAuthUserState)
+  window.removeEventListener('achar:auth-updated', refreshAuthUserState)
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <router-view />
+  <SiteFooter v-if="!hideFooter" />
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
